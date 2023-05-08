@@ -1,4 +1,4 @@
-package navimap
+package navigator
 
 import (
 	"errors"
@@ -22,6 +22,10 @@ func (m Map) SetValue(key string, value any) error {
 		return ErrNotAMap
 	}
 	return nil
+}
+
+func (m Map) DeleteValue(key string) (any, error) {
+	return delFromMap(m, key)
 }
 
 func (m Map) Clone() Map {
@@ -53,7 +57,7 @@ func anyToMap(v any) (Map, bool) {
 func findInMap(m Map, key string) (any, error) {
 	for {
 		// try to find on the current level;
-		// it may work with one-level keys like "foo"
+		// it works with one-level keys like "foo"
 		if val, exists := m[key]; exists {
 			return val, nil
 		}
@@ -73,7 +77,7 @@ func findInMap(m Map, key string) (any, error) {
 			return nil, ErrKeyNotFound
 		}
 
-		// try to get next node as Map 
+		// try to get next node as Map
 		nextMap, ok := anyToMap(next)
 		if !ok {
 			return nil, ErrKeyNotFound
@@ -115,5 +119,43 @@ func putInMap(m Map, key string, value any) bool {
 		key = key[idx+1:]
 		// shift node for next iteration
 		m = next
+	}
+}
+
+func delFromMap(m Map, key string) (any, error) {
+	for {
+		// try to find on the current level;
+		// it works with one-level keys like "foo"
+		val, exists := m[key]
+		if exists {
+			delete(m, key)
+			return val, nil
+		}
+
+		// check if key has nested levels
+		idx := strings.IndexRune(key, '.')
+		if idx < 0 {
+			return nil, ErrKeyNotFound
+		}
+
+		// get first level from key; "foo.bar" -> "foo"
+		k := key[:idx]
+
+		// get next node
+		next, exists := m[k]
+		if !exists {
+			return nil, ErrKeyNotFound
+		}
+
+		// try to get next node as Map
+		nextMap, ok := anyToMap(next)
+		if !ok {
+			return nil, ErrKeyNotFound
+		}
+
+		// shift key; "foo.bar" -> "bar"
+		key = key[idx+1:]
+		// shift node for next iteration
+		m = nextMap
 	}
 }
