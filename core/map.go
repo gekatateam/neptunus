@@ -1,4 +1,4 @@
-package navigator
+package core
 
 import (
 	"errors"
@@ -18,10 +18,7 @@ func (m Map) GetValue(key string) (any, error) {
 }
 
 func (m Map) SetValue(key string, value any) error {
-	if !putInMap(m, key, value) {
-		return ErrNotAMap
-	}
-	return nil
+	return putInMap(m, key, value)
 }
 
 func (m Map) DeleteValue(key string) (any, error) {
@@ -90,14 +87,14 @@ func findInMap(m Map, key string) (any, error) {
 	}
 }
 
-func putInMap(m Map, key string, value any) bool {
+func putInMap(m Map, key string, value any) error {
 	for {
 		// check if key has nested levels
 		idx := strings.IndexRune(key, '.')
 		// if not, set value and return
 		if idx < 0 {
 			m[key] = value
-			return true
+			return nil
 		}
 
 		// get first level from key; "foo.bar" -> "foo"
@@ -112,7 +109,7 @@ func putInMap(m Map, key string, value any) bool {
 		// if it can't be casted to Map, return without changes
 		next, ok := anyToMap(m[k])
 		if !ok {
-			return false
+			return ErrNotAMap
 		}
 
 		// shift key; "foo.bar" -> "bar"

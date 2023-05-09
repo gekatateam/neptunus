@@ -1,20 +1,18 @@
-package model
+package core
 
 import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/gekatateam/pipeline/core/navigator"
 )
 
 type Event struct {
-	Id         uuid.UUID
-	Timestamp  time.Time
-	RoutingKey string
-	Tags       []string
-	Labels     map[string]string
-	Data       navigator.Map
+	Id         uuid.UUID         //`json:"id"`
+	Timestamp  time.Time         //`json:"timestamp"`
+	RoutingKey string            //`json:"routing_key"`
+	Tags       []string          //`json:"tags"`
+	Labels     map[string]string //`json:"labels"`
+	Data       Map               //`json:"data"`
 }
 
 func (e *Event) GetField(key string) (any, error) {
@@ -47,12 +45,26 @@ func (e *Event) Copy() *Event {
 	return &event
 }
 
+func (e *Event) GetLabel(key string) (string, bool) {
+	value, ok := e.Labels[key]
+	return value, ok
+}
+
 func (e *Event) AddLabel(key, value string) {
 	e.Labels[key] = value
 }
 
 func (e *Event) DeleteLabel(key string) {
 	delete(e.Labels, key)
+}
+
+func (e *Event) HasTag(tag string) bool {
+	for _, v := range e.Tags {
+		if v == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Event) AddTag(tag string) {
