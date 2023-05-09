@@ -16,14 +16,14 @@ type Log struct {
 	log   logger.Logger
 }
 
-func NewProcessor(config map[string]any, log logger.Logger) (core.Processor, error) {
+func New(config map[string]any, log logger.Logger) (core.Processor, error) {
 	l := Log{
 		log: log,
 	}
 	return &l, mapstructure.Decode(config, &l)
 }
 
-func(p *Log) Init() error {
+func (p *Log) Init() error {
 	switch p.Level {
 	case "trace", "debug", "info", "warn":
 		return nil
@@ -32,7 +32,7 @@ func(p *Log) Init() error {
 	}
 }
 
-func(p *Log) Process(e ...*core.Event) ([]*core.Event) {
+func (p *Log) Process(e ...*core.Event) []*core.Event {
 	for _, v := range e {
 		event, err := json.Marshal(v)
 		if err != nil {
@@ -53,10 +53,10 @@ func(p *Log) Process(e ...*core.Event) ([]*core.Event) {
 	return e
 }
 
-func(p *Log) Close() error {
+func (p *Log) Close() error {
 	return nil
 }
 
 func init() {
-	plugins.AddProcessor("log", NewProcessor)
+	plugins.AddProcessor("log", New)
 }

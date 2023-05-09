@@ -1,5 +1,5 @@
 package processors
 
-import(
+import (
 	_ "github.com/gekatateam/pipeline/plugins/processors/log"
 )

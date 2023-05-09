@@ -1,5 +1,5 @@
 package filters
 
-import(
+import (
 	_ "github.com/gekatateam/pipeline/plugins/filters/allowall"
 )
