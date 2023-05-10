@@ -7,7 +7,9 @@ import (
 )
 
 type AllowAll struct {
-	log logger.Logger
+	in       <-chan *core.Event
+	accepted chan<- *core.Event
+	log      logger.Logger
 }
 
 func New(config map[string]any, log logger.Logger) (core.Filter, error) {
@@ -16,9 +18,24 @@ func New(config map[string]any, log logger.Logger) (core.Filter, error) {
 	}, nil
 }
 
-func (f *AllowAll) Init() error                           { return nil }
-func (f *AllowAll) Filter(e ...*core.Event) []*core.Event { return e }
-func (f *AllowAll) Close() error                          { return nil }
+func (f *AllowAll) Init(
+	in <-chan *core.Event,
+	_ chan<- *core.Event,
+	accepted chan<- *core.Event,
+) {
+	f.in = in
+	f.accepted = accepted
+}
+
+func (f *AllowAll) Close() error {
+	return nil
+}
+
+func (f *AllowAll) Filter() {
+	for e := range f.in {
+		f.accepted <- e
+	}
+}
 
 func init() {
 	plugins.AddFilter("allowall", New)

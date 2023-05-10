@@ -13,28 +13,38 @@ import (
 
 type Log struct {
 	Level string `mapstructure:"level"`
-	log   logger.Logger
+
+	in  <-chan *core.Event
+	out chan<- *core.Event
+	log logger.Logger
 }
 
 func New(config map[string]any, log logger.Logger) (core.Processor, error) {
-	l := Log{
-		log: log,
+	l := &Log{ log: log }
+	if err := mapstructure.Decode(config, l); err != nil {
+		return nil, err
 	}
-	return &l, mapstructure.Decode(config, &l)
-}
 
-func (p *Log) Init() error {
-	switch p.Level {
+	switch l.Level {
 	case "trace", "debug", "info", "warn":
-		return nil
 	default:
-		return fmt.Errorf("forbidden logging level :%v; expected one of: trace, debug, info, warn", p.Level)
+		return nil, fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", l.Level)
 	}
+
+	return l, nil
 }
 
-func (p *Log) Process(e ...*core.Event) []*core.Event {
-	for _, v := range e {
-		event, err := json.Marshal(v)
+func (p *Log) Init(
+	in <-chan *core.Event,
+	out chan<- *core.Event,
+) {
+	p.in = in
+	p.out = out
+}
+
+func (p *Log) Process() {
+	for e := range p.in {
+		event, err := json.Marshal(e)
 		if err != nil {
 			p.log.Errorf("json marshal failed: %v", err.Error())
 		}
@@ -49,8 +59,8 @@ func (p *Log) Process(e ...*core.Event) []*core.Event {
 		case "warn":
 			p.log.Warn(string(event))
 		}
+		p.out <- e
 	}
-	return e
 }
 
 func (p *Log) Close() error {

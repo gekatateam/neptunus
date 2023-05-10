@@ -13,6 +13,7 @@ type Event struct {
 	Tags       []string          //`json:"tags"`
 	Labels     map[string]string //`json:"labels"`
 	Data       Map               //`json:"data"`
+	Errors     []error
 }
 
 func (e *Event) GetField(key string) (any, error) {
@@ -27,9 +28,31 @@ func (e *Event) DeleteField(key string) (any, error) {
 	return e.Data.DeleteValue(key)
 }
 
+func (e *Event) StackError(err error) {
+	e.Errors = append(e.Errors, err)
+}
+
 func (e *Event) Copy() *Event {
 	event := Event{
 		Id:         uuid.New(),
+		Timestamp:  e.Timestamp,
+		RoutingKey: e.RoutingKey,
+		Tags:       make([]string, len(e.Tags)),
+		Labels:     make(map[string]string, len(e.Labels)),
+		Data:       e.Data.Clone(),
+	}
+
+	copy(event.Tags, e.Tags)
+	for k, v := range e.Labels {
+		event.Labels[k] = v
+	}
+
+	return &event
+}
+
+func (e *Event) Clone() *Event {
+	event := Event{
+		Id:         e.Id,
 		Timestamp:  e.Timestamp,
 		RoutingKey: e.RoutingKey,
 		Tags:       make([]string, len(e.Tags)),
