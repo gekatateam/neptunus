@@ -6,20 +6,20 @@ import (
 	"github.com/gekatateam/pipeline/plugins"
 )
 
-type ProcessAll struct {
+type Through struct {
 	in  <-chan *core.Event
 	out chan<- *core.Event
 	log logger.Logger
 }
 
 func New(config map[string]any, log logger.Logger) (core.Processor, error) {
-	l := ProcessAll{
+	l := Through{
 		log: log,
 	}
 	return &l, nil
 }
 
-func (p *ProcessAll) Init(
+func (p *Through) Init(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -27,16 +27,16 @@ func (p *ProcessAll) Init(
 	p.out = out
 }
 
-func (p *ProcessAll) Close() error {
+func (p *Through) Close() error {
 	return nil
 }
 
-func (p *ProcessAll) Process() {
+func (p *Through) Process() {
 	for e := range p.in {
 		p.out <- e
 	}
 }
 
 func init() {
-	plugins.AddProcessor("processall", New)
+	plugins.AddProcessor("through", New)
 }

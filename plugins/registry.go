@@ -44,3 +44,22 @@ func GetFilter(key string) (filterFunc, bool) {
 	f, ok := filters[key]
 	return f, ok
 }
+
+// outputs
+type outputFunc func(config map[string]any, log logger.Logger) (core.Output, error)
+
+var outputs = make(map[string]outputFunc)
+
+func AddOutput(key string, o outputFunc) {
+	_, exists := outputs[key]
+	if exists {
+		panic(fmt.Errorf("duplicate output func added: %v", key))
+	}
+
+	outputs[key] = o
+}
+
+func GetOutput(key string) (outputFunc, bool) {
+	o, ok := outputs[key]
+	return o, ok
+}
