@@ -12,7 +12,7 @@ type AllowAll struct {
 	log      logger.Logger
 }
 
-func New(config map[string]any, log logger.Logger) (core.Filter, error) {
+func New(_ map[string]any, log logger.Logger) (core.Filter, error) {
 	return &AllowAll{
 		log: log,
 	}, nil

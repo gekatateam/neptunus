@@ -12,7 +12,7 @@ type Through struct {
 	log logger.Logger
 }
 
-func New(config map[string]any, log logger.Logger) (core.Processor, error) {
+func New(_ map[string]any, log logger.Logger) (core.Processor, error) {
 	l := Through{
 		log: log,
 	}

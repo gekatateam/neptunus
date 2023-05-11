@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mitchellh/mapstructure"
-
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
 	"github.com/gekatateam/pipeline/plugins"
+	"github.com/gekatateam/pipeline/pkg/mapstructure"
 )
 
 type Log struct {

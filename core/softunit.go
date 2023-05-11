@@ -6,33 +6,33 @@ import "sync"
 
 type procSoftUnit struct {
 	p   Processor
-	f   map[Filter]chan *Event
+	f   map[Filter]chan<- *Event
 	wg  *sync.WaitGroup
 	in  <-chan *Event
 	out chan<- *Event
 }
 
-func NewProcessorSoftUnit(p Processor, f []Filter, in <-chan *Event) (*procSoftUnit, chan *Event) {
-	outputChan := make(chan *Event, bufferSize) // also channel for rejected events
-
-	unit := &procSoftUnit{
+func NewProcessorSoftUnit(p Processor, f []Filter, out chan<- *Event) (unit *procSoftUnit, unitInput chan<- *Event) {
+	in := make(chan *Event, bufferSize) // unit input channel
+	unitInput = in
+	unit = &procSoftUnit{
 		p:   p,
-		f:   make(map[Filter]chan *Event, len(f)),
+		f:   make(map[Filter]chan<- *Event, len(f)),
 		wg:  &sync.WaitGroup{},
 		in:  in,
-		out: outputChan,
+		out: out, // also channel for rejected events
 	}
 
 	// initialize filters
 	for _, filter := range f {
 		acceptsChan := make(chan *Event, bufferSize)
 		filter.Init(in, unit.out, acceptsChan)
-		in = acceptsChan
+		in = acceptsChan // connect current filter success output to next filter/plugin input
 		unit.f[filter] = acceptsChan
 	}
 
 	p.Init(in, unit.out)
-	return unit, outputChan
+	return unit, unitInput
 }
 
 // starts events processing
@@ -44,7 +44,7 @@ func (u *procSoftUnit) Run() {
 	// the input channel for the next filter is closed at the exit of the current filter goroutine
 	for filter, nextChan := range u.f {
 		u.wg.Add(1)
-		go func(f Filter, c chan *Event) {
+		go func(f Filter, c chan<- *Event) {
 			f.Filter() // blocking call, loop inside
 			close(c)
 			f.Close()
@@ -71,15 +71,18 @@ func (u *procSoftUnit) Run() {
 
 type outSoftUnit struct {
 	o   Output
-	f   map[Filter]chan *Event
+	f   map[Filter]chan<- *Event
 	wg  *sync.WaitGroup
 	in  <-chan *Event
 	rej chan *Event // rejected events doesn't processed anymore
 }
 
-func NewOutputSoftUnit(o Output, f []Filter, in <-chan *Event) *outSoftUnit {
-	unit := &outSoftUnit{
+func NewOutputSoftUnit(o Output, f []Filter) (unit *outSoftUnit, unitInput chan<- *Event) {
+	in := make(chan *Event, bufferSize)
+	unitInput = in
+	unit = &outSoftUnit{
 		o:   o,
+		f:   make(map[Filter]chan<- *Event, len(f)),
 		wg:  &sync.WaitGroup{},
 		in:  in,
 		rej: make(chan *Event, bufferSize),
@@ -94,14 +97,14 @@ func NewOutputSoftUnit(o Output, f []Filter, in <-chan *Event) *outSoftUnit {
 	}
 
 	o.Init(in)
-	return unit
+	return unit, unitInput
 }
 
 func (u *outSoftUnit) Run() {
 	// run fliters
 	for filter, nextChan := range u.f {
 		u.wg.Add(1)
-		go func(f Filter, c chan *Event) {
+		go func(f Filter, c chan<- *Event) {
 			f.Filter() // blocking call, loop inside
 			close(c)
 			f.Close()
@@ -124,6 +127,95 @@ func (u *outSoftUnit) Run() {
 		for range u.rej {
 		}
 		u.wg.Done()
+	}()
+
+	u.wg.Wait()
+}
+
+type inSoftUnit struct {
+	i      Input
+	f      map[Filter]chan<- *Event
+	wg     *sync.WaitGroup
+	main   chan<- *Event // first channel in chain
+	rej    chan *Event
+
+	stopCh  chan struct{}
+	iStopCh chan<- struct{}
+	iDoneCh <-chan struct{}
+}
+
+func NewInputSoftUnit(i Input, f []Filter, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
+	unit = &inSoftUnit{
+		i:      i,
+		wg:     &sync.WaitGroup{},
+		f:      make(map[Filter]chan<- *Event, len(f)),
+		stopCh: make(chan struct{}),
+		rej:    make(chan *Event, bufferSize),
+	}
+	stop = unit.stopCh
+
+	if len(f) > 0 {
+		filtersIn := make(chan *Event, bufferSize)
+		unit.iStopCh, unit.iDoneCh = i.Init(filtersIn)	
+		unit.main = filtersIn
+		for j := 0; j < len(f) - 1; j++ {
+			acceptsChan := make(chan *Event, bufferSize)
+			f[j].Init(filtersIn, unit.rej, acceptsChan)
+			filtersIn = acceptsChan
+			unit.f[f[j]] = acceptsChan
+		}
+		f[len(f) - 1].Init(filtersIn, unit.rej, out)
+		unit.f[f[len(f) - 1]] = out
+	} else {
+		unit.iStopCh, unit.iDoneCh = i.Init(out)
+		unit.main = out
+	}
+
+	return unit, stop
+}
+
+func (u *inSoftUnit) Run() {
+	// wait for stop signal
+	// then send stop signal to input
+	// wait for done signal from input
+	// and close main channel
+	u.wg.Add(1)
+	go func() {
+		<- u.stopCh
+		u.iStopCh <- struct{}{}
+		<- u.iDoneCh
+		close(u.main)
+		u.wg.Done()
+	}()
+
+	// run input
+	// it is possible that input is already writing messages 
+	// to its own out channel, from which the filter(s) do not yet read
+	u.wg.Add(1)
+	go func() {
+		u.i.Serve() // blocking call, loop inside
+		u.i.Close()
+		u.wg.Done()
+	}()
+
+	// run fliters
+	for filter, nextChan := range u.f {
+		u.wg.Add(1)
+		go func(f Filter, c chan<- *Event) {
+			f.Filter() // blocking call, loop inside
+			close(c)
+			f.Close()
+			u.wg.Done()
+		}(filter, nextChan)
+	}
+
+	// consume rejected events to nothing
+	// TODO handle filters stopping and close unit.rej cahnnel
+	// u.wg.Add(1)
+	go func() {
+		for range u.rej {
+		}
+		// u.wg.Done()
 	}()
 
 	u.wg.Wait()
