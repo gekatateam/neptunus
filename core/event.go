@@ -16,6 +16,17 @@ type Event struct {
 	Errors     []error
 }
 
+func NewEvent(routingkey string) *Event {
+	return &Event{
+		Id:         uuid.New(),
+		Timestamp:  time.Now(),
+		RoutingKey: routingkey,
+		Tags:       make([]string, 5),
+		Labels:     make(map[string]string),
+		Data:       make(Map),
+	}
+}
+
 func (e *Event) GetField(key string) (any, error) {
 	return e.Data.GetValue(key)
 }

@@ -3,7 +3,7 @@ package core
 type StopFunc func()
 
 type Input interface {
-	Init(out chan<- *Event) (stop chan<- struct{}, done <-chan struct{})
+	Init(out chan<- *Event)
 	Serve()
 	Close() error
 }

@@ -56,12 +56,9 @@ func (u *procSoftUnit) Run() {
 	// processor will stop when its input channel closes
 	// it will happen when all filters are stopped
 	// or, if no filters are set, when the u.in channel is closed
-	u.wg.Add(1)
-	go func() {
-		u.p.Process() // blocking call, loop inside
-		u.p.Close()
-		u.wg.Done()
-	}()
+	u.p.Process() // blocking call, loop inside
+	u.p.Close()
+	u.wg.Done()
 
 	// then, we wait until all goruntins are finished
 	// and close the outgoing channel - which is the incoming channel for the next processor or output
@@ -112,15 +109,6 @@ func (u *outSoftUnit) Run() {
 		}(filter, nextChan)
 	}
 
-	// run output
-	u.wg.Add(1)
-	go func() {
-		u.o.Listen() // blocking call, loop inside
-		u.o.Close()
-		u.wg.Done()
-		close(u.rej) // close rejected events chan
-	}()
-
 	// consume rejected events to nothing
 	u.wg.Add(1)
 	go func() {
@@ -128,6 +116,11 @@ func (u *outSoftUnit) Run() {
 		}
 		u.wg.Done()
 	}()
+
+	// run output
+	u.o.Listen() // blocking call, loop inside
+	u.o.Close()
+	close(u.rej) // close rejected events chan
 
 	u.wg.Wait()
 }
@@ -137,48 +130,66 @@ func (u *outSoftUnit) Run() {
 // - they do not use filters
 // - they wait for the closing signal through a dedicated channel
 type inSoftUnit struct {
-	i      Input
-	wg     *sync.WaitGroup
-	out   chan<- *Event // first channel in chain
-
-	stopCh  chan struct{}
-	iStopCh chan<- struct{}
-	iDoneCh <-chan struct{}
+	i    Input
+	wg   *sync.WaitGroup
+	out  chan<- *Event // first channel in chain
+	stop chan struct{}
 }
 
 func NewInputSoftUnit(i Input, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
 	unit = &inSoftUnit{
-		i:      i,
-		wg:     &sync.WaitGroup{},
-		stopCh: make(chan struct{}),
+		i:    i,
+		wg:   &sync.WaitGroup{},
+		out:  out,
+		stop: make(chan struct{}),
 	}
-	stop = unit.stopCh
-	unit.out = out
+	i.Init(out)
 
-	return unit, stop
+	return unit, unit.stop
 }
 
 func (u *inSoftUnit) Run() {
 	// wait for stop signal
-	// then send stop signal to input
-	// and wait for done signal from input
+	// then close the input
 	u.wg.Add(1)
 	go func() {
-		<- u.stopCh
-		u.iStopCh <- struct{}{}
-		<- u.iDoneCh
-		u.wg.Done()
-	}()
-
-	// run input
-	// it is possible that input is already writing messages 
-	// to its own out channel, from which the filter(s) do not yet read
-	u.wg.Add(1)
-	go func() {
-		u.i.Serve() // blocking call, loop inside
+		<- u.stop
 		u.i.Close()
 		u.wg.Done()
 	}()
 
+	// run input
+	u.i.Serve() // blocking call, loop inside
+
 	u.wg.Wait()
+}
+
+type bcastSoftUnit struct {
+	in   <-chan *Event
+	outs []chan<- *Event
+}
+
+func NewBroadcastSoftUnit(outs ...chan<- *Event) (unit *bcastSoftUnit, unitInput <-chan *Event) {
+	unitInput = make(chan *Event, bufferSize)
+	unit = &bcastSoftUnit{
+		in: unitInput,
+		outs: outs,
+	}
+
+	return unit, unitInput
+}
+
+func (u *bcastSoftUnit) Run() {
+	// starts consumer which will broadcast each event
+	// to all outputs
+	// this loop breaks when the input channel closes
+	for e := range u.in {
+		for _, out := range u.outs {
+			out <- e.Clone()
+		}
+	}
+	// close all outputs
+	for _, out := range u.outs {
+		close(out)
+	}
 }
