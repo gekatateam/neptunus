@@ -153,7 +153,7 @@ func (u *inSoftUnit) Run() {
 	// then close the input
 	u.wg.Add(1)
 	go func() {
-		<- u.stop
+		<-u.stop
 		u.i.Close()
 		u.wg.Done()
 	}()

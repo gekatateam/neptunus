@@ -13,6 +13,7 @@ import (
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
 	"github.com/gekatateam/pipeline/pkg/mapstructure"
+	"github.com/gekatateam/pipeline/plugins"
 )
 
 type Http struct {
@@ -25,14 +26,12 @@ type Http struct {
 	server   *http.Server
 	listener net.Listener
 
-	log  logger.Logger
-	out  chan<- *core.Event
+	log logger.Logger
+	out chan<- *core.Event
 }
 
 func New(config map[string]any, log logger.Logger) (core.Input, error) {
-	h := &Http{
-		log: log,
-	}
+	h := &Http{log: log}
 	if err := mapstructure.Decode(config, h); err != nil {
 		return nil, err
 	}
@@ -62,11 +61,11 @@ func New(config map[string]any, log logger.Logger) (core.Input, error) {
 	return h, nil
 }
 
-func(i *Http) Init(out chan<- *core.Event) {
+func (i *Http) Init(out chan<- *core.Event) {
 	i.out = out
 }
 
-func(i *Http) Serve() {
+func (i *Http) Serve() {
 	i.log.Infof("starting http server on %v", i.Address)
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
@@ -75,9 +74,8 @@ func(i *Http) Serve() {
 	}
 }
 
-
-func(i *Http) Close() error {
-	ctx, cancel := context.WithTimeout(context.TODO(), 10 * time.Second)
+func (i *Http) Close() error {
+	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
 	if err := i.server.Shutdown(ctx); err != nil {
@@ -86,7 +84,7 @@ func(i *Http) Close() error {
 	return nil
 }
 
-func(i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 	default:
@@ -118,4 +116,8 @@ func(i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("accepted"))
+}
+
+func init() {
+	plugins.AddInput("http", New)
 }

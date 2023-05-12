@@ -45,6 +45,25 @@ func GetFilter(key string) (filterFunc, bool) {
 	return f, ok
 }
 
+// inputs
+type inputFunc func(config map[string]any, log logger.Logger) (core.Input, error)
+
+var inputs = make(map[string]inputFunc)
+
+func AddInput(key string, i inputFunc) {
+	_, exists := inputs[key]
+	if exists {
+		panic(fmt.Errorf("duplicate input func added: %v", key))
+	}
+
+	inputs[key] = i
+}
+
+func GetInput(key string) (inputFunc, bool) {
+	i, ok := inputs[key]
+	return i, ok
+}
+
 // outputs
 type outputFunc func(config map[string]any, log logger.Logger) (core.Output, error)
 

@@ -13,10 +13,7 @@ type Through struct {
 }
 
 func New(_ map[string]any, log logger.Logger) (core.Processor, error) {
-	l := Through{
-		log: log,
-	}
-	return &l, nil
+	return &Through{log: log}, nil
 }
 
 func (p *Through) Init(

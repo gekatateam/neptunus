@@ -13,9 +13,7 @@ type AllowAll struct {
 }
 
 func New(_ map[string]any, log logger.Logger) (core.Filter, error) {
-	return &AllowAll{
-		log: log,
-	}, nil
+	return &AllowAll{log: log}, nil
 }
 
 func (f *AllowAll) Init(

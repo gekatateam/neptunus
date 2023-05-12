@@ -12,10 +12,7 @@ type Drop struct {
 }
 
 func New(_ map[string]any, log logger.Logger) (core.Processor, error) {
-	l := Drop{
-		log: log,
-	}
-	return &l, nil
+	return &Drop{log: log}, nil
 }
 
 func (p *Drop) Init(

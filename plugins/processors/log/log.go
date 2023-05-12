@@ -6,8 +6,8 @@ import (
 
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/plugins"
 	"github.com/gekatateam/pipeline/pkg/mapstructure"
+	"github.com/gekatateam/pipeline/plugins"
 )
 
 type Log struct {
