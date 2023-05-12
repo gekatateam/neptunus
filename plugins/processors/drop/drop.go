@@ -1,4 +1,4 @@
-package through
+package drop
 
 import (
 	"github.com/gekatateam/pipeline/core"
@@ -6,37 +6,35 @@ import (
 	"github.com/gekatateam/pipeline/plugins"
 )
 
-type Through struct {
+type Drop struct {
 	in  <-chan *core.Event
-	out chan<- *core.Event
 	log logger.Logger
 }
 
 func New(_ map[string]any, log logger.Logger) (core.Processor, error) {
-	l := Through{
+	l := Drop{
 		log: log,
 	}
 	return &l, nil
 }
 
-func (p *Through) Init(
+func (p *Drop) Init(
 	in <-chan *core.Event,
-	out chan<- *core.Event,
+	_ chan<- *core.Event,
 ) {
 	p.in = in
-	p.out = out
 }
 
-func (p *Through) Close() error {
+func (p *Drop) Close() error {
 	return nil
 }
 
-func (p *Through) Process() {
-	for e := range p.in {
-		p.out <- e
+func (p *Drop) Process() {
+	for range p.in {
+		continue
 	}
 }
 
 func init() {
-	plugins.AddProcessor("through", New)
+	plugins.AddProcessor("drop", New)
 }

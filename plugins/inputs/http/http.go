@@ -102,9 +102,8 @@ func(i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMsg, http.StatusInternalServerError)
 			return
 		}
-		b := scanner.Bytes()
 		e := core.NewEvent(i.RoutingKey)
-		err := json.Unmarshal(b, &e.Data)
+		err := json.Unmarshal(scanner.Bytes(), &e.Data)
 		if err != nil {
 			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
@@ -112,6 +111,8 @@ func(i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cursor++
+		e.Labels["input"] = "http"
+		e.Labels["source"] = i.Address + i.Path
 		i.out <- e
 	}
 

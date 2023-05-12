@@ -164,19 +164,20 @@ func (u *inSoftUnit) Run() {
 	u.wg.Wait()
 }
 
+// broadcast unit takes an event from input
+// and send event clones to all outputs
 type bcastSoftUnit struct {
 	in   <-chan *Event
 	outs []chan<- *Event
 }
 
 func NewBroadcastSoftUnit(outs ...chan<- *Event) (unit *bcastSoftUnit, unitInput <-chan *Event) {
-	unitInput = make(chan *Event, bufferSize)
 	unit = &bcastSoftUnit{
-		in: unitInput,
+		in:   make(chan *Event, bufferSize),
 		outs: outs,
 	}
 
-	return unit, unitInput
+	return unit, unit.in
 }
 
 func (u *bcastSoftUnit) Run() {
