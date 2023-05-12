@@ -1,6 +1,6 @@
 package core
 
-// soft (consistency) units does not guarantee the order of processing, but quickly handles events
+// soft (consistency) units does not guarantee the order of processing, but (planned to be) fast
 
 import "sync"
 
@@ -132,44 +132,28 @@ func (u *outSoftUnit) Run() {
 	u.wg.Wait()
 }
 
+// input units are not like the others:
+// - they do not close their output channels
+// - they do not use filters
+// - they wait for the closing signal through a dedicated channel
 type inSoftUnit struct {
 	i      Input
-	f      map[Filter]chan<- *Event
 	wg     *sync.WaitGroup
-	main   chan<- *Event // first channel in chain
-	rej    chan *Event
+	out   chan<- *Event // first channel in chain
 
 	stopCh  chan struct{}
 	iStopCh chan<- struct{}
 	iDoneCh <-chan struct{}
 }
 
-func NewInputSoftUnit(i Input, f []Filter, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
+func NewInputSoftUnit(i Input, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
 	unit = &inSoftUnit{
 		i:      i,
 		wg:     &sync.WaitGroup{},
-		f:      make(map[Filter]chan<- *Event, len(f)),
 		stopCh: make(chan struct{}),
-		rej:    make(chan *Event, bufferSize),
 	}
 	stop = unit.stopCh
-
-	if len(f) > 0 {
-		filtersIn := make(chan *Event, bufferSize)
-		unit.iStopCh, unit.iDoneCh = i.Init(filtersIn)	
-		unit.main = filtersIn
-		for j := 0; j < len(f) - 1; j++ {
-			acceptsChan := make(chan *Event, bufferSize)
-			f[j].Init(filtersIn, unit.rej, acceptsChan)
-			filtersIn = acceptsChan
-			unit.f[f[j]] = acceptsChan
-		}
-		f[len(f) - 1].Init(filtersIn, unit.rej, out)
-		unit.f[f[len(f) - 1]] = out
-	} else {
-		unit.iStopCh, unit.iDoneCh = i.Init(out)
-		unit.main = out
-	}
+	unit.out = out
 
 	return unit, stop
 }
@@ -177,14 +161,12 @@ func NewInputSoftUnit(i Input, f []Filter, out chan<- *Event) (unit *inSoftUnit,
 func (u *inSoftUnit) Run() {
 	// wait for stop signal
 	// then send stop signal to input
-	// wait for done signal from input
-	// and close main channel
+	// and wait for done signal from input
 	u.wg.Add(1)
 	go func() {
 		<- u.stopCh
 		u.iStopCh <- struct{}{}
 		<- u.iDoneCh
-		close(u.main)
 		u.wg.Done()
 	}()
 
@@ -196,26 +178,6 @@ func (u *inSoftUnit) Run() {
 		u.i.Serve() // blocking call, loop inside
 		u.i.Close()
 		u.wg.Done()
-	}()
-
-	// run fliters
-	for filter, nextChan := range u.f {
-		u.wg.Add(1)
-		go func(f Filter, c chan<- *Event) {
-			f.Filter() // blocking call, loop inside
-			close(c)
-			f.Close()
-			u.wg.Done()
-		}(filter, nextChan)
-	}
-
-	// consume rejected events to nothing
-	// TODO handle filters stopping and close unit.rej cahnnel
-	// u.wg.Add(1)
-	go func() {
-		for range u.rej {
-		}
-		// u.wg.Done()
 	}()
 
 	u.wg.Wait()
