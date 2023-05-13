@@ -3,16 +3,18 @@ package drop
 import (
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
+	"github.com/gekatateam/pipeline/metrics"
 	"github.com/gekatateam/pipeline/plugins"
 )
 
 type Drop struct {
+	alias string
 	in  <-chan *core.Event
 	log logger.Logger
 }
 
-func New(_ map[string]any, log logger.Logger) (core.Processor, error) {
-	return &Drop{log: log}, nil
+func New(_ map[string]any, alias string, log logger.Logger) (core.Processor, error) {
+	return &Drop{log: log, alias: alias}, nil
 }
 
 func (p *Drop) Init(
@@ -28,6 +30,7 @@ func (p *Drop) Close() error {
 
 func (p *Drop) Process() {
 	for range p.in {
+		metrics.ObserveProcessorSummary("drop", p.alias, metrics.EventRejected, 0)
 		continue
 	}
 }

@@ -3,22 +3,25 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
+	"github.com/gekatateam/pipeline/metrics"
 	"github.com/gekatateam/pipeline/pkg/mapstructure"
 	"github.com/gekatateam/pipeline/plugins"
 )
 
 type Log struct {
+	alias string
 	Level string `mapstructure:"level"`
 
 	in  <-chan *core.Event
 	log logger.Logger
 }
 
-func New(config map[string]any, log logger.Logger) (core.Output, error) {
-	l := &Log{log: log}
+func New(config map[string]any, alias string, log logger.Logger) (core.Output, error) {
+	l := &Log{log: log, alias: alias}
 	if err := mapstructure.Decode(config, l); err != nil {
 		return nil, err
 	}
@@ -38,9 +41,11 @@ func (o *Log) Init(in <-chan *core.Event) {
 
 func (o *Log) Listen() {
 	for e := range o.in {
+		now := time.Now()
 		event, err := json.Marshal(e)
 		if err != nil {
 			o.log.Errorf("json marshal failed: %v", err.Error())
+			metrics.ObserveOutputSummary("log", o.alias, metrics.EventFailed, time.Since(now))
 			continue
 		}
 
@@ -54,6 +59,7 @@ func (o *Log) Listen() {
 		case "warn":
 			o.log.Warn(string(event))
 		}
+		metrics.ObserveOutputSummary("log", o.alias, metrics.EventAccepted, time.Since(now))
 	}
 }
 

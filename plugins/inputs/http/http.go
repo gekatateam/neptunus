@@ -12,11 +12,13 @@ import (
 
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
+	"github.com/gekatateam/pipeline/metrics"
 	"github.com/gekatateam/pipeline/pkg/mapstructure"
 	"github.com/gekatateam/pipeline/plugins"
 )
 
 type Http struct {
+	alias        string
 	Address      string        `mapstructure:"address"`
 	Path         string        `mapstructure:"path"`
 	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
@@ -30,8 +32,8 @@ type Http struct {
 	out chan<- *core.Event
 }
 
-func New(config map[string]any, log logger.Logger) (core.Input, error) {
-	h := &Http{log: log}
+func New(config map[string]any, alias string, log logger.Logger) (core.Input, error) {
+	h := &Http{log: log, alias: alias}
 	if err := mapstructure.Decode(config, h); err != nil {
 		return nil, err
 	}
@@ -91,31 +93,38 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 
-	var cursor = 1
+	var cursor = 0
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
+		now := time.Now()
+		cursor++
+
 		if err := scanner.Err(); err != nil {
 			errMsg := fmt.Sprintf("reading error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusInternalServerError)
+			metrics.ObserveInputSummary("http", i.alias, metrics.EventFailed, time.Since(now))
 			return
 		}
+
 		e := core.NewEvent(i.RoutingKey)
 		err := json.Unmarshal(scanner.Bytes(), &e.Data)
 		if err != nil {
 			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
+			metrics.ObserveInputSummary("http", i.alias, metrics.EventFailed, time.Since(now))
 			return
 		}
-		cursor++
+
 		e.Labels["input"] = "http"
 		e.Labels["source"] = i.Address + i.Path
 		i.out <- e
+		metrics.ObserveInputSummary("http", i.alias, metrics.EventAccepted, time.Since(now))
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("accepted"))
+	w.Write([]byte(fmt.Sprintf("accepted events: %v\n", cursor)))
 }
 
 func init() {

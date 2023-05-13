@@ -3,14 +3,17 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gekatateam/pipeline/core"
 	"github.com/gekatateam/pipeline/logger"
+	"github.com/gekatateam/pipeline/metrics"
 	"github.com/gekatateam/pipeline/pkg/mapstructure"
 	"github.com/gekatateam/pipeline/plugins"
 )
 
 type Log struct {
+	alias string
 	Level string `mapstructure:"level"`
 
 	in  <-chan *core.Event
@@ -18,8 +21,8 @@ type Log struct {
 	log logger.Logger
 }
 
-func New(config map[string]any, log logger.Logger) (core.Processor, error) {
-	l := &Log{log: log}
+func New(config map[string]any, alias string, log logger.Logger) (core.Processor, error) {
+	l := &Log{log: log, alias: alias}
 	if err := mapstructure.Decode(config, l); err != nil {
 		return nil, err
 	}
@@ -43,11 +46,13 @@ func (p *Log) Init(
 
 func (p *Log) Process() {
 	for e := range p.in {
+		now := time.Now()
 		event, err := json.Marshal(e)
 		if err != nil {
 			p.log.Errorf("json marshal failed: %v", err.Error())
 			e.StackError(fmt.Errorf("log processor: json marshal failed: %v", err.Error()))
-			goto EVENT_LOGGED
+			metrics.ObserveProcessorSummary("log", p.alias, metrics.EventFailed, time.Since(now))
+			continue
 		}
 
 		switch p.Level {
@@ -61,8 +66,8 @@ func (p *Log) Process() {
 			p.log.Warn(string(event))
 		}
 
-	EVENT_LOGGED:
 		p.out <- e
+		metrics.ObserveProcessorSummary("log", p.alias, metrics.EventAccepted, time.Since(now))
 	}
 }
 

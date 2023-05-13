@@ -8,7 +8,7 @@ import (
 )
 
 // processors
-type processorFunc func(config map[string]any, log logger.Logger) (core.Processor, error)
+type processorFunc func(config map[string]any, alias string, log logger.Logger) (core.Processor, error)
 
 var processors = make(map[string]processorFunc)
 
@@ -27,7 +27,7 @@ func GetProcessor(key string) (processorFunc, bool) {
 }
 
 // filters
-type filterFunc func(config map[string]any, log logger.Logger) (core.Filter, error)
+type filterFunc func(config map[string]any, alias string, log logger.Logger) (core.Filter, error)
 
 var filters = make(map[string]filterFunc)
 
@@ -46,7 +46,7 @@ func GetFilter(key string) (filterFunc, bool) {
 }
 
 // inputs
-type inputFunc func(config map[string]any, log logger.Logger) (core.Input, error)
+type inputFunc func(config map[string]any, alias string, log logger.Logger) (core.Input, error)
 
 var inputs = make(map[string]inputFunc)
 
@@ -65,7 +65,7 @@ func GetInput(key string) (inputFunc, bool) {
 }
 
 // outputs
-type outputFunc func(config map[string]any, log logger.Logger) (core.Output, error)
+type outputFunc func(config map[string]any, alias string, log logger.Logger) (core.Output, error)
 
 var outputs = make(map[string]outputFunc)
 
