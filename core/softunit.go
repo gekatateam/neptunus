@@ -8,13 +8,16 @@ import "sync"
 // if filters are set, each event passes through them
 // rejected events are going to unit output
 // accepted events are going to next filter or processor
-//  ┌────────────────┐
-//  |┌───┐           |
+//
+//	┌────────────────┐
+//	|┌───┐           |
+//
 // ─┼┤ f ├┬─────────┐|
-//  |└─┬┬┴┴─┐ ┌────┐||
-//  |  └┤ f ├─┤proc├┴┼─
-//  |   └───┘ └────┘ |
-//  └────────────────┘
+//
+//	|└─┬┬┴┴─┐ ┌────┐||
+//	|  └┤ f ├─┤proc├┴┼─
+//	|   └───┘ └────┘ |
+//	└────────────────┘
 type procSoftUnit struct {
 	p   Processor
 	f   map[Filter]chan<- *Event
@@ -80,13 +83,16 @@ func (u *procSoftUnit) Run() {
 // output unit consumes events from input channel
 // if filters are set, each event passes through them
 // rejected events are not going to next filter or output
-//  ┌────────────────┐ 
-//  |┌───┐           | 
+//
+//	┌────────────────┐
+//	|┌───┐           |
+//
 // ─┼┤ f ├┬────────Θ |
-//  |└─┬┬┴┴─┐ ┌────┐ | 
-//  |  └┤ f ├─┤out>| |
-//  |   └───┘ └────┘ |
-//  └────────────────┘
+//
+//	|└─┬┬┴┴─┐ ┌────┐ |
+//	|  └┤ f ├─┤out>| |
+//	|   └───┘ └────┘ |
+//	└────────────────┘
 type outSoftUnit struct {
 	o   Output
 	f   map[Filter]chan<- *Event
@@ -151,11 +157,11 @@ func (u *outSoftUnit) Run() {
 // - they do not close their output channels (to avoid goroutines hell)
 // - they do not use filters
 // - they wait for the closing signal through a dedicated channel
-// ┌───────┐ 
-// | ┌───┐ | 
+// ┌───────┐
+// | ┌───┐ |
 // | |>in├─┼─
-// | └───┘ | 
-// └───────┘ 
+// | └───┘ |
+// └───────┘
 type inSoftUnit struct {
 	i    Input
 	wg   *sync.WaitGroup
@@ -193,11 +199,14 @@ func (u *inSoftUnit) Run() {
 
 // broadcast unit consumes events from input
 // and sends clones of each event to all outputs
-//  ┌────────┐ 
-//  |   ┌────┼─
+//
+//	┌────────┐
+//	|   ┌────┼─
+//
 // ─┼───█────┼─
-//  |   └────┼─
-//  └────────┘ 
+//
+//	|   └────┼─
+//	└────────┘
 type bcastSoftUnit struct {
 	in   <-chan *Event
 	outs []chan<- *Event

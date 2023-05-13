@@ -11,9 +11,9 @@ import (
 
 type Through struct {
 	alias string
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log logger.Logger
+	in    <-chan *core.Event
+	out   chan<- *core.Event
+	log   logger.Logger
 }
 
 func New(_ map[string]any, alias string, log logger.Logger) (core.Processor, error) {

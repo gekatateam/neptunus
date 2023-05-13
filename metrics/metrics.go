@@ -6,12 +6,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type EventStatus string
+type eventStatus string
 
 var (
-	EventAccepted EventStatus = "accepted"
-	EventRejected EventStatus = "rejected"
-	EventFailed   EventStatus = "failed"
+	EventAccepted eventStatus = "accepted"
+	EventRejected eventStatus = "rejected"
+	EventFailed   eventStatus = "failed"
 )
 
 var (
@@ -70,18 +70,18 @@ func init() {
 	prometheus.MustRegister(outputSummary)
 }
 
-func ObserveInputSummary(plugin, name string, status EventStatus, t time.Duration) {
+func ObserveInputSummary(plugin, name string, status eventStatus, t time.Duration) {
 	inputSummary.WithLabelValues(plugin, name, string(status)).Observe(float64(t) / float64(time.Second))
 }
 
-func ObserveFliterSummary(plugin, name string, status EventStatus, t time.Duration) {
+func ObserveFliterSummary(plugin, name string, status eventStatus, t time.Duration) {
 	filterSummary.WithLabelValues(plugin, name, string(status)).Observe(float64(t) / float64(time.Second))
 }
 
-func ObserveProcessorSummary(plugin, name string, status EventStatus, t time.Duration) {
+func ObserveProcessorSummary(plugin, name string, status eventStatus, t time.Duration) {
 	processorSummary.WithLabelValues(plugin, name, string(status)).Observe(float64(t) / float64(time.Second))
 }
 
-func ObserveOutputSummary(plugin, name string, status EventStatus, t time.Duration) {
+func ObserveOutputSummary(plugin, name string, status eventStatus, t time.Duration) {
 	outputSummary.WithLabelValues(plugin, name, string(status)).Observe(float64(t) / float64(time.Second))
 }

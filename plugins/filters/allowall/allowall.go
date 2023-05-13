@@ -10,7 +10,7 @@ import (
 )
 
 type AllowAll struct {
-	alias string
+	alias    string
 	in       <-chan *core.Event
 	accepted chan<- *core.Event
 	log      logger.Logger

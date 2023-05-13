@@ -9,8 +9,8 @@ import (
 
 type Drop struct {
 	alias string
-	in  <-chan *core.Event
-	log logger.Logger
+	in    <-chan *core.Event
+	log   logger.Logger
 }
 
 func New(_ map[string]any, alias string, log logger.Logger) (core.Processor, error) {
@@ -30,7 +30,7 @@ func (p *Drop) Close() error {
 
 func (p *Drop) Process() {
 	for range p.in {
-		metrics.ObserveProcessorSummary("drop", p.alias, metrics.EventRejected, 0)
+		metrics.ObserveProcessorSummary("drop", p.alias, metrics.EventAccepted, 0)
 		continue
 	}
 }

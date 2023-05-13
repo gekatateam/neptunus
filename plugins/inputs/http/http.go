@@ -118,7 +118,8 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		e.Labels["input"] = "http"
-		e.Labels["source"] = i.Address + i.Path
+		e.Labels["server"] = i.Address + i.Path
+		e.Labels["sender"] = r.RemoteAddr
 		i.out <- e
 		metrics.ObserveInputSummary("http", i.alias, metrics.EventAccepted, time.Since(now))
 	}
