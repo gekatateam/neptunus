@@ -4,6 +4,13 @@ package core
 
 import "sync"
 
+//  ┌────────────────┐  
+//  |┌───┐           |  
+// ─┼┤ f ├┬─────────┐|  
+//  |└─┬┬┴┴─┐ ┌────┐||  
+//  |  └┤ f ├─┤proc├┴┼─ 
+//  |   └───┘ └────┘ |  
+//  └────────────────┘  
 type procSoftUnit struct {
 	p   Processor
 	f   map[Filter]chan<- *Event
