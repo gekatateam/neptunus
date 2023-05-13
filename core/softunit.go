@@ -4,6 +4,10 @@ package core
 
 import "sync"
 
+// processor unit consumes events from input channel
+// if filters are set, each event passes through them
+// rejected events are going to unit output
+// accepted events are going to next filter or processor
 //  ┌────────────────┐
 //  |┌───┐           |
 // ─┼┤ f ├┬─────────┐|
@@ -73,6 +77,9 @@ func (u *procSoftUnit) Run() {
 	close(u.out)
 }
 
+// output unit consumes events from input channel
+// if filters are set, each event passes through them
+// rejected events are not going to next filter or output
 //  ┌────────────────┐ 
 //  |┌───┐           | 
 // ─┼┤ f ├┬────────Θ |
@@ -139,10 +146,16 @@ func (u *outSoftUnit) Run() {
 	u.wg.Wait()
 }
 
+// input unit sends consumed events to output channel
 // input units are not like the others:
-// - they do not close their output channels
+// - they do not close their output channels (to avoid goroutines hell)
 // - they do not use filters
 // - they wait for the closing signal through a dedicated channel
+// ┌───────┐ 
+// | ┌───┐ | 
+// | |>in├─┼─
+// | └───┘ | 
+// └───────┘ 
 type inSoftUnit struct {
 	i    Input
 	wg   *sync.WaitGroup
@@ -178,8 +191,13 @@ func (u *inSoftUnit) Run() {
 	u.wg.Wait()
 }
 
-// broadcast unit takes an event from input
-// and send event clones to all outputs
+// broadcast unit consumes events from input
+// and sends clones of each event to all outputs
+//  ┌────────┐ 
+//  |   ┌────┼─
+// ─┼───█────┼─
+//  |   └────┼─
+//  └────────┘ 
 type bcastSoftUnit struct {
 	in   <-chan *Event
 	outs []chan<- *Event
