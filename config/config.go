@@ -15,15 +15,15 @@ var (
 		Common: Common{
 			LogLevel:    "info",
 			LogFormat:   "logfmt",
-			StopTimeout: 5 * time.Second,
+			StopTimeout: 15 * time.Second,
 		},
-		Pipelines: nil,
+		Pipes: nil,
 	}
 )
 
 type Config struct {
-	Common    Common     `toml:"common"    yaml:"common"`
-	Pipelines []Pipeline `toml:"pipelines" yaml:"pipelines"`
+	Common Common     `toml:"common"    yaml:"common"`
+	Pipes  []PipeCfg  `toml:"pipelines" yaml:"pipelines"`
 }
 
 type Common struct {
@@ -32,13 +32,13 @@ type Common struct {
 	StopTimeout time.Duration `toml:"stop_timeout" yaml:"stop_timeout"`
 }
 
-type Pipeline struct {
-	Id     string `toml:"id"     yaml:"id"`
-	Config string `toml:"config" yaml:"config"`
-	Lines  int    `toml:"lines"  yaml:"lines"`
+type PipeCfg struct {
+	Id      string `toml:"id"      yaml:"id"`
+	Config  string `toml:"config"  yaml:"config"`
+	// Threads int    `toml:"threads" yaml:"threads"`
 }
 
-func Read(file string) (*Config, error) {
+func ReadConfig(file string) (*Config, error) {
 	buf, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -61,3 +61,5 @@ func Read(file string) (*Config, error) {
 
 	return &config, nil
 }
+
+

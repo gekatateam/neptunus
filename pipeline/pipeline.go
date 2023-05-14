@@ -1,0 +1,227 @@
+package pipeline
+
+import (
+	"fmt"
+	"sync"
+
+	"github.com/gekatateam/pipeline/config"
+	"github.com/gekatateam/pipeline/core"
+	"github.com/gekatateam/pipeline/logger/logrus"
+	"github.com/gekatateam/pipeline/plugins"
+)
+
+type unit interface {
+	Run()
+}
+
+type outputSet struct {
+	o core.Output
+	f []core.Filter
+}
+
+type procSet struct {
+	p core.Processor
+	f []core.Filter
+}
+
+// pipeline run a set of plugins
+type Pipeline struct {
+	id     string
+	config *config.Pipeline
+
+	outs  []outputSet
+	procs []procSet
+	ins   []core.Input
+}
+
+func NewPipeline(id string, config *config.Pipeline) *Pipeline {
+	return &Pipeline{
+		id:     id,
+		config: config,
+		outs:   make([]outputSet, 0),
+		procs:  make([]procSet, 0),
+		ins:    make([]core.Input, 0),
+	}
+}
+
+func (p *Pipeline) Build() error {
+	if err := p.configureOutputs(); err != nil {
+		return err
+	}
+
+	if err := p.configureProcessors(); err != nil {
+		return err
+	}
+
+	if err := p.configureInputs(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pipeline) Run() {
+	wg := &sync.WaitGroup{}
+
+	var outputsChannels = make([]chan<- *core.Event, len(p.outs))
+	for _, output := range p.outs {
+		unit, outCh := core.NewOutputSoftUnit(output.o, output.f)
+		outputsChannels = append(outputsChannels, outCh)
+		wg.Add(1)
+		go func() {
+			unit.Run()
+			wg.Done()
+		}()
+	}
+
+	unit, bcastCh := core.NewBroadcastSoftUnit(outputsChannels...)
+	wg.Add(1)
+	go func() {
+		unit.Run()
+		wg.Done()
+	}()
+
+	for _, processor := range p.procs {
+		unit, procCh := core.NewProcessorSoftUnit(processor.p, processor.f, bcastCh)
+		wg.Add(1)
+		go func() {
+			unit.Run()
+			wg.Done()
+		}()
+		bcastCh = procCh
+	}
+
+	var inputsStopChannels = make([]chan<- struct{}, len(p.ins))
+	for _, input := range p.ins {
+		unit, stopCh := core.NewInputSoftUnit(input, bcastCh)
+		inputsStopChannels = append(inputsStopChannels, stopCh)
+		wg.Add(1)
+		go func() {
+			unit.Run()
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	close()
+}
+
+func (p *Pipeline) configureOutputs() error {
+	for index, outputs := range p.config.Outputs {
+		for plugin, outputCfg := range outputs {
+			outputFunc, ok := plugins.GetOutput(plugin)
+			if !ok {
+				return fmt.Errorf("unknown output plugin in pipeline configuration: %v", plugin)
+			}
+
+			var alias = fmt.Sprintf("%v-%v", plugin, index)
+			if len(outputCfg.Alias()) > 0 {
+				alias = outputCfg.Alias()
+			}
+
+			output, err := outputFunc(outputCfg, alias, logrus.NewLogger(map[string]any{
+				"pipeline": p.id,
+				"output":   plugin,
+				"name":     alias,
+			}))
+			if err != nil {
+				return fmt.Errorf("%v output configuration error: %v", plugin, err.Error())
+			}
+
+			filters, err := p.configureFilters(outputCfg.Filters(), alias)
+			if err != nil {
+				return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
+			}
+
+			p.outs = append(p.outs, outputSet{output, filters})
+		}
+	}
+	return nil
+}
+
+func (p *Pipeline) configureProcessors() error {
+	for index, processors := range p.config.Processors {
+		for plugin, processorCfg := range processors {
+			processorFunc, ok := plugins.GetProcessor(plugin)
+			if !ok {
+				return fmt.Errorf("unknown processor plugin in pipeline configuration: %v", plugin)
+			}
+
+			var alias = fmt.Sprintf("%v-%v", plugin, index)
+			if len(processorCfg.Alias()) > 0 {
+				alias = processorCfg.Alias()
+			}
+
+			processor, err := processorFunc(processorCfg, alias, logrus.NewLogger(map[string]any{
+				"pipeline":  p.id,
+				"processor": plugin,
+				"name":      alias,
+			}))
+			if err != nil {
+				return fmt.Errorf("%v processor configuration error: %v", plugin, err.Error())
+			}
+
+			filters, err := p.configureFilters(processorCfg.Filters(), alias)
+			if err != nil {
+				return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
+			}
+
+			p.procs = append(p.procs, procSet{processor, filters})
+		}
+	}
+	return nil
+}
+
+func (p *Pipeline) configureInputs() error {
+	for index, inputs := range p.config.Inputs {
+		for plugin, inputCfg := range inputs {
+			inputFunc, ok := plugins.GetInput(plugin)
+			if !ok {
+				return fmt.Errorf("unknown input plugin in pipeline configuration: %v", plugin)
+			}
+
+			var alias = fmt.Sprintf("%v-%v", plugin, index)
+			if len(inputCfg.Alias()) > 0 {
+				alias = inputCfg.Alias()
+			}
+
+			input, err := inputFunc(inputCfg, alias, logrus.NewLogger(map[string]any{
+				"pipeline": p.id,
+				"input":    plugin,
+				"name":     alias,
+			}))
+			if err != nil {
+				return fmt.Errorf("%v input configuration error: %v", plugin, err.Error())
+			}
+
+			p.ins = append(p.ins, input)
+		}
+	}
+	return nil
+}
+
+func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName string) ([]core.Filter, error) {
+	var filters []core.Filter
+	for plugin, filterCfg := range filtersSet {
+		filterFunc, ok := plugins.GetFilter(plugin)
+		if !ok {
+			return nil, fmt.Errorf("unknown filter plugin in pipeline configuration: %v", plugin)
+		}
+
+		var alias = fmt.Sprintf("%v-%v", parentName, plugin)
+		if len(filterCfg.Alias()) > 0 {
+			alias = filterCfg.Alias()
+		}
+
+		filter, err := filterFunc(filterCfg, alias, logrus.NewLogger(map[string]any{
+			"pipeline": p.id,
+			"filter":   plugin,
+			"name":     alias,
+		}))
+		if err != nil {
+			return nil, fmt.Errorf("%v filter configuration error: %v", plugin, err.Error())
+		}
+		filters = append(filters, filter)
+	}
+	return filters, nil
+}
