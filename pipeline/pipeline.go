@@ -1,11 +1,13 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/gekatateam/pipeline/config"
 	"github.com/gekatateam/pipeline/core"
+	"github.com/gekatateam/pipeline/logger"
 	"github.com/gekatateam/pipeline/logger/logrus"
 	"github.com/gekatateam/pipeline/plugins"
 )
@@ -28,16 +30,18 @@ type procSet struct {
 type Pipeline struct {
 	id     string
 	config *config.Pipeline
+	log    logger.Logger
 
 	outs  []outputSet
 	procs []procSet
 	ins   []core.Input
 }
 
-func NewPipeline(id string, config *config.Pipeline) *Pipeline {
+func NewPipeline(id string, config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
 		id:     id,
 		config: config,
+		log:    log,
 		outs:   make([]outputSet, 0),
 		procs:  make([]procSet, 0),
 		ins:    make([]core.Input, 0),
@@ -60,7 +64,7 @@ func (p *Pipeline) Build() error {
 	return nil
 }
 
-func (p *Pipeline) Run() {
+func (p *Pipeline) Run(ctx context.Context) {
 	wg := &sync.WaitGroup{}
 
 	var outputsChannels = make([]chan<- *core.Event, len(p.outs))
@@ -108,6 +112,15 @@ func (p *Pipeline) Run() {
 			wg.Done()
 		}()
 	}
+
+	wg.Add(1)
+	go func() {
+		<-ctx.Done()
+		for _, stop := range inputsStopChannels {
+			stop <- struct{}{}
+		}
+		wg.Done()
+	}()
 
 	wg.Wait()
 }

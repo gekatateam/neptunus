@@ -18,7 +18,7 @@ type Pipeline struct {
 
 type PluginSet map[string]Plugin
 
-type Plugin map[string]any 
+type Plugin map[string]any
 
 func (p Plugin) Alias() string {
 	aliasRaw, ok := p["alias"]

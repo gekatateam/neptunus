@@ -22,8 +22,8 @@ var (
 )
 
 type Config struct {
-	Common Common     `toml:"common"    yaml:"common"`
-	Pipes  []PipeCfg  `toml:"pipelines" yaml:"pipelines"`
+	Common Common    `toml:"common"    yaml:"common"`
+	Pipes  []PipeCfg `toml:"pipelines" yaml:"pipelines"`
 }
 
 type Common struct {
@@ -33,8 +33,8 @@ type Common struct {
 }
 
 type PipeCfg struct {
-	Id      string `toml:"id"      yaml:"id"`
-	Config  string `toml:"config"  yaml:"config"`
+	Id     string `toml:"id"      yaml:"id"`
+	Config string `toml:"config"  yaml:"config"`
 	// Threads int    `toml:"threads" yaml:"threads"`
 }
 
@@ -61,5 +61,3 @@ func ReadConfig(file string) (*Config, error) {
 
 	return &config, nil
 }
-
-
