@@ -17,13 +17,13 @@ type fToCh struct {
 // rejected events are going to unit output
 // accepted events are going to next filter or processor
 //
-//	┌────────────────┐
-//	|┌───┐           |
+//  ┌────────────────┐
+//  |┌───┐           |
 // ─┼┤ f ├┬─────────┐|
-//	|└─┬┬┴┴─┐ ┌────┐||
-//	|  └┤ f ├─┤proc├┴┼─
-//	|   └───┘ └────┘ |
-//	└────────────────┘
+//  |└─┬┬┴┴─┐ ┌────┐||
+//  |  └┤ f ├─┤proc├┴┼─
+//  |   └───┘ └────┘ |
+//  └────────────────┘
 type procSoftUnit struct {
 	p   Processor
 	f   []fToCh
@@ -90,13 +90,13 @@ func (u *procSoftUnit) Run() {
 // if filters are set, each event passes through them
 // rejected events are not going to next filter or output
 //
-//	┌────────────────┐
-//	|┌───┐           |
+//  ┌────────────────┐
+//  |┌───┐           |
 // ─┼┤ f ├┬────────Θ |
-//	|└─┬┬┴┴─┐ ┌────┐ |
-//	|  └┤ f ├─┤out>| |
-//	|   └───┘ └────┘ |
-//	└────────────────┘
+//  |└─┬┬┴┴─┐ ┌────┐ |
+//  |  └┤ f ├─┤out>| |
+//  |   └───┘ └────┘ |
+//  └────────────────┘
 type outSoftUnit struct {
 	o   Output
 	f   []fToCh
@@ -203,12 +203,11 @@ func (u *inSoftUnit) Run() {
 
 // broadcast unit consumes events from input
 // and sends clones of each event to all outputs
-//
-//	┌────────┐
-//	|   ┌────┼─
+//  ┌────────┐
+//  |   ┌────┼─
 // ─┼───█────┼─
-//	|   └────┼─
-//	└────────┘
+//  |   └────┼─
+//  └────────┘
 type bcastSoftUnit struct {
 	in   <-chan *Event
 	outs []chan<- *Event
@@ -241,11 +240,11 @@ func (u *bcastSoftUnit) Run() {
 
 // fusion unit consumes events from multiple inputs
 // and sends them to one output channel
-//	┌────────┐
+//  ┌────────┐
 // ─┼───┐    |
 // ─┼───█────┼─
 // ─┼───┘    |
-//	└────────┘
+//  └────────┘
 type fusionSoftUnit struct {
 	wg  *sync.WaitGroup
 	ins []<-chan *Event

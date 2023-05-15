@@ -1,29 +1,32 @@
 package core
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type Event struct {
-	Id         uuid.UUID         //`json:"id"`
-	Timestamp  time.Time         //`json:"timestamp"`
-	RoutingKey string            //`json:"routing_key"`
-	Tags       []string          //`json:"tags"`
-	Labels     map[string]string //`json:"labels"`
-	Data       Map               //`json:"data"`
+	Id         uuid.UUID
+	Timestamp  time.Time
+	RoutingKey string
+	Tags       []string
+	Labels     map[string]string
+	Data       Map
 	Errors     []error
+	ctx        context.Context
 }
 
-func NewEvent(routingkey string) *Event {
+func NewEvent(routingKey string) *Event {
 	return &Event{
 		Id:         uuid.New(),
 		Timestamp:  time.Now(),
-		RoutingKey: routingkey,
+		RoutingKey: routingKey,
 		Tags:       make([]string, 5),
 		Labels:     make(map[string]string),
 		Data:       make(Map),
+		ctx:        context.Background(),
 	}
 }
 
@@ -51,6 +54,7 @@ func (e *Event) Copy() *Event {
 		Tags:       make([]string, len(e.Tags)),
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
+		ctx:        context.Background(),
 	}
 
 	copy(event.Tags, e.Tags)
@@ -69,6 +73,7 @@ func (e *Event) Clone() *Event {
 		Tags:       make([]string, len(e.Tags)),
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
+		ctx:        e.ctx,
 	}
 
 	copy(event.Tags, e.Tags)
@@ -77,6 +82,14 @@ func (e *Event) Clone() *Event {
 	}
 
 	return &event
+}
+
+func (e *Event) Context() context.Context {
+	return e.ctx
+}
+
+func (e *Event) ReplaceContext(ctx context.Context) {
+	e.ctx = ctx
 }
 
 func (e *Event) GetLabel(key string) (string, bool) {

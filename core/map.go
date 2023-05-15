@@ -65,7 +65,7 @@ func findInMap(m Map, key string) (any, error) {
 			return nil, ErrKeyNotFound
 		}
 
-		// get first level from key; "foo.bar" -> "foo"
+		// get current level from key; "foo.bar" -> "foo"
 		k := key[:idx]
 
 		// get next node
@@ -82,7 +82,7 @@ func findInMap(m Map, key string) (any, error) {
 
 		// shift key; "foo.bar" -> "bar"
 		key = key[idx+1:]
-		// shift node for next iteration
+		// shift node for a next iteration
 		m = nextMap
 	}
 }
@@ -97,7 +97,7 @@ func putInMap(m Map, key string, value any) error {
 			return nil
 		}
 
-		// get first level from key; "foo.bar" -> "foo"
+		// get current level from key; "foo.bar" -> "foo"
 		k := key[:idx]
 
 		// create next node if it not exists
@@ -135,7 +135,7 @@ func delFromMap(m Map, key string) (any, error) {
 			return nil, ErrKeyNotFound
 		}
 
-		// get first level from key; "foo.bar" -> "foo"
+		// get current level from key; "foo.bar" -> "foo"
 		k := key[:idx]
 
 		// get next node

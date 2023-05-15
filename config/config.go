@@ -33,9 +33,10 @@ type Common struct {
 }
 
 type PipeCfg struct {
-	Id     string `toml:"id"      yaml:"id"`
-	Config string `toml:"config"  yaml:"config"`
-	// Threads int    `toml:"threads" yaml:"threads"`
+	Id     string `toml:"id" yaml:"id"`
+	Config struct {
+		File string `toml:"file" yaml:"file"`
+	} `toml:"config" yaml:"config"`
 }
 
 func ReadConfig(file string) (*Config, error) {

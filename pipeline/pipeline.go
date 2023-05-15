@@ -53,20 +53,28 @@ func (p *Pipeline) Build() error {
 		return err
 	}
 
+	p.log.Debug("outputs confiruration has no errors")
+
 	if err := p.configureProcessors(); err != nil {
 		return err
 	}
+
+	p.log.Debug("processors confiruration has no errors")
 
 	if err := p.configureInputs(); err != nil {
 		return err
 	}
 
+	p.log.Debug("inputs confiruration has no errors")
+
 	return nil
 }
 
 func (p *Pipeline) Run(ctx context.Context) {
+	p.log.Info("starting pipeline")
 	wg := &sync.WaitGroup{}
 
+	p.log.Info("starting outputs")
 	var outputsChannels = make([]chan<- *core.Event, len(p.outs))
 	for _, output := range p.outs {
 		unit, outCh := core.NewOutputSoftUnit(output.o, output.f)
@@ -78,6 +86,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}()
 	}
 
+	p.log.Info("starting broadcaster")
 	bcastUnit, bcastCh := core.NewBroadcastSoftUnit(outputsChannels...)
 	wg.Add(1)
 	go func() {
@@ -85,6 +94,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		wg.Done()
 	}()
 
+	p.log.Info("starting processors")
 	for _, processor := range p.procs {
 		unit, procCh := core.NewProcessorSoftUnit(processor.p, processor.f, bcastCh)
 		wg.Add(1)
@@ -95,6 +105,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		bcastCh = procCh
 	}
 
+	p.log.Info("starting fusionner")
 	fusionUnit, inputsCh := core.NewFusionSoftUnit(bcastCh, len(p.ins))
 	wg.Add(1)
 	go func() {
@@ -102,6 +113,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		wg.Done()
 	}()
 
+	p.log.Info("starting inputs")
 	var inputsStopChannels = make([]chan<- struct{}, len(p.ins))
 	for i, input := range p.ins {
 		unit, stopCh := core.NewInputSoftUnit(input, inputsCh[i])
@@ -123,6 +135,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}()
 
 	wg.Wait()
+	p.log.Info("pipeline stopped")
 }
 
 func (p *Pipeline) configureOutputs() error {
