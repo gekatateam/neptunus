@@ -74,10 +74,10 @@ func (p *Pipeline) Run() {
 		}()
 	}
 
-	unit, bcastCh := core.NewBroadcastSoftUnit(outputsChannels...)
+	bcastUnit, bcastCh := core.NewBroadcastSoftUnit(outputsChannels...)
 	wg.Add(1)
 	go func() {
-		unit.Run()
+		bcastUnit.Run()
 		wg.Done()
 	}()
 
@@ -91,9 +91,16 @@ func (p *Pipeline) Run() {
 		bcastCh = procCh
 	}
 
+	fusionUnit, inputsCh := core.NewFusionSoftUnit(bcastCh, len(p.ins))
+	wg.Add(1)
+	go func() {
+		fusionUnit.Run()
+		wg.Done()
+	}()
+
 	var inputsStopChannels = make([]chan<- struct{}, len(p.ins))
-	for _, input := range p.ins {
-		unit, stopCh := core.NewInputSoftUnit(input, bcastCh)
+	for i, input := range p.ins {
+		unit, stopCh := core.NewInputSoftUnit(input, inputsCh[i])
 		inputsStopChannels = append(inputsStopChannels, stopCh)
 		wg.Add(1)
 		go func() {
@@ -103,7 +110,6 @@ func (p *Pipeline) Run() {
 	}
 
 	wg.Wait()
-	close()
 }
 
 func (p *Pipeline) configureOutputs() error {

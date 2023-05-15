@@ -155,9 +155,8 @@ func (u *outSoftUnit) Run() {
 }
 
 // input unit sends consumed events to output channel
-// input units are not like the others:
-// - they do not close their output channels (to avoid goroutines hell)
-// - they do not use filters
+// input units have several features:
+// - they do not use filters (maybe in future)
 // - they wait for the closing signal through a dedicated channel
 // ┌───────┐
 // | ┌───┐ |
@@ -197,6 +196,7 @@ func (u *inSoftUnit) Run() {
 	u.i.Serve() // blocking call, loop inside
 
 	u.wg.Wait()
+	close(u.out)
 }
 
 // broadcast unit consumes events from input
@@ -234,4 +234,49 @@ func (u *bcastSoftUnit) Run() {
 	for _, out := range u.outs {
 		close(out)
 	}
+}
+
+// fusion unit consumes events from multiple inputs
+// and sends them to one output channel
+//	┌────────┐ 
+// ─┼───┐    | 
+// ─┼───█────┼─
+// ─┼───┘    | 
+//	└────────┘ 
+type fusionSoftUnit struct {
+	wg  *sync.WaitGroup
+	ins []<-chan *Event
+	out chan<- *Event
+}
+
+func NewFusionSoftUnit(out chan<- *Event, inputsCount int) (unit *fusionSoftUnit, unitInputs [] chan<- *Event) {
+	inputs := make([]chan<- *Event, inputsCount)
+	unit = &fusionSoftUnit{
+		wg:  &sync.WaitGroup{},
+		ins: make([]<-chan *Event, inputsCount),
+		out: out,
+	}
+
+	for i := 0; i < inputsCount; i++ {
+		input := make(chan *Event)
+		inputs = append(inputs, input)
+		unit.ins = append(unit.ins, input)
+	}
+
+	return unit, inputs
+}
+
+func (u *fusionSoftUnit) Run() {
+	for _, inputCh := range u.ins {
+		u.wg.Add(1)
+		go func(c <-chan *Event) {
+			for e := range c {
+				u.out <- e
+			}
+			u.wg.Done()
+		}(inputCh)
+	}
+
+	u.wg.Wait()
+	close(u.out)
 }
