@@ -160,6 +160,7 @@ func (u *outSoftUnit) Run() {
 // input units have several features:
 // - they do not use filters (maybe in future)
 // - they wait for the closing signal through a dedicated channel
+//
 // ┌───────┐
 // | ┌───┐ |
 // | |>in├─┼─
@@ -203,6 +204,7 @@ func (u *inSoftUnit) Run() {
 
 // broadcast unit consumes events from input
 // and sends clones of each event to all outputs
+//
 //  ┌────────┐
 //  |   ┌────┼─
 // ─┼───█────┼─
@@ -228,8 +230,12 @@ func (u *bcastSoftUnit) Run() {
 	// to all outputs
 	// this loop breaks when the input channel closes
 	for e := range u.in {
-		for _, out := range u.outs {
-			out <- e.Clone()
+		for i, out := range u.outs {
+			if i == len(u.outs) -1 { // send origin event to last consumer
+				out <- e
+			} else {
+				out <- e.Clone()
+			}
 		}
 	}
 	// close all outputs
@@ -240,6 +246,7 @@ func (u *bcastSoftUnit) Run() {
 
 // fusion unit consumes events from multiple inputs
 // and sends them to one output channel
+//
 //  ┌────────┐
 // ─┼───┐    |
 // ─┼───█────┼─

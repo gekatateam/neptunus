@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/urfave/cli/v2"
 
@@ -12,16 +12,44 @@ import (
 var log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 func main() {
-    app := &cli.App{
-        Name:  "boom",
-        Usage: "make an explosive entrance",
-        Action: func(*cli.Context) error {
-            fmt.Println("boom! I say!")
-            return nil
-        },
-    }
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatalf("unexpected panic recovered: %v; stack trace: %v", r, debug.Stack())
+		}
+	}()
 
-    if err := app.Run(os.Args); err != nil {
-        log.Fatalf("application startup error: %v", err.Error())
-    }
+	app := &cli.App{
+		Name:    "pipeline",
+		Version: "v0.0.1",
+		Commands: []*cli.Command{
+			{
+				Name:  "run",
+				Usage: "run configured pipelines",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "config",
+						Value: "config.toml",
+						Usage: "path to configuration file",
+					},
+				},
+				Action: run,
+			},
+			{
+				Name:  "test",
+				Usage: "test configured pipelines",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "config",
+						Value: "config.toml",
+						Usage: "path to configuration file",
+					},
+				},
+				Action: test,
+			},
+		},
+	}
+
+	if err := app.Run(os.Args); err != nil {
+		log.Fatalf("application startup error: %v", err.Error())
+	}
 }

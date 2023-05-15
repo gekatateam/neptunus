@@ -128,12 +128,13 @@ func (p *Pipeline) Run(ctx context.Context) {
 	wg.Add(1)
 	go func() {
 		<-ctx.Done()
+		p.log.Info("stop signal received, stopping pipeline")
 		for _, stop := range inputsStopChannels {
 			stop <- struct{}{}
 		}
 		wg.Done()
 	}()
-
+	p.log.Info("pipeline started")
 	wg.Wait()
 	p.log.Info("pipeline stopped")
 }
