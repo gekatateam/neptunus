@@ -21,7 +21,12 @@ type Log struct {
 }
 
 func New(config map[string]any, alias string, log logger.Logger) (core.Output, error) {
-	l := &Log{log: log, alias: alias}
+	l := &Log{
+		Level: "info",
+
+		log:   log,
+		alias: alias,
+	}
 	if err := mapstructure.Decode(config, l); err != nil {
 		return nil, err
 	}

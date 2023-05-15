@@ -6,6 +6,11 @@ import (
 
 	"github.com/gekatateam/pipeline/config"
 	"github.com/gekatateam/pipeline/pkg/slices"
+
+	_ "github.com/gekatateam/pipeline/plugins/filters"
+	_ "github.com/gekatateam/pipeline/plugins/inputs"
+	_ "github.com/gekatateam/pipeline/plugins/outputs"
+	_ "github.com/gekatateam/pipeline/plugins/processors"
 )
 
 func loadPipelines(cfg []config.PipeCfg) ([]*config.Pipeline, error) {

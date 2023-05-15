@@ -2,7 +2,9 @@ package core
 
 // soft (consistency) units does not guarantee the order of processing, but (planned to be) fast
 
-import "sync"
+import (
+	"sync"
+)
 
 // fToCh stores a pair of a filter and it's acceptsChan output
 // which is a next filter/processor/output input
@@ -37,7 +39,7 @@ func NewProcessorSoftUnit(p Processor, f []Filter, out chan<- *Event) (unit *pro
 	unitInput = in
 	unit = &procSoftUnit{
 		p:   p,
-		f:   make([]fToCh, len(f)),
+		f:   make([]fToCh, 0, len(f)),
 		wg:  &sync.WaitGroup{},
 		in:  in,
 		out: out, // also channel for rejected events
@@ -78,7 +80,6 @@ func (u *procSoftUnit) Run() {
 	// or, if no filters are set, when the u.in channel is closed
 	u.p.Process() // blocking call, loop inside
 	u.p.Close()
-	u.wg.Done()
 
 	// then, we wait until all goruntins are finished
 	// and close the outgoing channel - which is the incoming channel for the next processor or output
@@ -110,7 +111,7 @@ func NewOutputSoftUnit(o Output, f []Filter) (unit *outSoftUnit, unitInput chan<
 	unitInput = in
 	unit = &outSoftUnit{
 		o:   o,
-		f:   make([]fToCh, len(f)),
+		f:   make([]fToCh, 0, len(f)),
 		wg:  &sync.WaitGroup{},
 		in:  in,
 		rej: make(chan *Event, bufferSize),
@@ -259,15 +260,15 @@ type fusionSoftUnit struct {
 }
 
 func NewFusionSoftUnit(out chan<- *Event, inputsCount int) (unit *fusionSoftUnit, unitInputs []chan<- *Event) {
-	inputs := make([]chan<- *Event, inputsCount)
+	inputs := make([]chan<- *Event, 0, inputsCount)
 	unit = &fusionSoftUnit{
 		wg:  &sync.WaitGroup{},
-		ins: make([]<-chan *Event, inputsCount),
+		ins: make([]<-chan *Event, 0, inputsCount),
 		out: out,
 	}
 
 	for i := 0; i < inputsCount; i++ {
-		input := make(chan *Event)
+		input := make(chan *Event, bufferSize)
 		inputs = append(inputs, input)
 		unit.ins = append(unit.ins, input)
 	}

@@ -1,0 +1,9 @@
+[[inputs]]
+  [inputs.http]
+    routing_key = "http.input.test"
+
+[[processors]]
+  [processors.through]
+
+[[outputs]]
+  [outputs.log]

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/goccy/go-yaml"
@@ -15,7 +14,6 @@ var (
 		Common: Common{
 			LogLevel:    "info",
 			LogFormat:   "logfmt",
-			StopTimeout: 15 * time.Second,
 		},
 		Pipes: nil,
 	}
@@ -27,9 +25,8 @@ type Config struct {
 }
 
 type Common struct {
-	LogLevel    string        `toml:"log_level"    yaml:"log_level"`
-	LogFormat   string        `toml:"log_format"   yaml:"log_format"`
-	StopTimeout time.Duration `toml:"stop_timeout" yaml:"stop_timeout"`
+	LogLevel  string `toml:"log_level"  yaml:"log_level"`
+	LogFormat string `toml:"log_format" yaml:"log_format"`
 }
 
 type PipeCfg struct {

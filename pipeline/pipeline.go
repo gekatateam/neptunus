@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -75,7 +76,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	wg := &sync.WaitGroup{}
 
 	p.log.Info("starting outputs")
-	var outputsChannels = make([]chan<- *core.Event, len(p.outs))
+	var outputsChannels = make([]chan<- *core.Event, 0, len(p.outs))
 	for _, output := range p.outs {
 		unit, outCh := core.NewOutputSoftUnit(output.o, output.f)
 		outputsChannels = append(outputsChannels, outCh)
@@ -114,7 +115,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}()
 
 	p.log.Info("starting inputs")
-	var inputsStopChannels = make([]chan<- struct{}, len(p.ins))
+	var inputsStopChannels = make([]chan<- struct{}, 0, len(p.ins))
 	for i, input := range p.ins {
 		unit, stopCh := core.NewInputSoftUnit(input, inputsCh[i])
 		inputsStopChannels = append(inputsStopChannels, stopCh)
@@ -140,6 +141,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 }
 
 func (p *Pipeline) configureOutputs() error {
+	if len(p.config.Outputs) == 0 {
+		return errors.New("at leats one output required")
+	}
+
 	for index, outputs := range p.config.Outputs {
 		for plugin, outputCfg := range outputs {
 			outputFunc, ok := plugins.GetOutput(plugin)
@@ -206,6 +211,10 @@ func (p *Pipeline) configureProcessors() error {
 }
 
 func (p *Pipeline) configureInputs() error {
+	if len(p.config.Inputs) == 0 {
+		return errors.New("at leats one input required")
+	}
+
 	for index, inputs := range p.config.Inputs {
 		for plugin, inputCfg := range inputs {
 			inputFunc, ok := plugins.GetInput(plugin)

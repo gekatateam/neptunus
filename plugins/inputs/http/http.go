@@ -33,7 +33,15 @@ type Http struct {
 }
 
 func New(config map[string]any, alias string, log logger.Logger) (core.Input, error) {
-	h := &Http{log: log, alias: alias}
+	h := &Http{
+		Address:      ":9800",
+		Path:         "/events",
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+
+		log:   log,
+		alias: alias,
+	}
 	if err := mapstructure.Decode(config, h); err != nil {
 		return nil, err
 	}
@@ -92,6 +100,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+	i.log.Debug("request received from %v", r.RemoteAddr)
 
 	var cursor = 0
 	scanner := bufio.NewScanner(r.Body)
