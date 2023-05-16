@@ -12,8 +12,8 @@ import (
 var (
 	defaultConfig = Config{
 		Common: Common{
-			LogLevel:    "info",
-			LogFormat:   "logfmt",
+			LogLevel:  "info",
+			LogFormat: "logfmt",
 		},
 		Pipes: nil,
 	}
@@ -34,6 +34,7 @@ type PipeCfg struct {
 	Config struct {
 		File string `toml:"file" yaml:"file"`
 	} `toml:"config" yaml:"config"`
+	Lines int `toml:"lines" yaml:"lines"`
 }
 
 func ReadConfig(file string) (*Config, error) {

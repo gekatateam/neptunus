@@ -150,7 +150,7 @@ func NewOutputSoftUnit(o Output, f []Filter) (unit *outSoftUnit, unitInput chan<
 	return unit, unitInput
 }
 
-func NewDIrectOutputSoftUnit(o Output, f []Filter, in <-chan *Event) (unit *outSoftUnit) {
+func NewDirectOutputSoftUnit(o Output, f []Filter, in <-chan *Event) (unit *outSoftUnit) {
 	unit = &outSoftUnit{
 		o:   o,
 		f:   make([]fToCh, 0, len(f)),

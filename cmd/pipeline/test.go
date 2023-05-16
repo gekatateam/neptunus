@@ -27,13 +27,13 @@ func test(cCtx *cli.Context) error {
 	}
 
 	for i, pipeCfg := range pipelines {
-		pipeline := pipeline.NewPipeline(cfg.Pipes[i].Id, pipeCfg, logrus.NewLogger(map[string]any{
+		pipeline := pipeline.NewPipeline(cfg.Pipes[i].Id, cfg.Pipes[i].Lines, pipeCfg, logrus.NewLogger(map[string]any{
 			"scope": "pipeline",
 			"id":    cfg.Pipes[i].Id,
 		}))
-		err = pipeline.Build()
+		err = pipeline.Test()
 		if err != nil {
-			return fmt.Errorf("pipeline %v building failed: %v", cfg.Pipes[i].Id, err.Error())
+			return err
 		}
 	}
 

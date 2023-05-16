@@ -50,6 +50,6 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatalf("application startup error: %v", err.Error())
+		log.Fatalf("application error: %v", err.Error())
 	}
 }

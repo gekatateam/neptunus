@@ -42,7 +42,7 @@ func run(cCtx *cli.Context) error {
 	ctx, cancel := context.WithCancel(cCtx.Context)
 	defer cancel()
 	for i, pipeCfg := range pipelines {
-		pipeline := pipeline.NewPipeline(cfg.Pipes[i].Id, pipeCfg, logrus.NewLogger(map[string]any{
+		pipeline := pipeline.NewPipeline(cfg.Pipes[i].Id, cfg.Pipes[i].Lines, pipeCfg, logrus.NewLogger(map[string]any{
 			"scope": "pipeline",
 			"id":    cfg.Pipes[i].Id,
 		}))
@@ -54,7 +54,7 @@ func run(cCtx *cli.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			pipeline.Run(ctx)
+			pipeline.Run2(ctx)
 		}()
 	}
 

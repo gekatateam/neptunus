@@ -32,17 +32,19 @@ type Pipeline struct {
 	id     string
 	config *config.Pipeline
 	log    logger.Logger
+	scale  int
 
 	outs  []outputSet
 	procs []procSet
 	ins   []core.Input
 }
 
-func NewPipeline(id string, config *config.Pipeline, log logger.Logger) *Pipeline {
+func NewPipeline(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
 		id:     id,
 		config: config,
 		log:    log,
+		scale:  scaleProcs,
 		outs:   make([]outputSet, 0),
 		procs:  make([]procSet, 0),
 		ins:    make([]core.Input, 0),
@@ -50,25 +52,50 @@ func NewPipeline(id string, config *config.Pipeline, log logger.Logger) *Pipelin
 }
 
 func (p *Pipeline) Build() error {
-	if err := p.configureOutputs(); err != nil {
+	if err := p.configureInputs(); err != nil {
 		return err
 	}
-
-	p.log.Debug("outputs confiruration has no errors")
+	p.log.Debug("inputs confiruration has no errors")
 
 	if err := p.configureProcessors(); err != nil {
 		return err
 	}
-
 	p.log.Debug("processors confiruration has no errors")
 
-	if err := p.configureInputs(); err != nil {
+	if err := p.configureOutputs(); err != nil {
 		return err
 	}
-
-	p.log.Debug("inputs confiruration has no errors")
+	p.log.Debug("outputs confiruration has no errors")
 
 	return nil
+}
+
+func (p *Pipeline) Test() error {
+	var err error
+	if err = p.configureInputs(); err != nil {
+		p.log.Errorf("inputs confiruration test failed: %v", err.Error())
+		err = errors.New("pipeline test failed")
+		goto PIPELINE_TESTED
+	}
+	p.log.Info("inputs confiruration has no errors")
+
+	if err = p.configureProcessors(); err != nil {
+		p.log.Errorf("processors confiruration test failed: %v", err.Error())
+		err = errors.New("pipeline test failed")
+		goto PIPELINE_TESTED
+	}
+	p.log.Info("processors confiruration has no errors")
+
+	if err = p.configureOutputs(); err != nil {
+		p.log.Errorf("outputs confiruration test failed: %v", err.Error())
+		err = errors.New("pipeline test failed")
+		goto PIPELINE_TESTED
+	}
+	p.log.Info("outputs confiruration has no errors")
+	p.log.Info("pipeline tested successfully")
+
+	PIPELINE_TESTED:
+	return err
 }
 
 func (p *Pipeline) Run(ctx context.Context) {
@@ -135,6 +162,93 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 		wg.Done()
 	}()
+	p.log.Info("pipeline started")
+	wg.Wait()
+	p.log.Info("pipeline stopped")
+}
+
+func (p *Pipeline) Run2(ctx context.Context) {
+	p.log.Info("starting pipeline")
+	wg := &sync.WaitGroup{}
+
+	p.log.Info("starting inputs")
+	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins)) // <- pre-ready channels
+	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
+	for i, input := range p.ins {
+		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
+		unit, outCh := core.NewDirectInputSoftUnit(input, inputsStopChannels[i])
+		inputsOutChannels = append(inputsOutChannels, outCh)
+		wg.Add(1)
+		go func() {
+			unit.Run()
+			wg.Done()
+		}()
+	}
+
+	wg.Add(1)
+	go func() {
+		p.log.Info("starting stop-watcher")
+		<-ctx.Done()
+		p.log.Info("stop signal received, stopping pipeline")
+		for _, stop := range inputsStopChannels {
+			fmt.Println("stop try to send +") // #
+			stop <- struct{}{}
+		}
+		wg.Done()
+	}()
+
+	p.log.Info("starting inputs-to-processors fusionner")
+	fusionUnit, outCh := core.NewDirectFusionSoftUnit(inputsOutChannels...)
+	wg.Add(1)
+	go func() {
+		fusionUnit.Run()
+		wg.Done()
+	}()
+
+	if len(p.procs) > 0 {
+		p.log.Infof("starting processors, scaling to %v parallel lines", p.scale)
+		var procsOutChannels = make([]<-chan *core.Event, 0, p.scale)
+		for i := 0; i < p.scale; i++ {
+			procInput := outCh
+			for _, processor := range p.procs {
+				unit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
+				wg.Add(1)
+				go func() {
+					unit.Run()
+					wg.Done()
+				}()
+				procInput = procOut
+			}
+			procsOutChannels = append(procsOutChannels, procInput)
+		}
+
+		p.log.Info("starting processors-to-broadcast fusionner")
+		fusionUnit, outCh = core.NewDirectFusionSoftUnit(procsOutChannels...)
+		wg.Add(1)
+		go func() {
+			fusionUnit.Run()
+			wg.Done()
+		}()
+	}
+
+	p.log.Info("starting broadcaster")
+	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(outCh, len(p.outs))
+	wg.Add(1)
+	go func() {
+		bcastUnit.Run()
+		wg.Done()
+	}()
+
+	p.log.Info("starting outputs")
+	for i, output := range p.outs {
+		unit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
+		wg.Add(1)
+		go func() {
+			unit.Run()
+			wg.Done()
+		}()
+	}
+
 	p.log.Info("pipeline started")
 	wg.Wait()
 	p.log.Info("pipeline stopped")

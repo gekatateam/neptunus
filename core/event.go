@@ -23,7 +23,7 @@ func NewEvent(routingKey string) *Event {
 		Id:         uuid.New(),
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
-		Tags:       make([]string, 5),
+		Tags:       make([]string, 0, 5),
 		Labels:     make(map[string]string),
 		Data:       make(Map),
 		ctx:        context.Background(),
