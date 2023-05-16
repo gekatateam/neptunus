@@ -1,0 +1,8 @@
+[common]
+  log_level = "debug"
+
+[[pipelines]]
+  id = "test-pipe-1"
+  lines = 5
+  [pipelines.config]
+    file = "pipeline.toml"
