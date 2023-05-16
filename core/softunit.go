@@ -202,6 +202,8 @@ func (u *outSoftUnit) Run() {
 
 // input unit sends consumed events to output channel
 // input unit wait for the closing signal through a dedicated channel
+// if filters are set, each event passes through them
+// rejected events are not going to next filter or processor
 //
 // ┌────────────────┐
 // |┌───┐ ┌───┐     |
