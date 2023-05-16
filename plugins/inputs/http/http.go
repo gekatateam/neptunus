@@ -100,7 +100,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-	i.log.Debug("received request from: %v", r.RemoteAddr)
+	i.log.Debugf("received request from: %v", r.RemoteAddr)
 
 	var cursor = 0
 	scanner := bufio.NewScanner(r.Body)

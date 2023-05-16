@@ -17,6 +17,11 @@ type unit interface {
 	Run()
 }
 
+type inputSet struct {
+	o core.Input
+	f []core.Filter
+}
+
 type outputSet struct {
 	o core.Output
 	f []core.Filter
@@ -36,7 +41,7 @@ type Pipeline struct {
 
 	outs  []outputSet
 	procs []procSet
-	ins   []core.Input
+	ins   []inputSet
 }
 
 func New(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) *Pipeline {
@@ -47,7 +52,7 @@ func New(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) 
 		scale:  scaleProcs,
 		outs:   make([]outputSet, 0),
 		procs:  make([]procSet, 0),
-		ins:    make([]core.Input, 0),
+		ins:    make([]inputSet, 0),
 	}
 }
 
@@ -98,6 +103,7 @@ func (p *Pipeline) Test() error {
 	return err
 }
 
+// !### DEPRECATED ###
 func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting pipeline")
 	wg := &sync.WaitGroup{}
@@ -144,7 +150,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting inputs")
 	var inputsStopChannels = make([]chan<- struct{}, 0, len(p.ins))
 	for i, input := range p.ins {
-		unit, stopCh := core.NewInputSoftUnit(input, inputsCh[i])
+		unit, stopCh := core.NewInputSoftUnit(input.o, inputsCh[i])
 		inputsStopChannels = append(inputsStopChannels, stopCh)
 		wg.Add(1)
 		go func() {
@@ -176,7 +182,7 @@ func (p *Pipeline) Run2(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		unit, outCh := core.NewDirectInputSoftUnit(input, inputsStopChannels[i])
+		unit, outCh := core.NewDirectInputSoftUnit(input.o, input.f, inputsStopChannels[i])
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
 		go func() {
@@ -349,7 +355,12 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("%v input configuration error: %v", plugin, err.Error())
 			}
 
-			p.ins = append(p.ins, input)
+			filters, err := p.configureFilters(inputCfg.Filters(), alias)
+			if err != nil {
+				return fmt.Errorf("%v input filters configuration error: %v", plugin, err.Error())
+			}
+
+			p.ins = append(p.ins, inputSet{input, filters})
 		}
 	}
 	return nil

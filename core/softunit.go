@@ -34,6 +34,7 @@ type procSoftUnit struct {
 	out chan<- *Event
 }
 
+// !### DEPRECATED ###
 func NewProcessorSoftUnit(p Processor, f []Filter, out chan<- *Event) (unit *procSoftUnit, unitInput chan<- *Event) {
 	in := make(chan *Event, bufferSize) // unit input channel
 	unitInput = in
@@ -127,6 +128,7 @@ type outSoftUnit struct {
 	rej chan *Event // rejected events doesn't processed anymore
 }
 
+// !### DEPRECATED ###
 func NewOutputSoftUnit(o Output, f []Filter) (unit *outSoftUnit, unitInput chan<- *Event) {
 	in := make(chan *Event, bufferSize)
 	unitInput = in
@@ -199,22 +201,25 @@ func (u *outSoftUnit) Run() {
 }
 
 // input unit sends consumed events to output channel
-// input units have several features:
-// - they do not use filters (maybe in future)
-// - they wait for the closing signal through a dedicated channel
+// input unit wait for the closing signal through a dedicated channel
 //
-// ┌───────┐
-// | ┌───┐ |
-// | |>in├─┼─
-// | └───┘ |
-// └───────┘
+// ┌────────────────┐
+// |┌───┐ ┌───┐     |
+// ||>in├─┤ f ├┬──Θ |
+// |└───┘ └─┬┬┴┴─┐  |
+// |        └┤ f ├──┼─
+// |         └───┘  |
+// └────────────────┘
 type inSoftUnit struct {
 	i    Input
+	f    []fToCh
 	wg   *sync.WaitGroup
 	out  chan<- *Event // first channel in chain
+	rej  chan *Event
 	stop <-chan struct{}
 }
 
+// !### DEPRECATED ###
 func NewInputSoftUnit(i Input, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
 	stopUnit := make(chan struct{})
 	unit = &inSoftUnit{
@@ -228,34 +233,61 @@ func NewInputSoftUnit(i Input, out chan<- *Event) (unit *inSoftUnit, stop chan<-
 	return unit, stopUnit
 }
 
-func NewDirectInputSoftUnit(i Input, stop <-chan struct{}) (unit *inSoftUnit, unitOut <-chan *Event) {
+func NewDirectInputSoftUnit(i Input, f []Filter, stop <-chan struct{}) (unit *inSoftUnit, unitOut <-chan *Event) {
 	out := make(chan *Event, bufferSize)
 	unit = &inSoftUnit{
 		i:    i,
 		wg:   &sync.WaitGroup{},
 		out:  out,
+		rej:  make(chan *Event, bufferSize),
 		stop: stop,
 	}
 	i.Init(out)
+
+	for _, filter := range f {
+		acceptsChan := make(chan *Event, bufferSize)
+		filter.Init(out, unit.rej, acceptsChan)
+		out = acceptsChan
+		unit.f = append(unit.f, fToCh{filter, acceptsChan})
+	}
 
 	return unit, out
 }
 
 func (u *inSoftUnit) Run() {
+	// run fliters
+	for _, v := range u.f {
+		u.wg.Add(1)
+		go func(f Filter, c chan<- *Event) {
+			f.Filter() // blocking call, loop inside
+			close(c)
+			f.Close()
+			u.wg.Done()
+		}(v.f, v.c)
+	}
+
 	// wait for stop signal
 	// then close the input
 	u.wg.Add(1)
 	go func() {
 		<-u.stop
 		u.i.Close()
+		close(u.out)
+		u.wg.Done()
+	}()
+
+	u.wg.Add(1)
+	go func() {
+		for range u.rej {
+		}
 		u.wg.Done()
 	}()
 
 	// run input
 	u.i.Serve() // blocking call, loop inside
-
+	close(u.rej)
 	u.wg.Wait()
-	close(u.out)
+	
 }
 
 // broadcast unit consumes events from input
@@ -271,6 +303,7 @@ type bcastSoftUnit struct {
 	outs []chan<- *Event
 }
 
+// !### DEPRECATED ###
 func NewBroadcastSoftUnit(outs ...chan<- *Event) (unit *bcastSoftUnit, unitInput chan<- *Event) {
 	in := make(chan *Event, bufferSize)
 	unit = &bcastSoftUnit{
@@ -330,6 +363,7 @@ type fusionSoftUnit struct {
 	out chan<- *Event
 }
 
+// !### DEPRECATED ###
 func NewFusionSoftUnit(out chan<- *Event, inputsCount int) (unit *fusionSoftUnit, unitInputs []chan<- *Event) {
 	inputs := make([]chan<- *Event, 0, inputsCount)
 	unit = &fusionSoftUnit{

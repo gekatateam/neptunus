@@ -1,10 +1,16 @@
 [[inputs]]
   [inputs.http]
     routing_key = "http.input.test"
+  [inputs.http.filters.allowall]
+    alias = "t1"
 
 [[processors]]
-  [processors.log]
+  [processors.through]
     level = "warn"
+  [processors.through.filters.allowall]
+    alias = "t2"
 
 [[outputs]]
   [outputs.log]
+  [outputs.log.filters.allowall]
+    alias = "t3"
