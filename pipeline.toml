@@ -3,7 +3,8 @@
     routing_key = "http.input.test"
 
 [[processors]]
-  [processors.through]
+  [processors.log]
+    level = "warn"
 
 [[outputs]]
   [outputs.log]

@@ -14,6 +14,7 @@ var (
 		Common: Common{
 			LogLevel:  "info",
 			LogFormat: "logfmt",
+			MgmtAddr:  ":9600",
 		},
 		Pipes: nil,
 	}
@@ -25,8 +26,10 @@ type Config struct {
 }
 
 type Common struct {
-	LogLevel  string `toml:"log_level"  yaml:"log_level"`
-	LogFormat string `toml:"log_format" yaml:"log_format"`
+	LogLevel  string `toml:"log_level"       yaml:"log_level"`
+	LogFormat string `toml:"log_format"      yaml:"log_format"`
+	MgmtAddr  string `toml:"manager_address" yaml:"manager_address"`
+
 }
 
 type PipeCfg struct {

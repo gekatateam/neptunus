@@ -27,7 +27,7 @@ func test(cCtx *cli.Context) error {
 	}
 
 	for i, pipeCfg := range pipelines {
-		pipeline := pipeline.NewPipeline(cfg.Pipes[i].Id, cfg.Pipes[i].Lines, pipeCfg, logrus.NewLogger(map[string]any{
+		pipeline := pipeline.New(cfg.Pipes[i].Id, cfg.Pipes[i].Lines, pipeCfg, logrus.NewLogger(map[string]any{
 			"scope": "pipeline",
 			"id":    cfg.Pipes[i].Id,
 		}))

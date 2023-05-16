@@ -39,7 +39,7 @@ type Pipeline struct {
 	ins   []core.Input
 }
 
-func NewPipeline(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) *Pipeline {
+func New(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
 		id:     id,
 		config: config,
@@ -191,7 +191,6 @@ func (p *Pipeline) Run2(ctx context.Context) {
 		<-ctx.Done()
 		p.log.Info("stop signal received, stopping pipeline")
 		for _, stop := range inputsStopChannels {
-			fmt.Println("stop try to send +") // #
 			stop <- struct{}{}
 		}
 		wg.Done()
