@@ -57,6 +57,27 @@ func NewProcessorSoftUnit(p Processor, f []Filter, out chan<- *Event) (unit *pro
 	return unit, unitInput
 }
 
+func NewDirectProcessorSoftUnit(p Processor, f []Filter, in <-chan *Event) (unit *procSoftUnit, unitOut <-chan *Event) {
+	out := make(chan *Event, bufferSize)
+	unit = &procSoftUnit{
+		p:   p,
+		f:   make([]fToCh, 0, len(f)),
+		wg:  &sync.WaitGroup{},
+		in:  in,
+		out: out,
+	}
+
+	for _, filter := range f {
+		acceptsChan := make(chan *Event, bufferSize)
+		filter.Init(in, unit.out, acceptsChan)
+		in = acceptsChan // connect current filter success output to next filter/plugin input
+		unit.f = append(unit.f, fToCh{filter, acceptsChan})
+	}
+
+	p.Init(in, unit.out)
+	return unit, out
+}
+
 // starts events processing
 // this function returns when the input channel is closed and read out to the end
 // in the end, it closes the outgoing channel, which is incoming for a next consumer in a pipeline
@@ -129,6 +150,26 @@ func NewOutputSoftUnit(o Output, f []Filter) (unit *outSoftUnit, unitInput chan<
 	return unit, unitInput
 }
 
+func NewDIrectOutputSoftUnit(o Output, f []Filter, in <-chan *Event) (unit *outSoftUnit) {
+	unit = &outSoftUnit{
+		o:   o,
+		f:   make([]fToCh, 0, len(f)),
+		wg:  &sync.WaitGroup{},
+		in:  in,
+		rej: make(chan *Event, bufferSize),
+	}
+
+	for _, filter := range f {
+		acceptsChan := make(chan *Event, bufferSize)
+		filter.Init(in, unit.rej, acceptsChan)
+		in = acceptsChan
+		unit.f = append(unit.f, fToCh{filter, acceptsChan})
+	}
+
+	o.Init(in)
+	return unit
+}
+
 func (u *outSoftUnit) Run() {
 	// run fliters
 	for _, v := range u.f {
@@ -171,19 +212,33 @@ type inSoftUnit struct {
 	i    Input
 	wg   *sync.WaitGroup
 	out  chan<- *Event // first channel in chain
-	stop chan struct{}
+	stop <-chan struct{}
 }
 
 func NewInputSoftUnit(i Input, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
+	stopUnit := make(chan struct{})
 	unit = &inSoftUnit{
 		i:    i,
 		wg:   &sync.WaitGroup{},
 		out:  out,
-		stop: make(chan struct{}),
+		stop: stopUnit,
 	}
 	i.Init(out)
 
-	return unit, unit.stop
+	return unit, stopUnit
+}
+
+func NewDirectInputSoftUnit(i Input, stop <-chan struct{}) (unit *inSoftUnit, unitOut <-chan *Event) {
+	out := make(chan *Event, bufferSize)
+	unit = &inSoftUnit{
+		i:    i,
+		wg:   &sync.WaitGroup{},
+		out:  out,
+		stop: stop,
+	}
+	i.Init(out)
+
+	return unit, out
 }
 
 func (u *inSoftUnit) Run() {
@@ -224,6 +279,22 @@ func NewBroadcastSoftUnit(outs ...chan<- *Event) (unit *bcastSoftUnit, unitInput
 	}
 
 	return unit, in
+}
+
+func NewDirectBroadcastSoftUnit(in <-chan *Event, outsCount int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
+	outs := make([]<-chan *Event, 0, outsCount)
+	unit = &bcastSoftUnit{
+		in: in,
+		outs: make([]chan<- *Event, 0, outsCount),
+	}
+
+	for i := 0; i < outsCount; i++ {
+		outCh := make(chan *Event, bufferSize)
+		outs = append(outs, outCh)
+		unit.outs = append(unit.outs, outCh)
+	}
+
+	return unit, outs
 }
 
 func (u *bcastSoftUnit) Run() {
@@ -274,6 +345,17 @@ func NewFusionSoftUnit(out chan<- *Event, inputsCount int) (unit *fusionSoftUnit
 	}
 
 	return unit, inputs
+}
+
+func NewDirectFusionSoftUnit(ins ...<-chan *Event) (unit *fusionSoftUnit, unitOut <-chan *Event) {
+	out := make(chan *Event, bufferSize)
+	unit = &fusionSoftUnit{
+		wg:  &sync.WaitGroup{},
+		ins: ins,
+		out: out,
+	}
+
+	return unit, out
 }
 
 func (u *fusionSoftUnit) Run() {
