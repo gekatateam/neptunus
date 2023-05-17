@@ -1,4 +1,4 @@
-package allowall
+package pass
 
 import (
 	"time"
@@ -9,7 +9,7 @@ import (
 	"github.com/gekatateam/pipeline/plugins"
 )
 
-type AllowAll struct {
+type Pass struct {
 	alias    string
 	in       <-chan *core.Event
 	accepted chan<- *core.Event
@@ -17,10 +17,10 @@ type AllowAll struct {
 }
 
 func New(_ map[string]any, alias string, log logger.Logger) (core.Filter, error) {
-	return &AllowAll{log: log, alias: alias}, nil
+	return &Pass{log: log, alias: alias}, nil
 }
 
-func (f *AllowAll) Init(
+func (f *Pass) Init(
 	in <-chan *core.Event,
 	_ chan<- *core.Event,
 	accepted chan<- *core.Event,
@@ -29,18 +29,18 @@ func (f *AllowAll) Init(
 	f.accepted = accepted
 }
 
-func (f *AllowAll) Close() error {
+func (f *Pass) Close() error {
 	return nil
 }
 
-func (f *AllowAll) Filter() {
+func (f *Pass) Filter() {
 	for e := range f.in {
 		now := time.Now()
 		f.accepted <- e
-		metrics.ObserveFliterSummary("allowall", f.alias, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveFliterSummary("pass", f.alias, metrics.EventAccepted, time.Since(now))
 	}
 }
 
 func init() {
-	plugins.AddFilter("allowall", New)
+	plugins.AddFilter("pass", New)
 }

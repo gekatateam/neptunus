@@ -34,30 +34,6 @@ type procSoftUnit struct {
 	out chan<- *Event
 }
 
-// !### DEPRECATED ###
-func NewProcessorSoftUnit(p Processor, f []Filter, out chan<- *Event) (unit *procSoftUnit, unitInput chan<- *Event) {
-	in := make(chan *Event, bufferSize) // unit input channel
-	unitInput = in
-	unit = &procSoftUnit{
-		p:   p,
-		f:   make([]fToCh, 0, len(f)),
-		wg:  &sync.WaitGroup{},
-		in:  in,
-		out: out, // also channel for rejected events
-	}
-
-	// initialize filters
-	for _, filter := range f {
-		acceptsChan := make(chan *Event, bufferSize)
-		filter.Init(in, unit.out, acceptsChan)
-		in = acceptsChan // connect current filter success output to next filter/plugin input
-		unit.f = append(unit.f, fToCh{filter, acceptsChan})
-	}
-
-	p.Init(in, unit.out)
-	return unit, unitInput
-}
-
 func NewDirectProcessorSoftUnit(p Processor, f []Filter, in <-chan *Event) (unit *procSoftUnit, unitOut <-chan *Event) {
 	out := make(chan *Event, bufferSize)
 	unit = &procSoftUnit{
@@ -128,30 +104,6 @@ type outSoftUnit struct {
 	rej chan *Event // rejected events doesn't processed anymore
 }
 
-// !### DEPRECATED ###
-func NewOutputSoftUnit(o Output, f []Filter) (unit *outSoftUnit, unitInput chan<- *Event) {
-	in := make(chan *Event, bufferSize)
-	unitInput = in
-	unit = &outSoftUnit{
-		o:   o,
-		f:   make([]fToCh, 0, len(f)),
-		wg:  &sync.WaitGroup{},
-		in:  in,
-		rej: make(chan *Event, bufferSize),
-	}
-
-	// initialize filters
-	for _, filter := range f {
-		acceptsChan := make(chan *Event, bufferSize)
-		filter.Init(in, unit.rej, acceptsChan)
-		in = acceptsChan
-		unit.f = append(unit.f, fToCh{filter, acceptsChan})
-	}
-
-	o.Init(in)
-	return unit, unitInput
-}
-
 func NewDirectOutputSoftUnit(o Output, f []Filter, in <-chan *Event) (unit *outSoftUnit) {
 	unit = &outSoftUnit{
 		o:   o,
@@ -219,20 +171,6 @@ type inSoftUnit struct {
 	out  chan<- *Event // first channel in chain
 	rej  chan *Event
 	stop <-chan struct{}
-}
-
-// !### DEPRECATED ###
-func NewInputSoftUnit(i Input, out chan<- *Event) (unit *inSoftUnit, stop chan<- struct{}) {
-	stopUnit := make(chan struct{})
-	unit = &inSoftUnit{
-		i:    i,
-		wg:   &sync.WaitGroup{},
-		out:  out,
-		stop: stopUnit,
-	}
-	i.Init(out)
-
-	return unit, stopUnit
 }
 
 func NewDirectInputSoftUnit(i Input, f []Filter, stop <-chan struct{}) (unit *inSoftUnit, unitOut <-chan *Event) {
@@ -305,17 +243,6 @@ type bcastSoftUnit struct {
 	outs []chan<- *Event
 }
 
-// !### DEPRECATED ###
-func NewBroadcastSoftUnit(outs ...chan<- *Event) (unit *bcastSoftUnit, unitInput chan<- *Event) {
-	in := make(chan *Event, bufferSize)
-	unit = &bcastSoftUnit{
-		in:   in,
-		outs: outs,
-	}
-
-	return unit, in
-}
-
 func NewDirectBroadcastSoftUnit(in <-chan *Event, outsCount int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
 	outs := make([]<-chan *Event, 0, outsCount)
 	unit = &bcastSoftUnit{
@@ -363,24 +290,6 @@ type fusionSoftUnit struct {
 	wg  *sync.WaitGroup
 	ins []<-chan *Event
 	out chan<- *Event
-}
-
-// !### DEPRECATED ###
-func NewFusionSoftUnit(out chan<- *Event, inputsCount int) (unit *fusionSoftUnit, unitInputs []chan<- *Event) {
-	inputs := make([]chan<- *Event, 0, inputsCount)
-	unit = &fusionSoftUnit{
-		wg:  &sync.WaitGroup{},
-		ins: make([]<-chan *Event, 0, inputsCount),
-		out: out,
-	}
-
-	for i := 0; i < inputsCount; i++ {
-		input := make(chan *Event, bufferSize)
-		inputs = append(inputs, input)
-		unit.ins = append(unit.ins, input)
-	}
-
-	return unit, inputs
 }
 
 func NewDirectFusionSoftUnit(ins ...<-chan *Event) (unit *fusionSoftUnit, unitOut <-chan *Event) {
