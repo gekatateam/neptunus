@@ -103,77 +103,7 @@ func (p *Pipeline) Test() error {
 	return err
 }
 
-// !### DEPRECATED ###
 func (p *Pipeline) Run(ctx context.Context) {
-	p.log.Info("starting pipeline")
-	wg := &sync.WaitGroup{}
-
-	p.log.Info("starting outputs")
-	var outputsChannels = make([]chan<- *core.Event, 0, len(p.outs))
-	for _, output := range p.outs {
-		unit, outCh := core.NewOutputSoftUnit(output.o, output.f)
-		outputsChannels = append(outputsChannels, outCh)
-		wg.Add(1)
-		go func() {
-			unit.Run()
-			wg.Done()
-		}()
-	}
-
-	p.log.Info("starting broadcaster")
-	bcastUnit, bcastCh := core.NewBroadcastSoftUnit(outputsChannels...)
-	wg.Add(1)
-	go func() {
-		bcastUnit.Run()
-		wg.Done()
-	}()
-
-	p.log.Info("starting processors")
-	for _, processor := range p.procs {
-		unit, procCh := core.NewProcessorSoftUnit(processor.p, processor.f, bcastCh)
-		wg.Add(1)
-		go func() {
-			unit.Run()
-			wg.Done()
-		}()
-		bcastCh = procCh
-	}
-
-	p.log.Info("starting fusionner")
-	fusionUnit, inputsCh := core.NewFusionSoftUnit(bcastCh, len(p.ins))
-	wg.Add(1)
-	go func() {
-		fusionUnit.Run()
-		wg.Done()
-	}()
-
-	p.log.Info("starting inputs")
-	var inputsStopChannels = make([]chan<- struct{}, 0, len(p.ins))
-	for i, input := range p.ins {
-		unit, stopCh := core.NewInputSoftUnit(input.o, inputsCh[i])
-		inputsStopChannels = append(inputsStopChannels, stopCh)
-		wg.Add(1)
-		go func() {
-			unit.Run()
-			wg.Done()
-		}()
-	}
-
-	wg.Add(1)
-	go func() {
-		<-ctx.Done()
-		p.log.Info("stop signal received, stopping pipeline")
-		for _, stop := range inputsStopChannels {
-			stop <- struct{}{}
-		}
-		wg.Done()
-	}()
-	p.log.Info("pipeline started")
-	wg.Wait()
-	p.log.Info("pipeline stopped")
-}
-
-func (p *Pipeline) Run2(ctx context.Context) {
 	p.log.Info("starting pipeline")
 	wg := &sync.WaitGroup{}
 

@@ -68,7 +68,7 @@ func run(cCtx *cli.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			pipeline.Run2(ctx)
+			pipeline.Run(ctx)
 		}()
 	}
 

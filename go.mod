@@ -28,6 +28,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1
+	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-yaml v1.11.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_golang v1.15.1
