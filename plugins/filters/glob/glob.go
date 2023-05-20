@@ -31,7 +31,7 @@ type Glob struct {
 
 func New(config map[string]any, alias string, log logger.Logger) (core.Filter, error) {
 	g := &Glob{
-		log:   log, 
+		log:   log,
 		alias: alias,
 	}
 
@@ -97,7 +97,7 @@ func (f *Glob) Filter() {
 			f.accepted <- e
 			metrics.ObserveFliterSummary("glob", f.alias, metrics.EventAccepted, time.Since(now))
 		} else {
-			f.rejected <-e
+			f.rejected <- e
 			metrics.ObserveFliterSummary("glob", f.alias, metrics.EventRejected, time.Since(now))
 		}
 	}

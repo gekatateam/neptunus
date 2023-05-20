@@ -11,12 +11,12 @@ import (
 )
 
 func TestGlob(t *testing.T) {
-	tests := map[string]struct{
-		config map[string]any
-		input  chan *core.Event
-		accept chan *core.Event
-		reject chan *core.Event
-		events []*core.Event
+	tests := map[string]struct {
+		config         map[string]any
+		input          chan *core.Event
+		accept         chan *core.Event
+		reject         chan *core.Event
+		events         []*core.Event
 		expectedAccept int
 		expectedReject int
 	}{
@@ -34,7 +34,7 @@ func TestGlob(t *testing.T) {
 		},
 		"must-split-by-routing-key": {
 			config: map[string]any{
-				"routing_key": []string{ "pass-me", "passed-*-key", "pass-me-to" },
+				"routing_key": []string{"pass-me", "passed-*-key", "pass-me-to"},
 			},
 			input:  make(chan *core.Event, 100),
 			accept: make(chan *core.Event, 100),
@@ -48,7 +48,7 @@ func TestGlob(t *testing.T) {
 		},
 		"must-split-by-key-and-field": {
 			config: map[string]any{
-				"routing_key": []string{ "pass-me", "passed-*-key", "pass-me-to" },
+				"routing_key": []string{"pass-me", "passed-*-key", "pass-me-to"},
 				"fields": map[string][]string{
 					"one.two": {"t*ee"},
 				},
@@ -148,17 +148,17 @@ func TestGlob(t *testing.T) {
 			for _, e := range test.events {
 				test.input <- e
 			}
-			
+
 			time.Sleep(time.Second)
-			
+
 			if len(test.accept) != test.expectedAccept {
 				t.Fatalf("unexpected accepted messages count - want: %v, got: %v", test.expectedAccept, len(test.accept))
 			}
-			
+
 			if len(test.reject) != test.expectedReject {
 				t.Fatalf("unexpected rejected messages count - want: %v, got: %v", test.expectedReject, len(test.reject))
 			}
-			
+
 			close(test.input)
 			filter.Close()
 			wg.Wait()
