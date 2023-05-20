@@ -2,9 +2,7 @@ package core
 
 // soft (consistency) units does not guarantee the order of processing, but (planned to be) fast
 
-import (
-	"sync"
-)
+import "sync"
 
 // fToCh stores a pair of a filter and it's acceptsChan output
 // which is a next filter/processor/output input
@@ -19,13 +17,13 @@ type fToCh struct {
 // rejected events are going to unit output
 // accepted events are going to next filter or processor
 //
-//  ┌────────────────┐
-//  |┌───┐           |
-// ─┼┤ f ├┬─────────┐|
-//  |└─┬┬┴┴─┐ ┌────┐||
-//  |  └┤ f ├─┤proc├┴┼─
-//  |   └───┘ └────┘ |
-//  └────────────────┘
+//  ┌────────────────┐
+//  |┌───┐           |
+// ─┼┤ f ├┬─────────┐|
+//  |└─┬┬┴┴─┐ ┌────┐||
+//  |  └┤ f ├─┤proc├┴┼─
+//  |   └───┘ └────┘ |
+//  └────────────────┘
 type procSoftUnit struct {
 	p   Processor
 	f   []fToCh

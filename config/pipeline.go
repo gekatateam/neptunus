@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,9 +12,15 @@ import (
 
 // TODO: rewrite to structs
 type Pipeline struct {
-	Inputs     []PluginSet `toml:"inputs"     yaml:"inputs"`
-	Processors []PluginSet `toml:"processors" yaml:"processors"`
-	Outputs    []PluginSet `toml:"outputs"    yaml:"outputs"`
+	Settings   PipeSettings `toml:"settings"   yaml:"settings"   json:"settings"`
+	Inputs     []PluginSet  `toml:"inputs"     yaml:"inputs"     json:"inputs"`
+	Processors []PluginSet  `toml:"processors" yaml:"processors" json:"processors"`
+	Outputs    []PluginSet  `toml:"outputs"    yaml:"outputs"    json:"outputs"`
+}
+
+type PipeSettings struct {
+	Id    string `toml:"id"    yaml:"id"    json:"id"`
+	Lines int    `toml:"lines" yaml:"lines" json:"lines"`
 }
 
 type PluginSet map[string]Plugin
@@ -68,6 +75,10 @@ func ReadPipeline(file string) (*Pipeline, error) {
 		}
 	case ".yaml", ".yml":
 		if err := yaml.Unmarshal(buf, &pipeline); err != nil {
+			return &pipeline, err
+		}
+	case ".json":
+		if err := json.Unmarshal(buf, &pipeline); err != nil {
 			return &pipeline, err
 		}
 	default:

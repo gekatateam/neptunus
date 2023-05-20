@@ -32,6 +32,15 @@ type Common struct {
 	MgmtAddr  string         `toml:"manager_address" yaml:"manager_address"`
 }
 
+type PipeCfg2 struct {
+	Storage string      `toml:"storage" yaml:"storage"`
+	File    FileStorage `toml:"file"    yaml:"file"`
+}
+
+type FileStorage struct {
+	Directory string `toml:"directory" yaml:"directory"`
+}
+
 type PipeCfg struct {
 	Id     string `toml:"id" yaml:"id"`
 	Config struct {

@@ -19,6 +19,10 @@ var (
 	filterSummary    *prometheus.SummaryVec
 	processorSummary *prometheus.SummaryVec
 	outputSummary    *prometheus.SummaryVec
+
+	chans        *chanCollector
+	chanCapacity *prometheus.Desc
+	chanLength   *prometheus.Desc
 )
 
 func init() {
@@ -64,10 +68,26 @@ func init() {
 		[]string{"plugin", "name", "status"},
 	)
 
+	// unit-to-unit channels internal stats
+	chans = &chanCollector{}
+	chanLength = prometheus.NewDesc(
+		"pipeline_channel_capacity",
+		"Pipeline unit-to-unit channel communication length",
+		[]string{"pipeline", "inner", "outer"},
+		nil,
+	)
+	chanCapacity = prometheus.NewDesc(
+		"pipeline_channel_capacity",
+		"Pipeline unit-to-unit channel communication capacity",
+		[]string{"pipeline", "inner", "outer"},
+		nil,
+	)
+
 	prometheus.MustRegister(inputSummary)
 	prometheus.MustRegister(filterSummary)
 	prometheus.MustRegister(processorSummary)
 	prometheus.MustRegister(outputSummary)
+	prometheus.MustRegister(chans)
 }
 
 func ObserveInputSummary(plugin, name string, status eventStatus, t time.Duration) {
@@ -84,4 +104,8 @@ func ObserveProcessorSummary(plugin, name string, status eventStatus, t time.Dur
 
 func ObserveOutputSummary(plugin, name string, status eventStatus, t time.Duration) {
 	outputSummary.WithLabelValues(plugin, name, string(status)).Observe(float64(t) / float64(time.Second))
+}
+
+func CollectChan(statFunc func() ChanStats) {
+	chans.append(statFunc)
 }
