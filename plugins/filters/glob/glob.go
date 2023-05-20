@@ -90,6 +90,10 @@ func (f *Glob) Close() error {
 	return nil
 }
 
+func (f *Glob) Alias() string {
+	return f.alias
+}
+
 func (f *Glob) Filter() {
 	for e := range f.in {
 		now := time.Now()

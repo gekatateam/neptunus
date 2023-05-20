@@ -94,6 +94,10 @@ func (i *Http) Close() error {
 	return nil
 }
 
+func (i *Http) Alias() string {
+	return i.alias
+}
+
 func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:

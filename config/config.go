@@ -26,10 +26,10 @@ type Config struct {
 }
 
 type Common struct {
-	LogLevel  string `toml:"log_level"       yaml:"log_level"`
-	LogFormat string `toml:"log_format"      yaml:"log_format"`
-	MgmtAddr  string `toml:"manager_address" yaml:"manager_address"`
-
+	LogLevel  string         `toml:"log_level"       yaml:"log_level"`
+	LogFormat string         `toml:"log_format"      yaml:"log_format"`
+	LogFields map[string]any `toml:"log_fields"      yaml:"log_fields"`
+	MgmtAddr  string         `toml:"manager_address" yaml:"manager_address"`
 }
 
 type PipeCfg struct {

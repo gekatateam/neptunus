@@ -19,13 +19,13 @@ type fToCh struct {
 // rejected events are going to unit output
 // accepted events are going to next filter or processor
 //
-//  ┌────────────────┐
-//  |┌───┐           |
-// ─┼┤ f ├┬─────────┐|
-//  |└─┬┬┴┴─┐ ┌────┐||
-//  |  └┤ f ├─┤proc├┴┼─
-//  |   └───┘ └────┘ |
-//  └────────────────┘
+//  ┌────────────────┐
+//  |┌───┐           |
+// ─┼┤ f ├┬─────────┐|
+//  |└─┬┬┴┴─┐ ┌────┐||
+//  |  └┤ f ├─┤proc├┴┼─
+//  |   └───┘ └────┘ |
+//  └────────────────┘
 type procSoftUnit struct {
 	p   Processor
 	f   []fToCh

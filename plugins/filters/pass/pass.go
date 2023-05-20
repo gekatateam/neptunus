@@ -33,6 +33,10 @@ func (f *Pass) Close() error {
 	return nil
 }
 
+func (f *Pass) Alias() string {
+	return f.alias
+}
+
 func (f *Pass) Filter() {
 	for e := range f.in {
 		now := time.Now()

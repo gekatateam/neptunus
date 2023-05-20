@@ -80,6 +80,10 @@ func (p *Log) Close() error {
 	return nil
 }
 
+func (p *Log) Alias() string {
+	return p.alias
+}
+
 func init() {
 	plugins.AddProcessor("log", New)
 }

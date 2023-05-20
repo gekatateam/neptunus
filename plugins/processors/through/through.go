@@ -32,11 +32,15 @@ func (p *Through) Close() error {
 	return nil
 }
 
+func (p *Through) Alias() string {
+	return p.alias
+}
+
 func (p *Through) Process() {
 	for e := range p.in {
 		now := time.Now()
 		p.out <- e
-		metrics.ObserveProcessorSummary("allowall", p.alias, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveProcessorSummary("through", p.alias, metrics.EventAccepted, time.Since(now))
 	}
 }
 

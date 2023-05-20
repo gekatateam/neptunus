@@ -28,6 +28,10 @@ func (p *Drop) Close() error {
 	return nil
 }
 
+func (p *Drop) Alias() string {
+	return p.alias
+}
+
 func (p *Drop) Process() {
 	for range p.in {
 		metrics.ObserveProcessorSummary("drop", p.alias, metrics.EventAccepted, 0)

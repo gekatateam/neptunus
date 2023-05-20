@@ -72,6 +72,10 @@ func (o *Log) Close() error {
 	return nil
 }
 
+func (o *Log) Alias() string {
+	return o.alias
+}
+
 func init() {
 	plugins.AddOutput("log", New)
 }

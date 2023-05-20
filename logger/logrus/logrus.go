@@ -9,6 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var extraFields map[string]any
+
 func InitializeLogger(cfg config.Common) error {
 	switch l := cfg.LogLevel; l {
 	case "trace":
@@ -37,6 +39,7 @@ func InitializeLogger(cfg config.Common) error {
 		return fmt.Errorf("unknown log format: %v", f)
 	}
 
+	extraFields = cfg.LogFields
 	return nil
 }
 
@@ -45,7 +48,16 @@ type logrusLogger struct {
 }
 
 func NewLogger(f map[string]any) *logrusLogger {
-	return &logrusLogger{Fields: f}
+	var loggerFields = make(map[string]any, len(extraFields))
+	for k, v := range extraFields {
+		loggerFields[k] = v
+	}
+
+	for k, v := range f {
+		loggerFields[k] = v
+	}
+
+	return &logrusLogger{Fields: loggerFields}
 }
 
 func (l *logrusLogger) Tracef(format string, args ...interface{}) {

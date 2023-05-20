@@ -17,6 +17,13 @@ type unit interface {
 	Run()
 }
 
+// at this moment it is not possible to combine sets into a generic type
+// like:
+// type pluginSet[P core.Input | core.Processor | core.Output] struct {
+// 	p P
+// 	f []core.Filter
+// }
+// cause https://github.com/golang/go/issues/49054
 type inputSet struct {
 	o core.Input
 	f []core.Filter
@@ -112,11 +119,11 @@ func (p *Pipeline) Run(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		unit, outCh := core.NewDirectInputSoftUnit(input.o, input.f, inputsStopChannels[i])
+		inputUnit, outCh := core.NewDirectInputSoftUnit(input.o, input.f, inputsStopChannels[i])
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
 		go func() {
-			unit.Run()
+			inputUnit.Run()
 			wg.Done()
 		}()
 	}
@@ -146,10 +153,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 		for i := 0; i < p.scale; i++ {
 			procInput := outCh
 			for _, processor := range p.procs {
-				unit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
+				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
 				wg.Add(1)
 				go func() {
-					unit.Run()
+					processorUnit.Run()
 					wg.Done()
 				}()
 				procInput = procOut
@@ -176,10 +183,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
-		unit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
+		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
 		wg.Add(1)
 		go func() {
-			unit.Run()
+			outputUnit.Run()
 			wg.Done()
 		}()
 	}

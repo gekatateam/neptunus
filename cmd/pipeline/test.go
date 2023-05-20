@@ -20,6 +20,7 @@ func test(cCtx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
+	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 	pipelines, err := loadPipelines(cfg.Pipes)
 	if err != nil {

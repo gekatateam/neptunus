@@ -26,6 +26,7 @@ func run(cCtx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
+	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 	manager, err := manager.NewManagerServer(cfg.Common)
 	if err != nil {

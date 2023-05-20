@@ -1,5 +1,7 @@
 [common]
   log_level = "debug"
+    [common.log_fields]
+      runner = "local"
 
 [[pipelines]]
   id = "test-pipe-1"
