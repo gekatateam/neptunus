@@ -13,6 +13,12 @@ import (
 	"github.com/gekatateam/pipeline/plugins"
 )
 
+var (
+	ErrPipelineNotFound = errors.New("pipeline not found")
+	ErrPipelineExists   = errors.New("pipeline already exists")
+	ErrPipelineRunning  = errors.New("pipeline already running")
+)
+
 type unit interface {
 	Run()
 }
@@ -41,10 +47,8 @@ type procSet struct {
 
 // pipeline run a set of plugins
 type Pipeline struct {
-	id     string
 	config *config.Pipeline
 	log    logger.Logger
-	scale  int
 
 	outs  []outputSet
 	procs []procSet
@@ -53,8 +57,6 @@ type Pipeline struct {
 
 func New(config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
-		id:     config.Settings.Id,
-		scale:  config.Settings.Lines,
 		config: config,
 		log:    log,
 		outs:   make([]outputSet, 0, len(config.Outputs)),
@@ -106,7 +108,7 @@ func (p *Pipeline) Test() error {
 	p.log.Info("outputs confiruration has no errors")
 	p.log.Info("pipeline tested successfully")
 
-	PIPELINE_TESTED:
+PIPELINE_TESTED:
 	return err
 }
 
@@ -148,9 +150,9 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}()
 
 	if len(p.procs) > 0 {
-		p.log.Infof("starting processors, scaling to %v parallel lines", p.scale)
-		var procsOutChannels = make([]<-chan *core.Event, 0, p.scale)
-		for i := 0; i < p.scale; i++ {
+		p.log.Infof("starting processors, scaling to %v parallel lines", p.config.Settings.Lines)
+		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
+		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
 			for _, processor := range p.procs {
 				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
@@ -214,7 +216,7 @@ func (p *Pipeline) configureOutputs() error {
 			}
 
 			output, err := outputFunc(outputCfg, alias, logrus.NewLogger(map[string]any{
-				"pipeline": p.id,
+				"pipeline": p.config.Settings.Id,
 				"output":   plugin,
 				"name":     alias,
 			}))
@@ -247,7 +249,7 @@ func (p *Pipeline) configureProcessors() error {
 			}
 
 			processor, err := processorFunc(processorCfg, alias, logrus.NewLogger(map[string]any{
-				"pipeline":  p.id,
+				"pipeline":  p.config.Settings.Id,
 				"processor": plugin,
 				"name":      alias,
 			}))
@@ -284,7 +286,7 @@ func (p *Pipeline) configureInputs() error {
 			}
 
 			input, err := inputFunc(inputCfg, alias, logrus.NewLogger(map[string]any{
-				"pipeline": p.id,
+				"pipeline": p.config.Settings.Id,
 				"input":    plugin,
 				"name":     alias,
 			}))
@@ -317,7 +319,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		}
 
 		filter, err := filterFunc(filterCfg, alias, logrus.NewLogger(map[string]any{
-			"pipeline": p.id,
+			"pipeline": p.config.Settings.Id,
 			"filter":   plugin,
 			"name":     alias,
 		}))

@@ -2,18 +2,12 @@ package pipeline
 
 import "github.com/gekatateam/pipeline/config"
 
-type ManagerError struct {
-	Reason string
-}
-
-type Maganer interface {
-	StartAll() error
-	StopAll()
+type Service interface {
 	Start(id string) error
-	Stop(id string)
+	Stop(id string) error
 	List() ([]*config.Pipeline, error)
 	Get(id string) (*config.Pipeline, error)
-	Add(pipeline *config.Pipeline) error
-	Update(pipeline *config.Pipeline) error
+	Add(pipe *config.Pipeline) error
+	Update(pipe *config.Pipeline) error
 	Delete(id string) (*config.Pipeline, error)
 }
