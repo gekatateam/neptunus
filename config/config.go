@@ -16,13 +16,19 @@ var (
 			LogFormat: "logfmt",
 			MgmtAddr:  ":9600",
 		},
-		Pipes: nil,
+		PipeCfg: PipeCfg{
+			Storage: "fs",
+			File: FileStorage{
+				Directory: ".pipelines",
+				Extention: ".toml",
+			},
+		},
 	}
 )
 
 type Config struct {
-	Common Common    `toml:"common"    yaml:"common"`
-	Pipes  []PipeCfg `toml:"pipelines" yaml:"pipelines"`
+	Common  Common  `toml:"common"   yaml:"common"`
+	PipeCfg PipeCfg `toml:"pipeline" yaml:"pipeline"`
 }
 
 type Common struct {
@@ -32,21 +38,14 @@ type Common struct {
 	MgmtAddr  string         `toml:"manager_address" yaml:"manager_address"`
 }
 
-type PipeCfg2 struct {
+type PipeCfg struct {
 	Storage string      `toml:"storage" yaml:"storage"`
 	File    FileStorage `toml:"file"    yaml:"file"`
 }
 
 type FileStorage struct {
 	Directory string `toml:"directory" yaml:"directory"`
-}
-
-type PipeCfg struct {
-	Id     string `toml:"id" yaml:"id"`
-	Config struct {
-		File string `toml:"file" yaml:"file"`
-	} `toml:"config" yaml:"config"`
-	Lines int `toml:"lines" yaml:"lines"`
+	Extention string `toml:"extention" yaml:"extention"`
 }
 
 func ReadConfig(file string) (*Config, error) {

@@ -21,6 +21,7 @@ type Pipeline struct {
 type PipeSettings struct {
 	Id    string `toml:"id"    yaml:"id"    json:"id"`
 	Lines int    `toml:"lines" yaml:"lines" json:"lines"`
+	Run   bool   `toml:"run"   yaml:"run"   json:"run"`
 }
 
 type PluginSet map[string]Plugin

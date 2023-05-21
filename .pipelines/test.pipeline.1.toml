@@ -1,3 +1,8 @@
+[settings]
+  id = "test.pipeline.1"
+  lines = 5
+  run = true
+
 [[inputs]]
   [inputs.http]
     routing_key = "http.input.test"

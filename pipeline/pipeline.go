@@ -51,15 +51,15 @@ type Pipeline struct {
 	ins   []inputSet
 }
 
-func New(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) *Pipeline {
+func New(config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
-		id:     id,
+		id:     config.Settings.Id,
+		scale:  config.Settings.Lines,
 		config: config,
 		log:    log,
-		scale:  scaleProcs,
-		outs:   make([]outputSet, 0),
-		procs:  make([]procSet, 0),
-		ins:    make([]inputSet, 0),
+		outs:   make([]outputSet, 0, len(config.Outputs)),
+		procs:  make([]procSet, 0, len(config.Processors)),
+		ins:    make([]inputSet, 0, len(config.Inputs)),
 	}
 }
 

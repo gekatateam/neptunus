@@ -8,7 +8,7 @@ import (
 
 type eventStatus string
 
-var (
+const (
 	EventAccepted eventStatus = "accepted"
 	EventRejected eventStatus = "rejected"
 	EventFailed   eventStatus = "failed"
