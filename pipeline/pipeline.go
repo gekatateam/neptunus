@@ -11,24 +11,31 @@ import (
 	"github.com/gekatateam/pipeline/logger"
 	"github.com/gekatateam/pipeline/logger/logrus"
 	"github.com/gekatateam/pipeline/plugins"
+
+	_ "github.com/gekatateam/pipeline/plugins/filters"
+	_ "github.com/gekatateam/pipeline/plugins/inputs"
+	_ "github.com/gekatateam/pipeline/plugins/outputs"
+	_ "github.com/gekatateam/pipeline/plugins/processors"
 )
 
-var (
-	ErrPipelineNotFound = errors.New("pipeline not found")
-	ErrPipelineExists   = errors.New("pipeline already exists")
-	ErrPipelineRunning  = errors.New("pipeline already running")
-)
+type state string
 
-type unit interface {
-	Run()
-}
+const (
+	StateCreated  state = "created"
+	StateStarting state = "starting"
+	StateStopping state = "stopping"
+	StateRunning  state = "running"
+	StateStopped  state = "stopped"
+)
 
 // at this moment it is not possible to combine sets into a generic type
 // like:
-// type pluginSet[P core.Input | core.Processor | core.Output] struct {
-// 	p P
-// 	f []core.Filter
-// }
+//
+//	type pluginSet[P core.Input | core.Processor | core.Output] struct {
+//		p P
+//		f []core.Filter
+//	}
+//
 // cause https://github.com/golang/go/issues/49054
 type inputSet struct {
 	o core.Input
@@ -50,6 +57,7 @@ type Pipeline struct {
 	config *config.Pipeline
 	log    logger.Logger
 
+	state state
 	outs  []outputSet
 	procs []procSet
 	ins   []inputSet
@@ -59,29 +67,19 @@ func New(config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
 		config: config,
 		log:    log,
+		state:  StateCreated,
 		outs:   make([]outputSet, 0, len(config.Outputs)),
 		procs:  make([]procSet, 0, len(config.Processors)),
 		ins:    make([]inputSet, 0, len(config.Inputs)),
 	}
 }
 
-func (p *Pipeline) Build() error {
-	if err := p.configureInputs(); err != nil {
-		return err
-	}
-	p.log.Debug("inputs confiruration has no errors")
+func (p *Pipeline) State() state {
+	return p.state
+}
 
-	if err := p.configureProcessors(); err != nil {
-		return err
-	}
-	p.log.Debug("processors confiruration has no errors")
-
-	if err := p.configureOutputs(); err != nil {
-		return err
-	}
-	p.log.Debug("outputs confiruration has no errors")
-
-	return nil
+func (p *Pipeline) Config() *config.Pipeline {
+	return p.config
 }
 
 func (p *Pipeline) Test() error {
@@ -112,8 +110,28 @@ PIPELINE_TESTED:
 	return err
 }
 
+func (p *Pipeline) Build() error {
+	if err := p.configureInputs(); err != nil {
+		return err
+	}
+	p.log.Debug("inputs confiruration has no errors")
+
+	if err := p.configureProcessors(); err != nil {
+		return err
+	}
+	p.log.Debug("processors confiruration has no errors")
+
+	if err := p.configureOutputs(); err != nil {
+		return err
+	}
+	p.log.Debug("outputs confiruration has no errors")
+
+	return nil
+}
+
 func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting pipeline")
+	p.state = StateStarting
 	wg := &sync.WaitGroup{}
 
 	p.log.Info("starting inputs")
@@ -135,6 +153,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		p.log.Info("starting stop-watcher")
 		<-ctx.Done()
 		p.log.Info("stop signal received, stopping pipeline")
+		p.state = StateStopping
 		for _, stop := range inputsStopChannels {
 			stop <- struct{}{}
 		}
@@ -194,8 +213,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("pipeline started")
+	p.state = StateRunning
 	wg.Wait()
 	p.log.Info("pipeline stopped")
+	p.state = StateStopped
 }
 
 func (p *Pipeline) configureOutputs() error {

@@ -13,7 +13,7 @@ import (
 	"github.com/gekatateam/pipeline/config"
 	"github.com/gekatateam/pipeline/logger/logrus"
 	"github.com/gekatateam/pipeline/manager"
-	"github.com/gekatateam/pipeline/pipeline"
+	"github.com/gekatateam/pipeline/pipeline/service"
 )
 
 func run(cCtx *cli.Context) error {
@@ -29,11 +29,6 @@ func run(cCtx *cli.Context) error {
 	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 	manager, err := manager.NewManagerServer(cfg.Common)
-	if err != nil {
-		return err
-	}
-
-	pipelines, err := loadPipelines(cfg.Pipes)
 	if err != nil {
 		return err
 	}
@@ -54,27 +49,17 @@ func run(cCtx *cli.Context) error {
 		wg.Done()
 	}()
 	
-	ctx, cancel := context.WithCancel(cCtx.Context)
-	defer cancel()
-	for i, pipeCfg := range pipelines {
-		pipeline := pipeline.New(cfg.Pipes[i].Id, cfg.Pipes[i].Lines, pipeCfg, logrus.NewLogger(map[string]any{
-			"scope": "pipeline",
-			"id":    cfg.Pipes[i].Id,
-		}))
-		err = pipeline.Build()
-		if err != nil {
-			return fmt.Errorf("pipeline %v building failed: %v", cfg.Pipes[i].Id, err.Error())
-		}
+	storage, err := getStorage(&cfg.PipeCfg); if err != nil {
+		return fmt.Errorf("storage initialization failed: %v", err.Error())
+	}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			pipeline.Run(ctx)
-		}()
+	s := service.NewInternalService(storage)
+	if err := s.StartAll(); err != nil {
+		return err
 	}
 
 	<-quit
-	cancel()
+	s.StopAll()
 
 	if err := manager.Shutdown(context.Background()); err != nil {
 		log.Errorf("manager server stop error: %v", err.Error())

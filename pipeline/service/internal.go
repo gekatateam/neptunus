@@ -1,7 +1,8 @@
-package manager
+package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -10,9 +11,13 @@ import (
 	"github.com/gekatateam/pipeline/pipeline"
 )
 
+type pipeUnit struct {
+	p *pipeline.Pipeline
+	c context.CancelFunc
+}
+
 type internalService struct {
-	pipes map[string]*pipeline.Pipeline
-	ctxcf map[string]context.CancelFunc
+	pipes map[string]pipeUnit
 	wg    *sync.WaitGroup
 	s     pipeline.Storage
 }
@@ -20,8 +25,7 @@ type internalService struct {
 func NewInternalService(s pipeline.Storage) *internalService {
 	return &internalService{
 		s:     s,
-		pipes: make(map[string]*pipeline.Pipeline),
-		ctxcf: make(map[string]context.CancelFunc),
+		pipes: map[string]pipeUnit{},
 		wg:    &sync.WaitGroup{},
 	}
 }
@@ -33,9 +37,14 @@ func (m *internalService) StartAll() error {
 	}
 
 	for _, pipeCfg := range pipes {
-		if err = m.runPipeline(pipeCfg); err != nil {
-			m.StopAll()
-			return err
+		if pipeCfg.Settings.Run {
+			if err = m.runPipeline(pipeCfg); err != nil {
+				m.StopAll() // ? maybe it's ok to allow bad pipelines fail
+				return err
+			}
+		} else {
+			// pipeline currently has the Created status and must be started by it's Id via Start()
+			m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
 		}
 	}
 
@@ -43,47 +52,51 @@ func (m *internalService) StartAll() error {
 }
 
 func (m *internalService) StopAll() {
-	for _, f := range m.ctxcf {
-		f()
+	for _, u := range m.pipes {
+		if u.p.State() == pipeline.StateRunning {
+			u.c()
+		}
 	}
 	m.wg.Wait()
 }
 
 func (m *internalService) Start(id string) error {
+	if unit, ok := m.pipes[id]; ok {
+		switch unit.p.State() {
+		case pipeline.StateRunning:
+			return &pipeline.ConflictError{Err: errors.New("pipeline already running")}
+		case pipeline.StateStopping:
+			return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+		case pipeline.StateStarting:
+			return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
+		}
+	}
+
 	pipeCfg, err := m.s.Get(id)
 	if err != nil {
 		return err
-	}
-
-	if _, ok := m.pipes[id]; ok {
-		return pipeline.ErrPipelineRunning
 	}
 
 	return m.runPipeline(pipeCfg)
 }
 
 func (m *internalService) Stop(id string) error {
-	pipeCfg, err := m.s.Get(id)
-	if err != nil {
-		return err
-	}
-
-	stop, ok := m.ctxcf[id]
+	unit, ok := m.pipes[id]
 	if !ok {
-		return fmt.Errorf("pipeline %v cancelFunc not found in map", id)
+		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
-	stop()
-	delete(m.ctxcf, id)
-	delete(m.pipes, id)
-
-	pipeCfg.Settings.Run = false
-	err = m.s.Update(pipeCfg)
-	if err != nil {
-		return err
-	}
-
+	unit.c()
 	return nil
+}
+
+func (m *internalService) State(id string) (string, error) {
+	unit, ok := m.pipes[id]
+	if !ok {
+		return "", &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
+	}
+
+	return string(unit.p.State()), nil
 }
 
 func (m *internalService) List() ([]*config.Pipeline, error) {
@@ -99,21 +112,37 @@ func (m *internalService) Add(pipe *config.Pipeline) error {
 		return err
 	}
 
-	if pipe.Settings.Run {
-		return m.runPipeline(pipe)
-	}
-
+	m.pipes[pipe.Settings.Id] = pipeUnit{pipeline.New(pipe, nil), nil}
 	return nil
 }
 
 func (m *internalService) Update(pipe *config.Pipeline) error {
+	unit, ok := m.pipes[pipe.Settings.Id]
+	if !ok {
+		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
+	}
+
+	switch unit.p.State() {
+	case pipeline.StateStopped, pipeline.StateCreated:
+		m.pipes[pipe.Settings.Id] = pipeUnit{pipeline.New(pipe, nil), nil}
+	default:
+		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be updated")}
+	}
+
 	return m.s.Update(pipe)
 }
 
-func (m *internalService) Delete(id string) (*config.Pipeline, error) {
-	err := m.Stop(id)
-	if err != nil {
-		return nil, err
+func (m *internalService) Delete(id string) error {
+	unit, ok := m.pipes[id]
+	if !ok {
+		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
+	}
+
+	switch unit.p.State() {
+	case pipeline.StateStopped, pipeline.StateCreated:
+		delete(m.pipes, id)
+	default:
+		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be deleted")}
 	}
 
 	return m.s.Delete(id)
@@ -126,20 +155,17 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 	}))
 
 	if err := pipe.Build(); err != nil {
-		return fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())
+		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipe, cancel}
 	m.wg.Add(1)
 	go func() {
 		pipe.Run(ctx)
 		m.wg.Done()
-		delete(m.ctxcf, pipeCfg.Settings.Id)
-		delete(m.pipes, pipeCfg.Settings.Id)
+		cancel()
 	}()
-
-	m.pipes[pipeCfg.Settings.Id] = pipe
-	m.ctxcf[pipeCfg.Settings.Id] = cancel
 
 	return nil
 }

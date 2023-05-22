@@ -7,5 +7,5 @@ type Storage interface {
 	Get(id string) (*config.Pipeline, error)
 	Add(pipe *config.Pipeline) error
 	Update(pipe *config.Pipeline) error
-	Delete(id string) (*config.Pipeline, error)
+	Delete(id string) error
 }

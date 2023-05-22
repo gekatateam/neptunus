@@ -40,7 +40,7 @@ type Common struct {
 
 type PipeCfg struct {
 	Storage string      `toml:"storage" yaml:"storage"`
-	File    FileStorage `toml:"file"    yaml:"file"`
+	File    FileStorage `toml:"fs"      yaml:"fs"`
 }
 
 type FileStorage struct {
