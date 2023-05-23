@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gekatateam/pipeline/config"
+	"github.com/gekatateam/pipeline/logger"
 	"github.com/gekatateam/pipeline/logger/logrus"
 	"github.com/gekatateam/pipeline/pipeline"
 )
@@ -18,12 +19,14 @@ type pipeUnit struct {
 
 type internalService struct {
 	pipes map[string]pipeUnit
+	log   logger.Logger
 	wg    *sync.WaitGroup
 	s     pipeline.Storage
 }
 
-func NewInternalService(s pipeline.Storage) *internalService {
+func NewInternalService(s pipeline.Storage, log logger.Logger) *internalService {
 	return &internalService{
+		log:   log,
 		s:     s,
 		pipes: map[string]pipeUnit{},
 		wg:    &sync.WaitGroup{},
@@ -39,8 +42,9 @@ func (m *internalService) StartAll() error {
 	for _, pipeCfg := range pipes {
 		if pipeCfg.Settings.Run {
 			if err = m.runPipeline(pipeCfg); err != nil {
-				m.StopAll() // ? maybe it's ok to allow bad pipelines fail
-				return err
+				m.log.Error(err.Error())
+				m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
+				m.log.Warnf("pipeline %v not ready for event processing", pipeCfg.Settings.Id)
 			}
 		} else {
 			// pipeline currently has the Created status and must be started by it's Id via Start()
@@ -84,6 +88,15 @@ func (m *internalService) Stop(id string) error {
 	unit, ok := m.pipes[id]
 	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
+	}
+
+	switch unit.p.State() {
+	case pipeline.StateStopped:
+		return &pipeline.ConflictError{Err: errors.New("pipeline already stopped")}
+	case pipeline.StateStopping:
+		return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+	case pipeline.StateStarting:
+		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 	}
 
 	unit.c()
@@ -153,6 +166,8 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 		"scope": "pipeline",
 		"id":    pipeCfg.Settings.Id,
 	}))
+
+	m.log.Infof("building pipeline %v", pipeCfg.Settings.Id)
 
 	if err := pipe.Build(); err != nil {
 		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())}

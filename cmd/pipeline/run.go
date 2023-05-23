@@ -53,7 +53,10 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
 
-	s := service.NewInternalService(storage)
+	s := service.NewInternalService(storage, logrus.NewLogger(map[string]any{
+		"scope": "service",
+		"type":  "internal",
+	}))
 	if err := s.StartAll(); err != nil {
 		return err
 	}

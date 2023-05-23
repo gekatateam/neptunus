@@ -2,6 +2,14 @@ package pipeline
 
 import "fmt"
 
+var (
+	NotFoundErr   *NotFoundError
+	ConflictErr   *ConflictError
+	IOErr         *IOError
+	ValidationErr *ValidationError
+
+)
+
 type NotFoundError struct{ Err error }
 
 func (e *NotFoundError) Error() string { return fmt.Sprintf("pipeline not found: %v", e.Err) }

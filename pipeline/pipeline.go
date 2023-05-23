@@ -86,28 +86,26 @@ func (p *Pipeline) Test() error {
 	var err error
 	if err = p.configureInputs(); err != nil {
 		p.log.Errorf("inputs confiruration test failed: %v", err.Error())
-		err = errors.New("pipeline test failed")
-		goto PIPELINE_TESTED
+		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("inputs confiruration has no errors")
 
 	if err = p.configureProcessors(); err != nil {
 		p.log.Errorf("processors confiruration test failed: %v", err.Error())
-		err = errors.New("pipeline test failed")
-		goto PIPELINE_TESTED
+		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("processors confiruration has no errors")
 
 	if err = p.configureOutputs(); err != nil {
 		p.log.Errorf("outputs confiruration test failed: %v", err.Error())
-		err = errors.New("pipeline test failed")
-		goto PIPELINE_TESTED
+		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("outputs confiruration has no errors")
 	p.log.Info("pipeline tested successfully")
 
-PIPELINE_TESTED:
-	return err
+	return nil
+PIPELINE_TEST_FAILED:
+	return errors.New("pipeline test failed")
 }
 
 func (p *Pipeline) Build() error {
@@ -147,18 +145,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 			wg.Done()
 		}()
 	}
-
-	wg.Add(1)
-	go func() {
-		p.log.Info("starting stop-watcher")
-		<-ctx.Done()
-		p.log.Info("stop signal received, stopping pipeline")
-		p.state = StateStopping
-		for _, stop := range inputsStopChannels {
-			stop <- struct{}{}
-		}
-		wg.Done()
-	}()
 
 	p.log.Info("starting inputs-to-processors fusionner")
 	fusionUnit, outCh := core.NewDirectFusionSoftUnit(inputsOutChannels...)
@@ -214,14 +200,22 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.log.Info("pipeline started")
 	p.state = StateRunning
+
+	<-ctx.Done()
+	p.log.Info("stop signal received, stopping pipeline")
+	p.state = StateStopping
+	for _, stop := range inputsStopChannels {
+		stop <- struct{}{}
+	}
 	wg.Wait()
+
 	p.log.Info("pipeline stopped")
 	p.state = StateStopped
 }
 
 func (p *Pipeline) configureOutputs() error {
 	if len(p.config.Outputs) == 0 {
-		return errors.New("at leats one output required")
+		return errors.New("at least one output required")
 	}
 
 	for index, outputs := range p.config.Outputs {

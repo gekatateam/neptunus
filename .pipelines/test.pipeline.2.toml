@@ -1,5 +1,5 @@
 [settings]
-  id = "test.pipeline.1"
+  id = "test.pipeline.2"
   lines = 5
   run = true
 

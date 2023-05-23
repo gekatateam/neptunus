@@ -25,7 +25,8 @@ type Http struct {
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
 	RoutingKey   string        `mapstructure:"routing_key"`
 
-	server *http.Server
+	server   *http.Server
+	listener net.Listener
 
 	log logger.Logger
 	out chan<- *core.Event
@@ -53,6 +54,11 @@ func New(config map[string]any, alias string, log logger.Logger) (core.Input, er
 		return nil, errors.New("address and path required")
 	}
 
+	listener, err := net.Listen("tcp", h.Address); if err != nil {
+		return nil, fmt.Errorf("error creating listener: %v", err)
+	}
+
+	h.listener = listener
 	mux := http.NewServeMux()
 	mux.Handle(h.Path, h)
 	h.server = &http.Server{
@@ -70,11 +76,7 @@ func (i *Http) Init(out chan<- *core.Event) {
 
 func (i *Http) Serve() {
 	i.log.Infof("starting http server on %v", i.Address)
-	listener, err := net.Listen("tcp", i.Address); if err != nil {
-		i.log.Errorf("error creating listener: %v", err)
-		return
-	}
-	if err := i.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
 	} else {
 		i.log.Debug("http server stopped")

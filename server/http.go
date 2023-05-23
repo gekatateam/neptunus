@@ -7,23 +7,25 @@ import (
 	"net/http/pprof"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gekatateam/pipeline/config"
 )
 
-type managerServer struct {
+type httpServer struct {
+	*chi.Mux
 	srv *http.Server
 	l   net.Listener
 }
 
-func NewManagerServer(cfg config.Common) (*managerServer, error) {
+func NewHttpServer(cfg config.Common) (*httpServer, error) {
 	l, err := net.Listen("tcp", cfg.MgmtAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/debug/pprof", pprof.Index)
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -36,17 +38,17 @@ func NewManagerServer(cfg config.Common) (*managerServer, error) {
 		Handler:      mux,
 	}
 
-	return &managerServer{s, l}, nil
+	return &httpServer{mux, s, l}, nil
 }
 
-func (s *managerServer) Serve() error {
+func (s *httpServer) Serve() error {
 	if err := s.srv.Serve(s.l); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
 }
 
-func (s *managerServer) Shutdown(ctx context.Context) error {
+func (s *httpServer) Shutdown(ctx context.Context) error {
 	defer s.l.Close()
 	s.srv.SetKeepAlivesEnabled(false)
 	if err := s.srv.Shutdown(ctx); err != nil {

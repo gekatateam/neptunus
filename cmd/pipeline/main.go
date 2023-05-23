@@ -14,7 +14,7 @@ var log = logrus.NewLogger(map[string]any{"scope": "main"})
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("unexpected panic recovered: %v; stack trace: %v", r, debug.Stack())
+			log.Fatalf("unexpected panic recovered: %v; stack trace: %v", r, string(debug.Stack()))
 		}
 	}()
 
