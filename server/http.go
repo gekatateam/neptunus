@@ -1,4 +1,4 @@
-package manager
+package server
 
 import (
 	"context"
@@ -19,9 +19,8 @@ type httpServer struct {
 	l   net.Listener
 }
 
-func NewHttpServer(cfg config.Common) (*httpServer, error) {
-	l, err := net.Listen("tcp", cfg.MgmtAddr)
-	if err != nil {
+func Http(cfg config.Common) (*httpServer, error) {
+	l, err := net.Listen("tcp", cfg.HttpPort); if err != nil {
 		return nil, err
 	}
 
@@ -32,6 +31,7 @@ func NewHttpServer(cfg config.Common) (*httpServer, error) {
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
 	s := &http.Server{
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,

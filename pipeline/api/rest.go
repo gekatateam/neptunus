@@ -18,6 +18,10 @@ type restApi struct {
 	log logger.Logger
 }
 
+func Rest(s pipeline.Service, log logger.Logger) *restApi {
+	return &restApi{s: s, log: log}
+}
+
 // POST /pipelines/{id}/start
 func (a *restApi) Start() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +44,10 @@ func (a *restApi) Start() http.Handler {
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
 		}
 	})
 }
@@ -60,6 +68,10 @@ func (a *restApi) Stop() http.Handler {
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
 		}
 	})
 }
@@ -76,6 +88,10 @@ func (a *restApi) State() http.Handler {
 			w.Write(OkToJson(status))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
+			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		}
 	})
@@ -94,6 +110,10 @@ func (a *restApi) List() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		}
@@ -118,6 +138,10 @@ func (a *restApi) Get() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		}
@@ -150,6 +174,10 @@ func (a *restApi) Add() http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		}
@@ -187,6 +215,10 @@ func (a *restApi) Update() http.Handler {
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
 		}
 	})
 }
@@ -208,6 +240,10 @@ func (a *restApi) Delete() http.Handler {
 			w.WriteHeader(http.StatusConflict)
 			w.Write(ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(ErrToJson(err.Error()))
+		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
 		}

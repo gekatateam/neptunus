@@ -12,8 +12,9 @@ import (
 
 	"github.com/gekatateam/pipeline/config"
 	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/manager"
+	"github.com/gekatateam/pipeline/pipeline/api"
 	"github.com/gekatateam/pipeline/pipeline/service"
+	"github.com/gekatateam/pipeline/server"
 )
 
 func run(cCtx *cli.Context) error {
@@ -28,10 +29,7 @@ func run(cCtx *cli.Context) error {
 	}
 	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
-	manager, err := manager.NewManagerServer(cfg.Common)
-	if err != nil {
-		return err
-	}
+
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit,
@@ -41,19 +39,12 @@ func run(cCtx *cli.Context) error {
 		syscall.SIGQUIT)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func()  {
-		if err := manager.Serve(); err != nil {
-			log.Fatalf("manager server startup error: %v", err.Error())
-		}
-		wg.Done()
-	}()
-	
+
 	storage, err := getStorage(&cfg.PipeCfg); if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
 
-	s := service.NewInternalService(storage, logrus.NewLogger(map[string]any{
+	s := service.Internal(storage, logrus.NewLogger(map[string]any{
 		"scope": "service",
 		"type":  "internal",
 	}))
@@ -61,11 +52,37 @@ func run(cCtx *cli.Context) error {
 		return err
 	}
 
+	restApi := api.Rest(s, logrus.NewLogger(map[string]any{
+		"scope": "api",
+		"type":  "rest",
+	}))
+
+	httpServer, err := server.Http(cfg.Common); if err != nil {
+		return err
+	}
+	httpServer.Get("/api/v1/pipelines", restApi.List().ServeHTTP)
+	httpServer.Get("/api/v1/pipelines/{id}", restApi.Get().ServeHTTP)
+	httpServer.Get("/api/v1/pipelines/{id}/state", restApi.State().ServeHTTP)
+	httpServer.Post("/api/v1/pipelines/{id}", restApi.Add().ServeHTTP)
+	httpServer.Put("/api/v1/pipelines/{id}", restApi.Update().ServeHTTP)
+	httpServer.Post("/api/v1/pipelines/{id}", restApi.Add().ServeHTTP)
+	httpServer.Delete("/api/v1/pipelines/{id}", restApi.Delete().ServeHTTP)
+	httpServer.Post("/api/v1/pipelines/{id}/start", restApi.Start().ServeHTTP)
+	httpServer.Post("/api/v1/pipelines/{id}/stop", restApi.Stop().ServeHTTP)
+
+	wg.Add(1)
+	go func()  {
+		if err := httpServer.Serve(); err != nil {
+			log.Fatalf("http server startup error: %v", err.Error())
+		}
+		wg.Done()
+	}()
+
 	<-quit
 	s.StopAll()
 
-	if err := manager.Shutdown(context.Background()); err != nil {
-		log.Errorf("manager server stop error: %v", err.Error())
+	if err := httpServer.Shutdown(context.Background()); err != nil {
+		log.Errorf("http server stop error: %v", err.Error())
 	}
 
 	wg.Wait()

@@ -24,7 +24,7 @@ type internalService struct {
 	s     pipeline.Storage
 }
 
-func NewInternalService(s pipeline.Storage, log logger.Logger) *internalService {
+func Internal(s pipeline.Storage, log logger.Logger) *internalService {
 	return &internalService{
 		log:   log,
 		s:     s,

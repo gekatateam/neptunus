@@ -11,7 +11,7 @@ import (
 func getStorage(cfg *config.PipeCfg) (pipeline.Storage, error) {
 	switch cfg.Storage {
 	case "fs":
-		return storage.NewFileSystem(cfg.File.Directory, cfg.File.Extention), nil
+		return storage.FS(cfg.File.Directory, cfg.File.Extention), nil
 	default:
 		return nil, fmt.Errorf("unknown storage type in configuration: %v", cfg.Storage)
 	}

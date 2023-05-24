@@ -16,7 +16,7 @@ type fileStorage struct {
 	ext string
 }
 
-func NewFileSystem(dir, ext string) *fileStorage {
+func FS(dir, ext string) *fileStorage {
 	if !strings.HasSuffix(dir, pathSeparator) {
 		dir = dir + pathSeparator
 	}
