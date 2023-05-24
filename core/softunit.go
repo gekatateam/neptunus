@@ -225,7 +225,7 @@ func (u *inSoftUnit) Run() {
 	u.i.Serve() // blocking call, loop inside
 	close(u.rej)
 	u.wg.Wait()
-	
+
 }
 
 // broadcast unit consumes events from input
@@ -244,7 +244,7 @@ type bcastSoftUnit struct {
 func NewDirectBroadcastSoftUnit(in <-chan *Event, outsCount int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
 	outs := make([]<-chan *Event, 0, outsCount)
 	unit = &bcastSoftUnit{
-		in: in,
+		in:   in,
 		outs: make([]chan<- *Event, 0, outsCount),
 	}
 
@@ -263,7 +263,7 @@ func (u *bcastSoftUnit) Run() {
 	// this loop breaks when the input channel closes
 	for e := range u.in {
 		for i, out := range u.outs {
-			if i == len(u.outs) -1 { // send origin event to last consumer
+			if i == len(u.outs)-1 { // send origin event to last consumer
 				out <- e
 			} else {
 				out <- e.Clone()

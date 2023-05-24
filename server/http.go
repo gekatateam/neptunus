@@ -20,7 +20,8 @@ type httpServer struct {
 }
 
 func Http(cfg config.Common) (*httpServer, error) {
-	l, err := net.Listen("tcp", cfg.HttpPort); if err != nil {
+	l, err := net.Listen("tcp", cfg.HttpPort)
+	if err != nil {
 		return nil, err
 	}
 

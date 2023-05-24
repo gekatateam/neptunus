@@ -255,7 +255,7 @@ type ErrResponse struct {
 }
 
 func ErrToJson(msg string) []byte {
-	s, _ := json.Marshal(ErrResponse{Error: msg}); 
+	s, _ := json.Marshal(ErrResponse{Error: msg})
 	return s
 }
 

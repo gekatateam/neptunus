@@ -29,8 +29,6 @@ func run(cCtx *cli.Context) error {
 	}
 	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
-
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit,
 		syscall.SIGHUP,
@@ -40,7 +38,8 @@ func run(cCtx *cli.Context) error {
 
 	wg := &sync.WaitGroup{}
 
-	storage, err := getStorage(&cfg.PipeCfg); if err != nil {
+	storage, err := getStorage(&cfg.PipeCfg)
+	if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
 
@@ -57,7 +56,8 @@ func run(cCtx *cli.Context) error {
 		"type":  "rest",
 	}))
 
-	httpServer, err := server.Http(cfg.Common); if err != nil {
+	httpServer, err := server.Http(cfg.Common)
+	if err != nil {
 		return err
 	}
 	httpServer.Get("/api/v1/pipelines", restApi.List().ServeHTTP)
@@ -71,7 +71,7 @@ func run(cCtx *cli.Context) error {
 	httpServer.Post("/api/v1/pipelines/{id}/stop", restApi.Stop().ServeHTTP)
 
 	wg.Add(1)
-	go func()  {
+	go func() {
 		if err := httpServer.Serve(); err != nil {
 			log.Fatalf("http server startup error: %v", err.Error())
 		}

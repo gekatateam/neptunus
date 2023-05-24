@@ -7,7 +7,6 @@ var (
 	ConflictErr   *ConflictError
 	IOErr         *IOError
 	ValidationErr *ValidationError
-
 )
 
 type NotFoundError struct{ Err error }
