@@ -159,7 +159,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	wg := &sync.WaitGroup{}
 
 	p.log.Info("starting inputs")
-	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins)) // <- pre-ready channels
+	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins))
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
