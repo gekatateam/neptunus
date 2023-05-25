@@ -31,3 +31,14 @@ type Output interface {
 	Close() error
 	Aliaser
 }
+
+// core plugins
+type Fusion interface {
+	Init(ins []<-chan *Event, out chan<- *Event)
+	Run()
+}
+
+type Broadcast interface {
+	Init(in <-chan *Event, outs []chan<- *Event)
+	Run()
+}

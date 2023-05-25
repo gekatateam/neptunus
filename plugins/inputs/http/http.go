@@ -19,6 +19,7 @@ import (
 
 type Http struct {
 	alias        string
+	pipe         string
 	Address      string        `mapstructure:"address"`
 	Path         string        `mapstructure:"path"`
 	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
@@ -32,7 +33,7 @@ type Http struct {
 	out chan<- *core.Event
 }
 
-func New(config map[string]any, alias string, log logger.Logger) (core.Input, error) {
+func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Input, error) {
 	h := &Http{
 		Address:      ":9800",
 		Path:         "/events",
@@ -41,6 +42,7 @@ func New(config map[string]any, alias string, log logger.Logger) (core.Input, er
 
 		log:   log,
 		alias: alias,
+		pipe:  pipeline,
 	}
 	if err := mapstructure.Decode(config, h); err != nil {
 		return nil, err
@@ -115,7 +117,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			errMsg := fmt.Sprintf("reading error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusInternalServerError)
-			metrics.ObserveInputSummary("http", i.alias, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
@@ -125,7 +127,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
-			metrics.ObserveInputSummary("http", i.alias, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
@@ -133,7 +135,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		e.Labels["server"] = i.Address + i.Path
 		e.Labels["sender"] = r.RemoteAddr
 		i.out <- e
-		metrics.ObserveInputSummary("http", i.alias, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -1,3 +1,4 @@
 package core
 
-const bufferSize = 100
+// must be configurable
+const bufferSize = 1_000

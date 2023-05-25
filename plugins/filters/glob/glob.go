@@ -15,6 +15,7 @@ import (
 
 type Glob struct {
 	alias  string
+	pipe   string
 	RK     []string            `mapstructure:"routing_key"`
 	Fields map[string][]string `mapstructure:"fields"`
 	Labels map[string][]string `mapstructure:"labels"`
@@ -29,10 +30,11 @@ type Glob struct {
 	labels map[string][]glob.Glob
 }
 
-func New(config map[string]any, alias string, log logger.Logger) (core.Filter, error) {
+func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error) {
 	g := &Glob{
 		log:   log,
 		alias: alias,
+		pipe:  pipeline,
 	}
 
 	if err := mapstructure.Decode(config, g); err != nil {
@@ -99,10 +101,10 @@ func (f *Glob) Filter() {
 		now := time.Now()
 		if f.match(e) {
 			f.accepted <- e
-			metrics.ObserveFliterSummary("glob", f.alias, metrics.EventAccepted, time.Since(now))
+			metrics.ObserveFliterSummary("glob", f.alias, f.pipe, metrics.EventAccepted, time.Since(now))
 		} else {
 			f.rejected <- e
-			metrics.ObserveFliterSummary("glob", f.alias, metrics.EventRejected, time.Since(now))
+			metrics.ObserveFliterSummary("glob", f.alias, f.pipe, metrics.EventRejected, time.Since(now))
 		}
 	}
 }

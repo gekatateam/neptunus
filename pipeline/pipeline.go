@@ -12,6 +12,8 @@ import (
 	"github.com/gekatateam/pipeline/logger/logrus"
 	"github.com/gekatateam/pipeline/plugins"
 
+	"github.com/gekatateam/pipeline/plugins/core/broadcast"
+	"github.com/gekatateam/pipeline/plugins/core/fusion"
 	_ "github.com/gekatateam/pipeline/plugins/filters"
 	_ "github.com/gekatateam/pipeline/plugins/inputs"
 	_ "github.com/gekatateam/pipeline/plugins/outputs"
@@ -147,7 +149,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
-	fusionUnit, outCh := core.NewDirectFusionSoftUnit(inputsOutChannels...)
+	fusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("inputs-to-processors", p.config.Settings.Id), inputsOutChannels...)
 	wg.Add(1)
 	go func() {
 		fusionUnit.Run()
@@ -172,7 +174,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		fusionUnit, outCh = core.NewDirectFusionSoftUnit(procsOutChannels...)
+		fusionUnit, outCh = core.NewDirectFusionSoftUnit(fusion.New("processors-to-broadcast", p.config.Settings.Id), procsOutChannels...)
 		wg.Add(1)
 		go func() {
 			fusionUnit.Run()
@@ -181,7 +183,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(outCh, len(p.outs))
+	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("to-outputs", p.config.Settings.Id), outCh, len(p.outs))
 	wg.Add(1)
 	go func() {
 		bcastUnit.Run()
@@ -230,7 +232,7 @@ func (p *Pipeline) configureOutputs() error {
 				alias = outputCfg.Alias()
 			}
 
-			output, err := outputFunc(outputCfg, alias, logrus.NewLogger(map[string]any{
+			output, err := outputFunc(outputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"output":   plugin,
 				"name":     alias,
@@ -263,7 +265,7 @@ func (p *Pipeline) configureProcessors() error {
 				alias = processorCfg.Alias()
 			}
 
-			processor, err := processorFunc(processorCfg, alias, logrus.NewLogger(map[string]any{
+			processor, err := processorFunc(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline":  p.config.Settings.Id,
 				"processor": plugin,
 				"name":      alias,
@@ -300,7 +302,7 @@ func (p *Pipeline) configureInputs() error {
 				alias = inputCfg.Alias()
 			}
 
-			input, err := inputFunc(inputCfg, alias, logrus.NewLogger(map[string]any{
+			input, err := inputFunc(inputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"input":    plugin,
 				"name":     alias,
@@ -333,7 +335,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			alias = filterCfg.Alias()
 		}
 
-		filter, err := filterFunc(filterCfg, alias, logrus.NewLogger(map[string]any{
+		filter, err := filterFunc(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 			"pipeline": p.config.Settings.Id,
 			"filter":   plugin,
 			"name":     alias,

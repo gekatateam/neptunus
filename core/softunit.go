@@ -230,6 +230,7 @@ func (u *inSoftUnit) Run() {
 
 // broadcast unit consumes events from input
 // and sends clones of each event to all outputs
+// this unit uses plugin for avoid concrete metrics writing in core
 //
 //  ┌────────┐
 //  |   ┌────┼─
@@ -237,13 +238,15 @@ func (u *inSoftUnit) Run() {
 //  |   └────┼─
 //  └────────┘
 type bcastSoftUnit struct {
+	c    Broadcast
 	in   <-chan *Event
 	outs []chan<- *Event
 }
 
-func NewDirectBroadcastSoftUnit(in <-chan *Event, outsCount int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
+func NewDirectBroadcastSoftUnit(c Broadcast, in <-chan *Event, outsCount int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
 	outs := make([]<-chan *Event, 0, outsCount)
 	unit = &bcastSoftUnit{
+		c:    c,
 		in:   in,
 		outs: make([]chan<- *Event, 0, outsCount),
 	}
@@ -253,6 +256,7 @@ func NewDirectBroadcastSoftUnit(in <-chan *Event, outsCount int) (unit *bcastSof
 		outs = append(outs, outCh)
 		unit.outs = append(unit.outs, outCh)
 	}
+	c.Init(in, unit.outs)
 
 	return unit, outs
 }
@@ -261,15 +265,7 @@ func (u *bcastSoftUnit) Run() {
 	// starts consumer which will broadcast each event
 	// to all outputs
 	// this loop breaks when the input channel closes
-	for e := range u.in {
-		for i, out := range u.outs {
-			if i == len(u.outs)-1 { // send origin event to last consumer
-				out <- e
-			} else {
-				out <- e.Clone()
-			}
-		}
-	}
+	u.c.Run()
 	// close all outputs
 	for _, out := range u.outs {
 		close(out)
@@ -278,6 +274,7 @@ func (u *bcastSoftUnit) Run() {
 
 // fusion unit consumes events from multiple inputs
 // and sends them to one output channel
+// this unit uses plugin for avoid concrete metrics writing in core
 //
 //  ┌────────┐
 // ─┼───┐    |
@@ -285,33 +282,24 @@ func (u *bcastSoftUnit) Run() {
 // ─┼───┘    |
 //  └────────┘
 type fusionSoftUnit struct {
-	wg  *sync.WaitGroup
+	c   Fusion
 	ins []<-chan *Event
 	out chan<- *Event
 }
 
-func NewDirectFusionSoftUnit(ins ...<-chan *Event) (unit *fusionSoftUnit, unitOut <-chan *Event) {
-	out := make(chan *Event, bufferSize)
+func NewDirectFusionSoftUnit(c Fusion, ins ...<-chan *Event) (unit *fusionSoftUnit, unitOut <-chan *Event) {
+	out := make(chan *Event, bufferSize * len(ins))
 	unit = &fusionSoftUnit{
-		wg:  &sync.WaitGroup{},
+		c:   c,
 		ins: ins,
 		out: out,
 	}
+	c.Init(ins, out)
 
 	return unit, out
 }
 
 func (u *fusionSoftUnit) Run() {
-	for _, inputCh := range u.ins {
-		u.wg.Add(1)
-		go func(c <-chan *Event) {
-			for e := range c {
-				u.out <- e
-			}
-			u.wg.Done()
-		}(inputCh)
-	}
-
-	u.wg.Wait()
+	u.c.Run()
 	close(u.out)
 }

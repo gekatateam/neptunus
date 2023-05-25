@@ -22,6 +22,22 @@ func Rest(s pipeline.Service, log logger.Logger) *restApi {
 	return &restApi{s: s, log: log}
 }
 
+func (a *restApi) Router() *chi.Mux {
+	router := chi.NewRouter()
+
+	router.Get("/pipelines", a.List().ServeHTTP)
+	router.Get("/pipelines/{id}", a.Get().ServeHTTP)
+	router.Get("/pipelines/{id}/state", a.State().ServeHTTP)
+	router.Post("/pipelines/{id}", a.Add().ServeHTTP)
+	router.Put("/pipelines/{id}", a.Update().ServeHTTP)
+	router.Post("/pipelines/{id}", a.Add().ServeHTTP)
+	router.Delete("/pipelines/{id}", a.Delete().ServeHTTP)
+	router.Post("/pipelines/{id}/start", a.Start().ServeHTTP)
+	router.Post("/pipelines/{id}/stop", a.Stop().ServeHTTP)
+
+	return router
+}
+
 // POST /pipelines/{id}/start
 func (a *restApi) Start() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -157,8 +173,10 @@ func (a *restApi) Add() http.Handler {
 		switch {
 		case err == nil:
 		default:
+			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(ErrToJson(err.Error()))
+			return
 		}
 
 		err = a.s.Add(pipe)

@@ -17,6 +17,7 @@ func (c *chanCollector) append(f func() ChanStats) {
 
 func (c *chanCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- chanCapacity
+	ch <- chanLength
 }
 
 func (c *chanCollector) Collect(ch chan<- prometheus.Metric) {
@@ -26,6 +27,11 @@ func (c *chanCollector) Collect(ch chan<- prometheus.Metric) {
 			chanCapacity,
 			prometheus.GaugeValue,
 			float64(state.Capacity),
+		)
+		ch <- prometheus.MustNewConstMetric(
+			chanLength,
+			prometheus.GaugeValue,
+			float64(state.Length),
 		)
 	}
 }

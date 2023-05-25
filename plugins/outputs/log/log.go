@@ -14,18 +14,20 @@ import (
 
 type Log struct {
 	alias string
+	pipe  string
 	Level string `mapstructure:"level"`
 
 	in  <-chan *core.Event
 	log logger.Logger
 }
 
-func New(config map[string]any, alias string, log logger.Logger) (core.Output, error) {
+func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Output, error) {
 	l := &Log{
 		Level: "info",
 
 		log:   log,
 		alias: alias,
+		pipe:  pipeline,
 	}
 	if err := mapstructure.Decode(config, l); err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func (o *Log) Listen() {
 		event, err := json.Marshal(e)
 		if err != nil {
 			o.log.Errorf("json marshal failed: %v", err.Error())
-			metrics.ObserveOutputSummary("log", o.alias, metrics.EventFailed, time.Since(now))
+			metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}
 
@@ -64,7 +66,7 @@ func (o *Log) Listen() {
 		case "warn":
 			o.log.Warn(string(event))
 		}
-		metrics.ObserveOutputSummary("log", o.alias, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
 

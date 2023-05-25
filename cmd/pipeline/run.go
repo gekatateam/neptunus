@@ -47,9 +47,6 @@ func run(cCtx *cli.Context) error {
 		"scope": "service",
 		"type":  "internal",
 	}))
-	if err := s.StartAll(); err != nil {
-		return err
-	}
 
 	restApi := api.Rest(s, logrus.NewLogger(map[string]any{
 		"scope": "api",
@@ -60,15 +57,7 @@ func run(cCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	httpServer.Get("/api/v1/pipelines", restApi.List().ServeHTTP)
-	httpServer.Get("/api/v1/pipelines/{id}", restApi.Get().ServeHTTP)
-	httpServer.Get("/api/v1/pipelines/{id}/state", restApi.State().ServeHTTP)
-	httpServer.Post("/api/v1/pipelines/{id}", restApi.Add().ServeHTTP)
-	httpServer.Put("/api/v1/pipelines/{id}", restApi.Update().ServeHTTP)
-	httpServer.Post("/api/v1/pipelines/{id}", restApi.Add().ServeHTTP)
-	httpServer.Delete("/api/v1/pipelines/{id}", restApi.Delete().ServeHTTP)
-	httpServer.Post("/api/v1/pipelines/{id}/start", restApi.Start().ServeHTTP)
-	httpServer.Post("/api/v1/pipelines/{id}/stop", restApi.Stop().ServeHTTP)
+	httpServer.Mount("/api/v1", restApi.Router())
 
 	wg.Add(1)
 	go func() {
@@ -77,6 +66,10 @@ func run(cCtx *cli.Context) error {
 		}
 		wg.Done()
 	}()
+
+	if err := s.StartAll(); err != nil {
+		return err
+	}
 
 	<-quit
 	s.StopAll()

@@ -11,13 +11,18 @@ import (
 
 type Through struct {
 	alias string
+	pipe  string
 	in    <-chan *core.Event
 	out   chan<- *core.Event
 	log   logger.Logger
 }
 
-func New(_ map[string]any, alias string, log logger.Logger) (core.Processor, error) {
-	return &Through{log: log, alias: alias}, nil
+func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Processor, error) {
+	return &Through{
+		log:   log, 
+		alias: alias,
+		pipe:  pipeline,
+	}, nil
 }
 
 func (p *Through) Init(
@@ -40,7 +45,7 @@ func (p *Through) Process() {
 	for e := range p.in {
 		now := time.Now()
 		p.out <- e
-		metrics.ObserveProcessorSummary("through", p.alias, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveProcessorSummary("through", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
 
