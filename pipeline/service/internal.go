@@ -34,19 +34,14 @@ func Internal(s pipeline.Storage, log logger.Logger) *internalService {
 }
 
 func (m *internalService) StartAll() error {
-	pipes, err := m.s.List()
-	if err != nil {
+	pipes, err := m.s.List(); if err != nil {
 		return err
 	}
 
 	for _, pipeCfg := range pipes {
+		m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
 		if pipeCfg.Settings.Run {
-			if err = m.runPipeline(pipeCfg); err != nil {
-				m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
-			}
-		} else {
-			// pipeline currently has the Created status and must be started by it's Id via Start()
-			m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
+			m.runPipeline(pipeCfg)
 		}
 	}
 
@@ -74,8 +69,7 @@ func (m *internalService) Start(id string) error {
 		}
 	}
 
-	pipeCfg, err := m.s.Get(id)
-	if err != nil {
+	pipeCfg, err := m.s.Get(id); if err != nil {
 		return err
 	}
 
@@ -83,8 +77,7 @@ func (m *internalService) Start(id string) error {
 }
 
 func (m *internalService) Stop(id string) error {
-	unit, ok := m.pipes[id]
-	if !ok {
+	unit, ok := m.pipes[id]; if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -102,8 +95,7 @@ func (m *internalService) Stop(id string) error {
 }
 
 func (m *internalService) State(id string) (string, error) {
-	unit, ok := m.pipes[id]
-	if !ok {
+	unit, ok := m.pipes[id]; if !ok {
 		return "", &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -128,8 +120,7 @@ func (m *internalService) Add(pipe *config.Pipeline) error {
 }
 
 func (m *internalService) Update(pipe *config.Pipeline) error {
-	unit, ok := m.pipes[pipe.Settings.Id]
-	if !ok {
+	unit, ok := m.pipes[pipe.Settings.Id]; if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -144,8 +135,7 @@ func (m *internalService) Update(pipe *config.Pipeline) error {
 }
 
 func (m *internalService) Delete(id string) error {
-	unit, ok := m.pipes[id]
-	if !ok {
+	unit, ok := m.pipes[id]; if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -166,7 +156,6 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 	}))
 
 	m.log.Infof("building pipeline %v", pipeCfg.Settings.Id)
-
 	if err := pipe.Build(); err != nil {
 		m.log.Error(fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error()))
 		pipe.Close()
