@@ -42,9 +42,7 @@ func (m *internalService) StartAll() error {
 	for _, pipeCfg := range pipes {
 		if pipeCfg.Settings.Run {
 			if err = m.runPipeline(pipeCfg); err != nil {
-				m.log.Error(err.Error())
 				m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
-				m.log.Warnf("pipeline %v not ready for event processing", pipeCfg.Settings.Id)
 			}
 		} else {
 			// pipeline currently has the Created status and must be started by it's Id via Start()
@@ -170,6 +168,9 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 	m.log.Infof("building pipeline %v", pipeCfg.Settings.Id)
 
 	if err := pipe.Build(); err != nil {
+		m.log.Error(fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error()))
+		pipe.Close()
+		m.log.Warnf("pipeline %v was closed as not ready for event processing", pipeCfg.Settings.Id)
 		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())}
 	}
 

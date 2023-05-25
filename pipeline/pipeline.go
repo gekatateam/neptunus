@@ -40,7 +40,7 @@ const (
 //
 // cause https://github.com/golang/go/issues/49054
 type inputSet struct {
-	o core.Input
+	i core.Input
 	f []core.Filter
 }
 
@@ -82,6 +82,30 @@ func (p *Pipeline) State() state {
 
 func (p *Pipeline) Config() *config.Pipeline {
 	return p.config
+}
+
+func (p *Pipeline) Close() error {
+	for _, set := range p.ins {
+		set.i.Close()
+		for _, f := range set.f {
+			f.Close()
+		}
+	}
+
+	for _, set := range p.procs {
+		for _, f := range set.f {
+			f.Close()
+		}
+		set.p.Close()
+	}
+
+	for _, set := range p.outs {
+		for _, f := range set.f {
+			f.Close()
+		}
+		set.o.Close()
+	}
+	return nil
 }
 
 func (p *Pipeline) Test() error {
@@ -139,7 +163,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		inputUnit, outCh := core.NewDirectInputSoftUnit(input.o, input.f, inputsStopChannels[i])
+		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i])
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
 		go func() {
