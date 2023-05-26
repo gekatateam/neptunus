@@ -11,8 +11,7 @@ import (
 )
 
 func test(cCtx *cli.Context) error {
-	cfg, err := config.ReadConfig(cCtx.String("config"))
-	if err != nil {
+	cfg, err := config.ReadConfig(cCtx.String("config")); if err != nil {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())
 	}
 
@@ -21,13 +20,11 @@ func test(cCtx *cli.Context) error {
 	}
 	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
-	storage, err := getStorage(&cfg.PipeCfg)
-	if err != nil {
+	storage, err := getStorage(&cfg.PipeCfg); if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
 
-	pipesCfg, err := storage.List()
-	if err != nil {
+	pipesCfg, err := storage.List(); if err != nil {
 		return fmt.Errorf("pipelines read failed: %v", err.Error())
 	}
 

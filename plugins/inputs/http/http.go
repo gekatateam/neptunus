@@ -21,10 +21,8 @@ type Http struct {
 	alias        string
 	pipe         string
 	Address      string        `mapstructure:"address"`
-	Path         string        `mapstructure:"path"`
 	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	RoutingKey   string        `mapstructure:"routing_key"`
 
 	server   *http.Server
 	listener net.Listener
@@ -36,7 +34,6 @@ type Http struct {
 func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Input, error) {
 	h := &Http{
 		Address:      ":9800",
-		Path:         "/events",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 
@@ -48,12 +45,8 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 		return nil, err
 	}
 
-	if len(h.RoutingKey) == 0 {
-		return nil, errors.New("an empty routing key is not allowed")
-	}
-
-	if len(h.Path) == 0 || len(h.Address) == 0 {
-		return nil, errors.New("address and path required")
+	if len(h.Address) == 0 {
+		return nil, errors.New("address required")
 	}
 
 	listener, err := net.Listen("tcp", h.Address); if err != nil {
@@ -62,7 +55,7 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 
 	h.listener = listener
 	mux := http.NewServeMux()
-	mux.Handle(h.Path, h)
+	mux.Handle("/", h)
 	h.server = &http.Server{
 		ReadTimeout:  h.ReadTimeout,
 		WriteTimeout: h.WriteTimeout,
@@ -121,7 +114,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		e := core.NewEvent(i.RoutingKey)
+		e := core.NewEvent(r.URL.Path)
 		err := json.Unmarshal(scanner.Bytes(), &e.Data)
 		if err != nil {
 			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
@@ -132,7 +125,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		e.Labels["input"] = "http"
-		e.Labels["server"] = i.Address + i.Path
+		e.Labels["server"] = i.Address
 		e.Labels["sender"] = r.RemoteAddr
 		i.out <- e
 		metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
