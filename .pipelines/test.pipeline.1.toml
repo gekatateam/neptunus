@@ -11,7 +11,6 @@
 
 [[processors]]
   [processors.through]
-    level = "warn"
   [processors.through.filters.glob]
     routing_key = [ ".*http.*" ]
     alias = "t2"
