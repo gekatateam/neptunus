@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gekatateam/pipeline/config"
+	"github.com/gekatateam/neptunus/config"
 
 	"github.com/sirupsen/logrus"
 )

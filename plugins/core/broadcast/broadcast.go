@@ -3,8 +3,8 @@ package broadcast
 import (
 	"time"
 
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/metrics"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 type Broadcast struct {

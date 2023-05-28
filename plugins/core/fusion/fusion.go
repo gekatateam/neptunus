@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/metrics"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 type Fusion struct {

@@ -1,10 +1,10 @@
 package drop
 
 import (
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/metrics"
-	"github.com/gekatateam/pipeline/plugins"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Drop struct {

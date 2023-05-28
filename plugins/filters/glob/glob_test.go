@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/logger/mock"
-	"github.com/gekatateam/pipeline/plugins/filters/glob"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/logger/mock"
+	"github.com/gekatateam/neptunus/plugins/filters/glob"
 )
 
 func TestGlob(t *testing.T) {

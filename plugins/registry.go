@@ -3,8 +3,8 @@ package plugins
 import (
 	"fmt"
 
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/logger"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/logger"
 )
 
 // processors

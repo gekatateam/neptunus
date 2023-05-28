@@ -1,6 +1,6 @@
 package pipeline
 
-import "github.com/gekatateam/pipeline/config"
+import "github.com/gekatateam/neptunus/config"
 
 type Service interface {
 	Start(id string) error

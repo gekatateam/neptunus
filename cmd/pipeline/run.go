@@ -10,11 +10,11 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/pipeline/api"
-	"github.com/gekatateam/pipeline/pipeline/service"
-	"github.com/gekatateam/pipeline/server"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/pipeline/api"
+	"github.com/gekatateam/neptunus/pipeline/service"
+	"github.com/gekatateam/neptunus/server"
 )
 
 func run(cCtx *cli.Context) error {
@@ -22,7 +22,7 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())
 	}
 
-	err = logrus.InitializeLogger(cfg.Common); if err != nil {
+	if err = logrus.InitializeLogger(cfg.Common); err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
 	log = logrus.NewLogger(map[string]any{"scope": "main"})

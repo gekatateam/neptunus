@@ -1,5 +1,5 @@
 package outputs
 
 import (
-	_ "github.com/gekatateam/pipeline/plugins/outputs/log"
+	_ "github.com/gekatateam/neptunus/plugins/outputs/log"
 )

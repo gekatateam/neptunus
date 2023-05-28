@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/pipeline"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/pipeline"
 )
 
 const pathSeparator = string(os.PathSeparator)

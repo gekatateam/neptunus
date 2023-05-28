@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/plugins"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/plugins"
 
-	"github.com/gekatateam/pipeline/plugins/core/broadcast"
-	"github.com/gekatateam/pipeline/plugins/core/fusion"
-	_ "github.com/gekatateam/pipeline/plugins/filters"
-	_ "github.com/gekatateam/pipeline/plugins/inputs"
-	_ "github.com/gekatateam/pipeline/plugins/outputs"
-	_ "github.com/gekatateam/pipeline/plugins/processors"
+	"github.com/gekatateam/neptunus/plugins/core/broadcast"
+	"github.com/gekatateam/neptunus/plugins/core/fusion"
+	_ "github.com/gekatateam/neptunus/plugins/filters"
+	_ "github.com/gekatateam/neptunus/plugins/inputs"
+	_ "github.com/gekatateam/neptunus/plugins/outputs"
+	_ "github.com/gekatateam/neptunus/plugins/processors"
 )
 
 type state string

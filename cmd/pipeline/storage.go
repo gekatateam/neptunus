@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/pipeline"
-	"github.com/gekatateam/pipeline/pipeline/storage"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/pipeline"
+	"github.com/gekatateam/neptunus/pipeline/storage"
 )
 
 func getStorage(cfg *config.PipeCfg) (pipeline.Storage, error) {

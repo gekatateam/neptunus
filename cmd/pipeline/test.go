@@ -5,9 +5,9 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/pipeline"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/pipeline"
 )
 
 func test(cCtx *cli.Context) error {

@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/gekatateam/pipeline/config"
+	"github.com/gekatateam/neptunus/config"
 )
 
 type httpServer struct {

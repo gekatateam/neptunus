@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/pipeline"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/pipeline"
 )
 
 type restApi struct {

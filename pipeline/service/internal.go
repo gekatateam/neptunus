@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/pipeline"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/pipeline"
 )
 
 type pipeUnit struct {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/gekatateam/pipeline/logger/logrus"
+	"github.com/gekatateam/neptunus/logger/logrus"
 )
 
 var log = logrus.NewLogger(map[string]any{"scope": "main"})

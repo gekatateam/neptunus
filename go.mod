@@ -1,4 +1,4 @@
-module github.com/gekatateam/pipeline
+module github.com/gekatateam/neptunus
 
 go 1.19
 
