@@ -5,8 +5,7 @@
 
 [[inputs]]
   [inputs.http]
-    routing_key = "http.input.test"
-    address     = ":9200"
+    address = ":9200"
   [inputs.http.filters.pass]
     alias = "t1"
 
@@ -14,7 +13,7 @@
   [processors.through]
     level = "warn"
   [processors.through.filters.glob]
-    routing_key = [ "http.*" ]
+    routing_key = [ ".*http.*" ]
     alias = "t2"
 
 [[outputs]]

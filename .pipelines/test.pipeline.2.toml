@@ -5,8 +5,7 @@
 
 [[inputs]]
   [inputs.http]
-    routing_key = "http.input.test"
-    address     = ":9200"
+    address = ":9200"
   [inputs.http.filters.pass]
     alias = "t4"
 
