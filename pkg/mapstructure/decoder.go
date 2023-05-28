@@ -12,7 +12,7 @@ func Decode(input any, output any) error {
 		Metadata: nil,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			ToTimeHookFunc(),
-			mapstructure.StringToTimeDurationHookFunc(),
+			ToTimeDurationHookFunc(),
 		),
 		Result: output,
 	})
@@ -46,5 +46,25 @@ func ToTimeHookFunc() mapstructure.DecodeHookFunc {
 			return data, nil
 		}
 		// Convert it by parsing
+	}
+}
+
+func ToTimeDurationHookFunc() mapstructure.DecodeHookFunc {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf(time.Duration(5)) {
+			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			return time.ParseDuration(data.(string))
+		case reflect.Int64:
+			return time.Duration(data.(int64)), nil
+		default:
+			return data, nil
+		}
 	}
 }

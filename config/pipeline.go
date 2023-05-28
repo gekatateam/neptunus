@@ -1,19 +1,26 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	"github.com/goccy/go-yaml"
+	toml2 "github.com/naoina/toml" // for marshal only
 )
 
 // TODO: rewrite to structs
 type Pipeline struct {
-	Inputs     []PluginSet `toml:"inputs"     yaml:"inputs"`
-	Processors []PluginSet `toml:"processors" yaml:"processors"`
-	Outputs    []PluginSet `toml:"outputs"    yaml:"outputs"`
+	Settings   PipeSettings `toml:"settings"   yaml:"settings"   json:"settings"`
+	Inputs     []PluginSet  `toml:"inputs"     yaml:"inputs"     json:"inputs"`
+	Processors []PluginSet  `toml:"processors" yaml:"processors" json:"processors"`
+	Outputs    []PluginSet  `toml:"outputs"    yaml:"outputs"    json:"outputs"`
+}
+
+type PipeSettings struct {
+	Id    string `toml:"id"    yaml:"id"    json:"id"`
+	Lines int    `toml:"lines" yaml:"lines" json:"lines"`
+	Run   bool   `toml:"run"   yaml:"run"   json:"run"`
 }
 
 type PluginSet map[string]Plugin
@@ -53,26 +60,49 @@ func (p Plugin) Filters() PluginSet {
 	return filters
 }
 
-func ReadPipeline(file string) (*Pipeline, error) {
-	buf, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
+func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
 	pipeline := Pipeline{}
 
-	switch e := filepath.Ext(file); e {
-	case ".toml":
-		if err := toml.Unmarshal(buf, &pipeline); err != nil {
+	switch format {
+	case "toml":
+		if err := toml.Unmarshal(data, &pipeline); err != nil {
 			return &pipeline, err
 		}
-	case ".yaml", ".yml":
-		if err := yaml.Unmarshal(buf, &pipeline); err != nil {
+	case "yaml", "yml":
+		if err := yaml.Unmarshal(data, &pipeline); err != nil {
+			return &pipeline, err
+		}
+	case "json":
+		if err := json.Unmarshal(data, &pipeline); err != nil {
 			return &pipeline, err
 		}
 	default:
-		return &pipeline, fmt.Errorf("unknown pipeline file extention: %v", e)
+		return &pipeline, fmt.Errorf("unknown pipeline file extention: %v", format)
 	}
 
 	return &pipeline, nil
+}
+
+func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
+	var content = []byte{}
+	var err error
+
+	switch format {
+	case "toml":
+		if content, err = toml2.Marshal(pipe); err != nil {
+			return nil, err
+		}
+	case "yaml", "yml":
+		if content, err = yaml.Marshal(pipe); err != nil {
+			return nil, err
+		}
+	case "json":
+		if content, err = json.Marshal(pipe); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("unknown pipeline file extention: %v", format)
+	}
+
+	return content, nil
 }

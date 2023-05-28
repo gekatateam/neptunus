@@ -10,32 +10,22 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/manager"
-	"github.com/gekatateam/pipeline/pipeline"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/pipeline/api"
+	"github.com/gekatateam/neptunus/pipeline/service"
+	"github.com/gekatateam/neptunus/server"
 )
 
 func run(cCtx *cli.Context) error {
-	cfg, err := config.ReadConfig(cCtx.String("config"))
-	if err != nil {
+	cfg, err := config.ReadConfig(cCtx.String("config")); if err != nil {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())
 	}
 
-	err = logrus.InitializeLogger(cfg.Common)
-	if err != nil {
+	if err = logrus.InitializeLogger(cfg.Common); err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
-
-	manager, err := manager.NewManagerServer(cfg.Common)
-	if err != nil {
-		return err
-	}
-
-	pipelines, err := loadPipelines(cfg.Pipes)
-	if err != nil {
-		return err
-	}
+	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit,
@@ -45,38 +35,43 @@ func run(cCtx *cli.Context) error {
 		syscall.SIGQUIT)
 
 	wg := &sync.WaitGroup{}
+
+	storage, err := getStorage(&cfg.PipeCfg); if err != nil {
+		return fmt.Errorf("storage initialization failed: %v", err.Error())
+	}
+
+	s := service.Internal(storage, logrus.NewLogger(map[string]any{
+		"scope": "service",
+		"type":  "internal",
+	}))
+
+	restApi := api.Rest(s, logrus.NewLogger(map[string]any{
+		"scope": "api",
+		"type":  "rest",
+	}))
+
+	httpServer, err := server.Http(cfg.Common); if err != nil {
+		return err
+	}
+	httpServer.Mount("/api/v1", restApi.Router())
+
 	wg.Add(1)
-	go func()  {
-		if err := manager.Serve(); err != nil {
-			log.Fatalf("manager server startup error: %v", err.Error())
+	go func() {
+		if err := httpServer.Serve(); err != nil {
+			log.Fatalf("http server startup error: %v", err.Error())
 		}
 		wg.Done()
 	}()
-	
-	ctx, cancel := context.WithCancel(cCtx.Context)
-	defer cancel()
-	for i, pipeCfg := range pipelines {
-		pipeline := pipeline.New(cfg.Pipes[i].Id, cfg.Pipes[i].Lines, pipeCfg, logrus.NewLogger(map[string]any{
-			"scope": "pipeline",
-			"id":    cfg.Pipes[i].Id,
-		}))
-		err = pipeline.Build()
-		if err != nil {
-			return fmt.Errorf("pipeline %v building failed: %v", cfg.Pipes[i].Id, err.Error())
-		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			pipeline.Run(ctx)
-		}()
+	if err := s.StartAll(); err != nil {
+		return err
 	}
 
 	<-quit
-	cancel()
+	s.StopAll()
 
-	if err := manager.Shutdown(context.Background()); err != nil {
-		log.Errorf("manager server stop error: %v", err.Error())
+	if err := httpServer.Shutdown(context.Background()); err != nil {
+		log.Errorf("http server stop error: %v", err.Error())
 	}
 
 	wg.Wait()

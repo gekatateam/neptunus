@@ -14,30 +14,38 @@ var (
 		Common: Common{
 			LogLevel:  "info",
 			LogFormat: "logfmt",
-			MgmtAddr:  ":9600",
+			HttpPort:  ":9600",
 		},
-		Pipes: nil,
+		PipeCfg: PipeCfg{
+			Storage: "fs",
+			File: FileStorage{
+				Directory: ".pipelines",
+				Extention: ".toml",
+			},
+		},
 	}
 )
 
 type Config struct {
-	Common Common    `toml:"common"    yaml:"common"`
-	Pipes  []PipeCfg `toml:"pipelines" yaml:"pipelines"`
+	Common  Common  `toml:"common"   yaml:"common"`
+	PipeCfg PipeCfg `toml:"pipeline" yaml:"pipeline"`
 }
 
 type Common struct {
-	LogLevel  string `toml:"log_level"       yaml:"log_level"`
-	LogFormat string `toml:"log_format"      yaml:"log_format"`
-	MgmtAddr  string `toml:"manager_address" yaml:"manager_address"`
-
+	LogLevel  string         `toml:"log_level"  yaml:"log_level"`
+	LogFormat string         `toml:"log_format" yaml:"log_format"`
+	LogFields map[string]any `toml:"log_fields" yaml:"log_fields"`
+	HttpPort  string         `toml:"http_port"  yaml:"http_port"`
 }
 
 type PipeCfg struct {
-	Id     string `toml:"id" yaml:"id"`
-	Config struct {
-		File string `toml:"file" yaml:"file"`
-	} `toml:"config" yaml:"config"`
-	Lines int `toml:"lines" yaml:"lines"`
+	Storage string      `toml:"storage" yaml:"storage"`
+	File    FileStorage `toml:"fs"      yaml:"fs"`
+}
+
+type FileStorage struct {
+	Directory string `toml:"directory" yaml:"directory"`
+	Extention string `toml:"extention" yaml:"extention"`
 }
 
 func ReadConfig(file string) (*Config, error) {

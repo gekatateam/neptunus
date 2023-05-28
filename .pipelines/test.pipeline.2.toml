@@ -1,17 +1,22 @@
+[settings]
+  id = "test.pipeline.2"
+  lines = 5
+  run = true
+
 [[inputs]]
   [inputs.http]
-    routing_key = "http.input.test"
+    address = ":9200"
   [inputs.http.filters.pass]
-    alias = "t1"
+    alias = "t4"
 
 [[processors]]
   [processors.through]
     level = "warn"
   [processors.through.filters.glob]
     routing_key = [ "http.*" ]
-    alias = "t2"
+    alias = "t5"
 
 [[outputs]]
   [outputs.log]
   [outputs.log.filters.pass]
-    alias = "t3"
+    alias = "t6"

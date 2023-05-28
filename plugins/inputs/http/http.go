@@ -10,20 +10,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/metrics"
-	"github.com/gekatateam/pipeline/pkg/mapstructure"
-	"github.com/gekatateam/pipeline/plugins"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/pkg/mapstructure"
+	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Http struct {
 	alias        string
+	pipe         string
 	Address      string        `mapstructure:"address"`
-	Path         string        `mapstructure:"path"`
 	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	RoutingKey   string        `mapstructure:"routing_key"`
 
 	server   *http.Server
 	listener net.Listener
@@ -32,36 +31,31 @@ type Http struct {
 	out chan<- *core.Event
 }
 
-func New(config map[string]any, alias string, log logger.Logger) (core.Input, error) {
+func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Input, error) {
 	h := &Http{
 		Address:      ":9800",
-		Path:         "/events",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 
 		log:   log,
 		alias: alias,
+		pipe:  pipeline,
 	}
 	if err := mapstructure.Decode(config, h); err != nil {
 		return nil, err
 	}
 
-	if len(h.RoutingKey) == 0 {
-		return nil, errors.New("an empty routing key is not allowed")
+	if len(h.Address) == 0 {
+		return nil, errors.New("address required")
 	}
 
-	if len(h.Path) == 0 || len(h.Address) == 0 {
-		return nil, errors.New("address and path required")
-	}
-
-	listener, err := net.Listen("tcp", h.Address)
-	if err != nil {
+	listener, err := net.Listen("tcp", h.Address); if err != nil {
 		return nil, fmt.Errorf("error creating listener: %v", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle(h.Path, h)
 	h.listener = listener
+	mux := http.NewServeMux()
+	mux.Handle("/", h)
 	h.server = &http.Server{
 		ReadTimeout:  h.ReadTimeout,
 		WriteTimeout: h.WriteTimeout,
@@ -94,6 +88,10 @@ func (i *Http) Close() error {
 	return nil
 }
 
+func (i *Http) Alias() string {
+	return i.alias
+}
+
 func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
@@ -112,25 +110,25 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			errMsg := fmt.Sprintf("reading error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusInternalServerError)
-			metrics.ObserveInputSummary("http", i.alias, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
-		e := core.NewEvent(i.RoutingKey)
+		e := core.NewEvent(r.URL.Path)
 		err := json.Unmarshal(scanner.Bytes(), &e.Data)
 		if err != nil {
 			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
-			metrics.ObserveInputSummary("http", i.alias, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
 		e.Labels["input"] = "http"
-		e.Labels["server"] = i.Address + i.Path
+		e.Labels["server"] = i.Address
 		e.Labels["sender"] = r.RemoteAddr
 		i.out <- e
-		metrics.ObserveInputSummary("http", i.alias, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
 	w.WriteHeader(http.StatusOK)

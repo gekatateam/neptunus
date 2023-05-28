@@ -1,8 +1,10 @@
 [common]
   log_level = "debug"
+    [common.log_fields]
+      runner = "local"
 
-[[pipelines]]
-  id = "test-pipe-1"
-  lines = 5
-  [pipelines.config]
-    file = "pipeline.toml"
+[pipeline]
+  storage = "fs"
+  [pipeline.fs]
+    directory = ".pipelines"
+    extention = "toml"

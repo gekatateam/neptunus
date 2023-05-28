@@ -6,19 +6,41 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/gekatateam/pipeline/config"
-	"github.com/gekatateam/pipeline/core"
-	"github.com/gekatateam/pipeline/logger"
-	"github.com/gekatateam/pipeline/logger/logrus"
-	"github.com/gekatateam/pipeline/plugins"
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/plugins"
+
+	"github.com/gekatateam/neptunus/plugins/core/broadcast"
+	"github.com/gekatateam/neptunus/plugins/core/fusion"
+	_ "github.com/gekatateam/neptunus/plugins/filters"
+	_ "github.com/gekatateam/neptunus/plugins/inputs"
+	_ "github.com/gekatateam/neptunus/plugins/outputs"
+	_ "github.com/gekatateam/neptunus/plugins/processors"
 )
 
-type unit interface {
-	Run()
-}
+type state string
 
+const (
+	StateCreated  state = "created"
+	StateStarting state = "starting"
+	StateStopping state = "stopping"
+	StateRunning  state = "running"
+	StateStopped  state = "stopped"
+)
+
+// at this moment it is not possible to combine sets into a generic type
+// like:
+//
+//	type pluginSet[P core.Input | core.Processor | core.Output] struct {
+//		p P
+//		f []core.Filter
+//	}
+//
+// cause https://github.com/golang/go/issues/49054
 type inputSet struct {
-	o core.Input
+	i core.Input
 	f []core.Filter
 }
 
@@ -34,26 +56,82 @@ type procSet struct {
 
 // pipeline run a set of plugins
 type Pipeline struct {
-	id     string
 	config *config.Pipeline
 	log    logger.Logger
-	scale  int
 
+	state state
 	outs  []outputSet
 	procs []procSet
 	ins   []inputSet
 }
 
-func New(id string, scaleProcs int, config *config.Pipeline, log logger.Logger) *Pipeline {
+func New(config *config.Pipeline, log logger.Logger) *Pipeline {
 	return &Pipeline{
-		id:     id,
 		config: config,
 		log:    log,
-		scale:  scaleProcs,
-		outs:   make([]outputSet, 0),
-		procs:  make([]procSet, 0),
-		ins:    make([]inputSet, 0),
+		state:  StateCreated,
+		outs:   make([]outputSet, 0, len(config.Outputs)),
+		procs:  make([]procSet, 0, len(config.Processors)),
+		ins:    make([]inputSet, 0, len(config.Inputs)),
 	}
+}
+
+func (p *Pipeline) State() state {
+	return p.state
+}
+
+func (p *Pipeline) Config() *config.Pipeline {
+	return p.config
+}
+
+func (p *Pipeline) Close() error {
+	for _, set := range p.ins {
+		set.i.Close()
+		for _, f := range set.f {
+			f.Close()
+		}
+	}
+
+	for _, set := range p.procs {
+		for _, f := range set.f {
+			f.Close()
+		}
+		set.p.Close()
+	}
+
+	for _, set := range p.outs {
+		for _, f := range set.f {
+			f.Close()
+		}
+		set.o.Close()
+	}
+	return nil
+}
+
+func (p *Pipeline) Test() error {
+	var err error
+	if err = p.configureInputs(); err != nil {
+		p.log.Errorf("inputs confiruration test failed: %v", err.Error())
+		goto PIPELINE_TEST_FAILED
+	}
+	p.log.Info("inputs confiruration has no errors")
+
+	if err = p.configureProcessors(); err != nil {
+		p.log.Errorf("processors confiruration test failed: %v", err.Error())
+		goto PIPELINE_TEST_FAILED
+	}
+	p.log.Info("processors confiruration has no errors")
+
+	if err = p.configureOutputs(); err != nil {
+		p.log.Errorf("outputs confiruration test failed: %v", err.Error())
+		goto PIPELINE_TEST_FAILED
+	}
+	p.log.Info("outputs confiruration has no errors")
+	p.log.Info("pipeline tested successfully")
+
+	return nil
+PIPELINE_TEST_FAILED:
+	return errors.New("pipeline test failed")
 }
 
 func (p *Pipeline) Build() error {
@@ -75,65 +153,27 @@ func (p *Pipeline) Build() error {
 	return nil
 }
 
-func (p *Pipeline) Test() error {
-	var err error
-	if err = p.configureInputs(); err != nil {
-		p.log.Errorf("inputs confiruration test failed: %v", err.Error())
-		err = errors.New("pipeline test failed")
-		goto PIPELINE_TESTED
-	}
-	p.log.Info("inputs confiruration has no errors")
-
-	if err = p.configureProcessors(); err != nil {
-		p.log.Errorf("processors confiruration test failed: %v", err.Error())
-		err = errors.New("pipeline test failed")
-		goto PIPELINE_TESTED
-	}
-	p.log.Info("processors confiruration has no errors")
-
-	if err = p.configureOutputs(); err != nil {
-		p.log.Errorf("outputs confiruration test failed: %v", err.Error())
-		err = errors.New("pipeline test failed")
-		goto PIPELINE_TESTED
-	}
-	p.log.Info("outputs confiruration has no errors")
-	p.log.Info("pipeline tested successfully")
-
-	PIPELINE_TESTED:
-	return err
-}
-
 func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting pipeline")
+	p.state = StateStarting
 	wg := &sync.WaitGroup{}
 
 	p.log.Info("starting inputs")
-	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins)) // <- pre-ready channels
+	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins))
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		unit, outCh := core.NewDirectInputSoftUnit(input.o, input.f, inputsStopChannels[i])
+		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i])
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
 		go func() {
-			unit.Run()
+			inputUnit.Run()
 			wg.Done()
 		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		p.log.Info("starting stop-watcher")
-		<-ctx.Done()
-		p.log.Info("stop signal received, stopping pipeline")
-		for _, stop := range inputsStopChannels {
-			stop <- struct{}{}
-		}
-		wg.Done()
-	}()
-
 	p.log.Info("starting inputs-to-processors fusionner")
-	fusionUnit, outCh := core.NewDirectFusionSoftUnit(inputsOutChannels...)
+	fusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("inputs-to-processors", p.config.Settings.Id), inputsOutChannels...)
 	wg.Add(1)
 	go func() {
 		fusionUnit.Run()
@@ -141,15 +181,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}()
 
 	if len(p.procs) > 0 {
-		p.log.Infof("starting processors, scaling to %v parallel lines", p.scale)
-		var procsOutChannels = make([]<-chan *core.Event, 0, p.scale)
-		for i := 0; i < p.scale; i++ {
+		p.log.Infof("starting processors, scaling to %v parallel lines", p.config.Settings.Lines)
+		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
+		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
 			for _, processor := range p.procs {
-				unit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
+				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
 				wg.Add(1)
 				go func() {
-					unit.Run()
+					processorUnit.Run()
 					wg.Done()
 				}()
 				procInput = procOut
@@ -158,7 +198,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		fusionUnit, outCh = core.NewDirectFusionSoftUnit(procsOutChannels...)
+		fusionUnit, outCh = core.NewDirectFusionSoftUnit(fusion.New("processors-to-broadcast", p.config.Settings.Id), procsOutChannels...)
 		wg.Add(1)
 		go func() {
 			fusionUnit.Run()
@@ -167,7 +207,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(outCh, len(p.outs))
+	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("to-outputs", p.config.Settings.Id), outCh, len(p.outs))
 	wg.Add(1)
 	go func() {
 		bcastUnit.Run()
@@ -176,22 +216,32 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
-		unit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
+		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
 		wg.Add(1)
 		go func() {
-			unit.Run()
+			outputUnit.Run()
 			wg.Done()
 		}()
 	}
 
 	p.log.Info("pipeline started")
+	p.state = StateRunning
+
+	<-ctx.Done()
+	p.log.Info("stop signal received, stopping pipeline")
+	p.state = StateStopping
+	for _, stop := range inputsStopChannels {
+		stop <- struct{}{}
+	}
 	wg.Wait()
+
 	p.log.Info("pipeline stopped")
+	p.state = StateStopped
 }
 
 func (p *Pipeline) configureOutputs() error {
 	if len(p.config.Outputs) == 0 {
-		return errors.New("at leats one output required")
+		return errors.New("at least one output required")
 	}
 
 	for index, outputs := range p.config.Outputs {
@@ -206,8 +256,8 @@ func (p *Pipeline) configureOutputs() error {
 				alias = outputCfg.Alias()
 			}
 
-			output, err := outputFunc(outputCfg, alias, logrus.NewLogger(map[string]any{
-				"pipeline": p.id,
+			output, err := outputFunc(outputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+				"pipeline": p.config.Settings.Id,
 				"output":   plugin,
 				"name":     alias,
 			}))
@@ -239,8 +289,8 @@ func (p *Pipeline) configureProcessors() error {
 				alias = processorCfg.Alias()
 			}
 
-			processor, err := processorFunc(processorCfg, alias, logrus.NewLogger(map[string]any{
-				"pipeline":  p.id,
+			processor, err := processorFunc(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+				"pipeline":  p.config.Settings.Id,
 				"processor": plugin,
 				"name":      alias,
 			}))
@@ -276,8 +326,8 @@ func (p *Pipeline) configureInputs() error {
 				alias = inputCfg.Alias()
 			}
 
-			input, err := inputFunc(inputCfg, alias, logrus.NewLogger(map[string]any{
-				"pipeline": p.id,
+			input, err := inputFunc(inputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+				"pipeline": p.config.Settings.Id,
 				"input":    plugin,
 				"name":     alias,
 			}))
@@ -309,8 +359,8 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			alias = filterCfg.Alias()
 		}
 
-		filter, err := filterFunc(filterCfg, alias, logrus.NewLogger(map[string]any{
-			"pipeline": p.id,
+		filter, err := filterFunc(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+			"pipeline": p.config.Settings.Id,
 			"filter":   plugin,
 			"name":     alias,
 		}))
