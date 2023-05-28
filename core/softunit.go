@@ -193,6 +193,13 @@ func NewDirectInputSoftUnit(i Input, f []Filter, stop <-chan struct{}) (unit *in
 }
 
 func (u *inSoftUnit) Run() {
+	// run input
+	u.wg.Add(1)
+	go func() {
+		u.i.Serve() // blocking call, loop inside
+		u.wg.Done()
+	}()
+
 	// run fliters
 	for _, v := range u.f {
 		u.wg.Add(1)
@@ -204,28 +211,16 @@ func (u *inSoftUnit) Run() {
 		}(v.f, v.c)
 	}
 
-	// wait for stop signal
-	// then close the input
-	u.wg.Add(1)
-	go func() {
-		<-u.stop
-		u.i.Close()
-		close(u.out)
-		u.wg.Done()
-	}()
-
-	u.wg.Add(1)
 	go func() {
 		for range u.rej {
 		}
-		u.wg.Done()
 	}()
-
-	// run input
-	u.i.Serve() // blocking call, loop inside
-	close(u.rej)
-	u.wg.Wait()
-
+	
+	<-u.stop // wait for stop signal
+	u.i.Close() // then close the input
+	close(u.out) // and close first channel in unit chain (trigger filters to close)
+	u.wg.Wait() // wait for all goroutines stopped
+	close(u.rej) // rejected chan can be closed only when all filters stopped
 }
 
 // broadcast unit consumes events from input
