@@ -166,11 +166,11 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipe, cancel}
 	m.wg.Add(1)
-	go func() {
-		pipe.Run(ctx)
+	go func(p *pipeline.Pipeline) {
+		p.Run(ctx)
 		m.wg.Done()
 		cancel()
-	}()
+	}(pipe)
 
 	return nil
 }

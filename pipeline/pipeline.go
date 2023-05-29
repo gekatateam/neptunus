@@ -54,6 +54,10 @@ type procSet struct {
 	f []core.Filter
 }
 
+type unit interface {
+	Run()
+}
+
 // pipeline run a set of plugins
 type Pipeline struct {
 	config *config.Pipeline
@@ -61,7 +65,7 @@ type Pipeline struct {
 
 	state state
 	outs  []outputSet
-	procs []procSet
+	procs [][]procSet
 	ins   []inputSet
 }
 
@@ -71,7 +75,7 @@ func New(config *config.Pipeline, log logger.Logger) *Pipeline {
 		log:    log,
 		state:  StateCreated,
 		outs:   make([]outputSet, 0, len(config.Outputs)),
-		procs:  make([]procSet, 0, len(config.Processors)),
+		procs:  make([][]procSet, 0, config.Settings.Lines),
 		ins:    make([]inputSet, 0, len(config.Inputs)),
 	}
 }
@@ -92,11 +96,13 @@ func (p *Pipeline) Close() error {
 		}
 	}
 
-	for _, set := range p.procs {
-		for _, f := range set.f {
-			f.Close()
+	for i := range p.procs {
+		for _, set := range p.procs[i] {
+			for _, f := range set.f {
+				f.Close()
+			}
+			set.p.Close()
 		}
-		set.p.Close()
 	}
 
 	for _, set := range p.outs {
@@ -166,62 +172,74 @@ func (p *Pipeline) Run(ctx context.Context) {
 		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i])
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
-		go func() {
-			inputUnit.Run()
+		p.log.Tracef("input plugin %v out channel: %v", i, outCh)
+		go func(u unit) {
+			u.Run()
 			wg.Done()
-		}()
+		}(inputUnit)
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
-	fusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("inputs-to-processors", p.config.Settings.Id), inputsOutChannels...)
+	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("inputs-to-processors", p.config.Settings.Id), inputsOutChannels...)
 	wg.Add(1)
-	go func() {
-		fusionUnit.Run()
+	p.log.Tracef("inputs-to-processors fusion plugin in channels: %v", inputsOutChannels)
+	p.log.Tracef("inputs-to-processors fusion plugin out channel: %v", outCh)
+	go func(u unit) {
+		u.Run()
 		wg.Done()
-	}()
+	}(inFusionUnit)
 
 	if len(p.procs) > 0 {
 		p.log.Infof("starting processors, scaling to %v parallel lines", p.config.Settings.Lines)
 		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
-			for _, processor := range p.procs {
+			for j, processor := range p.procs[i] {
 				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
 				wg.Add(1)
-				go func() {
-					processorUnit.Run()
+				p.log.Tracef("line %v, processor %v plugin in channel: %v", i, j, procInput)
+				p.log.Tracef("line %v, processor %v plugin out channel: %v", i, j, procOut)
+				go func(u unit) {
+					u.Run()
 					wg.Done()
-				}()
+				}(processorUnit)
 				procInput = procOut
 			}
 			procsOutChannels = append(procsOutChannels, procInput)
+			p.log.Infof("line %v started", i)
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		fusionUnit, outCh = core.NewDirectFusionSoftUnit(fusion.New("processors-to-broadcast", p.config.Settings.Id), procsOutChannels...)
+		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New("processors-to-broadcast", p.config.Settings.Id), procsOutChannels...)
+		outCh = fusionOutCh
 		wg.Add(1)
-		go func() {
-			fusionUnit.Run()
+		p.log.Tracef("processors-to-broadcast fusion plugin in channels: %v", procsOutChannels)
+		p.log.Tracef("processors-to-broadcast fusion plugin out channel: %v", outCh)
+		go func(u unit) {
+			u.Run()
 			wg.Done()
-		}()
+		}(outFusionUnit)
 	}
 
 	p.log.Info("starting broadcaster")
 	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("to-outputs", p.config.Settings.Id), outCh, len(p.outs))
 	wg.Add(1)
-	go func() {
-		bcastUnit.Run()
+	p.log.Tracef("broadcast plugin in channel: %v", outCh)
+	p.log.Tracef("broadcast plugin out channels: %v", bcastChs)
+	go func(u unit) {
+		u.Run()
 		wg.Done()
-	}()
+	}(bcastUnit)
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
 		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
 		wg.Add(1)
-		go func() {
-			outputUnit.Run()
+		p.log.Tracef("output plugin %v in channel: %v", i, bcastChs[i])
+		go func(u unit) {
+			u.Run()
 			wg.Done()
-		}()
+		}(outputUnit)
 	}
 
 	p.log.Info("pipeline started")
@@ -277,34 +295,41 @@ func (p *Pipeline) configureOutputs() error {
 }
 
 func (p *Pipeline) configureProcessors() error {
-	for index, processors := range p.config.Processors {
-		for plugin, processorCfg := range processors {
-			processorFunc, ok := plugins.GetProcessor(plugin)
-			if !ok {
-				return fmt.Errorf("unknown processor plugin in pipeline configuration: %v", plugin)
-			}
+	// because Go does not provide safe way to copy objects
+	// we create so much duplicate of processors sets
+	// as lines configured
+	for i := 0; i < p.config.Settings.Lines; i++ {
+		var sets = make([]procSet, 0, len(p.config.Processors))
+		for index, processors := range p.config.Processors {
+			for plugin, processorCfg := range processors {
+				processorFunc, ok := plugins.GetProcessor(plugin)
+				if !ok {
+					return fmt.Errorf("unknown processor plugin in pipeline configuration: %v", plugin)
+				}
 
-			var alias = fmt.Sprintf("%v-%v", plugin, index)
-			if len(processorCfg.Alias()) > 0 {
-				alias = processorCfg.Alias()
-			}
+				var alias = fmt.Sprintf("%v-%v-%v", plugin, index, i)
+				if len(processorCfg.Alias()) > 0 {
+					alias = fmt.Sprintf("%v-%v", processorCfg.Alias(), i)
+				}
 
-			processor, err := processorFunc(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-				"pipeline":  p.config.Settings.Id,
-				"processor": plugin,
-				"name":      alias,
-			}))
-			if err != nil {
-				return fmt.Errorf("%v processor configuration error: %v", plugin, err.Error())
-			}
+				processor, err := processorFunc(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+					"pipeline":  p.config.Settings.Id,
+					"processor": plugin,
+					"name":      alias,
+				}))
+				if err != nil {
+					return fmt.Errorf("%v processor configuration error: %v", plugin, err.Error())
+				}
 
-			filters, err := p.configureFilters(processorCfg.Filters(), alias)
-			if err != nil {
-				return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
-			}
+				filters, err := p.configureFilters(processorCfg.Filters(), alias)
+				if err != nil {
+					return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
+				}
 
-			p.procs = append(p.procs, procSet{processor, filters})
+				sets = append(sets, procSet{processor, filters})
+			}
 		}
+		p.procs = append(p.procs, sets)
 	}
 	return nil
 }

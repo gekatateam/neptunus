@@ -1,11 +1,11 @@
 [settings]
   id = "test.pipeline.2"
   lines = 5
-  run = true
+  run = false
 
 [[inputs]]
   [inputs.http]
-    address = ":9200"
+    address = ":9300"
   [inputs.http.filters.pass]
     alias = "t4"
 
