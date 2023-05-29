@@ -10,10 +10,14 @@
     alias = "t1"
 
 [[processors]]
-  [processors.through]
-  [processors.through.filters.glob]
-    routing_key = [ ".*http.*" ]
+  [processors.log]
+    level = "warn"
+  [processors.log.filters.glob]
+    routing_key = [ "*http.*" ]
     alias = "t2"
+
+[[processors]]
+  [processors.through]
 
 [[outputs]]
   [outputs.log]

@@ -1,5 +1,5 @@
 [common]
-  log_level = "debug"
+  log_level = "trace"
     [common.log_fields]
       runner = "local"
 
