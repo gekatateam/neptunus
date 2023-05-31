@@ -6,6 +6,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger/logrus"
 )
 
@@ -19,12 +20,12 @@ func main() {
 	}()
 
 	app := &cli.App{
-		Name:    "pipeline",
+		Name:    "neptunus",
 		Version: "v0.0.1",
 		Commands: []*cli.Command{
 			{
 				Name:  "run",
-				Usage: "run configured pipelines",
+				Usage: "run daemon with configured pipelines",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "config",
@@ -36,7 +37,7 @@ func main() {
 			},
 			{
 				Name:  "test",
-				Usage: "test configured pipelines",
+				Usage: "test pipelines in configured storage without run",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "config",
@@ -45,6 +46,60 @@ func main() {
 					},
 				},
 				Action: test,
+			},
+			{
+				Name:  "pipeline",
+				Usage: "daemon commands for pipeline management",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "server-address",
+						Value: "http://localhost" + config.Default.Common.HttpPort,
+						Usage: "daemon http api server address",
+					},
+				},
+				Subcommands: []*cli.Command{
+					{
+						Name:  "list",
+						Usage: "list all pipelines",
+					},
+					{
+						Name:      "describe",
+						Usage:     "describe pipeline by name",
+						UsageText: "describe my-pipeline [--format yaml]",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:  "format",
+								Value: "toml",
+								Usage: "pipeline printing format (json, toml, yaml formats supported)",
+							},
+						},
+					},
+					{
+						Name:      "deploy",
+						Usage:     "deploy new pipeline from file (json, toml, yaml formats supported)",
+						UsageText: "deploy pipeline.toml",
+					},
+					{
+						Name:      "update",
+						Usage:     "update existing pipeline from file (json, toml, yaml formats supported)",
+						UsageText: "update pipeline.toml",
+					},
+					{
+						Name:      "delete",
+						Usage:     "delete pipeline by name",
+						UsageText: "delete my-pipeline",
+					},
+					{
+						Name:      "start",
+						Usage:     "start pipeline by name",
+						UsageText: "start my-pipeline",
+					},
+					{
+						Name:      "stop",
+						Usage:     "stop pipeline by name",
+						UsageText: "stop my-pipeline",
+					},
+				},
 			},
 		},
 	}
