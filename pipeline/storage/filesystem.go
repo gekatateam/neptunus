@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,7 +55,7 @@ func (s *fileStorage) Get(id string) (*config.Pipeline, error) {
 
 func (s *fileStorage) Add(pipe *config.Pipeline) error {
 	if _, err := os.Stat(s.dir + pipe.Settings.Id + s.ext); os.IsExist(err) {
-		return &pipeline.ConflictError{Err: err}
+		return &pipeline.ConflictError{Err: errors.New("file already exists")}
 	}
 
 	return writePipeline(pipe, s.dir+pipe.Settings.Id+s.ext)

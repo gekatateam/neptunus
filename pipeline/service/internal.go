@@ -12,6 +12,8 @@ import (
 	"github.com/gekatateam/neptunus/pipeline"
 )
 
+var _ pipeline.Service = &internalService{}
+
 type pipeUnit struct {
 	p *pipeline.Pipeline
 	c context.CancelFunc
@@ -34,7 +36,8 @@ func Internal(s pipeline.Storage, log logger.Logger) *internalService {
 }
 
 func (m *internalService) StartAll() error {
-	pipes, err := m.s.List(); if err != nil {
+	pipes, err := m.s.List()
+	if err != nil {
 		return err
 	}
 
@@ -69,7 +72,8 @@ func (m *internalService) Start(id string) error {
 		}
 	}
 
-	pipeCfg, err := m.s.Get(id); if err != nil {
+	pipeCfg, err := m.s.Get(id)
+	if err != nil {
 		return err
 	}
 
@@ -77,7 +81,8 @@ func (m *internalService) Start(id string) error {
 }
 
 func (m *internalService) Stop(id string) error {
-	unit, ok := m.pipes[id]; if !ok {
+	unit, ok := m.pipes[id]
+	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -95,7 +100,8 @@ func (m *internalService) Stop(id string) error {
 }
 
 func (m *internalService) State(id string) (string, error) {
-	unit, ok := m.pipes[id]; if !ok {
+	unit, ok := m.pipes[id]
+	if !ok {
 		return "", &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -120,7 +126,8 @@ func (m *internalService) Add(pipe *config.Pipeline) error {
 }
 
 func (m *internalService) Update(pipe *config.Pipeline) error {
-	unit, ok := m.pipes[pipe.Settings.Id]; if !ok {
+	unit, ok := m.pipes[pipe.Settings.Id]
+	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
@@ -135,7 +142,8 @@ func (m *internalService) Update(pipe *config.Pipeline) error {
 }
 
 func (m *internalService) Delete(id string) error {
-	unit, ok := m.pipes[id]; if !ok {
+	unit, ok := m.pipes[id]
+	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
