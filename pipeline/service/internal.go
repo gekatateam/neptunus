@@ -87,7 +87,7 @@ func (m *internalService) Stop(id string) error {
 	}
 
 	switch unit.p.State() {
-	case pipeline.StateStopped:
+	case pipeline.StateStopped, pipeline.StateCreated:
 		return &pipeline.ConflictError{Err: errors.New("pipeline already stopped")}
 	case pipeline.StateStopping:
 		return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}

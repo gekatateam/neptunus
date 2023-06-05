@@ -65,39 +65,91 @@ func main() {
 					{
 						Name:      "describe",
 						Usage:     "describe pipeline by name",
-						UsageText: "describe my-pipeline [--format yaml]",
+						UsageText: "describe --name my-pipeline [--format yaml]",
 						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "name",
+								Aliases:  []string{"n"},
+								Required: true,
+								Usage:    "pipeline name",
+							},
 							&cli.StringFlag{
 								Name:  "format",
 								Value: "toml",
-								Usage: "pipeline printing format (json, toml, yaml formats supported)",
+								Usage: "pipeline printing format (json, toml, yaml supported)",
+							},
+						},
+						Action: pipelineDescribe,
+					},
+					{
+						Name:      "deploy",
+						Usage:     "deploy new pipeline from file (json, toml, yaml supported)",
+						UsageText: "deploy --file pipeline.toml",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "file",
+								Aliases:  []string{"f"},
+								Required: true,
+								Usage:    "pipeline manifest file (json, toml, yaml supported)",
 							},
 						},
 					},
 					{
-						Name:      "deploy",
-						Usage:     "deploy new pipeline from file (json, toml, yaml formats supported)",
-						UsageText: "deploy pipeline.toml",
-					},
-					{
 						Name:      "update",
-						Usage:     "update existing pipeline from file (json, toml, yaml formats supported)",
-						UsageText: "update pipeline.toml",
+						Usage:     "update existing pipeline from file (json, toml, yaml supported)",
+						UsageText: "update --file pipeline.toml",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "file",
+								Aliases:  []string{"f"},
+								Required: true,
+								Usage:    "pipeline manifest file (json, toml, yaml supported)",
+							},
+						},
 					},
 					{
 						Name:      "delete",
 						Usage:     "delete pipeline by name",
-						UsageText: "delete my-pipeline",
+						UsageText: "delete --name my-pipeline [--force]",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "name",
+								Aliases:  []string{"n"},
+								Required: true,
+								Usage:    "pipeline name",
+							},
+							&cli.BoolFlag{
+								Name:  "force",
+								Value: false,
+								Usage: "stop pipeline, if it's running, then delete",
+							},
+						},
 					},
 					{
 						Name:      "start",
 						Usage:     "start pipeline by name",
-						UsageText: "start my-pipeline",
+						UsageText: "start --name my-pipeline",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "name",
+								Aliases:  []string{"n"},
+								Required: true,
+								Usage:    "pipeline name",
+							},
+						},
 					},
 					{
 						Name:      "stop",
 						Usage:     "stop pipeline by name",
-						UsageText: "stop my-pipeline",
+						UsageText: "stop --name my-pipeline",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "name",
+								Aliases:  []string{"n"},
+								Required: true,
+								Usage:    "pipeline name",
+							},
+						},
 					},
 				},
 			},

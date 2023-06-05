@@ -9,6 +9,12 @@
   [inputs.http.filters.pass]
     alias = "t1"
 
+[[inputs]]
+  [inputs.http]
+    address = ":9400"
+  [inputs.http.filters.pass]
+    alias = "t1"
+
 [[processors]]
   [processors.log]
     level = "warn"

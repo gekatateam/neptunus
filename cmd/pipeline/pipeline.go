@@ -1,20 +1,18 @@
 package main
 
-import "github.com/urfave/cli/v2"
+import (
+	"fmt"
+
+	"github.com/urfave/cli/v2"
+)
 
 func pipelineList(cCtx *cli.Context) error {
-	var headers = "name\tstate"
-	var status = "%v\t%v"
 	return nil
 }
 
 func pipelineDescribe(cCtx *cli.Context) error {
-	var okMessage = `
-state: %v
-
-configuration:\n%v
-\n`
-
+	fmt.Println(cCtx.String("name"))
+	fmt.Println(cCtx.String("format"))
+	fmt.Println(cCtx.String("server-address"))
 	return nil
 }
-

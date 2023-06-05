@@ -116,11 +116,21 @@ func (g *restGateway) State(id string) (string, error) {
 	}
 }
 
-func (g *restGateway) List() ([]*config.Pipeline, error)
-func (g *restGateway) Get(id string) (*config.Pipeline, error)
-func (g *restGateway) Add(pipe *config.Pipeline) error
-func (g *restGateway) Update(pipe *config.Pipeline) error
-func (g *restGateway) Delete(id string) error
+func (g *restGateway) List() ([]*config.Pipeline, error) {
+	return nil, nil
+}
+func (g *restGateway) Get(id string) (*config.Pipeline, error) {
+	return nil, nil
+}
+func (g *restGateway) Add(pipe *config.Pipeline) error {
+	return nil
+}
+func (g *restGateway) Update(pipe *config.Pipeline) error {
+	return nil
+}
+func (g *restGateway) Delete(id string) error {
+	return nil
+}
 
 func unpackApiError(resBody io.ReadCloser) error {
 	rawBody, _ := io.ReadAll(resBody)
