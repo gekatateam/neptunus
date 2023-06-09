@@ -28,9 +28,8 @@ func (a *restApi) Router() *chi.Mux {
 	router.Get("/pipelines", a.List().ServeHTTP)
 	router.Get("/pipelines/{id}", a.Get().ServeHTTP)
 	router.Get("/pipelines/{id}/state", a.State().ServeHTTP)
-	router.Post("/pipelines/{id}", a.Add().ServeHTTP)
+	router.Post("/pipelines", a.Add().ServeHTTP)
 	router.Put("/pipelines/{id}", a.Update().ServeHTTP)
-	router.Post("/pipelines/{id}", a.Add().ServeHTTP)
 	router.Delete("/pipelines/{id}", a.Delete().ServeHTTP)
 	router.Post("/pipelines/{id}/start", a.Start().ServeHTTP)
 	router.Post("/pipelines/{id}/stop", a.Stop().ServeHTTP)
@@ -164,7 +163,7 @@ func (a *restApi) Get() http.Handler {
 	})
 }
 
-// POST /pipelines/{id}
+// POST /pipelines/
 func (a *restApi) Add() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
@@ -210,6 +209,7 @@ func (a *restApi) Update() http.Handler {
 		pipe, err := config.UnmarshalPipeline(data, "json")
 		switch {
 		case err == nil:
+			pipe.Settings.Id = chi.URLParam(r, "id")
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(ErrToJson(err.Error()))

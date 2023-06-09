@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -117,19 +118,154 @@ func (g *restGateway) State(id string) (string, error) {
 }
 
 func (g *restGateway) List() ([]*config.Pipeline, error) {
-	return nil, nil
+	var pipes = []*config.Pipeline{}
+
+	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/api/v1/pipelines", g.addr), nil)
+	if err != nil {
+		return pipes, err
+	}
+
+	res, err := g.c.Do(req)
+	if err != nil {
+		return pipes, err
+	}
+
+	defer res.Body.Close()
+	switch res.StatusCode {
+	case http.StatusOK:
+		rawBody, _ := io.ReadAll(res.Body)
+		json.Unmarshal(rawBody, &pipes)
+		return pipes, nil
+	default:
+		return pipes, unpackApiError(res.Body)
+	}
 }
+
 func (g *restGateway) Get(id string) (*config.Pipeline, error) {
-	return nil, nil
+	var pipe = &config.Pipeline{}
+
+	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/api/v1/pipelines/%v", g.addr, id), nil)
+	if err != nil {
+		return pipe, err
+	}
+
+	res, err := g.c.Do(req)
+	if err != nil {
+		return pipe, err
+	}
+	
+	defer res.Body.Close()
+	switch res.StatusCode {
+	case http.StatusOK:
+		rawBody, _ := io.ReadAll(res.Body)
+		json.Unmarshal(rawBody, pipe)
+		return pipe, nil
+	case http.StatusNotFound:
+		return pipe, &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
+	default:
+		return pipe, unpackApiError(res.Body)
+	}
 }
+
 func (g *restGateway) Add(pipe *config.Pipeline) error {
-	return nil
+	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	defer cancel()
+
+	pipeRaw, err := config.MarshalPipeline(pipe, "json")
+	if err != nil {
+		return nil
+	}
+	buf := bytes.NewBuffer(pipeRaw)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/api/v1/pipelines", g.addr), buf)
+	if err != nil {
+		return err
+	}
+
+	res, err := g.c.Do(req)
+	if err != nil {
+		return err
+	}
+	
+	defer res.Body.Close()
+	switch res.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusConflict:
+		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
+	case http.StatusBadRequest:
+		return &pipeline.ValidationError{Err: unpackApiError(res.Body)}
+	default:
+		return unpackApiError(res.Body)
+	}
 }
+
 func (g *restGateway) Update(pipe *config.Pipeline) error {
-	return nil
+	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	defer cancel()
+
+	pipeRaw, err := config.MarshalPipeline(pipe, "json")
+	if err != nil {
+		return nil
+	}
+	buf := bytes.NewBuffer(pipeRaw)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/api/v1/pipelines/%v", g.addr, pipe.Settings.Id), buf)
+	if err != nil {
+		return err
+	}
+
+	res, err := g.c.Do(req)
+	if err != nil {
+		return err
+	}
+	
+	defer res.Body.Close()
+	switch res.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
+	case http.StatusConflict:
+		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
+	case http.StatusBadRequest:
+		return &pipeline.ValidationError{Err: unpackApiError(res.Body)}
+	default:
+		return unpackApiError(res.Body)
+	}
 }
+
 func (g *restGateway) Delete(id string) error {
-	return nil
+	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%v/api/v1/pipelines/%v", g.addr, id), nil)
+	if err != nil {
+		return err
+	}
+
+	res, err := g.c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+	switch res.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
+	case http.StatusConflict:
+		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
+	default:
+		return unpackApiError(res.Body)
+	}
 }
 
 func unpackApiError(resBody io.ReadCloser) error {
