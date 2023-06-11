@@ -4,9 +4,11 @@
   run = false
 
 [[inputs]]
-  [inputs.http]
+  [inputs.httpl]
     address = ":9300"
-  [inputs.http.filters.pass]
+  [inputs.httpl.parser]
+    type = "json"
+  [inputs.httpl.filters.pass]
     alias = "t4"
 
 [[processors]]

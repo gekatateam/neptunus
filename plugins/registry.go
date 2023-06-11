@@ -46,7 +46,7 @@ func GetFilter(key string) (filterFunc, bool) {
 }
 
 // inputs
-type inputFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Input, error)
+type inputFunc func(config map[string]any, alias, pipeline string, parser core.Parser, log logger.Logger) (core.Input, error)
 
 var inputs = make(map[string]inputFunc)
 
@@ -81,4 +81,23 @@ func AddOutput(key string, o outputFunc) {
 func GetOutput(key string) (outputFunc, bool) {
 	o, ok := outputs[key]
 	return o, ok
+}
+
+// parsers
+type parserFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Parser, error)
+
+var parsers = make(map[string]parserFunc)
+
+func AddParser(key string, p parserFunc) {
+	_, exists := parsers[key]
+	if exists {
+		panic(fmt.Errorf("duplicate parser func added: %v", key))
+	}
+
+	parsers[key] = p
+}
+
+func GetParser(key string) (parserFunc, bool) {
+	p, ok := parsers[key]
+	return p, ok
 }

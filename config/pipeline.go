@@ -39,6 +39,46 @@ func (p Plugin) Alias() string {
 	return alias
 }
 
+func (p Plugin) Type() string {
+	typeRaw, ok := p["type"]
+	if !ok {
+		return ""
+	}
+	typeStr, ok := typeRaw.(string)
+	if !ok {
+		return ""
+	}
+	return typeStr
+}
+
+func (p Plugin) Parser() Plugin {
+	parserRaw, ok := p["parser"]
+	if !ok {
+		return nil
+	}
+
+	parser, ok := parserRaw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	return parser
+}
+
+func (p Plugin) Serializer() Plugin {
+	serializerRaw, ok := p["serializer"]
+	if !ok {
+		return nil
+	}
+
+	serializer, ok := serializerRaw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	return serializer
+}
+
 func (p Plugin) Filters() PluginSet {
 	filtersRaw, ok := p["filters"]
 	if !ok {

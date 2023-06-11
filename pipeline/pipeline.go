@@ -17,6 +17,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
+	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
 )
 
@@ -351,7 +352,12 @@ func (p *Pipeline) configureInputs() error {
 				alias = inputCfg.Alias()
 			}
 
-			input, err := inputFunc(inputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+			parser, err := p.configureParser(inputCfg.Parser(), alias)
+			if err != nil {
+				return fmt.Errorf("%v input parser configuration error: %v", plugin, err.Error())
+			}
+
+			input, err := inputFunc(inputCfg, alias, p.config.Settings.Id, parser, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"input":    plugin,
 				"name":     alias,
@@ -395,4 +401,32 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		filters = append(filters, filter)
 	}
 	return filters, nil
+}
+
+func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (core.Parser, error) {
+	if parserCfg == nil {
+		return nil, nil
+	}
+
+	plugin := parserCfg.Type()
+	parserFunc, ok := plugins.GetParser(plugin)
+	if !ok {
+		return nil, fmt.Errorf("unknown parser plugin in pipeline configuration: %v", plugin)
+	}
+
+	var alias = fmt.Sprintf("%v-%v", parentName, plugin)
+	if len(parserCfg.Alias()) > 0 {
+		alias = parserCfg.Alias()
+	}
+
+	parser, err := parserFunc(parserCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+		"pipeline": p.config.Settings.Id,
+		"parser":   plugin,
+		"name":     alias,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("%v parser configuration error: %v", plugin, err.Error())
+	}
+
+	return parser, nil
 }

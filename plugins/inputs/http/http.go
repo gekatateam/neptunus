@@ -3,7 +3,6 @@ package http
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -17,7 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 )
 
-type Http struct {
+type Httpl struct {
 	alias        string
 	pipe         string
 	Address      string        `mapstructure:"address"`
@@ -29,10 +28,11 @@ type Http struct {
 
 	log logger.Logger
 	out chan<- *core.Event
+	parser core.Parser
 }
 
-func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Input, error) {
-	h := &Http{
+func New(config map[string]any, alias, pipeline string, parser core.Parser, log logger.Logger) (core.Input, error) {
+	h := &Httpl{
 		Address:      ":9800",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -44,6 +44,11 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 	if err := mapstructure.Decode(config, h); err != nil {
 		return nil, err
 	}
+
+	if parser == nil {
+		return nil, errors.New("http input requires parser plugin")
+	}
+	h.parser = parser
 
 	if len(h.Address) == 0 {
 		return nil, errors.New("address required")
@@ -65,11 +70,11 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 	return h, nil
 }
 
-func (i *Http) Init(out chan<- *core.Event) {
+func (i *Httpl) Init(out chan<- *core.Event) {
 	i.out = out
 }
 
-func (i *Http) Serve() {
+func (i *Httpl) Serve() {
 	i.log.Infof("starting http server on %v", i.Address)
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
@@ -78,7 +83,7 @@ func (i *Http) Serve() {
 	}
 }
 
-func (i *Http) Close() error {
+func (i *Httpl) Close() error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
@@ -88,11 +93,11 @@ func (i *Http) Close() error {
 	return nil
 }
 
-func (i *Http) Alias() string {
+func (i *Httpl) Alias() string {
 	return i.alias
 }
 
-func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 	default:
@@ -114,21 +119,21 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		e := core.NewEvent(r.URL.Path)
-		err := json.Unmarshal(scanner.Bytes(), &e.Data)
+		e, err := i.parser.Parse(scanner.Bytes())
 		if err != nil {
 			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
-			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
+		e.RoutingKey = r.URL.Path
 		e.Labels["input"] = "http"
 		e.Labels["server"] = i.Address
 		e.Labels["sender"] = r.RemoteAddr
 		i.out <- e
-		metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -136,5 +141,5 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	plugins.AddInput("http", New)
+	plugins.AddInput("httpl", New)
 }
