@@ -59,8 +59,9 @@ func main() {
 				},
 				Subcommands: []*cli.Command{
 					{
-						Name:  "list",
-						Usage: "list all pipelines",
+						Name:   "list",
+						Usage:  "list all pipelines",
+						Action: pipelineList,
 					},
 					{
 						Name:      "describe",

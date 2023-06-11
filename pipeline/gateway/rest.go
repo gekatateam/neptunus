@@ -159,7 +159,7 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	if err != nil {
 		return pipe, err
 	}
-	
+
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
@@ -192,7 +192,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	
+
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
@@ -225,7 +225,7 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	
+
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:

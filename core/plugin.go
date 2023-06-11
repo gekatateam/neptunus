@@ -32,6 +32,16 @@ type Output interface {
 	Aliaser
 }
 
+type Parser interface {
+	Parse(data []byte) (*Event, error)
+	Aliaser
+}
+
+type Serializer interface {
+	Serialize(events ...*Event) ([]byte, error)
+	Aliaser
+}
+
 // core plugins
 type Fusion interface {
 	Init(ins []<-chan *Event, out chan<- *Event)
