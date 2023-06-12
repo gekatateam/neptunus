@@ -14,7 +14,7 @@ type Event struct {
 	Tags       []string
 	Labels     map[string]string
 	Data       Map
-	Errors     []error
+	Errors     Errors
 	ctx        context.Context
 }
 
