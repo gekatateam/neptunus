@@ -19,7 +19,7 @@ type Through struct {
 
 func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Processor, error) {
 	return &Through{
-		log:   log, 
+		log:   log,
 		alias: alias,
 		pipe:  pipeline,
 	}, nil

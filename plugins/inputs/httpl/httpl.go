@@ -26,8 +26,8 @@ type Httpl struct {
 	server   *http.Server
 	listener net.Listener
 
-	log logger.Logger
-	out chan<- *core.Event
+	log    logger.Logger
+	out    chan<- *core.Event
 	parser core.Parser
 }
 
@@ -54,7 +54,8 @@ func New(config map[string]any, alias, pipeline string, parser core.Parser, log 
 		return nil, errors.New("address required")
 	}
 
-	listener, err := net.Listen("tcp", h.Address); if err != nil {
+	listener, err := net.Listen("tcp", h.Address)
+	if err != nil {
 		return nil, fmt.Errorf("error creating listener: %v", err)
 	}
 
@@ -130,7 +131,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		for _, event := range e {
 			event.Labels = map[string]string{
-				"input": "httpl",
+				"input":  "httpl",
 				"server": i.Address,
 				"sender": r.RemoteAddr,
 			}

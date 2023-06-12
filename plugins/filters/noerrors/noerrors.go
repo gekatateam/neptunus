@@ -20,7 +20,7 @@ type NoErrors struct {
 
 func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error) {
 	return &NoErrors{
-		log:   log, 
+		log:   log,
 		alias: alias,
 		pipe:  pipeline,
 	}, nil

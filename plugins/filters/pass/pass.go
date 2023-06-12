@@ -19,7 +19,7 @@ type Pass struct {
 
 func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error) {
 	return &Pass{
-		log:   log, 
+		log:   log,
 		alias: alias,
 		pipe:  pipeline,
 	}, nil

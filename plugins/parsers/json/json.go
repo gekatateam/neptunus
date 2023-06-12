@@ -11,7 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 )
 
-type Json struct{
+type Json struct {
 	alias string
 	pipe  string
 	log   logger.Logger
@@ -40,8 +40,8 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 			return nil, err
 		}
 
-		for i := 0; i < len(eventData); i++ {
-			events = append(events, core.NewEventWithData(routingKey, eventData[i]))
+		for _, e := range eventData {
+			events = append(events, core.NewEventWithData(routingKey, e))
 			metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 			now = time.Now()
 		}

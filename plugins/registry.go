@@ -101,3 +101,22 @@ func GetParser(key string) (parserFunc, bool) {
 	p, ok := parsers[key]
 	return p, ok
 }
+
+// serializers
+type serializerFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Serializer, error)
+
+var serializers = make(map[string]serializerFunc)
+
+func AddSerializer(key string, p serializerFunc) {
+	_, exists := serializers[key]
+	if exists {
+		panic(fmt.Errorf("duplicate serializer func added: %v", key))
+	}
+
+	serializers[key] = p
+}
+
+func GetSerializer(key string) (serializerFunc, bool) {
+	p, ok := serializers[key]
+	return p, ok
+}
