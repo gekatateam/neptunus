@@ -30,6 +30,18 @@ func NewEvent(routingKey string) *Event {
 	}
 }
 
+func NewEventWithData(routingKey string, data Map) *Event {
+	return &Event{
+		Id:         uuid.New(),
+		Timestamp:  time.Now(),
+		RoutingKey: routingKey,
+		Tags:       make([]string, 0, 5),
+		Labels:     make(map[string]string),
+		Data:       data,
+		ctx:        context.Background(),
+	}
+}
+
 func (e *Event) GetField(key string) (any, error) {
 	return e.Data.GetValue(key)
 }

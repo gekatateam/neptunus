@@ -29,17 +29,32 @@ func (p *Json) Alias() string {
 	return p.alias
 }
 
-func (p *Json) Parse(data []byte) (*core.Event, error) {
+func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	now := time.Now()
-	event := core.NewEvent("")
-	
-	if err := json.Unmarshal(data, event); err != nil {
-		metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
-		return nil, err
-	}
+	events := []*core.Event{}
 
-	metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-	return event, nil
+	if data[0] == '[' { // array provided - [{...},{...},...]
+		eventData := []core.Map{}
+		if err := json.Unmarshal(data, &eventData); err != nil {
+			metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			return nil, err
+		}
+
+		for i := 0; i < len(eventData); i++ {
+			events = append(events, core.NewEventWithData(routingKey, eventData[i]))
+			metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+			now = time.Now()
+		}
+	} else { // object provided - {...}
+		eventData := core.Map{}
+		if err := json.Unmarshal(data, &eventData); err != nil {
+			metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			return nil, err
+		}
+		events = append(events, core.NewEventWithData(routingKey, eventData))
+		metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+	}
+	return events, nil
 }
 
 func init() {

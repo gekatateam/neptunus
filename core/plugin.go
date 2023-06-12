@@ -33,7 +33,7 @@ type Output interface {
 }
 
 type Parser interface {
-	Parse(data []byte) (*Event, error)
+	Parse(data []byte, routingKey string) ([]*Event, error)
 	Aliaser
 }
 

@@ -105,7 +105,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	i.log.Debugf("received request from: %v", r.RemoteAddr)
 
-	var cursor = 0
+	var cursor, events = 0, 0
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 		now := time.Now()
@@ -119,7 +119,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		e, err := i.parser.Parse(scanner.Bytes())
+		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
 		if err != nil {
 			errMsg := fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
@@ -128,16 +128,20 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		e.RoutingKey = r.URL.Path
-		e.Labels["input"] = "httpl"
-		e.Labels["server"] = i.Address
-		e.Labels["sender"] = r.RemoteAddr
-		i.out <- e
-		metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		for _, event := range e {
+			event.Labels = map[string]string{
+				"input": "httpl",
+				"server": i.Address,
+				"sender": r.RemoteAddr,
+			}
+			i.out <- event
+			events++
+			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("accepted events: %v\n", cursor)))
+	w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))
 }
 
 func init() {
