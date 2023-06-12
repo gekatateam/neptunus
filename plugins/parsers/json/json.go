@@ -35,7 +35,7 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 
 	if data[0] == '[' { // array provided - [{...},{...},...]
 		eventData := []core.Map{}
-		if err := json.Unmarshal(data, &eventData); err != nil {
+		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {
 			metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			return nil, err
 		}
@@ -47,7 +47,7 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 		}
 	} else { // object provided - {...}
 		eventData := core.Map{}
-		if err := json.Unmarshal(data, &eventData); err != nil {
+		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {
 			metrics.ObserveParserSummary("json", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			return nil, err
 		}

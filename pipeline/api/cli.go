@@ -12,12 +12,12 @@ import (
 var errCliFailed = errors.New("cli command exec failed")
 
 type cliApi struct {
-	g   pipeline.Service
+	g pipeline.Service
 }
 
 func Cli(gateway pipeline.Service) *cliApi {
 	return &cliApi{
-		g:   gateway,
+		g: gateway,
 	}
 }
 

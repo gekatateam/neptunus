@@ -65,7 +65,7 @@ func GetInput(key string) (inputFunc, bool) {
 }
 
 // outputs
-type outputFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Output, error)
+type outputFunc func(config map[string]any, alias, pipeline string, serializer core.Serializer, log logger.Logger) (core.Output, error)
 
 var outputs = make(map[string]outputFunc)
 

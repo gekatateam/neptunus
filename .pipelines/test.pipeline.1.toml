@@ -33,5 +33,6 @@
   [outputs.log]
   [outputs.log.serializer]
     type = "json"
+    data_only = true
   [outputs.log.filters.pass]
     alias = "t3"

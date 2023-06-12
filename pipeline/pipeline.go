@@ -19,6 +19,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
 	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
+	_ "github.com/gekatateam/neptunus/plugins/serializers"
 )
 
 type state string
@@ -275,7 +276,12 @@ func (p *Pipeline) configureOutputs() error {
 				alias = outputCfg.Alias()
 			}
 
-			output, err := outputFunc(outputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+			serializer, err := p.configureSerializer(outputCfg.Serializer(), alias)
+			if err != nil {
+				return fmt.Errorf("%v input serializer configuration error: %v", plugin, err.Error())
+			}
+
+			output, err := outputFunc(outputCfg, alias, p.config.Settings.Id, serializer, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"output":   plugin,
 				"name":     alias,
@@ -429,4 +435,32 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 	}
 
 	return parser, nil
+}
+
+func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) (core.Serializer, error) {
+	if serCfg == nil {
+		return nil, nil
+	}
+
+	plugin := serCfg.Type()
+	serFunc, ok := plugins.GetSerializer(plugin)
+	if !ok {
+		return nil, fmt.Errorf("unknown serializer plugin in pipeline configuration: %v", plugin)
+	}
+
+	var alias = fmt.Sprintf("%v-%v", parentName, plugin)
+	if len(serCfg.Alias()) > 0 {
+		alias = serCfg.Alias()
+	}
+
+	ser, err := serFunc(serCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+		"pipeline":   p.config.Settings.Id,
+		"serializer": plugin,
+		"name":       alias,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("%v serializer configuration error: %v", plugin, err.Error())
+	}
+
+	return ser, nil
 }
