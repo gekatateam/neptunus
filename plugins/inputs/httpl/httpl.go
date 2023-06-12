@@ -1,4 +1,4 @@
-package http
+package httpl
 
 import (
 	"bufio"
@@ -46,7 +46,7 @@ func New(config map[string]any, alias, pipeline string, parser core.Parser, log 
 	}
 
 	if parser == nil {
-		return nil, errors.New("http input requires parser plugin")
+		return nil, errors.New("httpl input requires parser plugin")
 	}
 	h.parser = parser
 
@@ -115,13 +115,13 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			errMsg := fmt.Sprintf("reading error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusInternalServerError)
-			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
 		e, err := i.parser.Parse(scanner.Bytes())
 		if err != nil {
-			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
+			errMsg := fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
@@ -129,7 +129,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		e.RoutingKey = r.URL.Path
-		e.Labels["input"] = "http"
+		e.Labels["input"] = "httpl"
 		e.Labels["server"] = i.Address
 		e.Labels["sender"] = r.RemoteAddr
 		i.out <- e
