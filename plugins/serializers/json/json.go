@@ -15,23 +15,28 @@ import (
 type Json struct {
 	alias    string
 	pipe     string
-	Mode     string `mapstructure:"mode"`
 	DataOnly bool   `mapstructure:"data_only"`
 
-	log logger.Logger
+	log     logger.Logger
+	serFunc func(event *core.Event) ([]byte, error)
 }
 
 func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Serializer, error) {
 	s := &Json{
 		alias:    alias,
 		pipe:     pipeline,
-		Mode:     "jsonl",
 		DataOnly: false,
 		log:      log,
 	}
 
 	if err := mapstructure.Decode(config, s); err != nil {
 		return nil, err
+	}
+
+	if s.DataOnly {
+		s.serFunc = s.serializeData
+	} else {
+		s.serFunc = s.serializeEvent
 	}
 
 	return s, nil
@@ -42,22 +47,29 @@ func (s *Json) Alias() string {
 }
 
 func (s *Json) Serialize(event *core.Event) ([]byte, error) {
-	now := time.Now()
-	rawData := []byte{}
-	var err error
+	return s.serFunc(event)
+}
 
-	if s.DataOnly {
-		rawData, err = json.MarshalNoEscape(event.Data)
-		if err != nil {
-			metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
-			return nil, err
-		}
-	} else {
-		rawData, err = json.MarshalNoEscape(event)
-		if err != nil {
-			metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
-			return nil, err
-		}
+func (s *Json) serializeData(event *core.Event) ([]byte, error) {
+	now := time.Now()
+
+	rawData, err := json.MarshalNoEscape(event.Data)
+	if err != nil {
+		metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
+		return nil, err
+	}
+	metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventAccepted, time.Since(now))
+
+	return rawData, nil
+}
+
+func (s *Json) serializeEvent(event *core.Event) ([]byte, error) {
+	now := time.Now()
+
+	rawData, err := json.MarshalNoEscape(event)
+	if err != nil {
+		metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
+		return nil, err
 	}
 	metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventAccepted, time.Since(now))
 
