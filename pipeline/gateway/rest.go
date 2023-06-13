@@ -89,18 +89,18 @@ func (g *restGateway) Stop(id string) error {
 	}
 }
 
-func (g *restGateway) State(id string) (string, error) {
+func (g *restGateway) State(id string) (string, error, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/api/v1/pipelines/%v/state", g.addr, id), nil)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	defer res.Body.Close()
@@ -109,11 +109,14 @@ func (g *restGateway) State(id string) (string, error) {
 		rawBody, _ := io.ReadAll(res.Body)
 		structBody := &api.OkResponse{}
 		json.Unmarshal(rawBody, structBody)
-		return structBody.Status, nil
+		if len(structBody.Error) > 0 {
+			return structBody.Status, errors.New(structBody.Error), nil
+		}
+		return structBody.Status, nil, nil
 	case http.StatusNotFound:
-		return "", &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
+		return "", nil, &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	default:
-		return "", unpackApiError(res.Body)
+		return "", nil, unpackApiError(res.Body)
 	}
 }
 

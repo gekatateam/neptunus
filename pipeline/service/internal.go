@@ -99,13 +99,13 @@ func (m *internalService) Stop(id string) error {
 	return nil
 }
 
-func (m *internalService) State(id string) (string, error) {
+func (m *internalService) State(id string) (string, error, error) {
 	unit, ok := m.pipes[id]
 	if !ok {
-		return "", &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
+		return "", nil, &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
-	return string(unit.p.State()), nil
+	return string(unit.p.State()), unit.p.LastError(), nil
 }
 
 func (m *internalService) List() ([]*config.Pipeline, error) {

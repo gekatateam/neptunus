@@ -9,7 +9,6 @@
   [inputs.httpl.parser]
     type = "json"
   [inputs.httpl.filters.pass]
-    alias = "t1"
 
 [[inputs]]
   [inputs.httpl]
@@ -17,14 +16,12 @@
   [inputs.httpl.parser]
     type = "json"
   [inputs.httpl.filters.pass]
-    alias = "t1"
 
 [[processors]]
   [processors.log]
     level = "warn"
   [processors.log.filters.glob]
     routing_key = [ "*http.*" ]
-    alias = "t2"
 
 [[processors]]
   [processors.through]
@@ -35,4 +32,3 @@
     type = "json"
     data_only = true
   [outputs.log.filters.pass]
-    alias = "t3"

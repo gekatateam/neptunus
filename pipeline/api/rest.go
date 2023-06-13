@@ -46,7 +46,7 @@ func (a *restApi) Start() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson("starting"))
+			w.Write(OkToJson("starting", nil))
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(ErrToJson(err.Error()))
@@ -76,7 +76,7 @@ func (a *restApi) Stop() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson("stopping"))
+			w.Write(OkToJson("stopping", nil))
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(ErrToJson(err.Error()))
@@ -96,11 +96,11 @@ func (a *restApi) State() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 
-		status, err := a.s.State(id)
+		status, lastErr, err := a.s.State(id)
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson(status))
+			w.Write(OkToJson(status, lastErr))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(ErrToJson(err.Error()))
@@ -250,7 +250,7 @@ func (a *restApi) Delete() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson("deleted"))
+			w.Write(OkToJson("deleted", nil))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(ErrToJson(err.Error()))
@@ -279,9 +279,14 @@ func ErrToJson(msg string) []byte {
 
 type OkResponse struct {
 	Status string `json:"status"`
+	Error  string `json:"last_error,omitempty"`
 }
 
-func OkToJson(msg string) []byte {
-	s, _ := json.Marshal(OkResponse{Status: msg})
+func OkToJson(msg string, err error) []byte {
+	le := ""
+	if err != nil {
+		le = err.Error()
+	}
+	s, _ := json.Marshal(OkResponse{Status: msg, Error: le})
 	return s
 }
