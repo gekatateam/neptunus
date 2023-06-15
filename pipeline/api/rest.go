@@ -11,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/pipeline"
+	"github.com/gekatateam/neptunus/pipeline/model"
 )
 
 type restApi struct {
@@ -46,23 +47,23 @@ func (a *restApi) Start() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson("starting", nil))
+			w.Write(model.OkToJson("starting", nil))
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -76,17 +77,17 @@ func (a *restApi) Stop() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson("stopping", nil))
+			w.Write(model.OkToJson("stopping", nil))
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -100,14 +101,14 @@ func (a *restApi) State() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson(status, lastErr))
+			w.Write(model.OkToJson(status, lastErr))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -123,14 +124,14 @@ func (a *restApi) List() http.Handler {
 			w.Write(data)
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -148,17 +149,17 @@ func (a *restApi) Get() http.Handler {
 			w.Write(data)
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -174,7 +175,7 @@ func (a *restApi) Add() http.Handler {
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 			return
 		}
 
@@ -186,17 +187,17 @@ func (a *restApi) Add() http.Handler {
 			w.Write(data)
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -212,7 +213,7 @@ func (a *restApi) Update() http.Handler {
 			pipe.Settings.Id = chi.URLParam(r, "id")
 		default:
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 
 		err = a.s.Add(pipe)
@@ -223,20 +224,20 @@ func (a *restApi) Update() http.Handler {
 			w.Write(data)
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
 }
@@ -250,43 +251,20 @@ func (a *restApi) Delete() http.Handler {
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
-			w.Write(OkToJson("deleted", nil))
+			w.Write(model.OkToJson("deleted", nil))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		default:
 			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(ErrToJson(err.Error()))
+			w.Write(model.ErrToJson(err.Error()))
 		}
 	})
-}
-
-type ErrResponse struct {
-	Error string `json:"error"`
-}
-
-func ErrToJson(msg string) []byte {
-	s, _ := json.Marshal(ErrResponse{Error: msg})
-	return s
-}
-
-type OkResponse struct {
-	Status string `json:"status"`
-	Error  string `json:"last_error,omitempty"`
-}
-
-func OkToJson(msg string, err error) []byte {
-	le := ""
-	if err != nil {
-		le = err.Error()
-	}
-	s, _ := json.Marshal(OkResponse{Status: msg, Error: le})
-	return s
 }

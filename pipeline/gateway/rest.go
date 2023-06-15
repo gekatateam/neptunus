@@ -12,7 +12,7 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
-	"github.com/gekatateam/neptunus/pipeline/api"
+	"github.com/gekatateam/neptunus/pipeline/model"
 )
 
 var _ pipeline.Service = &restGateway{}
@@ -39,7 +39,7 @@ func (g *restGateway) Start(id string) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/api/v1/pipeline/%v/start", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/api/v1/pipelines/%v/start", g.addr, id), nil)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (g *restGateway) State(id string) (string, error, error) {
 	switch res.StatusCode {
 	case http.StatusOK:
 		rawBody, _ := io.ReadAll(res.Body)
-		structBody := &api.OkResponse{}
+		structBody := &model.OkResponse{}
 		json.Unmarshal(rawBody, structBody)
 		if len(structBody.Error) > 0 {
 			return structBody.Status, errors.New(structBody.Error), nil
@@ -273,7 +273,7 @@ func (g *restGateway) Delete(id string) error {
 
 func unpackApiError(resBody io.ReadCloser) error {
 	rawBody, _ := io.ReadAll(resBody)
-	structBody := &api.ErrResponse{}
+	structBody := &model.ErrResponse{}
 	json.Unmarshal(rawBody, structBody)
 	return errors.New(structBody.Error)
 }

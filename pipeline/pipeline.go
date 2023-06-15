@@ -280,7 +280,7 @@ func (p *Pipeline) configureOutputs() error {
 				return fmt.Errorf("unknown output plugin in pipeline configuration: %v", plugin)
 			}
 
-			var alias = fmt.Sprintf("output.%v.%v", plugin, index)
+			var alias = fmt.Sprintf("output:%v:%v", plugin, index)
 			if len(outputCfg.Alias()) > 0 {
 				alias = outputCfg.Alias()
 			}
@@ -323,9 +323,9 @@ func (p *Pipeline) configureProcessors() error {
 					return fmt.Errorf("unknown processor plugin in pipeline configuration: %v", plugin)
 				}
 
-				var alias = fmt.Sprintf("processor.%v.%v.%v", plugin, index, i)
+				var alias = fmt.Sprintf("processor:%v:%v:%v", plugin, index, i)
 				if len(processorCfg.Alias()) > 0 {
-					alias = fmt.Sprintf("processor.%v.%v", processorCfg.Alias(), i)
+					alias = fmt.Sprintf("%v:%v", processorCfg.Alias(), i)
 				}
 
 				processor, err := processorFunc(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
@@ -362,7 +362,7 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("unknown input plugin in pipeline configuration: %v", plugin)
 			}
 
-			var alias = fmt.Sprintf("input.%v.%v", plugin, index)
+			var alias = fmt.Sprintf("input:%v:%v", plugin, index)
 			if len(inputCfg.Alias()) > 0 {
 				alias = inputCfg.Alias()
 			}
@@ -400,9 +400,9 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			return nil, fmt.Errorf("unknown filter plugin in pipeline configuration: %v", plugin)
 		}
 
-		var alias = fmt.Sprintf("filter.%v::%v", plugin, parentName)
+		var alias = fmt.Sprintf("filter:%v::%v", plugin, parentName)
 		if len(filterCfg.Alias()) > 0 {
-			alias = fmt.Sprintf("filter.%v::%v", filterCfg.Alias(), parentName)
+			alias = fmt.Sprintf("%v::%v", filterCfg.Alias(), parentName)
 		}
 
 		filter, err := filterFunc(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
@@ -429,9 +429,9 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		return nil, fmt.Errorf("unknown parser plugin in pipeline configuration: %v", plugin)
 	}
 
-	var alias = fmt.Sprintf("parser.%v::%v", plugin, parentName)
+	var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
 	if len(parserCfg.Alias()) > 0 {
-		alias = parserCfg.Alias()
+		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
 	}
 
 	parser, err := parserFunc(parserCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
@@ -457,9 +457,9 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("unknown serializer plugin in pipeline configuration: %v", plugin)
 	}
 
-	var alias = fmt.Sprintf("serializer.%v:%v", plugin, parentName)
+	var alias = fmt.Sprintf("serializer:%v:%v", plugin, parentName)
 	if len(serCfg.Alias()) > 0 {
-		alias = serCfg.Alias()
+		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
 	}
 
 	ser, err := serFunc(serCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{

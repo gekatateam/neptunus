@@ -57,11 +57,12 @@ func main() {
 						Usage: "daemon http api server address",
 					},
 				},
+				Before: cliController.Init,
 				Subcommands: []*cli.Command{
 					{
 						Name:   "list",
 						Usage:  "list all pipelines",
-						Action: pipelineList,
+						Action: cliController.List,
 					},
 					{
 						Name:      "describe",
@@ -80,7 +81,7 @@ func main() {
 								Usage: "pipeline printing format (json, toml, yaml supported)",
 							},
 						},
-						Action: pipelineDescribe,
+						Action: cliController.Describe,
 					},
 					{
 						Name:      "deploy",
@@ -94,6 +95,7 @@ func main() {
 								Usage:    "pipeline manifest file (json, toml, yaml supported)",
 							},
 						},
+						Action: cliController.Deploy,
 					},
 					{
 						Name:      "update",
@@ -107,6 +109,7 @@ func main() {
 								Usage:    "pipeline manifest file (json, toml, yaml supported)",
 							},
 						},
+						Action: cliController.Update,
 					},
 					{
 						Name:      "delete",
@@ -125,6 +128,7 @@ func main() {
 								Usage: "stop pipeline, if it's running, then delete",
 							},
 						},
+						Action: cliController.Delete,
 					},
 					{
 						Name:      "start",
@@ -138,6 +142,7 @@ func main() {
 								Usage:    "pipeline name",
 							},
 						},
+						Action: cliController.Start,
 					},
 					{
 						Name:      "stop",
@@ -151,6 +156,7 @@ func main() {
 								Usage:    "pipeline name",
 							},
 						},
+						Action: cliController.Stop,
 					},
 				},
 			},

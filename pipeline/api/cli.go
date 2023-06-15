@@ -4,40 +4,37 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"text/tabwriter"
 
+	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
+	"github.com/gekatateam/neptunus/pipeline/gateway"
+	"github.com/urfave/cli/v2"
 )
 
 var errCliFailed = errors.New("cli command exec failed")
 
 type cliApi struct {
-	g pipeline.Service
+	gw pipeline.Service
 }
 
 func Cli(gateway pipeline.Service) *cliApi {
 	return &cliApi{
-		g: gateway,
+		gw: gateway,
 	}
 }
 
-func (a *cliApi) Start(id string) error {
+func (c *cliApi) Init(cCtx *cli.Context) error {
+	c.gw = gateway.Rest(cCtx.String("server-address"))
 	return nil
 }
 
-func (a *cliApi) Stop(id string) error {
-	return nil
-}
-
-func (a *cliApi) State(id string) error {
-	return nil
-}
-
-func (a *cliApi) List() error {
-	pipes, err := a.g.List()
+func (c *cliApi) List(_ *cli.Context) error {
+	pipes, err := c.gw.List()
 	if err != nil {
 		fmt.Printf("cli list: exec failed - %v\n", err)
-		return errCliFailed
+		os.Exit(1)
 	}
 
 	b := new(bytes.Buffer)
@@ -45,10 +42,10 @@ func (a *cliApi) List() error {
 	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "id", "state", "error", "autorun")
 
 	for _, pipe := range pipes {
-		state, lastErr, err := a.g.State(pipe.Settings.Id)
+		state, lastErr, err := c.gw.State(pipe.Settings.Id)
 		if err != nil {
 			fmt.Printf("cli list: exec failed - %v", err)
-			return errCliFailed
+			os.Exit(1)
 		}
 		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pipe.Settings.Id, state, lastErr, pipe.Settings.Run)
 	}
@@ -58,18 +55,89 @@ func (a *cliApi) List() error {
 	return nil
 }
 
-func (a *cliApi) Get(id string, format string) error {
+func (c *cliApi) Describe(cCtx *cli.Context) error {
+	id := cCtx.String("name")
+	pipe, err := c.gw.Get(id)
+	switch {
+	case err == nil:
+	case errors.As(err, &pipeline.NotFoundErr):
+		fmt.Printf("pipeline %v not found: %v\n", id, err.Error())
+		os.Exit(1)
+	default:
+		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	state, lastErr, err := c.gw.State(id)
+	if err != nil {
+		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	rawPipe, err := config.MarshalPipeline(pipe, cCtx.String("format"))
+	if err != nil {
+		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	fmt.Printf(string(rawPipe) + "\n")
+	fmt.Printf("---------------\n")
+	fmt.Printf("state: %v\n", state)
+	fmt.Printf("error: %v\n", lastErr)
+
 	return nil
 }
 
-func (a *cliApi) Add(file string) error {
+func (c *cliApi) Start(cCtx *cli.Context) error {
+	id := cCtx.String("name")
+	fmt.Printf("starting pipeline %v\n", id)
+	err := c.gw.Start(id)
+	switch {
+	case err == nil:
+		fmt.Printf("pipeline %v accepts start signal\n", id)
+		return nil
+	case errors.As(err, &pipeline.NotFoundErr):
+		fmt.Printf("pipeline %v startup failed: pipeline not found: %v\n", id, err.Error())
+		os.Exit(1)
+	case errors.As(err, &pipeline.ConflictErr):
+		fmt.Printf("pipeline %v startup failed: conflict state: %v\n", id, err.Error())
+		os.Exit(1)
+	default:
+		fmt.Printf("cli start: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
 	return nil
 }
 
-func (a *cliApi) Update(file string) error {
+func (c *cliApi) Stop(cCtx *cli.Context) error {
+	id := cCtx.String("name")
+	fmt.Printf("stopping pipeline %v\n", id)
+	err := c.gw.Stop(id)
+	switch {
+	case err == nil:
+		fmt.Printf("pipeline %v accepts stop signal\n", id)
+		return nil
+	case errors.As(err, &pipeline.NotFoundErr):
+		fmt.Printf("pipeline %v stop failed: pipeline not found: %v\n", id, err.Error())
+		os.Exit(1)
+	case errors.As(err, &pipeline.ConflictErr):
+		fmt.Printf("pipeline %v stop failed: conflict state: %v\n", id, err.Error())
+		os.Exit(1)
+	default:
+		fmt.Printf("cli stop: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
 	return nil
 }
 
-func (a *cliApi) Delete(id string) error {
+func (c *cliApi) Deploy(cCtx *cli.Context) error {
+	return nil
+}
+
+func (c *cliApi) Update(cCtx *cli.Context) error {
+	return nil
+}
+
+func (c *cliApi) Delete(cCtx *cli.Context) error {
 	return nil
 }
