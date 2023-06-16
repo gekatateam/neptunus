@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/gekatateam/neptunus/config"
@@ -131,10 +132,67 @@ func (c *cliApi) Stop(cCtx *cli.Context) error {
 }
 
 func (c *cliApi) Deploy(cCtx *cli.Context) error {
+	file := cCtx.String("file")
+	fmt.Printf("deploying new pipeline from file %v\n", file)
+
+	rawPipe, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Printf("cli deploy: exec failed - file read error: %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	pipe, err := config.UnmarshalPipeline(rawPipe, filepath.Ext(file))
+	if err != nil {
+		fmt.Printf("cli deploy: exec failed - unmarshal pipeline error: %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	err = c.gw.Add(pipe)
+	switch {
+	case err == nil:
+		fmt.Printf("pipeline %v successfully deployed\n", pipe.Settings.Id)
+	case errors.As(err, &pipeline.ConflictErr):
+		fmt.Printf("pipeline %v deploy failed: conflict state: %v\n", pipe.Settings.Id, err.Error())
+		os.Exit(1)
+	default:
+		fmt.Printf("cli deploy: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
+
 	return nil
 }
 
 func (c *cliApi) Update(cCtx *cli.Context) error {
+	file := cCtx.String("file")
+	fmt.Printf("updating exists pipeline from file %v\n", file)
+
+	rawPipe, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Printf("cli update: exec failed - file read error: %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	pipe, err := config.UnmarshalPipeline(rawPipe, filepath.Ext(file))
+	if err != nil {
+		fmt.Printf("cli update: exec failed - unmarshal pipeline error: %v\n", err.Error())
+		os.Exit(1)
+	}
+
+	err = c.gw.Update(pipe)
+	switch {
+	case err == nil:
+		fmt.Printf("pipeline %v successfully updated\n", pipe.Settings.Id)
+	case errors.As(err, &pipeline.NotFoundErr):
+		fmt.Printf("pipeline %v update failed: pipeline not found: %v\n", pipe.Settings.Id, err.Error())
+		os.Exit(1)
+	case errors.As(err, &pipeline.ConflictErr):
+		fmt.Printf("pipeline %v update failed: conflict state: %v\n", pipe.Settings.Id, err.Error())
+		os.Exit(1)
+	default:
+		fmt.Printf("cli update: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
+
 	return nil
 }
 
