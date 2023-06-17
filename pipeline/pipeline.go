@@ -457,7 +457,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("unknown serializer plugin in pipeline configuration: %v", plugin)
 	}
 
-	var alias = fmt.Sprintf("serializer:%v:%v", plugin, parentName)
+	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
 	if len(serCfg.Alias()) > 0 {
 		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
 	}
