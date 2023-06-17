@@ -37,7 +37,7 @@ func main() {
 			},
 			{
 				Name:  "test",
-				Usage: "test pipelines in configured storage without run",
+				Usage: "test pipelines from configured storage without run",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "config",
@@ -49,7 +49,7 @@ func main() {
 			},
 			{
 				Name:  "pipeline",
-				Usage: "daemon commands for pipeline management",
+				Usage: "cli commands for pipeline management",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "server-address",
