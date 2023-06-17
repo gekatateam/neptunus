@@ -114,7 +114,7 @@ func main() {
 					{
 						Name:      "delete",
 						Usage:     "delete pipeline by name",
-						UsageText: "delete --name my-pipeline [--force]",
+						UsageText: "delete --name my-pipeline",
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:     "name",
@@ -122,11 +122,11 @@ func main() {
 								Required: true,
 								Usage:    "pipeline name",
 							},
-							&cli.BoolFlag{
-								Name:  "force",
-								Value: false,
-								Usage: "stop pipeline, if it's running, then delete",
-							},
+							// &cli.BoolFlag{
+							// 	Name:  "force",
+							// 	Value: false,
+							// 	Usage: "stop pipeline, if it's running, then delete",
+							// },
 						},
 						Action: cliController.Delete,
 					},

@@ -14,8 +14,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var errCliFailed = errors.New("cli command exec failed")
-
 type cliApi struct {
 	gw pipeline.Service
 }
@@ -197,5 +195,22 @@ func (c *cliApi) Update(cCtx *cli.Context) error {
 }
 
 func (c *cliApi) Delete(cCtx *cli.Context) error {
+	id := cCtx.String("name")
+
+	err := c.gw.Delete(id)
+	switch {
+	case err == nil:
+		fmt.Printf("pipeline %v successfully deleted\n", id)
+	case errors.As(err, &pipeline.NotFoundErr):
+		fmt.Printf("pipeline %v delete failed: pipeline not found: %v\n", id, err.Error())
+		os.Exit(1)
+	case errors.As(err, &pipeline.ConflictErr):
+		fmt.Printf("pipeline %v delete failed: conflict state: %v\n", id, err.Error())
+		os.Exit(1)
+	default:
+		fmt.Printf("cli delete: exec failed - %v\n", err.Error())
+		os.Exit(1)
+	}
+
 	return nil
 }
