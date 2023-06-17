@@ -1,7 +1,7 @@
 package log
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,9 +19,10 @@ type Log struct {
 
 	in  <-chan *core.Event
 	log logger.Logger
+	ser core.Serializer
 }
 
-func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Output, error) {
+func New(config map[string]any, alias, pipeline string, serializer core.Serializer, log logger.Logger) (core.Output, error) {
 	l := &Log{
 		Level: "info",
 
@@ -32,6 +33,11 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 	if err := mapstructure.Decode(config, l); err != nil {
 		return nil, err
 	}
+
+	if serializer == nil {
+		return nil, errors.New("log output requires serializer plugin")
+	}
+	l.ser = serializer
 
 	switch l.Level {
 	case "trace", "debug", "info", "warn":
@@ -49,9 +55,9 @@ func (o *Log) Init(in <-chan *core.Event) {
 func (o *Log) Listen() {
 	for e := range o.in {
 		now := time.Now()
-		event, err := json.Marshal(e)
+		event, err := o.ser.Serialize(e)
 		if err != nil {
-			o.log.Errorf("json marshal failed: %v", err.Error())
+			o.log.Errorf("serialization failed: %v", err.Error())
 			metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}

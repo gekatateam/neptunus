@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	defaultConfig = Config{
+	Default = Config{
 		Common: Common{
 			LogLevel:  "info",
 			LogFormat: "logfmt",
@@ -54,7 +54,7 @@ func ReadConfig(file string) (*Config, error) {
 		return nil, err
 	}
 
-	config := defaultConfig
+	config := Default
 
 	switch e := filepath.Ext(file); e {
 	case ".toml":

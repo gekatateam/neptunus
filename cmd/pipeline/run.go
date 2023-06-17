@@ -18,7 +18,8 @@ import (
 )
 
 func run(cCtx *cli.Context) error {
-	cfg, err := config.ReadConfig(cCtx.String("config")); if err != nil {
+	cfg, err := config.ReadConfig(cCtx.String("config"))
+	if err != nil {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())
 	}
 
@@ -36,7 +37,8 @@ func run(cCtx *cli.Context) error {
 
 	wg := &sync.WaitGroup{}
 
-	storage, err := getStorage(&cfg.PipeCfg); if err != nil {
+	storage, err := getStorage(&cfg.PipeCfg)
+	if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
 
@@ -50,7 +52,8 @@ func run(cCtx *cli.Context) error {
 		"type":  "rest",
 	}))
 
-	httpServer, err := server.Http(cfg.Common); if err != nil {
+	httpServer, err := server.Http(cfg.Common)
+	if err != nil {
 		return err
 	}
 	httpServer.Mount("/api/v1", restApi.Router())

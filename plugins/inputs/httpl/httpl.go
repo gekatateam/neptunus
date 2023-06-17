@@ -1,9 +1,8 @@
-package http
+package httpl
 
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -17,7 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 )
 
-type Http struct {
+type Httpl struct {
 	alias        string
 	pipe         string
 	Address      string        `mapstructure:"address"`
@@ -27,12 +26,13 @@ type Http struct {
 	server   *http.Server
 	listener net.Listener
 
-	log logger.Logger
-	out chan<- *core.Event
+	log    logger.Logger
+	out    chan<- *core.Event
+	parser core.Parser
 }
 
-func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Input, error) {
-	h := &Http{
+func New(config map[string]any, alias, pipeline string, parser core.Parser, log logger.Logger) (core.Input, error) {
+	h := &Httpl{
 		Address:      ":9800",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -45,11 +45,17 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 		return nil, err
 	}
 
+	if parser == nil {
+		return nil, errors.New("httpl input requires parser plugin")
+	}
+	h.parser = parser
+
 	if len(h.Address) == 0 {
 		return nil, errors.New("address required")
 	}
 
-	listener, err := net.Listen("tcp", h.Address); if err != nil {
+	listener, err := net.Listen("tcp", h.Address)
+	if err != nil {
 		return nil, fmt.Errorf("error creating listener: %v", err)
 	}
 
@@ -65,11 +71,11 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 	return h, nil
 }
 
-func (i *Http) Init(out chan<- *core.Event) {
+func (i *Httpl) Init(out chan<- *core.Event) {
 	i.out = out
 }
 
-func (i *Http) Serve() {
+func (i *Httpl) Serve() {
 	i.log.Infof("starting http server on %v", i.Address)
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
@@ -78,7 +84,7 @@ func (i *Http) Serve() {
 	}
 }
 
-func (i *Http) Close() error {
+func (i *Httpl) Close() error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
@@ -88,11 +94,11 @@ func (i *Http) Close() error {
 	return nil
 }
 
-func (i *Http) Alias() string {
+func (i *Httpl) Alias() string {
 	return i.alias
 }
 
-func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 	default:
@@ -100,7 +106,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	i.log.Debugf("received request from: %v", r.RemoteAddr)
 
-	var cursor = 0
+	var cursor, events = 0, 0
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 		now := time.Now()
@@ -110,31 +116,35 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			errMsg := fmt.Sprintf("reading error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusInternalServerError)
-			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
-		e := core.NewEvent(r.URL.Path)
-		err := json.Unmarshal(scanner.Bytes(), &e.Data)
+		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
 		if err != nil {
-			errMsg := fmt.Sprintf("bad json at line %v: %v", cursor, err.Error())
+			errMsg := fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error())
 			i.log.Errorf(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
-			metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
-		e.Labels["input"] = "http"
-		e.Labels["server"] = i.Address
-		e.Labels["sender"] = r.RemoteAddr
-		i.out <- e
-		metrics.ObserveInputSummary("http", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		for _, event := range e {
+			event.Labels = map[string]string{
+				"input":  "httpl",
+				"server": i.Address,
+				"sender": r.RemoteAddr,
+			}
+			i.out <- event
+			events++
+			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("accepted events: %v\n", cursor)))
+	w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))
 }
 
 func init() {
-	plugins.AddInput("http", New)
+	plugins.AddInput("httpl", New)
 }

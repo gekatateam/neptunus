@@ -15,11 +15,13 @@ const (
 )
 
 var (
-	coreSummary      *prometheus.SummaryVec
-	inputSummary     *prometheus.SummaryVec
-	filterSummary    *prometheus.SummaryVec
-	processorSummary *prometheus.SummaryVec
-	outputSummary    *prometheus.SummaryVec
+	coreSummary       *prometheus.SummaryVec
+	inputSummary      *prometheus.SummaryVec
+	filterSummary     *prometheus.SummaryVec
+	processorSummary  *prometheus.SummaryVec
+	outputSummary     *prometheus.SummaryVec
+	parserSummary     *prometheus.SummaryVec
+	serializerSummary *prometheus.SummaryVec
 
 	chans        *chanCollector
 	chanCapacity *prometheus.Desc
@@ -69,6 +71,26 @@ func init() {
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
 
+	parserSummary = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "parser_plugin_processed_events",
+			Help:       "Events statistic for parsers",
+			MaxAge:     time.Minute,
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"plugin", "name", "pipeline", "status"},
+	)
+
+	serializerSummary = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "serializer_plugin_processed_events",
+			Help:       "Events statistic for serializers",
+			MaxAge:     time.Minute,
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"plugin", "name", "pipeline", "status"},
+	)
+
 	coreSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "core_plugin_processed_events",
@@ -98,6 +120,8 @@ func init() {
 	prometheus.MustRegister(filterSummary)
 	prometheus.MustRegister(processorSummary)
 	prometheus.MustRegister(outputSummary)
+	prometheus.MustRegister(parserSummary)
+	prometheus.MustRegister(serializerSummary)
 	prometheus.MustRegister(coreSummary)
 	prometheus.MustRegister(chans)
 }
@@ -116,6 +140,14 @@ func ObserveProcessorSummary(plugin, name, pipeline string, status eventStatus, 
 
 func ObserveOutputSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
 	outputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+}
+
+func ObserveParserSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
+	parserSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+}
+
+func ObserveSerializerSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
+	serializerSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
 }
 
 func ObserveCoreSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {

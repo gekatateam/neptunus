@@ -4,9 +4,11 @@
   run = false
 
 [[inputs]]
-  [inputs.http]
-    address = ":9300"
-  [inputs.http.filters.pass]
+  [inputs.httpl]
+    address = ":9200"
+  [inputs.httpl.parser]
+    type = "json"
+  [inputs.httpl.filters.pass]
     alias = "t4"
 
 [[processors]]
@@ -17,5 +19,8 @@
 
 [[outputs]]
   [outputs.log]
+  [outputs.log.serializer]
+    type = "json"
+    data_only = true
   [outputs.log.filters.pass]
     alias = "t6"

@@ -14,7 +14,7 @@ type Event struct {
 	Tags       []string
 	Labels     map[string]string
 	Data       Map
-	Errors     []error
+	Errors     Errors
 	ctx        context.Context
 }
 
@@ -26,6 +26,18 @@ func NewEvent(routingKey string) *Event {
 		Tags:       make([]string, 0, 5),
 		Labels:     make(map[string]string),
 		Data:       make(Map),
+		ctx:        context.Background(),
+	}
+}
+
+func NewEventWithData(routingKey string, data Map) *Event {
+	return &Event{
+		Id:         uuid.New(),
+		Timestamp:  time.Now(),
+		RoutingKey: routingKey,
+		Tags:       make([]string, 0, 5),
+		Labels:     make(map[string]string),
+		Data:       data,
 		ctx:        context.Background(),
 	}
 }
