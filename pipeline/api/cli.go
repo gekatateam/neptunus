@@ -38,8 +38,8 @@ func (c *cliApi) List(_ *cli.Context) error {
 
 	b := new(bytes.Buffer)
 	w := tabwriter.NewWriter(b, 1, 1, 1, ' ', 0)
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "id", "state", "error", "autorun")
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "--", "-----", "-----", "-------")
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "id", "state", "autorun", "error")
+	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "--", "-----", "-------", "-----")
 
 	for _, pipe := range pipes {
 		state, lastErr, err := c.gw.State(pipe.Settings.Id)
@@ -47,7 +47,7 @@ func (c *cliApi) List(_ *cli.Context) error {
 			fmt.Printf("cli list: exec failed - %v", err)
 			os.Exit(1)
 		}
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pipe.Settings.Id, state, lastErr, pipe.Settings.Run)
+		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pipe.Settings.Id, state, pipe.Settings.Run, lastErr)
 	}
 	w.Flush()
 	fmt.Printf(b.String())

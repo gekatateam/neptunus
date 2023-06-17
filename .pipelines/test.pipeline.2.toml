@@ -5,7 +5,7 @@
 
 [[inputs]]
   [inputs.httpl]
-    address = ":9300"
+    address = ":9200"
   [inputs.httpl.parser]
     type = "json"
   [inputs.httpl.filters.pass]
