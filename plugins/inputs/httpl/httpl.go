@@ -144,7 +144,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	plugins.AddInput("httpl", func () core.Input {
+	plugins.AddInput("httpl", func() core.Input {
 		return &Httpl{
 			Address:      ":9800",
 			ReadTimeout:  10 * time.Second,

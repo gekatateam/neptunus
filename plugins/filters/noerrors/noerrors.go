@@ -59,7 +59,7 @@ func (f *NoErrors) Filter() {
 }
 
 func init() {
-	plugins.AddFilter("noerrors", func () core.Filter {
+	plugins.AddFilter("noerrors", func() core.Filter {
 		return &NoErrors{}
 	})
 }

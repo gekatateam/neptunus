@@ -51,7 +51,7 @@ func (f *Pass) Filter() {
 }
 
 func init() {
-	plugins.AddFilter("pass", func () core.Filter {
+	plugins.AddFilter("pass", func() core.Filter {
 		return &Pass{}
 	})
 }

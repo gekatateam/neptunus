@@ -45,7 +45,7 @@ func (p *Drop) Process() {
 }
 
 func init() {
-	plugins.AddProcessor("drop", func () core.Processor {
+	plugins.AddProcessor("drop", func() core.Processor {
 		return &Drop{}
 	})
 }

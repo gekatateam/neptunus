@@ -53,7 +53,7 @@ func (p *Log) Prepare(
 	p.out = out
 }
 
-func (p *Log) SetSerializer (s core.Serializer) {
+func (p *Log) SetSerializer(s core.Serializer) {
 	p.ser = s
 }
 
@@ -93,7 +93,7 @@ func (p *Log) Alias() string {
 }
 
 func init() {
-	plugins.AddProcessor("log", func () core.Processor {
+	plugins.AddProcessor("log", func() core.Processor {
 		return &Log{
 			Level: "info",
 		}

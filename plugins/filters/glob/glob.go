@@ -164,7 +164,7 @@ func (f *Glob) matchAny(globs []glob.Glob, value string) bool {
 }
 
 func init() {
-	plugins.AddFilter("glob", func () core.Filter {
+	plugins.AddFilter("glob", func() core.Filter {
 		return &Glob{}
 	})
 }

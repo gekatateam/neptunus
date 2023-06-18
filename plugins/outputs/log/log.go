@@ -85,7 +85,7 @@ func (o *Log) Alias() string {
 }
 
 func init() {
-	plugins.AddOutput("log", func () core.Output {
+	plugins.AddOutput("log", func() core.Output {
 		return &Log{
 			Level: "info",
 		}

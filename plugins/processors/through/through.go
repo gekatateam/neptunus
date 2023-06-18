@@ -50,7 +50,7 @@ func (p *Through) Process() {
 }
 
 func init() {
-	plugins.AddProcessor("through", func () core.Processor {
+	plugins.AddProcessor("through", func() core.Processor {
 		return &Through{}
 	})
 }

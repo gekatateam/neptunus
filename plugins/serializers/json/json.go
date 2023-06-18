@@ -15,7 +15,7 @@ import (
 type Json struct {
 	alias    string
 	pipe     string
-	DataOnly bool   `mapstructure:"data_only"`
+	DataOnly bool `mapstructure:"data_only"`
 
 	log     logger.Logger
 	serFunc func(event *core.Event) ([]byte, error)

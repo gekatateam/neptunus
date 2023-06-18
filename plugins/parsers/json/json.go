@@ -58,7 +58,7 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 }
 
 func init() {
-	plugins.AddParser("json", func () core.Parser {
+	plugins.AddParser("json", func() core.Parser {
 		return &Json{}
 	})
 }

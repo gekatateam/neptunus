@@ -20,6 +20,9 @@
 [[processors]]
   [processors.log]
     level = "warn"
+  [processors.log.serializer]
+    type = "json"
+    data_only = false
   [processors.log.filters.glob]
     routing_key = [ "*http.*" ]
 
