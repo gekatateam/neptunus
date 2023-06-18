@@ -18,15 +18,15 @@ type NoErrors struct {
 	log      logger.Logger
 }
 
-func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error) {
-	return &NoErrors{
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}, nil
+func (f *NoErrors) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+	f.alias = alias
+	f.pipe = pipeline
+	f.log = log
+
+	return nil
 }
 
-func (f *NoErrors) Init(
+func (f *NoErrors) Prepare(
 	in <-chan *core.Event,
 	rejected chan<- *core.Event,
 	accepted chan<- *core.Event,
@@ -59,5 +59,7 @@ func (f *NoErrors) Filter() {
 }
 
 func init() {
-	plugins.AddFilter("noerrors", New)
+	plugins.AddFilter("noerrors", func () core.Filter {
+		return &NoErrors{}
+	})
 }

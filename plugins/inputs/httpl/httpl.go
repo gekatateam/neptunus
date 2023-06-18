@@ -31,48 +31,46 @@ type Httpl struct {
 	parser core.Parser
 }
 
-func New(config map[string]any, alias, pipeline string, parser core.Parser, log logger.Logger) (core.Input, error) {
-	h := &Httpl{
-		Address:      ":9800",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}
-	if err := mapstructure.Decode(config, h); err != nil {
-		return nil, err
+func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	if err := mapstructure.Decode(config, i); err != nil {
+		return err
 	}
 
-	if parser == nil {
-		return nil, errors.New("httpl input requires parser plugin")
-	}
-	h.parser = parser
-
-	if len(h.Address) == 0 {
-		return nil, errors.New("address required")
+	if i.parser == nil {
+		return errors.New("httpl input requires parser plugin")
 	}
 
-	listener, err := net.Listen("tcp", h.Address)
+	if len(i.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	listener, err := net.Listen("tcp", i.Address)
 	if err != nil {
-		return nil, fmt.Errorf("error creating listener: %v", err)
+		return fmt.Errorf("error creating listener: %v", err)
 	}
 
-	h.listener = listener
+	i.listener = listener
 	mux := http.NewServeMux()
-	mux.Handle("/", h)
-	h.server = &http.Server{
-		ReadTimeout:  h.ReadTimeout,
-		WriteTimeout: h.WriteTimeout,
+	mux.Handle("/", i)
+	i.server = &http.Server{
+		ReadTimeout:  i.ReadTimeout,
+		WriteTimeout: i.WriteTimeout,
 		Handler:      mux,
 	}
 
-	return h, nil
+	i.alias = alias
+	i.pipe = pipeline
+	i.log = log
+
+	return nil
 }
 
-func (i *Httpl) Init(out chan<- *core.Event) {
+func (i *Httpl) Prepare(out chan<- *core.Event) {
 	i.out = out
+}
+
+func (i *Httpl) SetParser(p core.Parser) {
+	i.parser = p
 }
 
 func (i *Httpl) Serve() {
@@ -146,5 +144,11 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	plugins.AddInput("httpl", New)
+	plugins.AddInput("httpl", func () core.Input {
+		return &Httpl{
+			Address:      ":9800",
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+	})
 }

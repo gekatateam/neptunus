@@ -30,55 +30,53 @@ type Glob struct {
 	labels map[string][]glob.Glob
 }
 
-func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error) {
-	g := &Glob{
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
+func (f *Glob) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	if err := mapstructure.Decode(config, f); err != nil {
+		return err
 	}
 
-	if err := mapstructure.Decode(config, g); err != nil {
-		return nil, err
-	}
+	f.alias = alias
+	f.pipe = pipeline
+	f.log = log
 
-	if len(g.Fields) == 0 && len(g.Labels) == 0 && len(g.RK) == 0 {
-		g.log.Warn("no globs for routing key, fields and labels found")
+	if len(f.Fields) == 0 && len(f.Labels) == 0 && len(f.RK) == 0 {
+		f.log.Warn("no globs for routing key, fields and labels found")
 	}
-	g.fields = make(map[string][]glob.Glob, len(g.Fields))
-	g.labels = make(map[string][]glob.Glob, len(g.Labels))
+	f.fields = make(map[string][]glob.Glob, len(f.Fields))
+	f.labels = make(map[string][]glob.Glob, len(f.Labels))
 
-	for _, value := range g.RK {
+	for _, value := range f.RK {
 		glob, err := glob.Compile(value)
 		if err != nil {
-			return nil, fmt.Errorf("routing key glob %v compilation failed: %v", value, err.Error())
+			return fmt.Errorf("routing key glob %v compilation failed: %v", value, err.Error())
 		}
-		g.rk = append(g.rk, glob)
+		f.rk = append(f.rk, glob)
 	}
 
-	for key, values := range g.Fields {
+	for key, values := range f.Fields {
 		for _, value := range values {
 			glob, err := glob.Compile(value)
 			if err != nil {
-				return nil, fmt.Errorf("field glob %v:%v compilation failed: %v", key, value, err.Error())
+				return fmt.Errorf("field glob %v:%v compilation failed: %v", key, value, err.Error())
 			}
-			g.fields[key] = append(g.fields[key], glob)
+			f.fields[key] = append(f.fields[key], glob)
 		}
 	}
 
-	for key, values := range g.Labels {
+	for key, values := range f.Labels {
 		for _, value := range values {
 			glob, err := glob.Compile(value)
 			if err != nil {
-				return nil, fmt.Errorf("label glob %v:%v compilation failed: %v", key, value, err.Error())
+				return fmt.Errorf("label glob %v:%v compilation failed: %v", key, value, err.Error())
 			}
-			g.labels[key] = append(g.labels[key], glob)
+			f.labels[key] = append(f.labels[key], glob)
 		}
 	}
 
-	return g, nil
+	return nil
 }
 
-func (f *Glob) Init(
+func (f *Glob) Prepare(
 	in <-chan *core.Event,
 	rejected chan<- *core.Event,
 	accepted chan<- *core.Event,
@@ -166,5 +164,7 @@ func (f *Glob) matchAny(globs []glob.Glob, value string) bool {
 }
 
 func init() {
-	plugins.AddFilter("glob", New)
+	plugins.AddFilter("glob", func () core.Filter {
+		return &Glob{}
+	})
 }

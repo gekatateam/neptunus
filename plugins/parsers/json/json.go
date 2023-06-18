@@ -17,12 +17,12 @@ type Json struct {
 	log   logger.Logger
 }
 
-func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Parser, error) {
-	return &Json{
-		alias: alias,
-		pipe:  pipeline,
-		log:   log,
-	}, nil
+func (p *Json) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+	p.alias = alias
+	p.pipe = pipeline
+	p.log = log
+
+	return nil
 }
 
 func (p *Json) Alias() string {
@@ -58,5 +58,7 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 }
 
 func init() {
-	plugins.AddParser("json", New)
+	plugins.AddParser("json", func () core.Parser {
+		return &Json{}
+	})
 }

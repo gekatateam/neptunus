@@ -21,17 +21,14 @@ type Json struct {
 	serFunc func(event *core.Event) ([]byte, error)
 }
 
-func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Serializer, error) {
-	s := &Json{
-		alias:    alias,
-		pipe:     pipeline,
-		DataOnly: false,
-		log:      log,
+func (s *Json) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	if err := mapstructure.Decode(config, s); err != nil {
+		return err
 	}
 
-	if err := mapstructure.Decode(config, s); err != nil {
-		return nil, err
-	}
+	s.alias = alias
+	s.pipe = pipeline
+	s.log = log
 
 	if s.DataOnly {
 		s.serFunc = s.serializeData
@@ -39,7 +36,7 @@ func New(config map[string]any, alias, pipeline string, log logger.Logger) (core
 		s.serFunc = s.serializeEvent
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *Json) Alias() string {
@@ -77,5 +74,9 @@ func (s *Json) serializeEvent(event *core.Event) ([]byte, error) {
 }
 
 func init() {
-	plugins.AddSerializer("json", New)
+	plugins.AddSerializer("json", func() core.Serializer {
+		return &Json{
+			DataOnly: false,
+		}
+	})
 }

@@ -17,15 +17,15 @@ type Pass struct {
 	log      logger.Logger
 }
 
-func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error) {
-	return &Pass{
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}, nil
+func (f *Pass) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+	f.alias = alias
+	f.pipe = pipeline
+	f.log = log
+
+	return nil
 }
 
-func (f *Pass) Init(
+func (f *Pass) Prepare(
 	in <-chan *core.Event,
 	_ chan<- *core.Event,
 	accepted chan<- *core.Event,
@@ -51,5 +51,7 @@ func (f *Pass) Filter() {
 }
 
 func init() {
-	plugins.AddFilter("pass", New)
+	plugins.AddFilter("pass", func () core.Filter {
+		return &Pass{}
+	})
 }

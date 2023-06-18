@@ -4,11 +4,10 @@ import (
 	"fmt"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 )
 
 // processors
-type processorFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Processor, error)
+type processorFunc func() core.Processor
 
 var processors = make(map[string]processorFunc)
 
@@ -27,7 +26,7 @@ func GetProcessor(key string) (processorFunc, bool) {
 }
 
 // filters
-type filterFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Filter, error)
+type filterFunc func() core.Filter
 
 var filters = make(map[string]filterFunc)
 
@@ -46,7 +45,7 @@ func GetFilter(key string) (filterFunc, bool) {
 }
 
 // inputs
-type inputFunc func(config map[string]any, alias, pipeline string, parser core.Parser, log logger.Logger) (core.Input, error)
+type inputFunc func() core.Input
 
 var inputs = make(map[string]inputFunc)
 
@@ -65,7 +64,7 @@ func GetInput(key string) (inputFunc, bool) {
 }
 
 // outputs
-type outputFunc func(config map[string]any, alias, pipeline string, serializer core.Serializer, log logger.Logger) (core.Output, error)
+type outputFunc func() core.Output
 
 var outputs = make(map[string]outputFunc)
 
@@ -84,7 +83,7 @@ func GetOutput(key string) (outputFunc, bool) {
 }
 
 // parsers
-type parserFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Parser, error)
+type parserFunc func() core.Parser
 
 var parsers = make(map[string]parserFunc)
 
@@ -103,7 +102,7 @@ func GetParser(key string) (parserFunc, bool) {
 }
 
 // serializers
-type serializerFunc func(config map[string]any, alias, pipeline string, log logger.Logger) (core.Serializer, error)
+type serializerFunc func() core.Serializer
 
 var serializers = make(map[string]serializerFunc)
 
