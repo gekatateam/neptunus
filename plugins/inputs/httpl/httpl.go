@@ -91,11 +91,11 @@ func (i *Httpl) Close() error {
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
 	if err := i.server.Shutdown(ctx); err != nil {
-		i.log.Errorf("http server graceful shutdown ends with error: %v", err.Error())
+		i.log.Errorf("http server graceful shutdown ended with error: %v", err.Error())
 	}
 
 	if err := i.parser.Close(); err != nil {
-		i.log.Errorf("parser closes with error: %v", err.Error())
+		i.log.Errorf("parser closed with error: %v", err.Error())
 	}
 
 	return nil
