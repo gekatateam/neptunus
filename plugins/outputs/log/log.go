@@ -1,7 +1,6 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -22,37 +21,33 @@ type Log struct {
 	ser core.Serializer
 }
 
-func New(config map[string]any, alias, pipeline string, serializer core.Serializer, log logger.Logger) (core.Output, error) {
-	l := &Log{
-		Level: "info",
-
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}
-	if err := mapstructure.Decode(config, l); err != nil {
-		return nil, err
+func (o *Log) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	if err := mapstructure.Decode(config, o); err != nil {
+		return err
 	}
 
-	if serializer == nil {
-		return nil, errors.New("log output requires serializer plugin")
-	}
-	l.ser = serializer
-
-	switch l.Level {
+	switch o.Level {
 	case "trace", "debug", "info", "warn":
 	default:
-		return nil, fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", l.Level)
+		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", o.Level)
 	}
 
-	return l, nil
+	o.alias = alias
+	o.pipe = pipeline
+	o.log = log
+
+	return nil
 }
 
-func (o *Log) Init(in <-chan *core.Event) {
+func (o *Log) Prepare(in <-chan *core.Event) {
 	o.in = in
 }
 
-func (o *Log) Listen() {
+func (o *Log) SetSerializer(s core.Serializer) {
+	o.ser = s
+}
+
+func (o *Log) Run() {
 	for e := range o.in {
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
@@ -77,7 +72,7 @@ func (o *Log) Listen() {
 }
 
 func (o *Log) Close() error {
-	return nil
+	return o.ser.Close()
 }
 
 func (o *Log) Alias() string {
@@ -85,5 +80,9 @@ func (o *Log) Alias() string {
 }
 
 func init() {
-	plugins.AddOutput("log", New)
+	plugins.AddOutput("log", func() core.Output {
+		return &Log{
+			Level: "info",
+		}
+	})
 }

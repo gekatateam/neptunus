@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/net/netutil"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
@@ -17,11 +19,12 @@ import (
 )
 
 type Httpl struct {
-	alias        string
-	pipe         string
-	Address      string        `mapstructure:"address"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
+	alias          string
+	pipe           string
+	Address        string        `mapstructure:"address"`
+	ReadTimeout    time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout   time.Duration `mapstructure:"write_timeout"`
+	MaxConnections int           `mapstructure:"max_connections"`
 
 	server   *http.Server
 	listener net.Listener
@@ -31,51 +34,50 @@ type Httpl struct {
 	parser core.Parser
 }
 
-func New(config map[string]any, alias, pipeline string, parser core.Parser, log logger.Logger) (core.Input, error) {
-	h := &Httpl{
-		Address:      ":9800",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}
-	if err := mapstructure.Decode(config, h); err != nil {
-		return nil, err
+func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	if err := mapstructure.Decode(config, i); err != nil {
+		return err
 	}
 
-	if parser == nil {
-		return nil, errors.New("httpl input requires parser plugin")
-	}
-	h.parser = parser
+	i.alias = alias
+	i.pipe = pipeline
+	i.log = log
 
-	if len(h.Address) == 0 {
-		return nil, errors.New("address required")
+	if len(i.Address) == 0 {
+		return errors.New("address required")
 	}
 
-	listener, err := net.Listen("tcp", h.Address)
+	listener, err := net.Listen("tcp", i.Address)
 	if err != nil {
-		return nil, fmt.Errorf("error creating listener: %v", err)
+		return fmt.Errorf("error creating listener: %v", err)
 	}
 
-	h.listener = listener
+	if i.MaxConnections > 0 {
+		listener = netutil.LimitListener(listener, i.MaxConnections)
+		i.log.Debugf("listener is limited to %v simultaneous connections", i.MaxConnections)
+	}
+
+	i.listener = listener
 	mux := http.NewServeMux()
-	mux.Handle("/", h)
-	h.server = &http.Server{
-		ReadTimeout:  h.ReadTimeout,
-		WriteTimeout: h.WriteTimeout,
+	mux.Handle("/", i)
+	i.server = &http.Server{
+		ReadTimeout:  i.ReadTimeout,
+		WriteTimeout: i.WriteTimeout,
 		Handler:      mux,
 	}
 
-	return h, nil
+	return nil
 }
 
-func (i *Httpl) Init(out chan<- *core.Event) {
+func (i *Httpl) Prepare(out chan<- *core.Event) {
 	i.out = out
 }
 
-func (i *Httpl) Serve() {
+func (i *Httpl) SetParser(p core.Parser) {
+	i.parser = p
+}
+
+func (i *Httpl) Run() {
 	i.log.Infof("starting http server on %v", i.Address)
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
@@ -91,6 +93,11 @@ func (i *Httpl) Close() error {
 	if err := i.server.Shutdown(ctx); err != nil {
 		i.log.Errorf("http server graceful shutdown ends with error: %v", err.Error())
 	}
+
+	if err := i.parser.Close(); err != nil {
+		i.log.Errorf("parser closes with error: %v", err.Error())
+	}
+
 	return nil
 }
 
@@ -146,5 +153,12 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	plugins.AddInput("httpl", New)
+	plugins.AddInput("httpl", func() core.Input {
+		return &Httpl{
+			Address:        ":9800",
+			ReadTimeout:    10 * time.Second,
+			WriteTimeout:   10 * time.Second,
+			MaxConnections: 0,
+		}
+	})
 }

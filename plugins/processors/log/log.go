@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goccy/go-json"
-
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
@@ -21,30 +19,28 @@ type Log struct {
 	in  <-chan *core.Event
 	out chan<- *core.Event
 	log logger.Logger
+	ser core.Serializer
 }
 
-func New(config map[string]any, alias, pipeline string, log logger.Logger) (core.Processor, error) {
-	l := &Log{
-		Level: "info",
-
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}
-	if err := mapstructure.Decode(config, l); err != nil {
-		return nil, err
+func (p *Log) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	if err := mapstructure.Decode(config, p); err != nil {
+		return err
 	}
 
-	switch l.Level {
+	switch p.Level {
 	case "trace", "debug", "info", "warn":
 	default:
-		return nil, fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", l.Level)
+		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", p.Level)
 	}
 
-	return l, nil
+	p.alias = alias
+	p.pipe = pipeline
+	p.log = log
+
+	return nil
 }
 
-func (p *Log) Init(
+func (p *Log) Prepare(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -52,12 +48,16 @@ func (p *Log) Init(
 	p.out = out
 }
 
-func (p *Log) Process() {
+func (p *Log) SetSerializer(s core.Serializer) {
+	p.ser = s
+}
+
+func (p *Log) Run() {
 	for e := range p.in {
 		now := time.Now()
-		event, err := json.Marshal(e)
+		event, err := p.ser.Serialize(e)
 		if err != nil {
-			p.log.Errorf("json marshal failed: %v", err.Error())
+			p.log.Errorf("event serialization failed: %v", err.Error())
 			e.StackError(fmt.Errorf("log processor: json marshal failed: %v", err.Error()))
 			metrics.ObserveProcessorSummary("log", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
@@ -80,7 +80,7 @@ func (p *Log) Process() {
 }
 
 func (p *Log) Close() error {
-	return nil
+	return p.ser.Close()
 }
 
 func (p *Log) Alias() string {
@@ -88,5 +88,9 @@ func (p *Log) Alias() string {
 }
 
 func init() {
-	plugins.AddProcessor("log", New)
+	plugins.AddProcessor("log", func() core.Processor {
+		return &Log{
+			Level: "info",
+		}
+	})
 }

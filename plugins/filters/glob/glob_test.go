@@ -132,16 +132,17 @@ func TestGlob(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			filter, err := glob.New(test.config, "", "", mock.NewLogger())
+			filter := &glob.Glob{}
+			err := filter.Init(test.config, "", "", mock.NewLogger())
 			if err != nil {
 				t.Fatalf("filter not created: %v", err.Error())
 			}
 
 			wg := &sync.WaitGroup{}
-			filter.Init(test.input, test.reject, test.accept)
+			filter.Prepare(test.input, test.reject, test.accept)
 			wg.Add(1)
 			go func() {
-				filter.Filter()
+				filter.Run()
 				wg.Done()
 			}()
 

@@ -17,15 +17,15 @@ type Through struct {
 	log   logger.Logger
 }
 
-func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Processor, error) {
-	return &Through{
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}, nil
+func (p *Through) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+	p.alias = alias
+	p.pipe = pipeline
+	p.log = log
+
+	return nil
 }
 
-func (p *Through) Init(
+func (p *Through) Prepare(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -41,7 +41,7 @@ func (p *Through) Alias() string {
 	return p.alias
 }
 
-func (p *Through) Process() {
+func (p *Through) Run() {
 	for e := range p.in {
 		now := time.Now()
 		p.out <- e
@@ -50,5 +50,7 @@ func (p *Through) Process() {
 }
 
 func init() {
-	plugins.AddProcessor("through", New)
+	plugins.AddProcessor("through", func() core.Processor {
+		return &Through{}
+	})
 }

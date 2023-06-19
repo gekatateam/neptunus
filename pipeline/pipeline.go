@@ -279,18 +279,40 @@ func (p *Pipeline) configureOutputs() error {
 			if !ok {
 				return fmt.Errorf("unknown output plugin in pipeline configuration: %v", plugin)
 			}
+			output := outputFunc()
 
 			var alias = fmt.Sprintf("output:%v:%v", plugin, index)
 			if len(outputCfg.Alias()) > 0 {
 				alias = outputCfg.Alias()
 			}
 
-			serializer, err := p.configureSerializer(outputCfg.Serializer(), alias)
-			if err != nil {
-				return fmt.Errorf("%v input serializer configuration error: %v", plugin, err.Error())
+			if serializerNeedy, ok := output.(core.SerializerNeedy); ok {
+				cfgSerializer := outputCfg.Serializer()
+				if cfgSerializer == nil {
+					return fmt.Errorf("%v output requires serializer, but no serializer configuration provided", plugin)
+				}
+
+				serializer, err := p.configureSerializer(cfgSerializer, alias)
+				if err != nil {
+					return fmt.Errorf("%v output serializer configuration error: %v", plugin, err.Error())
+				}
+				serializerNeedy.SetSerializer(serializer)
 			}
 
-			output, err := outputFunc(outputCfg, alias, p.config.Settings.Id, serializer, logrus.NewLogger(map[string]any{
+			if parserNeedy, ok := output.(core.ParserNeedy); ok {
+				cfgParser := outputCfg.Parser()
+				if cfgParser == nil {
+					return fmt.Errorf("%v output requires parser, but no parser configuration provided", plugin)
+				}
+
+				parser, err := p.configureParser(cfgParser, alias)
+				if err != nil {
+					return fmt.Errorf("%v output parser configuration error: %v", plugin, err.Error())
+				}
+				parserNeedy.SetParser(parser)
+			}
+
+			err := output.Init(outputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"output":   plugin,
 				"name":     alias,
@@ -322,13 +344,40 @@ func (p *Pipeline) configureProcessors() error {
 				if !ok {
 					return fmt.Errorf("unknown processor plugin in pipeline configuration: %v", plugin)
 				}
+				processor := processorFunc()
 
 				var alias = fmt.Sprintf("processor:%v:%v:%v", plugin, index, i)
 				if len(processorCfg.Alias()) > 0 {
 					alias = fmt.Sprintf("%v:%v", processorCfg.Alias(), i)
 				}
 
-				processor, err := processorFunc(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+				if serializerNeedy, ok := processor.(core.SerializerNeedy); ok {
+					cfgSerializer := processorCfg.Serializer()
+					if cfgSerializer == nil {
+						return fmt.Errorf("%v processor requires serializer, but no serializer configuration provided", plugin)
+					}
+
+					serializer, err := p.configureSerializer(cfgSerializer, alias)
+					if err != nil {
+						return fmt.Errorf("%v processor serializer configuration error: %v", plugin, err.Error())
+					}
+					serializerNeedy.SetSerializer(serializer)
+				}
+
+				if parserNeedy, ok := processor.(core.ParserNeedy); ok {
+					cfgParser := processorCfg.Parser()
+					if cfgParser == nil {
+						return fmt.Errorf("%v processor requires parser, but no parser configuration provided", plugin)
+					}
+
+					parser, err := p.configureParser(cfgParser, alias)
+					if err != nil {
+						return fmt.Errorf("%v processor parser configuration error: %v", plugin, err.Error())
+					}
+					parserNeedy.SetParser(parser)
+				}
+
+				err := processor.Init(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 					"pipeline":  p.config.Settings.Id,
 					"processor": plugin,
 					"name":      alias,
@@ -361,18 +410,40 @@ func (p *Pipeline) configureInputs() error {
 			if !ok {
 				return fmt.Errorf("unknown input plugin in pipeline configuration: %v", plugin)
 			}
+			input := inputFunc()
 
 			var alias = fmt.Sprintf("input:%v:%v", plugin, index)
 			if len(inputCfg.Alias()) > 0 {
 				alias = inputCfg.Alias()
 			}
 
-			parser, err := p.configureParser(inputCfg.Parser(), alias)
-			if err != nil {
-				return fmt.Errorf("%v input parser configuration error: %v", plugin, err.Error())
+			if serializerNeedy, ok := input.(core.SerializerNeedy); ok {
+				cfgSerializer := inputCfg.Serializer()
+				if cfgSerializer == nil {
+					return fmt.Errorf("%v input requires serializer, but no serializer configuration provided", plugin)
+				}
+
+				serializer, err := p.configureSerializer(cfgSerializer, alias)
+				if err != nil {
+					return fmt.Errorf("%v input serializer configuration error: %v", plugin, err.Error())
+				}
+				serializerNeedy.SetSerializer(serializer)
 			}
 
-			input, err := inputFunc(inputCfg, alias, p.config.Settings.Id, parser, logrus.NewLogger(map[string]any{
+			if parserNeedy, ok := input.(core.ParserNeedy); ok {
+				cfgParser := inputCfg.Parser()
+				if cfgParser == nil {
+					return fmt.Errorf("%v input requires parser, but no parser configuration provided", plugin)
+				}
+
+				parser, err := p.configureParser(cfgParser, alias)
+				if err != nil {
+					return fmt.Errorf("%v input parser configuration error: %v", plugin, err.Error())
+				}
+				parserNeedy.SetParser(parser)
+			}
+
+			err := input.Init(inputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"input":    plugin,
 				"name":     alias,
@@ -399,13 +470,40 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		if !ok {
 			return nil, fmt.Errorf("unknown filter plugin in pipeline configuration: %v", plugin)
 		}
+		filter := filterFunc()
 
 		var alias = fmt.Sprintf("filter:%v::%v", plugin, parentName)
 		if len(filterCfg.Alias()) > 0 {
 			alias = fmt.Sprintf("%v::%v", filterCfg.Alias(), parentName)
 		}
 
-		filter, err := filterFunc(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+		if serializerNeedy, ok := filter.(core.SerializerNeedy); ok {
+			cfgSerializer := filterCfg.Serializer()
+			if cfgSerializer == nil {
+				return nil, fmt.Errorf("%v filter requires serializer, but no serializer configuration provided", plugin)
+			}
+
+			serializer, err := p.configureSerializer(cfgSerializer, alias)
+			if err != nil {
+				return nil, fmt.Errorf("%v filter serializer configuration error: %v", plugin, err.Error())
+			}
+			serializerNeedy.SetSerializer(serializer)
+		}
+
+		if parserNeedy, ok := filter.(core.ParserNeedy); ok {
+			cfgParser := filterCfg.Parser()
+			if cfgParser == nil {
+				return nil, fmt.Errorf("%v filter requires parser, but no parser configuration provided", plugin)
+			}
+
+			parser, err := p.configureParser(cfgParser, alias)
+			if err != nil {
+				return nil, fmt.Errorf("%v filter parser configuration error: %v", plugin, err.Error())
+			}
+			parserNeedy.SetParser(parser)
+		}
+
+		err := filter.Init(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 			"pipeline": p.config.Settings.Id,
 			"filter":   plugin,
 			"name":     alias,
@@ -419,22 +517,19 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 }
 
 func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (core.Parser, error) {
-	if parserCfg == nil {
-		return nil, nil
-	}
-
 	plugin := parserCfg.Type()
 	parserFunc, ok := plugins.GetParser(plugin)
 	if !ok {
 		return nil, fmt.Errorf("unknown parser plugin in pipeline configuration: %v", plugin)
 	}
+	parser := parserFunc()
 
 	var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
 	if len(parserCfg.Alias()) > 0 {
 		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
 	}
 
-	parser, err := parserFunc(parserCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+	err := parser.Init(parserCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 		"pipeline": p.config.Settings.Id,
 		"parser":   plugin,
 		"name":     alias,
@@ -447,22 +542,19 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 }
 
 func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) (core.Serializer, error) {
-	if serCfg == nil {
-		return nil, nil
-	}
-
 	plugin := serCfg.Type()
 	serFunc, ok := plugins.GetSerializer(plugin)
 	if !ok {
 		return nil, fmt.Errorf("unknown serializer plugin in pipeline configuration: %v", plugin)
 	}
+	serializer := serFunc()
 
 	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
 	if len(serCfg.Alias()) > 0 {
 		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
 	}
 
-	ser, err := serFunc(serCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
+	err := serializer.Init(serCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 		"pipeline":   p.config.Settings.Id,
 		"serializer": plugin,
 		"name":       alias,
@@ -471,5 +563,5 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("%v serializer configuration error: %v", plugin, err.Error())
 	}
 
-	return ser, nil
+	return serializer, nil
 }

@@ -14,15 +14,15 @@ type Drop struct {
 	log   logger.Logger
 }
 
-func New(_ map[string]any, alias, pipeline string, log logger.Logger) (core.Processor, error) {
-	return &Drop{
-		log:   log,
-		alias: alias,
-		pipe:  pipeline,
-	}, nil
+func (p *Drop) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+	p.alias = alias
+	p.pipe = pipeline
+	p.log = log
+
+	return nil
 }
 
-func (p *Drop) Init(
+func (p *Drop) Prepare(
 	in <-chan *core.Event,
 	_ chan<- *core.Event,
 ) {
@@ -37,7 +37,7 @@ func (p *Drop) Alias() string {
 	return p.alias
 }
 
-func (p *Drop) Process() {
+func (p *Drop) Run() {
 	for range p.in {
 		metrics.ObserveProcessorSummary("drop", p.alias, p.pipe, metrics.EventAccepted, 0)
 		continue
@@ -45,5 +45,7 @@ func (p *Drop) Process() {
 }
 
 func init() {
-	plugins.AddProcessor("drop", New)
+	plugins.AddProcessor("drop", func() core.Processor {
+		return &Drop{}
+	})
 }
