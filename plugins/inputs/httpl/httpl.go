@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/net/netutil"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
@@ -17,11 +19,12 @@ import (
 )
 
 type Httpl struct {
-	alias        string
-	pipe         string
-	Address      string        `mapstructure:"address"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
+	alias          string
+	pipe           string
+	Address        string        `mapstructure:"address"`
+	ReadTimeout    time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout   time.Duration `mapstructure:"write_timeout"`
+	MaxConnections int           `mapstructure:"max_connections"`
 
 	server   *http.Server
 	listener net.Listener
@@ -36,9 +39,9 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.L
 		return err
 	}
 
-	if i.parser == nil {
-		return errors.New("httpl input requires parser plugin")
-	}
+	i.alias = alias
+	i.pipe = pipeline
+	i.log = log
 
 	if len(i.Address) == 0 {
 		return errors.New("address required")
@@ -49,6 +52,11 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.L
 		return fmt.Errorf("error creating listener: %v", err)
 	}
 
+	if i.MaxConnections > 0 {
+		listener = netutil.LimitListener(listener, i.MaxConnections)
+		i.log.Debugf("listener is limited to %v simultaneous connections", i.MaxConnections)
+	}
+
 	i.listener = listener
 	mux := http.NewServeMux()
 	mux.Handle("/", i)
@@ -57,10 +65,6 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.L
 		WriteTimeout: i.WriteTimeout,
 		Handler:      mux,
 	}
-
-	i.alias = alias
-	i.pipe = pipeline
-	i.log = log
 
 	return nil
 }
@@ -73,7 +77,7 @@ func (i *Httpl) SetParser(p core.Parser) {
 	i.parser = p
 }
 
-func (i *Httpl) Serve() {
+func (i *Httpl) Run() {
 	i.log.Infof("starting http server on %v", i.Address)
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
@@ -89,6 +93,11 @@ func (i *Httpl) Close() error {
 	if err := i.server.Shutdown(ctx); err != nil {
 		i.log.Errorf("http server graceful shutdown ends with error: %v", err.Error())
 	}
+
+	if err := i.parser.Close(); err != nil {
+		i.log.Errorf("parser closes with error: %v", err.Error())
+	}
+
 	return nil
 }
 
@@ -146,9 +155,10 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func init() {
 	plugins.AddInput("httpl", func() core.Input {
 		return &Httpl{
-			Address:      ":9800",
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
+			Address:        ":9800",
+			ReadTimeout:    10 * time.Second,
+			WriteTimeout:   10 * time.Second,
+			MaxConnections: 0,
 		}
 	})
 }

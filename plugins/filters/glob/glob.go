@@ -25,9 +25,10 @@ type Glob struct {
 	rejected chan<- *core.Event
 	log      logger.Logger
 
-	rk     []glob.Glob
-	fields map[string][]glob.Glob
-	labels map[string][]glob.Glob
+	noGlobs bool
+	rk      []glob.Glob
+	fields  map[string][]glob.Glob
+	labels  map[string][]glob.Glob
 }
 
 func (f *Glob) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
@@ -41,6 +42,7 @@ func (f *Glob) Init(config map[string]any, alias, pipeline string, log logger.Lo
 
 	if len(f.Fields) == 0 && len(f.Labels) == 0 && len(f.RK) == 0 {
 		f.log.Warn("no globs for routing key, fields and labels found")
+		f.noGlobs = true
 	}
 	f.fields = make(map[string][]glob.Glob, len(f.Fields))
 	f.labels = make(map[string][]glob.Glob, len(f.Labels))
@@ -94,7 +96,7 @@ func (f *Glob) Alias() string {
 	return f.alias
 }
 
-func (f *Glob) Filter() {
+func (f *Glob) Run() {
 	for e := range f.in {
 		now := time.Now()
 		if f.match(e) {
@@ -109,7 +111,7 @@ func (f *Glob) Filter() {
 
 func (f *Glob) match(e *core.Event) bool {
 	// pass event if no filters are set
-	if len(f.fields) == 0 && len(f.labels) == 0 && len(f.rk) == 0 {
+	if f.noGlobs {
 		return true
 	}
 

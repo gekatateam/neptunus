@@ -42,7 +42,7 @@ func (f *Pass) Alias() string {
 	return f.alias
 }
 
-func (f *Pass) Filter() {
+func (f *Pass) Run() {
 	for e := range f.in {
 		now := time.Now()
 		f.accepted <- e

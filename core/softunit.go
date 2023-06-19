@@ -1,6 +1,7 @@
 package core
 
-// soft (consistency) units does not guarantee the order of processing, but (planned to be) fast
+// soft (consistency) units does not guarantee the order of processing, 
+// because of async filtering, but (planned to be) fast
 
 import "sync"
 
@@ -63,7 +64,7 @@ func (u *procSoftUnit) Run() {
 	for _, v := range u.f {
 		u.wg.Add(1)
 		go func(f Filter, c chan<- *Event) {
-			f.Filter() // blocking call, loop inside
+			f.Run() // blocking call, loop inside
 			close(c)
 			f.Close()
 			u.wg.Done()
@@ -74,7 +75,7 @@ func (u *procSoftUnit) Run() {
 	// processor will stop when its input channel closes
 	// it will happen when all filters are stopped
 	// or, if no filters are set, when the u.in channel is closed
-	u.p.Process() // blocking call, loop inside
+	u.p.Run() // blocking call, loop inside
 	u.p.Close()
 
 	// then, we wait until all goruntins are finished
@@ -127,7 +128,7 @@ func (u *outSoftUnit) Run() {
 	for _, v := range u.f {
 		u.wg.Add(1)
 		go func(f Filter, c chan<- *Event) {
-			f.Filter() // blocking call, loop inside
+			f.Run() // blocking call, loop inside
 			close(c)
 			f.Close()
 			u.wg.Done()
@@ -143,7 +144,7 @@ func (u *outSoftUnit) Run() {
 	}()
 
 	// run output
-	u.o.Listen() // blocking call, loop inside
+	u.o.Run() // blocking call, loop inside
 	u.o.Close()
 	close(u.rej) // close rejected events chan
 
@@ -196,7 +197,7 @@ func (u *inSoftUnit) Run() {
 	// run input
 	u.wg.Add(1)
 	go func() {
-		u.i.Serve() // blocking call, loop inside
+		u.i.Run() // blocking call, loop inside
 		u.wg.Done()
 	}()
 
@@ -204,7 +205,7 @@ func (u *inSoftUnit) Run() {
 	for _, v := range u.f {
 		u.wg.Add(1)
 		go func(f Filter, c chan<- *Event) {
-			f.Filter() // blocking call, loop inside
+			f.Run() // blocking call, loop inside
 			close(c)
 			f.Close()
 			u.wg.Done()

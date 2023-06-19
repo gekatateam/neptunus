@@ -43,6 +43,10 @@ func (s *Json) Alias() string {
 	return s.alias
 }
 
+func (s *Json) Close() error {
+	return nil
+}
+
 func (s *Json) Serialize(event *core.Event) ([]byte, error) {
 	return s.serFunc(event)
 }

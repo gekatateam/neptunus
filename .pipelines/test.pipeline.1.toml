@@ -6,6 +6,7 @@
 [[inputs]]
   [inputs.httpl]
     address = ":9200"
+    max_connections = 10
   [inputs.httpl.parser]
     type = "json"
   [inputs.httpl.filters.pass]

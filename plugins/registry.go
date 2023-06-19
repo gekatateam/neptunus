@@ -12,8 +12,7 @@ type processorFunc func() core.Processor
 var processors = make(map[string]processorFunc)
 
 func AddProcessor(key string, p processorFunc) {
-	_, exists := processors[key]
-	if exists {
+	if _, exists := processors[key]; exists {
 		panic(fmt.Errorf("duplicate processor func added: %v", key))
 	}
 
@@ -31,8 +30,7 @@ type filterFunc func() core.Filter
 var filters = make(map[string]filterFunc)
 
 func AddFilter(key string, f filterFunc) {
-	_, exists := filters[key]
-	if exists {
+	if _, exists := filters[key]; exists {
 		panic(fmt.Errorf("duplicate filter func added: %v", key))
 	}
 
@@ -50,8 +48,7 @@ type inputFunc func() core.Input
 var inputs = make(map[string]inputFunc)
 
 func AddInput(key string, i inputFunc) {
-	_, exists := inputs[key]
-	if exists {
+	if _, exists := inputs[key]; exists {
 		panic(fmt.Errorf("duplicate input func added: %v", key))
 	}
 
@@ -69,8 +66,7 @@ type outputFunc func() core.Output
 var outputs = make(map[string]outputFunc)
 
 func AddOutput(key string, o outputFunc) {
-	_, exists := outputs[key]
-	if exists {
+	if _, exists := outputs[key]; exists {
 		panic(fmt.Errorf("duplicate output func added: %v", key))
 	}
 
@@ -88,8 +84,7 @@ type parserFunc func() core.Parser
 var parsers = make(map[string]parserFunc)
 
 func AddParser(key string, p parserFunc) {
-	_, exists := parsers[key]
-	if exists {
+	if _, exists := parsers[key]; exists {
 		panic(fmt.Errorf("duplicate parser func added: %v", key))
 	}
 
@@ -107,8 +102,7 @@ type serializerFunc func() core.Serializer
 var serializers = make(map[string]serializerFunc)
 
 func AddSerializer(key string, p serializerFunc) {
-	_, exists := serializers[key]
-	if exists {
+	if _, exists := serializers[key]; exists {
 		panic(fmt.Errorf("duplicate serializer func added: %v", key))
 	}
 

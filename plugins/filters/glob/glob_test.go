@@ -142,7 +142,7 @@ func TestGlob(t *testing.T) {
 			filter.Prepare(test.input, test.reject, test.accept)
 			wg.Add(1)
 			go func() {
-				filter.Filter()
+				filter.Run()
 				wg.Done()
 			}()
 

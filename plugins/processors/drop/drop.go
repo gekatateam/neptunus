@@ -37,7 +37,7 @@ func (p *Drop) Alias() string {
 	return p.alias
 }
 
-func (p *Drop) Process() {
+func (p *Drop) Run() {
 	for range p.in {
 		metrics.ObserveProcessorSummary("drop", p.alias, p.pipe, metrics.EventAccepted, 0)
 		continue

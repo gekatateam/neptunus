@@ -13,7 +13,7 @@ type Initer interface {
 // input plugin consumes events from outer world
 type Input interface {
 	Prepare(out chan<- *Event)
-	Serve()
+	Run()
 	Close() error
 	Initer
 	Aliaser
@@ -22,7 +22,7 @@ type Input interface {
 // filter plugin sorts events by conditions
 type Filter interface {
 	Prepare(in <-chan *Event, rejected chan<- *Event, accepted chan<- *Event)
-	Filter()
+	Run()
 	Close() error
 	Initer
 	Aliaser
@@ -31,7 +31,7 @@ type Filter interface {
 // processor plugin transforms events
 type Processor interface {
 	Prepare(in <-chan *Event, out chan<- *Event)
-	Process()
+	Run()
 	Close() error
 	Initer
 	Aliaser
@@ -40,7 +40,7 @@ type Processor interface {
 // output plugin produces events to outer world
 type Output interface {
 	Prepare(in <-chan *Event)
-	Listen()
+	Run()
 	Close() error
 	Initer
 	Aliaser
@@ -49,6 +49,7 @@ type Output interface {
 // parser plugin parses raw format data into events
 type Parser interface {
 	Parse(data []byte, routingKey string) ([]*Event, error)
+	Close() error
 	Initer
 	Aliaser
 }
@@ -56,6 +57,7 @@ type Parser interface {
 // serializer plugin serializes events into configured format
 type Serializer interface {
 	Serialize(event *Event) ([]byte, error)
+	Close() error
 	Initer
 	Aliaser
 }

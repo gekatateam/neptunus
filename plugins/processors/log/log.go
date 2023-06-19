@@ -1,7 +1,6 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -26,10 +25,6 @@ type Log struct {
 func (p *Log) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
-	}
-
-	if p.ser == nil {
-		return errors.New("log processor requires serializer plugin")
 	}
 
 	switch p.Level {
@@ -57,7 +52,7 @@ func (p *Log) SetSerializer(s core.Serializer) {
 	p.ser = s
 }
 
-func (p *Log) Process() {
+func (p *Log) Run() {
 	for e := range p.in {
 		now := time.Now()
 		event, err := p.ser.Serialize(e)
@@ -85,7 +80,7 @@ func (p *Log) Process() {
 }
 
 func (p *Log) Close() error {
-	return nil
+	return p.ser.Close()
 }
 
 func (p *Log) Alias() string {

@@ -29,6 +29,10 @@ func (p *Json) Alias() string {
 	return p.alias
 }
 
+func (p *Json) Close() error {
+	return nil
+}
+
 func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	now := time.Now()
 	events := []*core.Event{}

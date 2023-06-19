@@ -41,7 +41,7 @@ func (p *Through) Alias() string {
 	return p.alias
 }
 
-func (p *Through) Process() {
+func (p *Through) Run() {
 	for e := range p.in {
 		now := time.Now()
 		p.out <- e

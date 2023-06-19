@@ -1,7 +1,6 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -27,10 +26,6 @@ func (o *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 		return err
 	}
 
-	if o.ser == nil {
-		return errors.New("log output requires serializer plugin")
-	}
-
 	switch o.Level {
 	case "trace", "debug", "info", "warn":
 	default:
@@ -52,7 +47,7 @@ func (o *Log) SetSerializer(s core.Serializer) {
 	o.ser = s
 }
 
-func (o *Log) Listen() {
+func (o *Log) Run() {
 	for e := range o.in {
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
@@ -77,7 +72,7 @@ func (o *Log) Listen() {
 }
 
 func (o *Log) Close() error {
-	return nil
+	return o.ser.Close()
 }
 
 func (o *Log) Alias() string {

@@ -45,7 +45,7 @@ func (f *NoErrors) Alias() string {
 	return f.alias
 }
 
-func (f *NoErrors) Filter() {
+func (f *NoErrors) Run() {
 	for e := range f.in {
 		now := time.Now()
 		if len(e.Errors) > 0 {

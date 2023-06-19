@@ -517,10 +517,6 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 }
 
 func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (core.Parser, error) {
-	if parserCfg == nil {
-		return nil, nil
-	}
-
 	plugin := parserCfg.Type()
 	parserFunc, ok := plugins.GetParser(plugin)
 	if !ok {
@@ -546,10 +542,6 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 }
 
 func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) (core.Serializer, error) {
-	if serCfg == nil {
-		return nil, nil
-	}
-
 	plugin := serCfg.Type()
 	serFunc, ok := plugins.GetSerializer(plugin)
 	if !ok {
