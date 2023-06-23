@@ -5,7 +5,7 @@ import "encoding/json"
 type Errors []error
 
 func (me Errors) MarshalJSON() ([]byte, error) {
-	data := []byte("[")
+	data := []byte{'['}
 	for i, err := range me {
 		if i != 0 {
 			data = append(data, ',')

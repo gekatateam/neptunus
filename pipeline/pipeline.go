@@ -377,11 +377,13 @@ func (p *Pipeline) configureProcessors() error {
 					parserNeedy.SetParser(parser)
 				}
 
+				processorCfg["::line"] = i
 				err := processor.Init(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 					"pipeline":  p.config.Settings.Id,
 					"processor": plugin,
 					"name":      alias,
 				}))
+				delete(processorCfg, "::line")
 				if err != nil {
 					return fmt.Errorf("%v processor configuration error: %v", plugin, err.Error())
 				}
