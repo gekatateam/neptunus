@@ -24,9 +24,9 @@ type restGateway struct {
 	ctx  context.Context
 }
 
-func Rest(addr string) *restGateway {
+func Rest(addr, path string) *restGateway {
 	return &restGateway{
-		addr: addr,
+		addr: fmt.Sprintf("%v/%v", addr, path),
 		c: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -39,7 +39,7 @@ func (g *restGateway) Start(id string) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/api/v1/pipelines/%v/start", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/%v/start", g.addr, id), nil)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (g *restGateway) Stop(id string) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/api/v1/pipelines/%v/stop", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/%v/stop", g.addr, id), nil)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (g *restGateway) State(id string) (string, error, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/api/v1/pipelines/%v/state", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/%v/state", g.addr, id), nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -126,7 +126,7 @@ func (g *restGateway) List() ([]*config.Pipeline, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/api/v1/pipelines", g.addr), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/", g.addr), nil)
 	if err != nil {
 		return pipes, err
 	}
@@ -153,7 +153,7 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/api/v1/pipelines/%v", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/%v", g.addr, id), nil)
 	if err != nil {
 		return pipe, err
 	}
@@ -186,7 +186,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/api/v1/pipelines", g.addr), buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/", g.addr), buf)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/api/v1/pipelines/%v", g.addr, pipe.Settings.Id), buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id), buf)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (g *restGateway) Delete(id string) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%v/api/v1/pipelines/%v", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%v/%v", g.addr, id), nil)
 	if err != nil {
 		return err
 	}

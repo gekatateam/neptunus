@@ -26,6 +26,9 @@ var (
 	chans        *chanCollector
 	chanCapacity *prometheus.Desc
 	chanLength   *prometheus.Desc
+
+	pipes     *pipelineCollectror
+	pipeState *prometheus.Desc
 )
 
 func init() {
@@ -34,7 +37,7 @@ func init() {
 	inputSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "input_plugin_processed_events",
-			Help:       "Events statistic for inputs",
+			Help:       "Events statistic for inputs.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -44,7 +47,7 @@ func init() {
 	filterSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "filter_plugin_processed_events",
-			Help:       "Events statistic for filters",
+			Help:       "Events statistic for filters.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -54,7 +57,7 @@ func init() {
 	processorSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "processor_plugin_processed_events",
-			Help:       "Events statistic for processors",
+			Help:       "Events statistic for processors.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -64,7 +67,7 @@ func init() {
 	outputSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "output_plugin_processed_events",
-			Help:       "Events statistic for outputs",
+			Help:       "Events statistic for outputs.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -74,7 +77,7 @@ func init() {
 	parserSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "parser_plugin_processed_events",
-			Help:       "Events statistic for parsers",
+			Help:       "Events statistic for parsers.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -84,7 +87,7 @@ func init() {
 	serializerSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "serializer_plugin_processed_events",
-			Help:       "Events statistic for serializers",
+			Help:       "Events statistic for serializers.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -94,7 +97,7 @@ func init() {
 	coreSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "core_plugin_processed_events",
-			Help:       "Events statistic for inputs",
+			Help:       "Events statistic for inputs.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
@@ -105,14 +108,23 @@ func init() {
 	chans = &chanCollector{}
 	chanLength = prometheus.NewDesc(
 		"pipeline_channel_length",
-		"Pipeline unit-to-unit channel communication length",
+		"Pipeline unit-to-unit channel communication length.",
 		[]string{"pipeline", "inner", "outer"},
 		nil,
 	)
 	chanCapacity = prometheus.NewDesc(
 		"pipeline_channel_capacity",
-		"Pipeline unit-to-unit channel communication capacity",
+		"Pipeline unit-to-unit channel communication capacity.",
 		[]string{"pipeline", "inner", "outer"},
+		nil,
+	)
+
+	// pipelines stats
+	pipes = &pipelineCollectror{}
+	pipeState = prometheus.NewDesc(
+		"pipeline_state",
+		"Pipeline state: 1-5 is for Created, Starting, Running, Stopping, Stopped.",
+		[]string{"pipeline"},
 		nil,
 	)
 
@@ -124,6 +136,7 @@ func init() {
 	prometheus.MustRegister(serializerSummary)
 	prometheus.MustRegister(coreSummary)
 	prometheus.MustRegister(chans)
+	prometheus.MustRegister(pipes)
 }
 
 func ObserveInputSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
@@ -156,4 +169,8 @@ func ObserveCoreSummary(plugin, name, pipeline string, status eventStatus, t tim
 
 func CollectChan(statFunc func() ChanStats) {
 	chans.append(statFunc)
+}
+
+func CollectPipes(statFunc func() map[string]int) {
+	pipes.set(statFunc)
 }

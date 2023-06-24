@@ -8,10 +8,12 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/urfave/cli/v2"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline/api"
 	"github.com/gekatateam/neptunus/pipeline/service"
 	"github.com/gekatateam/neptunus/server"
@@ -46,6 +48,7 @@ func run(cCtx *cli.Context) error {
 		"scope": "service",
 		"type":  "internal",
 	}))
+	metrics.CollectPipes(s.Metrics)
 
 	restApi := api.Rest(s, logrus.NewLogger(map[string]any{
 		"scope": "api",
@@ -56,7 +59,9 @@ func run(cCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	httpServer.Mount("/api/v1", restApi.Router())
+	httpServer.Route("/api/v1", func(r chi.Router) {
+		r.Mount("/pipelines", restApi.Router())
+	})
 
 	wg.Add(1)
 	go func() {

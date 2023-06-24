@@ -26,14 +26,14 @@ func Rest(s pipeline.Service, log logger.Logger) *restApi {
 func (a *restApi) Router() *chi.Mux {
 	router := chi.NewRouter()
 
-	router.Get("/pipelines", a.List().ServeHTTP)
-	router.Get("/pipelines/{id}", a.Get().ServeHTTP)
-	router.Get("/pipelines/{id}/state", a.State().ServeHTTP)
-	router.Post("/pipelines", a.Add().ServeHTTP)
-	router.Put("/pipelines/{id}", a.Update().ServeHTTP)
-	router.Delete("/pipelines/{id}", a.Delete().ServeHTTP)
-	router.Post("/pipelines/{id}/start", a.Start().ServeHTTP)
-	router.Post("/pipelines/{id}/stop", a.Stop().ServeHTTP)
+	router.Get("/", a.List().ServeHTTP)
+	router.Get("/{id}", a.Get().ServeHTTP)
+	router.Get("/{id}/state", a.State().ServeHTTP)
+	router.Post("/", a.Add().ServeHTTP)
+	router.Put("/{id}", a.Update().ServeHTTP)
+	router.Delete("/{id}", a.Delete().ServeHTTP)
+	router.Post("/{id}/start", a.Start().ServeHTTP)
+	router.Post("/{id}/stop", a.Stop().ServeHTTP)
 
 	return router
 }
