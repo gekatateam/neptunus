@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/urfave/cli/v2"
 
 	"github.com/gekatateam/neptunus/config"
@@ -56,7 +57,9 @@ func run(cCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	httpServer.Mount("/api/v1", restApi.Router())
+	httpServer.Route("/api/v1", func(r chi.Router) {
+		r.Mount("/pipelines", restApi.Router())
+	})
 
 	wg.Add(1)
 	go func() {

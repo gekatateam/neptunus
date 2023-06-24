@@ -16,6 +16,8 @@ type Event struct {
 	Data       Map
 	Errors     Errors
 	ctx        context.Context
+	delivered  func()
+	failed     func()
 }
 
 func NewEvent(routingKey string) *Event {
@@ -27,6 +29,8 @@ func NewEvent(routingKey string) *Event {
 		Labels:     make(map[string]string),
 		Data:       make(Map),
 		ctx:        context.Background(),
+		delivered:  func() {},
+		failed:     func() {},
 	}
 }
 
@@ -39,6 +43,8 @@ func NewEventWithData(routingKey string, data Map) *Event {
 		Labels:     make(map[string]string),
 		Data:       data,
 		ctx:        context.Background(),
+		delivered:  func() {},
+		failed:     func() {},
 	}
 }
 
