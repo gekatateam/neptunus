@@ -13,6 +13,7 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline/api"
 	"github.com/gekatateam/neptunus/pipeline/service"
 	"github.com/gekatateam/neptunus/server"
@@ -47,6 +48,7 @@ func run(cCtx *cli.Context) error {
 		"scope": "service",
 		"type":  "internal",
 	}))
+	metrics.CollectPipes(s.Metrics)
 
 	restApi := api.Rest(s, logrus.NewLogger(map[string]any{
 		"scope": "api",

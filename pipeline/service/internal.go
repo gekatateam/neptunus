@@ -183,3 +183,24 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 
 	return nil
 }
+
+func (m *internalService) Metrics() map[string]int {
+	pipesState := make(map[string]int)
+	for id, pipe := range m.pipes {
+		var state int
+		switch pipe.p.State() {
+		case pipeline.StateCreated:
+			state = 1
+		case pipeline.StateStarting:
+			state = 2
+		case pipeline.StateRunning:
+			state = 3
+		case pipeline.StateStopping:
+			state = 4
+		case pipeline.StateStopped:
+			state = 5
+		}
+		pipesState[id] = state
+	}
+	return pipesState
+}
