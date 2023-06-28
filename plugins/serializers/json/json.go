@@ -72,6 +72,7 @@ func (s *Json) Close() error {
 
 func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
+	var result []byte
 	s.buf.Write(s.start)
 	defer s.buf.Reset()
 
@@ -88,21 +89,19 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 		}
 		s.buf.Write(rawData)
 		s.buf.WriteByte(s.delim)
-		// result = append(result, rawData...)
-		// result = append(result, s.delim)
 
 		if i == len(events)-1 {
 			s.buf.Truncate(s.buf.Len()-1)
 			s.buf.Write(s.end)
-			// result = result[:len(result)-1] // trim last delimeter
-			// result = append(result, s.end...)
+			result = make([]byte, s.buf.Len())
+			copy(result, s.buf.Bytes())
 		}
 
 		metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventAccepted, time.Since(now))
 		now = time.Now()
 	}
 
-	return s.buf.Bytes(), nil
+	return result, nil
 }
 
 func (s *Json) serializeData(event *core.Event) ([]byte, error) {
