@@ -2,6 +2,7 @@
   id = "test.pipeline.1"
   lines = 5
   run = true
+  buffer = 1_000
 
 [[inputs]]
   [inputs.httpl]
@@ -38,4 +39,5 @@
   [outputs.log.serializer]
     type = "json"
     data_only = true
+    mode = "array"
   [outputs.log.filters.pass]

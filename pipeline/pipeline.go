@@ -180,7 +180,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i])
+		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
 		p.log.Tracef("input plugin %v out channel: %v", i, outCh)
@@ -191,7 +191,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
-	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::inputs", p.config.Settings.Id), inputsOutChannels...)
+	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::inputs", p.config.Settings.Id), inputsOutChannels, p.config.Settings.Buffer)
 	wg.Add(1)
 	p.log.Tracef("inputs-to-processors fusion plugin in channels: %v", inputsOutChannels)
 	p.log.Tracef("inputs-to-processors fusion plugin out channel: %v", outCh)
@@ -206,7 +206,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
 			for j, processor := range p.procs[i] {
-				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput)
+				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput, p.config.Settings.Buffer)
 				wg.Add(1)
 				p.log.Tracef("line %v, processor %v plugin in channel: %v", i, j, procInput)
 				p.log.Tracef("line %v, processor %v plugin out channel: %v", i, j, procOut)
@@ -221,7 +221,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::processors", p.config.Settings.Id), procsOutChannels...)
+		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::processors", p.config.Settings.Id), procsOutChannels, p.config.Settings.Buffer)
 		outCh = fusionOutCh
 		wg.Add(1)
 		p.log.Tracef("processors-to-broadcast fusion plugin in channels: %v", procsOutChannels)
@@ -233,7 +233,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("broadcast::processors", p.config.Settings.Id), outCh, len(p.outs))
+	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("broadcast::processors", p.config.Settings.Id), outCh, len(p.outs), p.config.Settings.Buffer)
 	wg.Add(1)
 	p.log.Tracef("broadcast plugin in channel: %v", outCh)
 	p.log.Tracef("broadcast plugin out channels: %v", bcastChs)
@@ -244,7 +244,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
-		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i])
+		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
 		wg.Add(1)
 		p.log.Tracef("output plugin %v in channel: %v", i, bcastChs[i])
 		go func(u unit) {
