@@ -2,6 +2,7 @@
   id = "test.pipeline.2"
   lines = 5
   run = false
+  buffer = 100
 
 [[inputs]]
   [inputs.httpl]

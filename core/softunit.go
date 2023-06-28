@@ -33,7 +33,7 @@ type procSoftUnit struct {
 	out chan<- *Event
 }
 
-func NewDirectProcessorSoftUnit(p Processor, f []Filter, in <-chan *Event) (unit *procSoftUnit, unitOut <-chan *Event) {
+func NewDirectProcessorSoftUnit(p Processor, f []Filter, in <-chan *Event, bufferSize int) (unit *procSoftUnit, unitOut <-chan *Event) {
 	out := make(chan *Event, bufferSize)
 	unit = &procSoftUnit{
 		p:   p,
@@ -103,7 +103,7 @@ type outSoftUnit struct {
 	rej chan *Event // rejected events doesn't processed anymore
 }
 
-func NewDirectOutputSoftUnit(o Output, f []Filter, in <-chan *Event) (unit *outSoftUnit) {
+func NewDirectOutputSoftUnit(o Output, f []Filter, in <-chan *Event, bufferSize int) (unit *outSoftUnit) {
 	unit = &outSoftUnit{
 		o:   o,
 		f:   make([]fToCh, 0, len(f)),
@@ -172,7 +172,7 @@ type inSoftUnit struct {
 	stop <-chan struct{}
 }
 
-func NewDirectInputSoftUnit(i Input, f []Filter, stop <-chan struct{}) (unit *inSoftUnit, unitOut <-chan *Event) {
+func NewDirectInputSoftUnit(i Input, f []Filter, stop <-chan struct{}, bufferSize int) (unit *inSoftUnit, unitOut <-chan *Event) {
 	out := make(chan *Event, bufferSize)
 	unit = &inSoftUnit{
 		i:    i,
@@ -239,7 +239,7 @@ type bcastSoftUnit struct {
 	outs []chan<- *Event
 }
 
-func NewDirectBroadcastSoftUnit(c Broadcast, in <-chan *Event, outsCount int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
+func NewDirectBroadcastSoftUnit(c Broadcast, in <-chan *Event, outsCount, bufferSize int) (unit *bcastSoftUnit, unitOuts []<-chan *Event) {
 	outs := make([]<-chan *Event, 0, outsCount)
 	unit = &bcastSoftUnit{
 		c:    c,
@@ -283,7 +283,7 @@ type fusionSoftUnit struct {
 	out chan<- *Event
 }
 
-func NewDirectFusionSoftUnit(c Fusion, ins ...<-chan *Event) (unit *fusionSoftUnit, unitOut <-chan *Event) {
+func NewDirectFusionSoftUnit(c Fusion, ins []<-chan *Event, bufferSize int) (unit *fusionSoftUnit, unitOut <-chan *Event) {
 	out := make(chan *Event, bufferSize * len(ins))
 	unit = &fusionSoftUnit{
 		c:   c,
