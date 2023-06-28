@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -22,7 +23,11 @@ type Json struct {
 
 	log     logger.Logger
 	serFunc func(event *core.Event) ([]byte, error)
-	delim   byte
+
+	delim byte
+	start []byte
+	end   []byte
+	buf   *bytes.Buffer
 }
 
 func (s *Json) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
@@ -37,8 +42,12 @@ func (s *Json) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	switch s.Mode {
 	case "jsonl":
 		s.delim = '\n'
+		s.start = []byte{}
+		s.end = []byte{}
 	case "array":
 		s.delim = ','
+		s.start = []byte{'['}
+		s.end = []byte{']'}
 	default:
 		return fmt.Errorf("forbidden mode: %v, expected one of: jsonl, array", s.Mode)
 	}
@@ -48,6 +57,7 @@ func (s *Json) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	} else {
 		s.serFunc = s.serializeEvent
 	}
+	s.buf = bytes.NewBuffer(make([]byte, 0, 4096))
 
 	return nil
 }
@@ -62,7 +72,8 @@ func (s *Json) Close() error {
 
 func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	var result []byte
+	s.buf.Write(s.start)
+	defer s.buf.Reset()
 
 	for i, e := range events {
 		rawData, err := s.serFunc(e)
@@ -75,22 +86,23 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 			now = time.Now()
 			continue
 		}
-		result = append(result, rawData...)
-		result = append(result, s.delim)
+		s.buf.Write(rawData)
+		s.buf.WriteByte(s.delim)
+		// result = append(result, rawData...)
+		// result = append(result, s.delim)
 
 		if i == len(events)-1 {
-			result = result[:len(result)-1] // trim last delimeter
-			if s.Mode == "array" {
-				result = append([]byte{'['}, result...)
-				result = append(result, ']')
-			}
+			s.buf.Truncate(s.buf.Len()-1)
+			s.buf.Write(s.end)
+			// result = result[:len(result)-1] // trim last delimeter
+			// result = append(result, s.end...)
 		}
 
 		metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventAccepted, time.Since(now))
 		now = time.Now()
 	}
 
-	return result, nil
+	return s.buf.Bytes(), nil
 }
 
 func (s *Json) serializeData(event *core.Event) ([]byte, error) {
