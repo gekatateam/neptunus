@@ -56,7 +56,7 @@ type Parser interface {
 
 // serializer plugin serializes events into configured format
 type Serializer interface {
-	Serialize(event *Event) ([]byte, error)
+	Serialize(event ...*Event) ([]byte, error)
 	Close() error
 	Initer
 	Aliaser

@@ -17,9 +17,9 @@ type Line struct {
 	line  string
 	Label string `mapstructure:"label"`
 
-	in    <-chan *core.Event
-	out   chan<- *core.Event
-	log   logger.Logger
+	in  <-chan *core.Event
+	out chan<- *core.Event
+	log logger.Logger
 }
 
 func (p *Line) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {

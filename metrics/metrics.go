@@ -29,6 +29,7 @@ var (
 
 	pipes     *pipelineCollectror
 	pipeState *prometheus.Desc
+	pipeLines *prometheus.Desc
 )
 
 func init() {
@@ -39,7 +40,7 @@ func init() {
 			Name:       "input_plugin_processed_events",
 			Help:       "Events statistic for inputs.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -49,7 +50,7 @@ func init() {
 			Name:       "filter_plugin_processed_events",
 			Help:       "Events statistic for filters.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -59,7 +60,7 @@ func init() {
 			Name:       "processor_plugin_processed_events",
 			Help:       "Events statistic for processors.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -69,7 +70,7 @@ func init() {
 			Name:       "output_plugin_processed_events",
 			Help:       "Events statistic for outputs.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -79,7 +80,7 @@ func init() {
 			Name:       "parser_plugin_processed_events",
 			Help:       "Events statistic for parsers.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -89,7 +90,7 @@ func init() {
 			Name:       "serializer_plugin_processed_events",
 			Help:       "Events statistic for serializers.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -99,7 +100,7 @@ func init() {
 			Name:       "core_plugin_processed_events",
 			Help:       "Events statistic for inputs.",
 			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
 		},
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
@@ -124,6 +125,12 @@ func init() {
 	pipeState = prometheus.NewDesc(
 		"pipeline_state",
 		"Pipeline state: 1-5 is for Created, Starting, Running, Stopping, Stopped.",
+		[]string{"pipeline"},
+		nil,
+	)
+	pipeLines = prometheus.NewDesc(
+		"pipeline_processors_lines",
+		"Count of configured processors lines.",
 		[]string{"pipeline"},
 		nil,
 	)
@@ -171,6 +178,9 @@ func CollectChan(statFunc func() ChanStats) {
 	chans.append(statFunc)
 }
 
-func CollectPipes(statFunc func() map[string]int) {
+func CollectPipes(statFunc func() map[string]struct {
+	State int
+	Lines int
+}) {
 	pipes.set(statFunc)
 }

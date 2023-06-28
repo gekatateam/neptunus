@@ -38,4 +38,5 @@
   [outputs.log.serializer]
     type = "json"
     data_only = true
+    mode = "array"
   [outputs.log.filters.pass]
