@@ -81,11 +81,11 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 		if err != nil {
 			metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
 			s.log.Errorf("serialization failed for event %v: %v", e.Id, err)
-			if !s.OmitFailed {
-				return nil, err
+			if s.OmitFailed {
+				now = time.Now()
+				continue
 			}
-			now = time.Now()
-			continue
+			return nil, err
 		}
 		s.buf.Write(rawData)
 		s.buf.WriteByte(s.delim)
