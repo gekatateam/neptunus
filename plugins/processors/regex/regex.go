@@ -75,18 +75,28 @@ func (p *Regex) Alias() string {
 func (p *Regex) Run() {
 	for e := range p.in {
 		now := time.Now()
-		if err := p.match(e); err != nil {
-			e.StackError(err)
-			metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
-			goto SEND_OUT
-		}
-		metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-	SEND_OUT:
+		p.process(e)
 		p.out <- e
+		metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
 
-func (p *Regex) match(e *core.Event) error {
+// saved for example
+// func (p *Regex) Run() {
+// 	for e := range p.in {
+// 		now := time.Now()
+// 		if err := p.match(e); err != nil {
+// 			e.StackError(err)
+// 			metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+// 			goto SEND_OUT
+// 		}
+// 		metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+// 	SEND_OUT:
+// 		p.out <- e
+// 	}
+// }
+
+func (p *Regex) process(e *core.Event) {
 	for name, rex := range p.labels {
 		label, found := e.GetLabel(name)
 		if !found {
@@ -121,18 +131,15 @@ func (p *Regex) match(e *core.Event) error {
 			continue
 		}
 
-		dataCopy := e.Data.Clone()
 		for i, name := range rex.SubexpNames() {
 			if i != 0 && name != "" {
-				if err := dataCopy.SetValue(name, match[i]); err != nil {
-					return fmt.Errorf("field %v set error: %v", name, err)
-				}
+				// because a named capture cannot contain a dot in it's name
+				// like "(?P<path.to.key>[a-z]+)" (it's a compilation error)
+				// no error is possible here
+				e.SetField(name, match[i])
 			}
 		}
-		e.Data = dataCopy
 	}
-
-	return nil
 }
 
 func init() {
