@@ -1,6 +1,6 @@
 # Regex Processor Plugin
 
-The `regex` processor extracts substrings from fields and labels using regular expressions with named captures. Captures from labels are saved as new labels, captures from fields are saved as new fields on the first level of data map. **New labels and fields replace existing once**.
+The `regex` processor extracts substrings from fields and labels using regular expressions with named captures. Captures from labels are saved as new labels, captures from fields are saved as new fields on the first level of data map. **New labels and fields replace existing once**. If label or field doesn't match expression or not exists, the event is not changed.
 
 Regular expressions syntax described in [regexp/syntax docs](https://pkg.go.dev/regexp/syntax).
 
