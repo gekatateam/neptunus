@@ -76,6 +76,7 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 	s.buf.Write(s.start)
 	defer s.buf.Reset()
 
+	lastIter := len(events) - 1
 	for i, e := range events {
 		rawData, err := s.serFunc(e)
 		if err != nil {
@@ -90,7 +91,7 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 		s.buf.Write(rawData)
 		s.buf.WriteByte(s.delim)
 
-		if i == len(events)-1 {
+		if i == lastIter {
 			s.buf.Truncate(s.buf.Len() - 1) // trim last delimeter
 			s.buf.Write(s.end)
 			result = make([]byte, s.buf.Len())

@@ -14,10 +14,11 @@ The `json` serializer plugin converts events into json.
     # in jsonl mode events are combined in jsonl document with new line as a separator
     mode = "jsonl"
 
-    # if it's true, plugin uses only events data maps
+    # if true, parser uses only events data maps
     # otherwise, it uses the whole events
     data_only = true
 
-    # if it's true, 
+    # if true, parser ignores serialization errors
+    # and skips failed events
     omit_failed = true
 ```
