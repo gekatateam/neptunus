@@ -69,6 +69,7 @@ func (p *Parser) SetParser(parser core.Parser) {
 }
 
 func (p *Parser) Run() {
+MAIN:
 	for e := range p.in {
 		now := time.Now()
 
@@ -76,7 +77,7 @@ func (p *Parser) Run() {
 		if err != nil {
 			p.out <- e
 			metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-			continue
+			continue // do nothing if event has no field
 		}
 
 		var field []byte
@@ -88,7 +89,7 @@ func (p *Parser) Run() {
 		default:
 			p.out <- e
 			metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-			continue
+			continue // do nothing if field is not a string or bytes slice
 		}
 
 		events, err := p.parser.Parse(field, e.RoutingKey)
@@ -97,14 +98,14 @@ func (p *Parser) Run() {
 			e.StackError(err)
 			p.out <- e
 			metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
-			continue
+			continue // continue with error if parsing failed
 		}
 
 		switch p.Behaviour {
 		case "produce":
 			for _, donor := range events {
 				// here we using origin event copy instead of
-				// one of returned by parser because it easyest way
+				// one of returned by parser because it's easyest way
 				// to copy origin labels and tags
 				event := e.Copy()
 				event.Data = donor.Data
@@ -113,8 +114,6 @@ func (p *Parser) Run() {
 			if !p.DropOrigin {
 				p.out <- e
 			}
-			metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-			continue
 		case "merge":
 			for _, donor := range events {
 				event := e.Copy()
@@ -126,20 +125,18 @@ func (p *Parser) Run() {
 					event.AppendFields(donor.Data)
 				} else {
 					if err := event.SetField(p.To, donor.Data); err != nil {
-						err = fmt.Errorf("error set to field %v: %v", p.To, err)
-						p.log.Error(err.Error())
-						e.StackError(err)
+						p.log.Errorf("error set to field %v: %v", p.To, err)
+						e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
+						p.out <- e
 						metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
-						goto CONTINUE
+						continue MAIN // continue main loop with error if set failed
 					}
 				}
-
 				p.out <- event
 			}
-			metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-		CONTINUE:
-			continue
 		}
+
+		metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
 
