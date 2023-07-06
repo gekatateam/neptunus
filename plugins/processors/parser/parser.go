@@ -114,6 +114,7 @@ MAIN:
 			if !p.DropOrigin {
 				p.out <- e
 			}
+			p.log.Debugf("produced %v events", len(events))
 		case "merge":
 			for _, donor := range events {
 				event := e.Copy()
@@ -134,6 +135,7 @@ MAIN:
 				}
 				p.out <- event
 			}
+			p.log.Debugf("produced %v events", len(events))
 		}
 
 		metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
