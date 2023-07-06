@@ -135,7 +135,7 @@ func TestGlob(t *testing.T) {
 			filter := &glob.Glob{}
 			err := filter.Init(test.config, "", "", mock.NewLogger())
 			if err != nil {
-				t.Fatalf("filter not created: %v", err.Error())
+				t.Fatalf("filter not initialized: %v", err)
 			}
 
 			wg := &sync.WaitGroup{}
@@ -151,6 +151,9 @@ func TestGlob(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
+			close(test.input)
+			filter.Close()
+			wg.Wait()
 
 			if len(test.accept) != test.expectedAccept {
 				t.Fatalf("unexpected accepted messages count - want: %v, got: %v", test.expectedAccept, len(test.accept))
@@ -159,10 +162,6 @@ func TestGlob(t *testing.T) {
 			if len(test.reject) != test.expectedReject {
 				t.Fatalf("unexpected rejected messages count - want: %v, got: %v", test.expectedReject, len(test.reject))
 			}
-
-			close(test.input)
-			filter.Close()
-			wg.Wait()
 		})
 	}
 }

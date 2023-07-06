@@ -25,6 +25,12 @@ func (m Map) DeleteValue(key string) (any, error) {
 	return delFromMap(m, key)
 }
 
+func (m Map) Append(d Map) {
+	for k, v := range d {
+		m[k] = v
+	}
+}
+
 func (m Map) Clone() Map {
 	result := make(Map, len(m))
 	for k := range m {

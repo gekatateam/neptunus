@@ -54,6 +54,10 @@ func (e *Event) DeleteField(key string) (any, error) {
 	return e.Data.DeleteValue(key)
 }
 
+func (e *Event) AppendFields(data Map) {
+	e.Data.Append(data)
+}
+
 func (e *Event) StackError(err error) {
 	e.Errors = append(e.Errors, err)
 }
