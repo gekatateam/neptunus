@@ -36,7 +36,7 @@ The `parser` processor parses string or bytes slice field into (new) event(s). T
 ## Examples
 A little more about merge mode.
 
-This is how plugin works, when parser returns multiple events (if "to" is empty):
+This is how plugin works, when parser returns multiple events (if `to` is empty):
 ```json
 # input event data
 {
