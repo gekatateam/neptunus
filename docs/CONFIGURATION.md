@@ -27,3 +27,7 @@ Common section:
  - `log_format` - in which format to write logs, accepts `logfmt` and `json`
  - `http_port` - `address:port` binding for internal http server
  - `log_fields` - a map with fields that will be added to every log entry
+
+Processors can be scaled to multiple `lines` - parallel streams - for cases when events are consumed and produced faster than they are transformed in one stream.
+
+> **Important!** Experimentally founded that scaling can reduce performance if processors cumulatively process events faster than outputs send them (because of filling channels buffers). Use it after testing it first.  
