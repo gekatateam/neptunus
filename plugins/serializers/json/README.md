@@ -14,8 +14,8 @@ The `json` serializer plugin converts events into json.
     # in jsonl mode events are combined in jsonl document with new line as a separator
     mode = "jsonl"
 
-    # if true, parser uses only events data maps
-    # otherwise, it uses the whole events
+    # if true, parser uses only event data map
+    # otherwise, it uses the whole event
     data_only = true
 
     # if true, parser ignores serialization errors
