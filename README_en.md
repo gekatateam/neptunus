@@ -10,6 +10,11 @@ Neptunus is a data processing engine for consuming, transforming and producing e
 
 Typical pipeline consists of at least one input, at least one output and, not necessarily, processors.
 
+# Configuration
+Neptunus configuration has two parts - daemon config and pipelines.
+
+See more in our [documentation](docs/CONFIGURATION.md).
+
 # Getting Started
 ### Get help:
 ```
@@ -30,8 +35,3 @@ neptunus test --config config.toml
 ```
 neptunus pipeline --help
 ```
-
-# Configuration
-Neptunus configuration has two parts - daemon config and pipelines.
-
-See more in our [documentation](docs/CONFIGURATION.md).
