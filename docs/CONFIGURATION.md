@@ -69,7 +69,7 @@ Settings example:
 First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
 <tr>
-<td> Toml </td> <td> Yaml </td>
+<td> Toml </td> <td> Yaml </td> <td> Json </td>
 </tr>
 <tr>
 <td>
@@ -103,6 +103,33 @@ inputs:
       address: ':9400'
       parser:
         type: json
+```
+
+</td>
+<td>
+
+```json
+{
+  "inputs": [
+    {
+      "httpl": {
+        "address": ":9200",
+        "max_connections": 10,
+        "parser": {
+          "type": "json"
+        }
+      }
+    },
+    {
+      "httpl": {
+        "address": ":9400",
+        "parser": {
+          "type": "json"
+        }
+      }
+    }
+  ]
+}
 ```
 
 </td>
