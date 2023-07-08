@@ -64,7 +64,20 @@ Settings example:
   buffer = 1_000
 ```
 
-### About plugins
+### Plugins
+
+There are three types of first-order plugins:
+ - [Input plugins](../plugins/inputs/) consume events from external sources
+ - [Processor plugins](plugins/processors/) transform events
+ - [Output plugins](plugins/outputs/) produce events to external systems
+
+The inputs work independently and send consumed events to the processors section. If multiple lines configured, events are distributed between streams.
+
+In one line, events move sequentially, from processor to processor, according to the order in the configuration. In a multi-line configuration, it can be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
+
+After processors, events **are cloned** to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
+
+### About plugins configuration
 
 First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
@@ -91,6 +104,8 @@ First of all, inputs, processors and outputs is a list of plugins map. Here is a
   [processors.log.serializer]
     type = "json"
     data_only = false
+  [processors.log.filters.glob]
+    routing_key = [ "*http.*" ]
 
 [[outputs]]
   [outputs.log]
@@ -119,6 +134,10 @@ processors:
       serializer:
         type: json
         data_only: false
+      filters:
+        glob:
+          routing_key:
+            - '*http.*'
 
 outputs:
   - log:
@@ -127,6 +146,7 @@ outputs:
         type: json
         data_only: true
         mode: array
+
 ```
 
 </td>
@@ -155,6 +175,13 @@ outputs:
         "serializer": {
           "type": "json",
           "data_only": false
+        },
+        "filters": {
+          "glob": {
+            "routing_key": [
+              "*http.*"
+            ]
+          }
         }
       }
     }
@@ -180,7 +207,4 @@ outputs:
 
 This also means that the order of the processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
 
-### Inputs
-
-
-
+Each plugin can be given an alias - this will affect logs and metrics. **The uniqueness of aliases is not controlled by engine, repeated aliases can cause collisions**.
