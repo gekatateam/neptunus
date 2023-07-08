@@ -67,11 +67,11 @@ Settings example:
 ### Plugins
 
 There are three types of first-order plugins:
- - [Input plugins](../plugins/inputs/) consume events from external sources
- - [Processor plugins](plugins/processors/) transform events
- - [Output plugins](plugins/outputs/) produce events to external systems
+ - [Input plugins](../plugins/inputs/) consume events from external sources.
+ - [Processor plugins](plugins/processors/) transform events.
+ - [Output plugins](plugins/outputs/) produce events to external systems.
 
-The inputs work independently and send consumed events to the processors section. If multiple lines configured, events are distributed between streams.
+The inputs work independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
 
 In one line, events move sequentially, from processor to processor, according to the order in the configuration. In a multi-line configuration, it can be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
 
