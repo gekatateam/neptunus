@@ -82,11 +82,23 @@ First of all, inputs, processors and outputs is a list of plugins map. Here is a
   [inputs.httpl.parser]
     type = "json"
 
-[[inputs]]
-  [inputs.httpl]
-    address = ":9400"
-  [inputs.httpl.parser]
+[[processors]]
+  [processors.line]
+
+[[processors]]
+  [processors.log]
+    level = "warn"
+  [processors.log.serializer]
     type = "json"
+    data_only = false
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+  [outputs.log.serializer]
+    type = "json"
+    data_only = true
+    mode = "array"
 ```
 
 </td>
@@ -99,10 +111,22 @@ inputs:
       max_connections: 10
       parser:
         type: json
-  - httpl:
-      address: ':9400'
-      parser:
+
+processors:
+  - line: {}
+  - log:
+      level: warn
+      serializer:
         type: json
+        data_only: false
+
+outputs:
+  - log:
+      level: info
+      serializer:
+        type: json
+        data_only: true
+        mode: array
 ```
 
 </td>
@@ -119,12 +143,30 @@ inputs:
           "type": "json"
         }
       }
+    }
+  ],
+  "processors": [
+    {
+      "line": {}
     },
     {
-      "httpl": {
-        "address": ":9400",
-        "parser": {
-          "type": "json"
+      "log": {
+        "level": "warn",
+        "serializer": {
+          "type": "json",
+          "data_only": false
+        }
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "log": {
+        "level": "info",
+        "serializer": {
+          "type": "json",
+          "data_only": true,
+          "mode": "array"
         }
       }
     }
