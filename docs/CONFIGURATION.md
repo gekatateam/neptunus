@@ -30,7 +30,7 @@ Here is a common part example:
 
 FS storage uses the file system to load, save and update pipelines:
  - **directory**: Path to the directory where the pipelines files are stored.
- - **extention**: Files with which extension to use. New files will be created with the specified extension. Files with a different extension will be ignored.
+ - **extention**: Files with which extension to use. New files will be created with the specified extension, existing files with a different extension will be ignored.
 
 This is a default storage for the engine:
 ```toml
@@ -63,4 +63,55 @@ Settings example:
   run = true
   buffer = 1_000
 ```
+
+### About plugins
+
+First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
+<table>
+<tr>
+<td> Toml </td> <td> Yaml </td>
+</tr>
+<tr>
+<td>
+
+```toml
+[[inputs]]
+  [inputs.httpl]
+    address = ":9200"
+    max_connections = 10
+  [inputs.httpl.parser]
+    type = "json"
+
+[[inputs]]
+  [inputs.httpl]
+    address = ":9400"
+  [inputs.httpl.parser]
+    type = "json"
+```
+
+</td>
+<td>
+
+```yaml
+inputs:
+  - httpl:
+      address: ':9200'
+      max_connections: 10
+      parser:
+        type: json
+  - httpl:
+      address: ':9400'
+      parser:
+        type: json
+```
+
+</td>
+</tr>
+</table>
+
+This also means that the order of the processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
+
+### Inputs
+
+
 
