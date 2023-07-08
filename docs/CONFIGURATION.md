@@ -77,6 +77,12 @@ In one line, events move sequentially, from processor to processor, according to
 
 After processors, events **are cloned** to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
 
+Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for event routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
+
+In inputs and outputs case, if any filter rejects event, the event is removed from pipeline. In processors case, otherwise, rejected event going to a next processor.
+
+Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/). One plugin can have only one parser and one serializer.
+
 ### About plugins configuration
 
 First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
