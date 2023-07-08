@@ -4,9 +4,9 @@ Neptunus configuration files is written using `json`, `yaml` or `toml`.
 
 ## Daemon
 
-The daemon part configures Neptunus engine and pipelines storage.
+The daemon part configures Neptunus app and pipelines engine.
 
-Common section used for low-level settings:
+**Common** section used for low-level settings:
  - **log_level**: Logging level, global setting for all application, accepts `trace`, `debug`, `info`, `warn`, `error` and `fatal`.
  - **log_format**: Logging format, supports `logfmt` and `json` formats.
  - **http_port**: Address for HTTP api server. See more in [api documentation](API.md).
@@ -23,49 +23,44 @@ Here is a common part example:
     dc = "east-01"
 ```
 
-
-Pipeline section used for pipelines engine settings:
+**Engine** section used for pipelines engine settings:
  - **storage**: What kind of storage should be used.
 
 ### FS storage
 
 FS storage uses the file system to load, save and update pipelines:
  - **directory**: Path to the directory where the pipelines files are stored.
- - **extention**: Files with which extension to use. New files will be created with the specified extension. Files with a different extension will be ignored. 
+ - **extention**: Files with which extension to use. New files will be created with the specified extension. Files with a different extension will be ignored.
 
-This is a default storage for engine:
+This is a default storage for the engine:
 ```toml
-[pipeline]
+[engine]
   storage = "fs"
-  [pipeline.fs]
+  [engine.fs]
     directory = ".pipelines"
     extention = "toml"
 ```
 
+## Pipeline
 
+Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. It also have some personal settings.
 
+### Settings
 
+Pipeline settings are not directly related to event processing, these parameters are needed for the engine:
+ - **id** - Pipeline identificator. Must be unique within a storage.
+ - **lines** - Number of parallel streams of pipeline processors. It can be useful in cases, when events are consumed and produced faster than they are transformed in one stream. 
+ - **run** - Should engine starts pipeline at daemon startup.
+ - **buffer** - Buffer size of channels connecting a plugins.
 
+> **Important!** It has been experimentally found that processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of filling channels buffers). You should use scaling after preliminary testing.  
 
+Settings example:
+```toml
+[settings]
+  id = "test.pipeline.1"
+  lines = 5
+  run = true
+  buffer = 1_000
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!--
-Processors can be scaled to multiple `lines` - parallel streams - for cases when events are consumed and produced faster than they are transformed in one stream.
-
-> **Important!** Experimentally founded that scaling can reduce performance if processors cumulatively process events faster than outputs send them (because of filling channels buffers). Use it after testing it first.  
--->

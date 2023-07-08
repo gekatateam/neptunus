@@ -8,8 +8,6 @@ Neptunus is a data processing engine for consuming, transforming and producing e
  - [Parsers](plugins/parsers/) convert raw data into events
  - [Serializers](plugins/serializers/) convert events into data formats for sending to external systems
 
-Typical pipeline consists of at least one input, at least one output and, not necessarily, processors.
-
 # Configuration
 Neptunus configuration has two parts - daemon config and pipelines.
 

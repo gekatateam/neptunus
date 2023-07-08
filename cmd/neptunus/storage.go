@@ -8,7 +8,7 @@ import (
 	"github.com/gekatateam/neptunus/pipeline/storage"
 )
 
-func getStorage(cfg *config.PipeCfg) (pipeline.Storage, error) {
+func getStorage(cfg *config.Engine) (pipeline.Storage, error) {
 	switch cfg.Storage {
 	case "fs":
 		log.Infof("using file system storage at %v", cfg.File.Directory)

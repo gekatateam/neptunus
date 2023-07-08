@@ -39,7 +39,7 @@ func run(cCtx *cli.Context) error {
 
 	wg := &sync.WaitGroup{}
 
-	storage, err := getStorage(&cfg.PipeCfg)
+	storage, err := getStorage(&cfg.Engine)
 	if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}

@@ -21,7 +21,7 @@ func test(cCtx *cli.Context) error {
 	}
 	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
-	storage, err := getStorage(&cfg.PipeCfg)
+	storage, err := getStorage(&cfg.Engine)
 	if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}

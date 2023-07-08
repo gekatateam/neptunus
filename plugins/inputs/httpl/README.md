@@ -21,6 +21,13 @@ This plugin produce events with routing key as request path,  `server` label wit
 
     # maximum duration before timing out write of the response
     write_timeout = "10s"
+
+  # a "label name -> header" map
+  # if request header exists, it will be saved as configured label
+  [inputs.httpl.labelheaders]
+    length = "Content-Length"
+    encoding = "Content-Type"
+
   [inputs.httpl.parser]
     type = "json"
 ```
