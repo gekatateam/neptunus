@@ -20,7 +20,7 @@ With batching and buffering
  - [ ] PostgreSQL
 
 ## Filters
- - [x] Glob for labels, field, routing keys
+ - [x] Glob for labels, fields, routing keys
  - [ ] Comparison operators for numbers
 
 ## Processors
@@ -29,6 +29,7 @@ With batching and buffering
  - [ ] Default values for fields
  - [ ] Math operations with numbers
  - [ ] Starlark
+ - [ ] Correlation 
 
 ## Pipeline management
  - [ ] Storages:

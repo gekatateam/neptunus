@@ -58,7 +58,8 @@ func (p *Log) Run() {
 		event, err := p.ser.Serialize(e)
 		if err != nil {
 			p.log.Errorf("event serialization failed: %v", err.Error())
-			e.StackError(fmt.Errorf("log processor: json marshal failed: %v", err.Error()))
+			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
+			e.AddTag("::log_processing_failed")
 			metrics.ObserveProcessorSummary("log", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}

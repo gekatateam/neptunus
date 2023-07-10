@@ -82,6 +82,7 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 		if err != nil {
 			metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
 			s.log.Errorf("serialization failed for event %v: %v", e.Id, err)
+			e.AddTag("::json_serialization_failed")
 			if s.OmitFailed {
 				now = time.Now()
 				continue
