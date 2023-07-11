@@ -3,8 +3,8 @@
     [common.log_fields]
       runner = "local"
 
-[pipeline]
+[engine]
   storage = "fs"
-  [pipeline.fs]
+  [engine.fs]
     directory = ".pipelines"
     extention = "toml"

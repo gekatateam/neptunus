@@ -8,5 +8,7 @@ The `plain` parser plugin saves passed data as string in configured field. This 
   [inputs.http]
   [inputs.http.parser]
     type = "plain"
+
+    # field path to saved content
     field = "event"
 ```

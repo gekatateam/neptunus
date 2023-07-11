@@ -16,7 +16,7 @@ var (
 			LogFormat: "logfmt",
 			HttpPort:  ":9600",
 		},
-		PipeCfg: PipeCfg{
+		Engine: Engine{
 			Storage: "fs",
 			File: FileStorage{
 				Directory: ".pipelines",
@@ -27,8 +27,8 @@ var (
 )
 
 type Config struct {
-	Common  Common  `toml:"common"   yaml:"common"`
-	PipeCfg PipeCfg `toml:"pipeline" yaml:"pipeline"`
+	Common  Common  `toml:"common" yaml:"common"`
+	Engine  Engine  `toml:"engine" yaml:"engine"`
 }
 
 type Common struct {
@@ -38,7 +38,7 @@ type Common struct {
 	HttpPort  string         `toml:"http_port"  yaml:"http_port"`
 }
 
-type PipeCfg struct {
+type Engine struct {
 	Storage string      `toml:"storage" yaml:"storage"`
 	File    FileStorage `toml:"fs"      yaml:"fs"`
 }

@@ -25,6 +25,7 @@ type Httpl struct {
 	ReadTimeout    time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout   time.Duration `mapstructure:"write_timeout"`
 	MaxConnections int           `mapstructure:"max_connections"`
+	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
 
 	server   *http.Server
 	listener net.Listener
@@ -142,6 +143,14 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"server": i.Address,
 				"sender": r.RemoteAddr,
 			}
+			
+			for k, v := range i.LabelHeaders {
+				h := r.Header.Get(v)
+				if len(h) > 0 {
+					event.AddLabel(k, h)
+				}
+			}
+
 			i.out <- event
 			events++
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))

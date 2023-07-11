@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
@@ -316,7 +315,6 @@ func TestParser(t *testing.T) {
 			}()
 
 			test.input <- test.event
-			time.Sleep(time.Second)
 			close(test.input)
 			processor.Close()
 			wg.Wait()

@@ -15,5 +15,4 @@ In any other cases, e.g. array of strings, numbers, arrays, etc, plugin returns 
   [inputs.http.parser]
     type = "json"
 ```
-
 This plugin has no any specific configuration.

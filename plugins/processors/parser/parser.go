@@ -96,6 +96,7 @@ MAIN:
 		if err != nil {
 			p.log.Errorf("parsing failed: %v", err)
 			e.StackError(err)
+			e.AddTag("::parser_processing_failed")
 			p.out <- e
 			metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue // continue with error if parsing failed
@@ -128,6 +129,7 @@ MAIN:
 					if err := event.SetField(p.To, donor.Data); err != nil {
 						p.log.Errorf("error set to field %v: %v", p.To, err)
 						e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
+						e.AddTag("::parser_processing_failed")
 						p.out <- e
 						metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 						continue MAIN // continue main loop with error if set failed

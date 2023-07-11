@@ -202,7 +202,7 @@ func (a *restApi) Add() http.Handler {
 	})
 }
 
-// PUT /pipelines/{id}
+// POST /pipelines/{id}
 func (a *restApi) Update() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)

@@ -3,7 +3,6 @@ package regex_test
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger/mock"
@@ -208,7 +207,6 @@ func TestRegex(t *testing.T) {
 			for _, e := range test.events {
 				test.input <- e
 			}
-			time.Sleep(time.Second)
 			close(test.input)
 			processor.Close()
 			wg.Wait()

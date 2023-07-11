@@ -3,7 +3,6 @@ package glob_test
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger/mock"
@@ -150,7 +149,6 @@ func TestGlob(t *testing.T) {
 				test.input <- e
 			}
 
-			time.Sleep(time.Second)
 			close(test.input)
 			filter.Close()
 			wg.Wait()

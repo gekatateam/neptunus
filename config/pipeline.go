@@ -121,7 +121,7 @@ func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
 		return &pipeline, fmt.Errorf("unknown pipeline file extention: %v", format)
 	}
 
-	return &pipeline, nil
+	return setPipelineDefaults(&pipeline), nil
 }
 
 func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
@@ -146,4 +146,16 @@ func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
 	}
 
 	return content, nil
+}
+
+func setPipelineDefaults(pipe *Pipeline) *Pipeline {
+	if pipe.Settings.Lines == 0 {
+		pipe.Settings.Lines = 1
+	}
+
+	if pipe.Settings.Buffer == 0 {
+		pipe.Settings.Buffer = 10
+	}
+
+	return pipe
 }
