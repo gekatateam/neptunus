@@ -2,6 +2,16 @@
 
 ## `pipeline` command
 
+Usage: 
+```
+neptunus pipeline [--server-address HTTP_ADDRESS] COMMAND [FLAGS]
+```
+
+Get help:
+```
+neptunus pipeline COMMAND -h
+```
+
 #### `list`
 List all pipelines  
 Returns pipelines table
