@@ -83,7 +83,7 @@ Response:
 #### POST `/api/v1/pipelines/{pipelineId}/stop`
 Stop pipeline by id
 
-> **Note:** Only running pipeline can be stoppped
+> **Note:** Only running pipeline can be stopped
 
 Request body: **No**.
 
