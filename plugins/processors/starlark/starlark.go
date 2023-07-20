@@ -99,12 +99,12 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logge
 
 	_, program, err := starlark.SourceProgram(p.File, p.Code, builtins.Has)
 	if err != nil {
-		return fmt.Errorf("compilation error: %v", err)
+		return fmt.Errorf("compilation failed: %v", err)
 	}
 
 	globals, err := program.Init(p.thread, builtins)
 	if err != nil {
-		return fmt.Errorf("initialization error: %v", err)
+		return fmt.Errorf("initialization failed: %v", err)
 	}
 
 	stFunc, ok := globals["process"]
@@ -137,7 +137,8 @@ func (p *Starlark) Run() {
 		now := time.Now()
 		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&event{event: e}}, nil)
 		if err != nil {
-			e.StackError(err)
+			p.log.Errorf("exec failed: %v", err)
+			e.StackError(fmt.Errorf("exec failed: %v", err))
 			p.out <- e
 			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
@@ -145,7 +146,8 @@ func (p *Starlark) Run() {
 
 		events, err := unpackEvents(result)
 		if err != nil {
-			e.StackError(err)
+			p.log.Errorf("results unpack failed: %v", err)
+			e.StackError(fmt.Errorf("results unpack failed: %v", err))
 			p.out <- e
 			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
