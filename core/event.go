@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -152,4 +153,8 @@ func (e *Event) DeleteTag(tag string) {
 		e.Tags[index] = e.Tags[len(e.Tags)-1]
 		e.Tags = e.Tags[:len(e.Tags)-1]
 	}
+}
+
+func (e *Event) String() string {
+	return fmt.Sprint(e)
 }

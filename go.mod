@@ -37,6 +37,7 @@ require (
 	github.com/naoina/toml v0.1.1
 	github.com/prometheus/client_golang v1.15.1
 	github.com/urfave/cli/v2 v2.25.3
+	go.starlark.net v0.0.0-20230718153141-1c3ac63bd217
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
 	golang.org/x/net v0.11.0
 	golang.org/x/sys v0.9.0 // indirect

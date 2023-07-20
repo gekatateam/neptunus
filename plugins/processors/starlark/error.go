@@ -1,4 +1,4 @@
-package star
+package starlark
 
 import (
 	"errors"
