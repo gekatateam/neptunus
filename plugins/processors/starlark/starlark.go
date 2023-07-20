@@ -3,9 +3,14 @@ package starlark
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
+	"go.starlark.net/lib/json"
+	"go.starlark.net/lib/math"
+	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
+	"go.starlark.net/starlarkstruct"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
@@ -41,24 +46,58 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logge
 		return errors.New("code or file required")
 	}
 
-	if len(p.Code) > 0 && len(p.File) > 0 {
-		return errors.New("both code or file cannot be set")
+	if len(p.Code) > 0 {
+		p.File = p.alias + ".star"
+	}
+
+	if len(p.File) > 0 {
+		script, err := os.ReadFile(p.File)
+		if err != nil {
+			return fmt.Errorf("error load code file %v: %v", p.File, err)
+		}
+		p.Code = string(script)
+	}
+
+	builtins := starlark.StringDict{
+		"newEvent": starlark.NewBuiltin("newEvent", NewEvent),
+		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
 	}
 
 	p.thread = &starlark.Thread{
 		Print: func(_ *starlark.Thread, msg string) {
 			p.log.Debugf("from starlark: %v", msg)
 		},
+		Load: func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
+			switch module {
+			case "math.star":
+				return starlark.StringDict{
+					"math": math.Module,
+				}, nil
+			case "time.star":
+				return starlark.StringDict{
+					"time": startime.Module,
+				}, nil
+			case "json.star":
+				return starlark.StringDict{
+					"json": json.Module,
+				}, nil
+			default:
+				script, err := os.ReadFile(module)
+				if err != nil {
+					return nil, err
+				}
+
+				entries, err := starlark.ExecFile(thread, module, script, builtins)
+				if err != nil {
+					return nil, err
+				}
+
+				return entries, nil
+			}
+		},
 	}
 
-	builtins := starlark.StringDict{}
-	builtins["newEvent"] = starlark.NewBuiltin("newEvent", NewEvent)
-
-	var src any
-	if len(p.Code) > 0 {
-		src = p.Code
-	}
-	_, program, err := starlark.SourceProgram(p.File, src, builtins.Has)
+	_, program, err := starlark.SourceProgram(p.File, p.Code, builtins.Has)
 	if err != nil {
 		return fmt.Errorf("compilation error: %v", err)
 	}
@@ -121,6 +160,7 @@ func (p *Starlark) Run() {
 
 func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 	events := []*core.Event{}
+
 	switch v := starValue.(type) {
 	case *event:
 		events = append(events, v.event)
@@ -137,7 +177,8 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 	case *starlark.NoneType:
 		return events, nil
 	}
-	return events, nil
+
+	return nil, fmt.Errorf("unknown function result, expected event, events list or none, got %v", starValue.Type())
 }
 
 func init() {

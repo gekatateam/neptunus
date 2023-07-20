@@ -9,7 +9,10 @@ import (
 	"go.starlark.net/starlark"
 )
 
-var _ starlark.HasAttrs = &event{}
+var (
+	_         starlark.HasAttrs = &event{}
+	attrNames []string          = []string{}
+)
 
 type event struct {
 	event *core.Event
@@ -43,12 +46,7 @@ func (e *event) Attr(name string) (starlark.Value, error) {
 }
 
 func (e *event) AttrNames() []string {
-	names := make([]string, 0, len(eventMethods))
-	for name := range eventMethods {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
+	return attrNames
 }
 
 func NewEvent(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -58,4 +56,11 @@ func NewEvent(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwar
 	}
 
 	return &event{event: core.NewEvent(rk)}, nil
+}
+
+func init() {
+	for name := range eventMethods {
+		attrNames = append(attrNames, name)
+	}
+	sort.Strings(attrNames)
 }
