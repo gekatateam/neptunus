@@ -27,9 +27,9 @@ With batching and buffering
  - [x] Regular expressions
  - [ ] Type convertions (strings, numbers, time, duration, bytes, labels, tags, routing key, fields)
  - [ ] Default values for fields
- - [ ] Math operations with numbers
- - [ ] Starlark
- - [ ] Correlation 
+ - ~~[ ] Math operations with numbers~~ Starlark should be used instead
+ - [x] Starlark
+ - [ ] Correlation
 
 ## Pipeline management
  - [ ] Storages:
