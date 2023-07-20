@@ -26,13 +26,13 @@ var eventMethods = map[string]builtinFunc{
 	 "delField": delField, //f(path String)
 
 	// tags methods
-	// "addTag": addTag, // f(tag String)
-	// "delTag": delTag, // f(tag String)
-	// "hasTag": hasTag, // f(tag String) Bool
+	"addTag": addTag, // f(tag String)
+	"delTag": delTag, // f(tag String)
+	"hasTag": hasTag, // f(tag String) Bool
 
 	// object methods
-	// "copy": copy, // f() Event
-	// "clone": clone, // f() Event
+	"copy": copyEvent, // f() Event
+	"clone": cloneEvent, // f() Event
 }
 
 type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
@@ -158,6 +158,63 @@ func delField (_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwa
 
 	b.Receiver().(*StarEvent).E.DeleteField(key)
 	return starlark.None, nil
+}
+
+func addTag (_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(kwargs) > 0 {
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
+	// }
+
+	var tag string
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &tag); err != nil {
+		return starlark.None, err
+	}
+
+	b.Receiver().(*StarEvent).E.AddTag(tag)
+	return starlark.None, nil
+}
+
+func delTag (_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(kwargs) > 0 {
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
+	// }
+
+	var tag string
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &tag); err != nil {
+		return starlark.None, err
+	}
+
+	b.Receiver().(*StarEvent).E.DeleteTag(tag)
+	return starlark.None, nil
+}
+
+func hasTag (_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(kwargs) > 0 {
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
+	// }
+
+	var tag string
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &tag); err != nil {
+		return starlark.None, err
+	}
+
+	return starlark.Bool(b.Receiver().(*StarEvent).E.HasTag(tag)), nil
+}
+
+func copyEvent (_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
+	// }
+
+	return &StarEvent{E: b.Receiver().(*StarEvent).E.Copy()}, nil
+}
+
+func cloneEvent (_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
+	// }
+
+	return &StarEvent{E: b.Receiver().(*StarEvent).E.Clone()}, nil
 }
 
 // event data types mapping
