@@ -20,7 +20,12 @@
   [inputs.httpl.filters.pass]
 
 [[processors]]
-  [processors.through]
+  [processors.starlark]
+    code = '''
+def process(event):
+    event.setField("new.field", 42)
+    return event  
+    '''
 
 [[processors]]
   [processors.line]
