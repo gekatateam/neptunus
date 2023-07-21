@@ -192,7 +192,7 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 		return events, nil
 	}
 
-	return nil, fmt.Errorf("unknown function result, expected event, events list or none, got %v", starValue.Type())
+	return nil, fmt.Errorf("unknown function result, expected event, events list, error or none, got %v", starValue.Type())
 }
 
 func init() {
