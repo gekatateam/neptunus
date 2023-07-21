@@ -278,7 +278,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 		return string(v), nil
 	case starlark.Bool:
 		return bool(v), nil
-	case starlark.Int: // int, uint both here
+	case starlark.Int: // int, uint, both here
 		if value, ok := v.Int64(); ok {
 			return value, nil
 		}
