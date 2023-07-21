@@ -24,15 +24,6 @@ def process(event):
     return event
 ```
 
-## Type conversions
- - Golang string <-> Starlark String
- - Golang int -> Starlark Int -> Golang int64
- - Golang uint -> Starlark Int -> Golang uint64
- - Golang bool <-> Starlark Bool
- - Golang float -> starlark Float -> Gloang float64
- - Golang array or slice -> starlark List -> gloang slice
- - Golang map[string]T <-> starlark Dict
-
 ## Configuration
 ```toml
 [[processors]]
@@ -48,3 +39,32 @@ def process(event):
     return event
     '''
 ```
+
+## Type conversions
+ - Golang string <-> Starlark String
+ - Golang int -> Starlark Int -> Golang int64
+ - Golang uint -> Starlark Int -> Golang uint64
+ - Golang bool <-> Starlark Bool
+ - Golang float -> starlark Float -> Gloang float64
+ - Golang array or slice -> starlark List -> gloang slice
+ - Golang map[string]T <-> starlark Dict
+
+Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
+
+```python
+# bad
+def process(event):
+    dictField = event.getField("path.to.field")
+    dictField["key"] = "new data"
+    return event
+
+# good
+def process(event):
+    dictField = event.getField("path.to.field")
+    dictField["key"] = "new data"
+    event.setField("path.to.field", dictField)
+    return event
+
+```
+
+## Starlark modules
