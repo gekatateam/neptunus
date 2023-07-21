@@ -1,7 +1,7 @@
 # Starlark Processor Plugin
 The `starlark` processor uses a [Starlark](https://github.com/google/starlark-go/blob/master/doc/spec.md) script to process events.
 
-The processor defines new builtin type - `event` - as Neptunus event representation in starlark code with methods:
+The processor defines new builtin type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event api](../../../docs/DATA_MODEL.md):
  - `getRK() String` - get event routing key
  - `setRK(key String)` - set event routing key
  - `addLabel(key String, value String)` - add/overwrite event label
@@ -25,5 +25,26 @@ def process(event):
 ```
 
 ## Type conversions
+ - Golang string <-> Starlark String
+ - Golang int -> Starlark Int -> Golang int64
+ - Golang uint -> Starlark Int -> Golang uint64
+ - Golang bool <-> Starlark Bool
+ - Golang float -> starlark Float -> Gloang float64
+ - Golang array or slice -> starlark List -> gloang slice
+ - Golang map[string]T <-> starlark Dict
 
 ## Configuration
+```toml
+[[processors]]
+  [processors.starlark]
+    # script file with code
+    file = "script.star"
+
+    # starlark code
+    # if both, code and file are set
+    # code will be used
+    code = '''
+def process(event):
+    return event
+    '''
+```

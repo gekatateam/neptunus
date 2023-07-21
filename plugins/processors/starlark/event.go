@@ -19,7 +19,7 @@ type event struct {
 }
 
 func (e *event) String() string {
-	return e.event.String()
+	return fmt.Sprint(e.event)
 }
 
 func (e *event) Type() string {

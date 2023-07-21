@@ -26,7 +26,7 @@ type Starlark struct {
 	File  string `mapstructure:"file"`
 
 	thread *starlark.Thread
-	stFunc starlark.Value
+	stFunc *starlark.Function
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
@@ -48,15 +48,17 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logge
 
 	if len(p.Code) > 0 {
 		p.File = p.alias + ".star"
+		goto SCRIPT_LOADED
 	}
 
 	if len(p.File) > 0 {
 		script, err := os.ReadFile(p.File)
 		if err != nil {
-			return fmt.Errorf("error load code file %v: %v", p.File, err)
+			return fmt.Errorf("script file load failed %v: %v", p.File, err)
 		}
 		p.Code = string(script)
 	}
+SCRIPT_LOADED:
 
 	builtins := starlark.StringDict{
 		"newEvent": starlark.NewBuiltin("newEvent", NewEvent),
@@ -107,7 +109,12 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logge
 		return fmt.Errorf("initialization failed: %v", err)
 	}
 
-	stFunc, ok := globals["process"]
+	stVal, ok := globals["process"]
+	if !ok {
+		return errors.New("process(event) function not found in starlark program")
+	}
+
+	stFunc, ok := stVal.(*starlark.Function)
 	if !ok {
 		return errors.New("process(event) function not found in starlark program")
 	}
@@ -139,6 +146,7 @@ func (p *Starlark) Run() {
 		if err != nil {
 			p.log.Errorf("exec failed: %v", err)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
+			e.AddTag("::starlark_processing_failed")
 			p.out <- e
 			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
@@ -148,6 +156,7 @@ func (p *Starlark) Run() {
 		if err != nil {
 			p.log.Errorf("results unpack failed: %v", err)
 			e.StackError(fmt.Errorf("results unpack failed: %v", err))
+			e.AddTag("::starlark_processing_failed")
 			p.out <- e
 			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
