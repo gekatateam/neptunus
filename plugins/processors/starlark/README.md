@@ -108,7 +108,7 @@ myModule = struct(
 Then use of the module will not differ from the built-in ones:
 ```python
 # process.star
-load("myModule.star", myModule)
+load("myModule.star", "myModule")
 
 myModule.hello() # prints "hello from module"
 ```
