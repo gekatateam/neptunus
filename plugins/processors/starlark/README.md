@@ -34,7 +34,7 @@ def process(event):
     file = "script.star"
 
     # starlark code
-    # if both, code and file are set
+    # if both, code and file, are set
     # code will be used
     code = '''
 def process(event):
