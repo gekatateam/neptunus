@@ -3,10 +3,10 @@
 The Neptunus engine works with events - single data frames. An event is a structure with seven main fields:
  - **Id** - UUID of an event, which is usually generated when an event is created.
  - **Timestamp** - the time an event was created.
- - **Routing key** - basic event data used for routing purposes, usually it is a queue/topic name, URL path, etc.
- - **Labels** - an event metadata map, which are used for routing with routing key; think of this as event headers.
- - **Tags** - a list of **unique** event attributes, which also can be used for routing; plugins adds special tags, e.g. `::starlark_processing_failed` when an error occurs.
-- **Errors** - list of errors occurring in the pipeline; plugins add errors to an event if something goes wrong.
+ - **Routing key** - an event key, which should be used for events routing inside a pipeline and in outer world; usually it is a queue/topic name, URL path, etc.
+ - **Labels** - an event metadata map, which are used for routing with routing key; think of this as an event headers.
+ - **Tags** - list of **unique** event attributes, which also can be used for routing; plugins adds special tags, e.g. `::starlark_processing_failed` when an error occurs.
+- **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
 - **Fields** - an event payload, data map, that is filling by parsers; it is essentially the body of an event.
 
 ## Event API
@@ -58,4 +58,4 @@ To get user name, call `GetField("metadata.user.name")`, to add a new field with
 }
 ```
 
-These types can be used as field values: strings, integers (signed and unsigned), booleans, floating point numbers, arrays and slices and maps with string as a key. Any other types may cause errors at the serialization stage.
+These types can be used as field values: strings, integers (signed and unsigned), booleans, floating point numbers, arrays, slices and maps with string as a key. Any other types may cause errors at the serialization stage.
