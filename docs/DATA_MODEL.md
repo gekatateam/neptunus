@@ -32,7 +32,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
 
 `SetField`, `GetField` and `DeleteField` use dots as path separator. For example:
 ```json
-# event data
+# event data before
 {
     "message": "user login",
     "metadata": {
@@ -45,7 +45,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
 ```
 To get user name, call `GetField("metadata.user.name")`, to add a new field with age, call `SetField("metadata.user.age", 42)`.
 ```json
-# event after
+# event data after
 {
     "message": "user login",
     "metadata": {

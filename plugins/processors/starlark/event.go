@@ -49,7 +49,7 @@ func (e *event) AttrNames() []string {
 	return attrNames
 }
 
-func NewEvent(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+func newEvent(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	var rk string
 	if err := starlark.UnpackPositionalArgs("newEvent", args, kwargs, 1, &rk); err != nil {
 		return starlark.None, err

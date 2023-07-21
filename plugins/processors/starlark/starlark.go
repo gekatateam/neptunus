@@ -61,7 +61,7 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logge
 SCRIPT_LOADED:
 
 	builtins := starlark.StringDict{
-		"newEvent": starlark.NewBuiltin("newEvent", NewEvent),
+		"newEvent": starlark.NewBuiltin("newEvent", newEvent),
 		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
 	}
 
