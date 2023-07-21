@@ -12,6 +12,7 @@
 ## Inputs
  - [ ] Kafka
  - [ ] AMQP
+ - [ ] gRPC stream
 
 ## Outputs
 With batching and buffering
@@ -19,6 +20,7 @@ With batching and buffering
  - [ ] AMQP
  - [ ] Elasticsearch
  - [ ] PostgreSQL
+ - [ ] gRPC stream
 
 ## Filters
  - [x] Glob for labels, fields, routing keys
