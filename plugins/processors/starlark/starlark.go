@@ -54,7 +54,7 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logge
 	if len(p.File) > 0 {
 		script, err := os.ReadFile(p.File)
 		if err != nil {
-			return fmt.Errorf("script file load failed %v: %v", p.File, err)
+			return fmt.Errorf("failed to load %v script: %v", p.File, err)
 		}
 		p.Code = string(script)
 	}
