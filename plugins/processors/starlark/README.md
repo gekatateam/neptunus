@@ -18,7 +18,7 @@ The processor defines new builtin type - `event` - as Neptunus event representat
 
 Also, you can create a new event using `newEvent(key String)` builtin function.
 
-The Starlark script must have a `process` function that accepts an event and returns an event, events list or **None**. If function does not exists it is a compilation error, if it have other signature, it is a runtime error.
+The Starlark script must have a `process` function that accepts an event and returns an event, events list, **error** or **None**. If function does not exists it is a compilation error, if it have other signature, it is a runtime error. When **error** returns, an event marked as failed and provided error adds to an event.
 
 Minimalistic example:
 ```python

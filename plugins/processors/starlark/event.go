@@ -10,33 +10,33 @@ import (
 )
 
 var (
-	_         starlark.HasAttrs = &event{}
+	_         starlark.HasAttrs = &_event{}
 	attrNames []string          = []string{}
 )
 
-type event struct {
+type _event struct {
 	event *core.Event
 }
 
-func (e *event) String() string {
+func (e *_event) String() string {
 	return fmt.Sprint(e.event)
 }
 
-func (e *event) Type() string {
+func (e *_event) Type() string {
 	return "event"
 }
 
-func (e *event) Freeze() {}
+func (e *_event) Freeze() {}
 
-func (e *event) Truth() starlark.Bool {
+func (e *_event) Truth() starlark.Bool {
 	return e.event != nil
 }
 
-func (e *event) Hash() (uint32, error) {
+func (e *_event) Hash() (uint32, error) {
 	return 0, errors.New("event not hashable")
 }
 
-func (e *event) Attr(name string) (starlark.Value, error) {
+func (e *_event) Attr(name string) (starlark.Value, error) {
 	attr, ok := eventMethods[name]
 	if !ok {
 		return nil, fmt.Errorf("event has no method %v", name)
@@ -45,17 +45,17 @@ func (e *event) Attr(name string) (starlark.Value, error) {
 	return starlark.NewBuiltin(name, attr).BindReceiver(e), nil
 }
 
-func (e *event) AttrNames() []string {
+func (e *_event) AttrNames() []string {
 	return attrNames
 }
 
-func newEvent(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+func newEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	var rk string
-	if err := starlark.UnpackPositionalArgs("newEvent", args, kwargs, 1, &rk); err != nil {
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &rk); err != nil {
 		return starlark.None, err
 	}
 
-	return &event{event: core.NewEvent(rk)}, nil
+	return &_event{event: core.NewEvent(rk)}, nil
 }
 
 func init() {

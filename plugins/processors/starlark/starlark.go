@@ -62,6 +62,7 @@ SCRIPT_LOADED:
 
 	builtins := starlark.StringDict{
 		"newEvent": starlark.NewBuiltin("newEvent", newEvent),
+		"error":    starlark.NewBuiltin("error", newError),
 		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
 	}
 
@@ -142,7 +143,7 @@ func (p *Starlark) Alias() string {
 func (p *Starlark) Run() {
 	for e := range p.in {
 		now := time.Now()
-		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&event{event: e}}, nil)
+		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e}}, nil)
 		if err != nil {
 			p.log.Errorf("exec failed: %v", err)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
@@ -154,8 +155,8 @@ func (p *Starlark) Run() {
 
 		events, err := unpackEvents(result)
 		if err != nil {
-			p.log.Errorf("results unpack failed: %v", err)
-			e.StackError(fmt.Errorf("results unpack failed: %v", err))
+			p.log.Errorf("exec failed: %v", err)
+			e.StackError(fmt.Errorf("exec failed: %v", err))
 			e.AddTag("::starlark_processing_failed")
 			p.out <- e
 			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
@@ -173,8 +174,10 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 	events := []*core.Event{}
 
 	switch v := starValue.(type) {
-	case *event:
+	case *_event:
 		events = append(events, v.event)
+	case _error:
+		return nil, errors.New(v.String())
 	case *starlark.List:
 		iter := v.Iterate()
 		var value starlark.Value

@@ -42,7 +42,7 @@ func getRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	e := b.Receiver().(*event)
+	e := b.Receiver().(*_event)
 	return starlark.String(e.event.RoutingKey), nil
 }
 
@@ -56,7 +56,7 @@ func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 		return starlark.None, err
 	}
 
-	b.Receiver().(*event).event.RoutingKey = rk
+	b.Receiver().(*_event).event.RoutingKey = rk
 	return starlark.None, nil
 }
 
@@ -70,7 +70,7 @@ func addLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*event).event.AddLabel(key, value)
+	b.Receiver().(*_event).event.AddLabel(key, value)
 	return starlark.None, nil
 }
 
@@ -84,7 +84,7 @@ func getLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	label, found := b.Receiver().(*event).event.GetLabel(key)
+	label, found := b.Receiver().(*_event).event.GetLabel(key)
 	if found {
 		return starlark.String(label), nil
 	}
@@ -101,7 +101,7 @@ func delLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*event).event.DeleteLabel(key)
+	b.Receiver().(*_event).event.DeleteLabel(key)
 	return starlark.None, nil
 }
 
@@ -115,7 +115,7 @@ func getField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	value, err := b.Receiver().(*event).event.GetField(key)
+	value, err := b.Receiver().(*_event).event.GetField(key)
 	if err != nil {
 		return starlark.None, nil
 	}
@@ -139,8 +139,8 @@ func setField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	if err := b.Receiver().(*event).event.SetField(key, goValue); err != nil {
-		return Error(err.Error()), nil
+	if err := b.Receiver().(*_event).event.SetField(key, goValue); err != nil {
+		return _error(err.Error()), nil
 	}
 
 	return starlark.None, nil
@@ -156,7 +156,7 @@ func delField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*event).event.DeleteField(key)
+	b.Receiver().(*_event).event.DeleteField(key)
 	return starlark.None, nil
 }
 
@@ -170,7 +170,7 @@ func addTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 		return starlark.None, err
 	}
 
-	b.Receiver().(*event).event.AddTag(tag)
+	b.Receiver().(*_event).event.AddTag(tag)
 	return starlark.None, nil
 }
 
@@ -184,7 +184,7 @@ func delTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 		return starlark.None, err
 	}
 
-	b.Receiver().(*event).event.DeleteTag(tag)
+	b.Receiver().(*_event).event.DeleteTag(tag)
 	return starlark.None, nil
 }
 
@@ -198,7 +198,7 @@ func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 		return starlark.None, err
 	}
 
-	return starlark.Bool(b.Receiver().(*event).event.HasTag(tag)), nil
+	return starlark.Bool(b.Receiver().(*_event).event.HasTag(tag)), nil
 }
 
 func copyEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -206,7 +206,7 @@ func copyEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwa
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	return &event{event: b.Receiver().(*event).event.Copy()}, nil
+	return &_event{event: b.Receiver().(*_event).event.Copy()}, nil
 }
 
 func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -214,7 +214,7 @@ func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kw
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	return &event{event: b.Receiver().(*event).event.Clone()}, nil
+	return &_event{event: b.Receiver().(*_event).event.Clone()}, nil
 }
 
 // event data types mapping
