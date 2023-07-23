@@ -112,7 +112,7 @@ SCRIPT_LOADED:
 
 	stVal, ok := globals["process"]
 	if !ok {
-		return errors.New("process(event) function not found in starlark program")
+		return errors.New("process(event) function not found in starlark script")
 	}
 
 	stFunc, ok := stVal.(*starlark.Function)
