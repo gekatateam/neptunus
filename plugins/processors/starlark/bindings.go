@@ -10,40 +10,39 @@ import (
 	"github.com/gekatateam/neptunus/core"
 )
 
-var eventMethods = map[string]builtinFunc{
+var eventMethods = map[string]*starlark.Builtin{
 	// routing key methods
-	"getRK": getRoutingKey, // f() routingKey String
-	"setRK": setRoutingKey, // f(routingKey String)
+	"getRK": starlark.NewBuiltin("getRK", getRoutingKey), // f() routingKey String
+	"setRK": starlark.NewBuiltin("setRK", setRoutingKey), // f(routingKey String)
 
 	// labels methods
-	"addLabel": addLabel, // f(key, value String)
-	"getLabel": getLabel, // f(key String) value String|None
-	"delLabel": delLabel, // f(key String)
+	"addLabel": starlark.NewBuiltin("addLabel", addLabel), // f(key, value String)
+	"getLabel": starlark.NewBuiltin("getLabel", getLabel), // f(key String) value String|None
+	"delLabel": starlark.NewBuiltin("delLabel", delLabel), // f(key String)
 
 	// fields methods
-	"getField": getField, // f(path String) value Value|None
-	"setField": setField, // f(path String, value Value) Error|None
-	"delField": delField, //f(path String)
+	"getField": starlark.NewBuiltin("getField", getField), // f(path String) value Value|None
+	"setField": starlark.NewBuiltin("setField", setField), // f(path String, value Value) Error|None
+	"delField": starlark.NewBuiltin("delField", delField), //f(path String)
 
 	// tags methods
-	"addTag": addTag, // f(tag String)
-	"delTag": delTag, // f(tag String)
-	"hasTag": hasTag, // f(tag String) Bool
+	"addTag": starlark.NewBuiltin("addTag", addTag), // f(tag String)
+	"delTag": starlark.NewBuiltin("delTag", delTag), // f(tag String)
+	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
 
 	// object methods
-	"copy":  copyEvent,  // f() Event
-	"clone": cloneEvent, // f() Event
+	"copy":  starlark.NewBuiltin("copy", copyEvent),   // f() Event
+	"clone": starlark.NewBuiltin("clone", cloneEvent), // f() Event
 }
 
-type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
+//type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
 
 func getRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	e := b.Receiver().(*_event)
-	return starlark.String(e.event.RoutingKey), nil
+	return starlark.String(b.Receiver().(*_event).event.RoutingKey), nil
 }
 
 func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -293,6 +292,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 	case *starlark.List:
 		slice := []any{}
 		iter := v.Iterate()
+		defer iter.Done()
 		var starValue starlark.Value
 		for iter.Next(&starValue) {
 			goValue, err := toGoValue(starValue)

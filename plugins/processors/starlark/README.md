@@ -1,7 +1,7 @@
 # Starlark Processor Plugin
 The `starlark` processor uses a [Starlark](https://github.com/google/starlark-go/blob/master/doc/spec.md) script to process events.
 
-The processor defines new builtin type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event api](../../../docs/DATA_MODEL.md):
+The processor defines new builtin type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event API](../../../docs/DATA_MODEL.md):
  - `getRK() String` - get event routing key
  - `setRK(key String)` - set event routing key
  - `addLabel(key String, value String)` - add/overwrite event label
@@ -47,9 +47,9 @@ def process(event):
  - Golang int -> Starlark Int -> Golang int64
  - Golang uint -> Starlark Int -> Golang uint64
  - Golang bool <-> Starlark Bool
- - Golang float -> starlark Float -> Gloang float64
- - Golang array or slice -> starlark List -> gloang slice
- - Golang map[string]T <-> starlark Dict
+ - Golang float -> Starlark Float -> Gloang float64
+ - Golang array or slice -> Starlark List -> Gloang slice
+ - Golang map[string]T <-> Starlark Dict
 
 Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
 

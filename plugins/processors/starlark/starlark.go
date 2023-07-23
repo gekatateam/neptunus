@@ -117,7 +117,7 @@ SCRIPT_LOADED:
 
 	stFunc, ok := stVal.(*starlark.Function)
 	if !ok {
-		return errors.New("process(event) function not found in starlark program")
+		return errors.New("process is not a function")
 	}
 	p.stFunc = stFunc
 
@@ -176,6 +176,7 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 	switch v := starValue.(type) {
 	case *_event:
 		events = append(events, v.event)
+		return events, nil
 	case _error:
 		return nil, errors.New(v.String())
 	case *starlark.List:
@@ -188,6 +189,7 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 			}
 			events = append(events, r...)
 		}
+		return events, nil
 	case *starlark.NoneType:
 		return events, nil
 	}

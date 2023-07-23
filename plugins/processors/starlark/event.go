@@ -42,7 +42,7 @@ func (e *_event) Attr(name string) (starlark.Value, error) {
 		return nil, fmt.Errorf("event has no method %v", name)
 	}
 
-	return starlark.NewBuiltin(name, attr).BindReceiver(e), nil
+	return attr.BindReceiver(e), nil
 }
 
 func (e *_event) AttrNames() []string {
