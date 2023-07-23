@@ -175,12 +175,12 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 
 	switch v := starValue.(type) {
 	case *_event:
-		events = append(events, v.event)
-		return events, nil
+		return append(events, v.event), nil
 	case _error:
 		return nil, errors.New(v.String())
 	case *starlark.List:
 		iter := v.Iterate()
+		defer iter.Done()
 		var value starlark.Value
 		for iter.Next(&value) {
 			r, err := unpackEvents(value)
