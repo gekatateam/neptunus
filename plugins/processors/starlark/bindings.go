@@ -290,9 +290,9 @@ func toGoValue(starValue starlark.Value) (any, error) {
 	case starlark.Float:
 		return float64(v), nil
 	case *starlark.List:
-		slice := []any{}
 		iter := v.Iterate()
 		defer iter.Done()
+		var slice []any
 		var starValue starlark.Value
 		for iter.Next(&starValue) {
 			goValue, err := toGoValue(starValue)

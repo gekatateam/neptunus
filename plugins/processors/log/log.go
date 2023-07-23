@@ -16,6 +16,8 @@ type Log struct {
 	pipe  string
 	Level string `mapstructure:"level"`
 
+	logFunc func(args ...interface{})
+
 	in  <-chan *core.Event
 	out chan<- *core.Event
 	log logger.Logger
@@ -27,15 +29,22 @@ func (p *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 		return err
 	}
 
-	switch p.Level {
-	case "trace", "debug", "info", "warn":
-	default:
-		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", p.Level)
-	}
-
 	p.alias = alias
 	p.pipe = pipeline
 	p.log = log
+
+	switch p.Level {
+	case "trace":
+		p.logFunc = p.log.Trace
+	case "debug":
+		p.logFunc = p.log.Debug
+	case "info":
+		p.logFunc = p.log.Info
+	case "warn":
+		p.logFunc = p.log.Warn
+	default:
+		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", p.Level)
+	}
 
 	return nil
 }
@@ -64,17 +73,7 @@ func (p *Log) Run() {
 			continue
 		}
 
-		switch p.Level {
-		case "trace":
-			p.log.Trace(string(event))
-		case "debug":
-			p.log.Debug(string(event))
-		case "info":
-			p.log.Info(string(event))
-		case "warn":
-			p.log.Warn(string(event))
-		}
-
+		p.logFunc(string(event))
 		p.out <- e
 		metrics.ObserveProcessorSummary("log", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}

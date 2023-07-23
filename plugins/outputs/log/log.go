@@ -16,6 +16,8 @@ type Log struct {
 	pipe  string
 	Level string `mapstructure:"level"`
 
+	logFunc func(args ...interface{})
+
 	in  <-chan *core.Event
 	log logger.Logger
 	ser core.Serializer
@@ -26,15 +28,22 @@ func (o *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 		return err
 	}
 
-	switch o.Level {
-	case "trace", "debug", "info", "warn":
-	default:
-		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", o.Level)
-	}
-
 	o.alias = alias
 	o.pipe = pipeline
 	o.log = log
+
+	switch o.Level {
+	case "trace":
+		o.logFunc = o.log.Trace
+	case "debug":
+		o.logFunc = o.log.Debug
+	case "info":
+		o.logFunc = o.log.Info
+	case "warn":
+		o.logFunc = o.log.Warn
+	default:
+		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", o.Level)
+	}
 
 	return nil
 }
@@ -57,16 +66,7 @@ func (o *Log) Run() {
 			continue
 		}
 
-		switch o.Level {
-		case "trace":
-			o.log.Trace(string(event))
-		case "debug":
-			o.log.Debug(string(event))
-		case "info":
-			o.log.Info(string(event))
-		case "warn":
-			o.log.Warn(string(event))
-		}
+		o.logFunc(string(event))
 		metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
