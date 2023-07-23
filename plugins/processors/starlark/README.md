@@ -26,6 +26,8 @@ def process(event):
     return event
 ```
 
+Processor passes a **clone** of an event to script, so event is not changed when an error occurs.
+
 ## Configuration
 ```toml
 [[processors]]

@@ -143,7 +143,7 @@ func (p *Starlark) Alias() string {
 func (p *Starlark) Run() {
 	for e := range p.in {
 		now := time.Now()
-		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e}}, nil)
+		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e.Clone()}}, nil)
 		if err != nil {
 			p.log.Errorf("exec failed: %v", err)
 			e.StackError(fmt.Errorf("exec failed: %v", err))

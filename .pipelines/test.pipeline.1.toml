@@ -24,7 +24,7 @@
     code = '''
 def process(event):
     event.setField("new.field", 42)
-    return event  
+    return event
     '''
 
 [[processors]]
