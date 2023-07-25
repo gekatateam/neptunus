@@ -17,9 +17,9 @@ type Defaults struct {
 	Labels map[string]string `mapstructure:"labels"`
 	Fields map[string]any    `mapstructure:"fields"`
 
-	in    <-chan *core.Event
-	out   chan<- *core.Event
-	log   logger.Logger
+	in  <-chan *core.Event
+	out chan<- *core.Event
+	log logger.Logger
 }
 
 func (p *Defaults) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {

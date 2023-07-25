@@ -21,10 +21,10 @@ import (
 type Httpl struct {
 	alias          string
 	pipe           string
-	Address        string        `mapstructure:"address"`
-	ReadTimeout    time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout   time.Duration `mapstructure:"write_timeout"`
-	MaxConnections int           `mapstructure:"max_connections"`
+	Address        string            `mapstructure:"address"`
+	ReadTimeout    time.Duration     `mapstructure:"read_timeout"`
+	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
+	MaxConnections int               `mapstructure:"max_connections"`
 	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
 
 	server   *http.Server
@@ -143,7 +143,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"server": i.Address,
 				"sender": r.RemoteAddr,
 			}
-			
+
 			for k, v := range i.LabelHeaders {
 				h := r.Header.Get(v)
 				if len(h) > 0 {
