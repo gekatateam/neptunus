@@ -40,6 +40,7 @@ func (p *Drop) Alias() string {
 func (p *Drop) Run() {
 	for range p.in {
 		metrics.ObserveProcessorSummary("drop", p.alias, p.pipe, metrics.EventAccepted, 0)
+		p.log.Debug("event dropped")
 		continue
 	}
 }
