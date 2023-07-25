@@ -28,16 +28,8 @@ def process(event):
     '''
 
 [[processors]]
-  [processors.line]
-
-[[processors]]
-  [processors.log]
-    level = "warn"
-  [processors.log.serializer]
-    type = "json"
-    data_only = false
-  [processors.log.filters.glob]
-    routing_key = [ "*http.*" ]
+  [processors.defaults.fields]
+    "type" = "451"
 
 [[outputs]]
   [outputs.log]
