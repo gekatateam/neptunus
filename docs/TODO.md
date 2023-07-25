@@ -29,8 +29,8 @@ With batching and buffering
 ## Processors
  - [x] Regular expressions
  - [ ] Type convertions (strings, numbers, time, duration, bytes, labels, tags, routing key, fields)
- - [ ] Default values for fields
- - ~~[ ] Math operations with numbers~~ Starlark should be used instead
+ - [x] Default values for fields
+ - [x] ~~Math operations with numbers~~ Starlark should be used instead
  - [x] Starlark
  - [ ] Correlation
 
