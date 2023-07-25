@@ -64,7 +64,7 @@ func (p *Defaults) Run() {
 		for k, v := range p.Fields {
 			if _, err := e.GetField(k); err != nil {
 				if err := e.SetField(k, v); err != nil {
-					p.log.Warnf("error set field %v", k)
+					p.log.Error("error set field %v", k)
 					e.StackError(fmt.Errorf("error set field %v", k))
 					e.AddTag("::defaults_processing_failed")
 					hasError = true
