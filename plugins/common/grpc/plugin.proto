@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package plugins.common.grpc;
+option go_package = "github.com/gekatateam/neptunus/plugins/common/grpc";
+
+service Input {
+    rpc SendBulk(stream Event) returns (BulkSummary) {}
+    rpc SendOne(Event) returns (Nil) {}
+
+    // planned to be for internal usage only
+    // this method used for streaming from 
+    // outputs.grpc to inputs.grpc
+    rpc OpenStream(stream Event) returns (Nil) {} 
+}
+
+message Event {
+    string RoutingKey = 1;
+    map<string, string> Labels = 2;
+    repeated string Tags = 3;
+    bytes Data = 4;
+
+    optional string Id = 5;
+    optional string Timestamp = 6;
+    repeated string Errors = 7;
+}
+
+message BulkSummary {
+    int32 Accepted = 1;
+    int32 Failed = 2;
+    map<int32, string> Errors = 3;
+}
+
+message Nil {}
