@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v4.24.0--rc2
-// source: plugins/common/grpc/plugin.proto
+// source: plugins/common/grpc/input.proto
 
 package grpc
 
@@ -248,5 +248,5 @@ var Input_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "plugins/common/grpc/plugin.proto",
+	Metadata: "plugins/common/grpc/input.proto",
 }
