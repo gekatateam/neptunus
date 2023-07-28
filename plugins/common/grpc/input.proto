@@ -14,11 +14,11 @@ service Input {
 }
 
 message Event {
-    string RoutingKey = 1;
-    map<string, string> Labels = 2;
-    repeated string Tags = 3;
-    bytes Data = 4;
+    bytes Data = 1;
 
+    optional string RoutingKey = 2;
+    map<string, string> Labels = 3;
+    repeated string Tags = 4;
     optional string Id = 5;
     optional string Timestamp = 6;
     repeated string Errors = 7;

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
@@ -25,9 +26,9 @@ type Grpc struct {
 
 	// main server options
 	// TODO: add r/w buffers ortions
-	MaxMessageSize       int `mapstructure:"max_message_size"`
-	NumStreamWorkers     int `mapstructure:"num_stream_workers"`
-	MaxConcurrentStreams int `mapstructure:"max_concurrent_streams"`
+	MaxMessageSize       int  `mapstructure:"max_message_size"`
+	NumStreamWorkers     uint `mapstructure:"num_stream_workers"`
+	MaxConcurrentStreams uint `mapstructure:"max_concurrent_streams"`
 
 	// keepalive server options
 	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`      // ServerParameters.MaxConnectionIdle
@@ -74,6 +75,21 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log lo
 	}
 	i.listener = listener
 
+	i.server = grpc.NewServer([]grpc.ServerOption{
+		grpc.MaxRecvMsgSize(i.MaxMessageSize),
+		grpc.MaxSendMsgSize(i.MaxMessageSize),
+		grpc.NumStreamWorkers(uint32(i.NumStreamWorkers)),
+		grpc.MaxConcurrentStreams(uint32(i.MaxConcurrentStreams)),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     i.MaxConnectionIdle,
+			MaxConnectionAge:      i.MaxConnectionAge,
+			MaxConnectionAgeGrace: i.MaxConnectionAgeGrace,
+			Time:                  i.InactiveTransportPing,
+			Timeout:               i.InactiveTransportAge,
+		}),
+	}...)
+	common.RegisterInputServer(i.server, i)
+
 	return nil
 }
 
@@ -94,14 +110,30 @@ func (i *Grpc) SetParser(p core.Parser) {
 	i.parser = p
 }
 
-func (i *Grpc) SendBulk(common.Input_SendBulkServer) error
-func (i *Grpc) SendOne(context.Context, *common.Event) (*common.Nil, error)
-func (i *Grpc) OpenStream(common.Input_OpenStreamServer) error
+func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
+	return nil
+}
+
+func (i *Grpc) SendOne(ctx context.Context, event *common.Event) (*common.Nil, error) {
+	return &common.Nil{}, nil
+}
+
+func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
+	return nil
+}
 
 func init() {
-	plugins.AddInput("httpl", func() core.Input {
+	plugins.AddInput("grpc", func() core.Input {
 		return &Grpc{
-			Address: ":9800",
+			Address:               ":5800",
+			MaxMessageSize:        4 * 1024 * 1024, // 4 MiB
+			NumStreamWorkers:      5,
+			MaxConcurrentStreams:  5,
+			MaxConnectionIdle:     5 * time.Minute,
+			MaxConnectionAge:      5 * time.Minute,
+			MaxConnectionAgeGrace: 30 * time.Second,
+			InactiveTransportPing: 30 * time.Second,
+			InactiveTransportAge:  30 * time.Second,
 		}
 	})
 }

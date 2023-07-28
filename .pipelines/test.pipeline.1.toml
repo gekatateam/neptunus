@@ -13,6 +13,13 @@
   [inputs.httpl.filters.pass]
 
 [[inputs]]
+  [inputs.grpc]
+    address = ":5200"
+  [inputs.grpc.parser]
+    type = "json"
+
+
+[[inputs]]
   [inputs.httpl]
     address = ":9400"
   [inputs.httpl.parser]
