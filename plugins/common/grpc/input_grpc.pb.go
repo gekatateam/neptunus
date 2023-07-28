@@ -24,9 +24,9 @@ const _ = grpc.SupportPackageIsVersion7
 type InputClient interface {
 	SendBulk(ctx context.Context, opts ...grpc.CallOption) (Input_SendBulkClient, error)
 	SendOne(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Nil, error)
-	// planned to be for internal usage only
-	// this method used for streaming from
-	// outputs.grpc to inputs.grpc
+	// planned for internal usage only
+	// this method is used to stream data
+	// from outputs.grpc to inputs.grpc
 	OpenStream(ctx context.Context, opts ...grpc.CallOption) (Input_OpenStreamClient, error)
 }
 
@@ -39,7 +39,7 @@ func NewInputClient(cc grpc.ClientConnInterface) InputClient {
 }
 
 func (c *inputClient) SendBulk(ctx context.Context, opts ...grpc.CallOption) (Input_SendBulkClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Input_ServiceDesc.Streams[0], "/plugins.common.grpc.Input/SendBulk", opts...)
+	stream, err := c.cc.NewStream(ctx, &Input_ServiceDesc.Streams[0], "/neptunus.plugins.common.grpc.Input/SendBulk", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (x *inputSendBulkClient) CloseAndRecv() (*BulkSummary, error) {
 
 func (c *inputClient) SendOne(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Nil, error) {
 	out := new(Nil)
-	err := c.cc.Invoke(ctx, "/plugins.common.grpc.Input/SendOne", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/neptunus.plugins.common.grpc.Input/SendOne", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (c *inputClient) SendOne(ctx context.Context, in *Event, opts ...grpc.CallO
 }
 
 func (c *inputClient) OpenStream(ctx context.Context, opts ...grpc.CallOption) (Input_OpenStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Input_ServiceDesc.Streams[1], "/plugins.common.grpc.Input/OpenStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &Input_ServiceDesc.Streams[1], "/neptunus.plugins.common.grpc.Input/OpenStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,9 +121,9 @@ func (x *inputOpenStreamClient) CloseAndRecv() (*Nil, error) {
 type InputServer interface {
 	SendBulk(Input_SendBulkServer) error
 	SendOne(context.Context, *Event) (*Nil, error)
-	// planned to be for internal usage only
-	// this method used for streaming from
-	// outputs.grpc to inputs.grpc
+	// planned for internal usage only
+	// this method is used to stream data
+	// from outputs.grpc to inputs.grpc
 	OpenStream(Input_OpenStreamServer) error
 	mustEmbedUnimplementedInputServer()
 }
@@ -190,7 +190,7 @@ func _Input_SendOne_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/plugins.common.grpc.Input/SendOne",
+		FullMethod: "/neptunus.plugins.common.grpc.Input/SendOne",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(InputServer).SendOne(ctx, req.(*Event))
@@ -228,7 +228,7 @@ func (x *inputOpenStreamServer) Recv() (*Event, error) {
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Input_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "plugins.common.grpc.Input",
+	ServiceName: "neptunus.plugins.common.grpc.Input",
 	HandlerType: (*InputServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

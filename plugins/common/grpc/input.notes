@@ -1,0 +1,8 @@
+it is not possible to close stream on server side
+
+so we need to wait until stream is closed or client is closed connection
+
+there is a server options for this case - MaxConnectionAge with MaxConnectionAgeGrace
+that must be tested first - https://pkg.go.dev/google.golang.org/grpc@v1.56.2/keepalive#ServerParameters
+
+so, max TTL for endless stream from client is a MaxConnectionAge + MaxConnectionAgeGrace

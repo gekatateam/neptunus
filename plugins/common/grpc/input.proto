@@ -1,15 +1,15 @@
 syntax = "proto3";
 
-package plugins.common.grpc;
+package neptunus.plugins.common.grpc;
 option go_package = "github.com/gekatateam/neptunus/plugins/common/grpc";
 
 service Input {
     rpc SendBulk(stream Event) returns (BulkSummary) {}
     rpc SendOne(Event) returns (Nil) {}
 
-    // planned to be for internal usage only
-    // this method used for streaming from 
-    // outputs.grpc to inputs.grpc
+    // planned for internal usage only
+    // this method is used to stream data 
+    // from outputs.grpc to inputs.grpc
     rpc OpenStream(stream Event) returns (Nil) {} 
 }
 
