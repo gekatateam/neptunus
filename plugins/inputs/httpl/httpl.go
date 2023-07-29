@@ -154,6 +154,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			i.out <- event
 			events++
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+			now = time.Now()
 		}
 	}
 
