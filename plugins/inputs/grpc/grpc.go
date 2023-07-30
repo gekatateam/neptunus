@@ -47,6 +47,8 @@ type Grpc struct {
 
 	server   *grpc.Server
 	listener net.Listener
+	closeFn  context.CancelFunc
+	closeCtx context.Context
 
 	log    logger.Logger
 	out    chan<- *core.Event
@@ -60,6 +62,7 @@ func (i *Grpc) Alias() string {
 }
 
 func (i *Grpc) Close() error {
+	i.closeFn()
 	i.server.GracefulStop()
 	return nil
 }
@@ -72,6 +75,7 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log lo
 	i.alias = alias
 	i.pipe = pipeline
 	i.log = log
+	i.closeCtx, i.closeFn = context.WithCancel(context.Background())
 
 	if len(i.Address) == 0 {
 		return errors.New("address required")
@@ -110,7 +114,7 @@ func (i *Grpc) Run() {
 	if err := i.server.Serve(i.listener); err != nil {
 		i.log.Errorf("grpc server startup failed: %v", err.Error())
 	} else {
-		i.log.Debug("grpc server stopped")
+		i.log.Info("grpc server stopped")
 	}
 }
 
@@ -118,12 +122,12 @@ func (i *Grpc) SetParser(p core.Parser) {
 	i.parser = p
 }
 
-func (i *Grpc) SendOne(ctx context.Context, event *common.Event) (*common.Nil, error) {
+func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, error) {
 	now := time.Now()
 	p, _ := peer.FromContext(ctx)
 	i.log.Debugf("received request from: %v", p.Addr.String())
 
-	events, err := i.unpackEvent(ctx, event, "/neptunus.plugins.common.grpc.Input/SendOne")
+	events, err := i.unpackData(ctx, data, "/neptunus.plugins.common.grpc.Input/SendOne")
 	if err != nil {
 		i.log.Error(err)
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
@@ -150,10 +154,10 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 	}
 
 	for {
-		event, err := stream.Recv()
+		data, err := stream.Recv()
 		if err == io.EOF {
 			stream.SendAndClose(sum)
-			return nil
+			break
 		}
 		now := time.Now()
 
@@ -163,7 +167,7 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 			return err
 		}
 
-		events, err := i.unpackEvent(stream.Context(), event, "/neptunus.plugins.common.grpc.Input/SendBulk")
+		events, err := i.unpackData(stream.Context(), data, "/neptunus.plugins.common.grpc.Input/SendBulk")
 		if err != nil {
 			sum.Failed++
 			sum.Errors[sum.Failed+sum.Accepted] = err.Error()
@@ -175,8 +179,12 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		for _, e := range events {
 			i.out <- e
 			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+			now = time.Now()
 		}
 	}
+
+	i.log.Debug("stream ended")
+	return nil
 }
 
 func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
@@ -184,10 +192,16 @@ func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
 	i.log.Debugf("accepted stream from: %v", p.Addr.String())
 
 	for {
+		select {
+		case <- i.closeCtx.Done():
+			return status.Error(codes.Canceled, "server stopping")
+		default:
+		}
+
 		event, err := stream.Recv()
 		if err == io.EOF {
 			stream.SendAndClose(&common.Nil{})
-			return nil
+			break
 		}
 		now := time.Now()
 
@@ -197,64 +211,28 @@ func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
 			return err
 		}
 
-		events, err := i.unpackEvent(stream.Context(), event, "/neptunus.plugins.common.grpc.Input/OpenStream")
+		e, err := i.unpackEvent(event)
 		if err != nil {
 			i.log.Warn(err)
+			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}
 
-		for _, e := range events {
-			i.out <- e
-			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
-		}
+		i.out <- e
+		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
+
+	i.log.Debug("stream closed")
+	return nil
 }
 
-func (i *Grpc) unpackEvent(ctx context.Context, event *common.Event, defaultkey string) ([]*core.Event, error) {
-	events, err := i.parser.Parse(event.GetData(), defaultkey)
+func (i *Grpc) unpackData(ctx context.Context, data *common.Data, defaultkey string) ([]*core.Event, error) {
+	events, err := i.parser.Parse(data.GetData(), defaultkey)
 	if err != nil {
 		return nil, fmt.Errorf("data parsing failed: %w", err)
 	}
 
 	for _, e := range events {
-		if rawId := event.GetId(); len(rawId) > 0 {
-			id, err := uuid.Parse(rawId)
-			if err != nil {
-				return nil, fmt.Errorf("id parsing failed: %w", err)
-			}
-			e.Id = id
-		}
-
-		if rawTimestamp := event.GetTimestamp(); len(rawTimestamp) > 0 {
-			timestamp, err := time.Parse(time.RFC3339Nano, rawTimestamp)
-			if err != nil {
-				return nil, fmt.Errorf("timestamp parsing failed: %w", err)
-			}
-			e.Timestamp = timestamp
-		}
-
-		if rawKey := event.GetRoutingKey(); len(rawKey) > 0 {
-			e.RoutingKey = rawKey
-		}
-
-		if rawLabels := event.GetLabels(); rawLabels != nil {
-			for k, v := range rawLabels {
-				e.AddLabel(k, v)
-			}
-		}
-
-		if rawTags := event.GetTags(); rawTags != nil {
-			for _, v := range rawTags {
-				e.AddTag(v)
-			}
-		}
-
-		if rawErrors := event.GetErrors(); rawErrors != nil {
-			for _, v := range rawErrors {
-				e.StackError(errors.New(v))
-			}
-		}
-
 		p, _ := peer.FromContext(ctx)
 		e.AddLabel("input", "grpc")
 		e.AddLabel("server", i.Address)
@@ -269,6 +247,42 @@ func (i *Grpc) unpackEvent(ctx context.Context, event *common.Event, defaultkey 
 	}
 
 	return events, nil
+}
+
+func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
+	events, err := i.parser.Parse(event.GetData(), "")
+	if err != nil {
+		return nil, fmt.Errorf("data parsing failed: %w", err)
+	}
+	e := events[0]
+
+	id, err := uuid.Parse(event.GetId())
+	if err != nil {
+		return nil, fmt.Errorf("id parsing failed: %w", err)
+	}
+	e.Id = id
+
+	timestamp, err := time.Parse(time.RFC3339Nano, event.GetTimestamp())
+	if err != nil {
+		return nil, fmt.Errorf("timestamp parsing failed: %w", err)
+	}
+	e.Timestamp = timestamp
+
+	e.RoutingKey = event.GetRoutingKey()
+
+	for k, v := range event.GetLabels() {
+		e.AddLabel(k, v)
+	}
+
+	for _, v := range event.GetTags() {
+		e.AddTag(v)
+	}
+
+	for _, v := range event.GetErrors() {
+		e.StackError(errors.New(v))
+	}
+
+	return e, nil
 }
 
 func init() {

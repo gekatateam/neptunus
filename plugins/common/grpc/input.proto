@@ -4,8 +4,8 @@ package neptunus.plugins.common.grpc;
 option go_package = "github.com/gekatateam/neptunus/plugins/common/grpc";
 
 service Input {
-    rpc SendBulk(stream Event) returns (BulkSummary) {}
-    rpc SendOne(Event) returns (Nil) {}
+    rpc SendBulk(stream Data) returns (BulkSummary) {}
+    rpc SendOne(Data) returns (Nil) {}
 
     // planned for internal usage only
     // this method is used to stream data 
@@ -13,14 +13,17 @@ service Input {
     rpc OpenStream(stream Event) returns (Nil) {} 
 }
 
-message Event {
+message Data {
     bytes Data = 1;
+}
 
-    optional string RoutingKey = 2;
-    map<string, string> Labels = 3;
+message Event {
+    string RoutingKey = 1;
+    map<string, string> Labels = 2;
+    bytes Data = 3;
     repeated string Tags = 4;
-    optional string Id = 5;
-    optional string Timestamp = 6;
+    string Id = 5;
+    string Timestamp = 6;
     repeated string Errors = 7;
 }
 

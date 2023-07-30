@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InputClient interface {
 	SendBulk(ctx context.Context, opts ...grpc.CallOption) (Input_SendBulkClient, error)
-	SendOne(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Nil, error)
+	SendOne(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Nil, error)
 	// planned for internal usage only
 	// this method is used to stream data
 	// from outputs.grpc to inputs.grpc
@@ -48,7 +48,7 @@ func (c *inputClient) SendBulk(ctx context.Context, opts ...grpc.CallOption) (In
 }
 
 type Input_SendBulkClient interface {
-	Send(*Event) error
+	Send(*Data) error
 	CloseAndRecv() (*BulkSummary, error)
 	grpc.ClientStream
 }
@@ -57,7 +57,7 @@ type inputSendBulkClient struct {
 	grpc.ClientStream
 }
 
-func (x *inputSendBulkClient) Send(m *Event) error {
+func (x *inputSendBulkClient) Send(m *Data) error {
 	return x.ClientStream.SendMsg(m)
 }
 
@@ -72,7 +72,7 @@ func (x *inputSendBulkClient) CloseAndRecv() (*BulkSummary, error) {
 	return m, nil
 }
 
-func (c *inputClient) SendOne(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Nil, error) {
+func (c *inputClient) SendOne(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Nil, error) {
 	out := new(Nil)
 	err := c.cc.Invoke(ctx, "/neptunus.plugins.common.grpc.Input/SendOne", in, out, opts...)
 	if err != nil {
@@ -120,7 +120,7 @@ func (x *inputOpenStreamClient) CloseAndRecv() (*Nil, error) {
 // for forward compatibility
 type InputServer interface {
 	SendBulk(Input_SendBulkServer) error
-	SendOne(context.Context, *Event) (*Nil, error)
+	SendOne(context.Context, *Data) (*Nil, error)
 	// planned for internal usage only
 	// this method is used to stream data
 	// from outputs.grpc to inputs.grpc
@@ -135,7 +135,7 @@ type UnimplementedInputServer struct {
 func (UnimplementedInputServer) SendBulk(Input_SendBulkServer) error {
 	return status.Errorf(codes.Unimplemented, "method SendBulk not implemented")
 }
-func (UnimplementedInputServer) SendOne(context.Context, *Event) (*Nil, error) {
+func (UnimplementedInputServer) SendOne(context.Context, *Data) (*Nil, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOne not implemented")
 }
 func (UnimplementedInputServer) OpenStream(Input_OpenStreamServer) error {
@@ -160,7 +160,7 @@ func _Input_SendBulk_Handler(srv interface{}, stream grpc.ServerStream) error {
 
 type Input_SendBulkServer interface {
 	SendAndClose(*BulkSummary) error
-	Recv() (*Event, error)
+	Recv() (*Data, error)
 	grpc.ServerStream
 }
 
@@ -172,8 +172,8 @@ func (x *inputSendBulkServer) SendAndClose(m *BulkSummary) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *inputSendBulkServer) Recv() (*Event, error) {
-	m := new(Event)
+func (x *inputSendBulkServer) Recv() (*Data, error) {
+	m := new(Data)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (x *inputSendBulkServer) Recv() (*Event, error) {
 }
 
 func _Input_SendOne_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Event)
+	in := new(Data)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func _Input_SendOne_Handler(srv interface{}, ctx context.Context, dec func(inter
 		FullMethod: "/neptunus.plugins.common.grpc.Input/SendOne",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InputServer).SendOne(ctx, req.(*Event))
+		return srv.(InputServer).SendOne(ctx, req.(*Data))
 	}
 	return interceptor(ctx, in, info, handler)
 }

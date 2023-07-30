@@ -83,7 +83,7 @@ func (i *Httpl) Run() {
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
 	} else {
-		i.log.Debug("http server stopped")
+		i.log.Info("http server stopped")
 	}
 }
 
