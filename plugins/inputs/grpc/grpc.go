@@ -54,6 +54,9 @@ type Grpc struct {
 	out    chan<- *core.Event
 	parser core.Parser
 
+	sendOneDesc  string
+	sendBulkDesc string
+
 	common.UnimplementedInputServer
 }
 
@@ -102,6 +105,9 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log lo
 	}...)
 	common.RegisterInputServer(i.server, i)
 
+	i.sendOneDesc = "/" + common.Input_ServiceDesc.ServiceName + "/" + common.Input_ServiceDesc.Methods[0].MethodName
+	i.sendBulkDesc = "/" + common.Input_ServiceDesc.ServiceName + "/" + common.Input_ServiceDesc.Streams[0].StreamName
+
 	return nil
 }
 
@@ -127,7 +133,7 @@ func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, err
 	p, _ := peer.FromContext(ctx)
 	i.log.Debugf("received request from: %v", p.Addr.String())
 
-	events, err := i.unpackData(ctx, data, "/neptunus.plugins.common.grpc.Input/SendOne")
+	events, err := i.unpackData(ctx, data, i.sendOneDesc)
 	if err != nil {
 		i.log.Error(err)
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
@@ -167,7 +173,7 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 			return err
 		}
 
-		events, err := i.unpackData(stream.Context(), data, "/neptunus.plugins.common.grpc.Input/SendBulk")
+		events, err := i.unpackData(stream.Context(), data, i.sendBulkDesc)
 		if err != nil {
 			sum.Failed++
 			sum.Errors[sum.Failed+sum.Accepted] = err.Error()
@@ -193,7 +199,7 @@ func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
 
 	for {
 		select {
-		case <- i.closeCtx.Done():
+		case <-i.closeCtx.Done():
 			return status.Error(codes.Canceled, "server stopping")
 		default:
 		}
