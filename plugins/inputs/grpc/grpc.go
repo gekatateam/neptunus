@@ -25,8 +25,6 @@ import (
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 )
 
-var _ common.InputServer = &Grpc{}
-
 type Grpc struct {
 	alias   string
 	pipe    string
@@ -39,11 +37,11 @@ type Grpc struct {
 	MaxConcurrentStreams uint `mapstructure:"max_concurrent_streams"`
 
 	// keepalive server options
-	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`      // ServerParameters.MaxConnectionIdle
-	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`       // ServerParameters.MaxConnectionAge
-	MaxConnectionAgeGrace time.Duration `mapstructure:"max_connection_age_grace"` // ServerParameters.MaxConnectionAgeGrace
-	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"`  // ServerParameters.Time
-	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`   // ServerParameters.Timeout
+	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`     // ServerParameters.MaxConnectionIdle
+	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`      // ServerParameters.MaxConnectionAge
+	MaxConnectionGrace    time.Duration `mapstructure:"max_connection_grace"`    // ServerParameters.MaxConnectionAgeGrace
+	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"` // ServerParameters.Time
+	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
 
 	LabelMetadata map[string]string `mapstructure:"labelmetadata"`
 
@@ -93,7 +91,7 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log lo
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle:     i.MaxConnectionIdle,
 			MaxConnectionAge:      i.MaxConnectionAge,
-			MaxConnectionAgeGrace: i.MaxConnectionAgeGrace,
+			MaxConnectionAgeGrace: i.MaxConnectionGrace,
 			Time:                  i.InactiveTransportPing,
 			Timeout:               i.InactiveTransportAge,
 		}),
@@ -147,8 +145,8 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 
 	sum := &common.BulkSummary{
 		Accepted: 0,
-		Failed: 0,
-		Errors: make(map[int32]string),
+		Failed:   0,
+		Errors:   make(map[int32]string),
 	}
 
 	for {
@@ -168,7 +166,7 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		events, err := i.unpackEvent(stream.Context(), event, "/neptunus.plugins.common.grpc.Input/SendBulk")
 		if err != nil {
 			sum.Failed++
-			sum.Errors[sum.Failed + sum.Accepted] = err.Error()
+			sum.Errors[sum.Failed+sum.Accepted] = err.Error()
 			i.log.Warn(err)
 			continue
 		}
@@ -181,9 +179,36 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 	}
 }
 
-// func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
-// 	return nil
-// }
+func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
+	p, _ := peer.FromContext(stream.Context())
+	i.log.Debugf("accepted stream from: %v", p.Addr.String())
+
+	for {
+		event, err := stream.Recv()
+		if err == io.EOF {
+			stream.SendAndClose(&common.Nil{})
+			return nil
+		}
+		now := time.Now()
+
+		if err != nil {
+			i.log.Error(err)
+			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			return err
+		}
+
+		events, err := i.unpackEvent(stream.Context(), event, "/neptunus.plugins.common.grpc.Input/OpenStream")
+		if err != nil {
+			i.log.Warn(err)
+			continue
+		}
+
+		for _, e := range events {
+			i.out <- e
+			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		}
+	}
+}
 
 func (i *Grpc) unpackEvent(ctx context.Context, event *common.Event, defaultkey string) ([]*core.Event, error) {
 	events, err := i.parser.Parse(event.GetData(), defaultkey)
@@ -255,7 +280,7 @@ func init() {
 			MaxConcurrentStreams:  5,
 			MaxConnectionIdle:     5 * time.Minute,
 			MaxConnectionAge:      5 * time.Minute,
-			MaxConnectionAgeGrace: 30 * time.Second,
+			MaxConnectionGrace:    30 * time.Second,
 			InactiveTransportPing: 30 * time.Second,
 			InactiveTransportAge:  30 * time.Second,
 		}
