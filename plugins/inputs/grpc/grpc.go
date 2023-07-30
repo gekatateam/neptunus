@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/gekatateam/neptunus/core"
@@ -18,7 +23,6 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
-	"github.com/google/uuid"
 )
 
 var _ common.InputServer = &Grpc{}
@@ -38,7 +42,7 @@ type Grpc struct {
 	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`      // ServerParameters.MaxConnectionIdle
 	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`       // ServerParameters.MaxConnectionAge
 	MaxConnectionAgeGrace time.Duration `mapstructure:"max_connection_age_grace"` // ServerParameters.MaxConnectionAgeGrace
-	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_idle"`  // ServerParameters.Time
+	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"`  // ServerParameters.Time
 	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`   // ServerParameters.Timeout
 
 	LabelMetadata map[string]string `mapstructure:"labelmetadata"`
@@ -116,15 +120,14 @@ func (i *Grpc) SetParser(p core.Parser) {
 	i.parser = p
 }
 
-func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
-	return nil
-}
-
 func (i *Grpc) SendOne(ctx context.Context, event *common.Event) (*common.Nil, error) {
 	now := time.Now()
+	p, _ := peer.FromContext(ctx)
+	i.log.Debugf("received request from: %v", p.Addr.String())
 
-	events, err := i.unpackEvent(event, "/neptunus.plugins.common.grpc.Input/SendOne")
+	events, err := i.unpackEvent(ctx, event, "/neptunus.plugins.common.grpc.Input/SendOne")
 	if err != nil {
+		i.log.Error(err)
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 		return &common.Nil{}, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -138,11 +141,51 @@ func (i *Grpc) SendOne(ctx context.Context, event *common.Event) (*common.Nil, e
 	return &common.Nil{}, nil
 }
 
-func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
-	return nil
+func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
+	p, _ := peer.FromContext(stream.Context())
+	i.log.Debugf("received stream from: %v", p.Addr.String())
+
+	sum := &common.BulkSummary{
+		Accepted: 0,
+		Failed: 0,
+		Errors: make(map[int32]string),
+	}
+
+	for {
+		event, err := stream.Recv()
+		if err == io.EOF {
+			stream.SendAndClose(sum)
+			return nil
+		}
+		now := time.Now()
+
+		if err != nil {
+			i.log.Error(err)
+			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			return err
+		}
+
+		events, err := i.unpackEvent(stream.Context(), event, "/neptunus.plugins.common.grpc.Input/SendBulk")
+		if err != nil {
+			sum.Failed++
+			sum.Errors[sum.Failed + sum.Accepted] = err.Error()
+			i.log.Warn(err)
+			continue
+		}
+
+		sum.Accepted++
+		for _, e := range events {
+			i.out <- e
+			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		}
+	}
 }
 
-func (i *Grpc) unpackEvent(event *common.Event, defaultkey string) ([]*core.Event, error) {
+// func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
+// 	return nil
+// }
+
+func (i *Grpc) unpackEvent(ctx context.Context, event *common.Event, defaultkey string) ([]*core.Event, error) {
 	events, err := i.parser.Parse(event.GetData(), defaultkey)
 	if err != nil {
 		return nil, fmt.Errorf("data parsing failed: %w", err)
@@ -184,6 +227,18 @@ func (i *Grpc) unpackEvent(event *common.Event, defaultkey string) ([]*core.Even
 		if rawErrors := event.GetErrors(); rawErrors != nil {
 			for _, v := range rawErrors {
 				e.StackError(errors.New(v))
+			}
+		}
+
+		p, _ := peer.FromContext(ctx)
+		e.AddLabel("input", "grpc")
+		e.AddLabel("server", i.Address)
+		e.AddLabel("sender", p.Addr.String())
+
+		md, _ := metadata.FromIncomingContext(ctx)
+		for k, v := range i.LabelMetadata {
+			if val, ok := md[v]; ok {
+				e.AddLabel(k, strings.Join(val, ";"))
 			}
 		}
 	}
