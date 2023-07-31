@@ -22,3 +22,11 @@ func (me Errors) MarshalJSON() ([]byte, error) {
 
 	return data, nil
 }
+
+func (me Errors) Slice() []string {
+	s := []string{}
+	for _, err := range me {
+		s = append(s, err.Error())
+	}
+	return s
+}

@@ -200,6 +200,7 @@ func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
 	for {
 		select {
 		case <-i.closeCtx.Done():
+			stream.SendAndClose(&common.Nil{})
 			return status.Error(codes.Canceled, "server stopping")
 		default:
 		}

@@ -1,27 +1,28 @@
 [settings]
   id = "test.pipeline.2"
   lines = 5
-  run = false
+#  run = true #
   buffer = 100
 
 [[inputs]]
   [inputs.httpl]
-    address = ":9200"
+    address = ":9300"
   [inputs.httpl.parser]
     type = "json"
   [inputs.httpl.filters.pass]
     alias = "t4"
 
 [[processors]]
-  [processors.through]
-  [processors.through.filters.glob]
-    routing_key = [ "http.*" ]
-    alias = "t5"
+  [processors.log]
+    level = "warn"
+    [processors.log.serializer]
+      type = "json"
+      data_only = false
 
 [[outputs]]
-  [outputs.log]
-  [outputs.log.serializer]
+  [outputs.grpc]
+    address = "localhost:5800"
+    method = "stream"
+  [outputs.grpc.serializer]
     type = "json"
     data_only = true
-  [outputs.log.filters.pass]
-    alias = "t6"
