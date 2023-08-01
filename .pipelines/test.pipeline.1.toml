@@ -15,11 +15,12 @@
 [[inputs]]
   [inputs.grpc]
     address = ":5800"
-    max_connection_idle = "5s"
-    max_connection_age = "5m"
-    max_connection_grace = "5s"
-    inactive_transport_ping = "10s"
-    inactive_transport_age = "10s"
+    [inputs.grpc.server_options]
+      max_connection_idle = "5s"
+      max_connection_age = "5m"
+      max_connection_grace = "5s"
+      inactive_transport_ping = "10s"
+      inactive_transport_age = "10s"
   [inputs.grpc.parser]
     type = "json"
 

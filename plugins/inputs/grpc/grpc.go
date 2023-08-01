@@ -26,23 +26,10 @@ import (
 )
 
 type Grpc struct {
-	alias   string
-	pipe    string
-	Address string `mapstructure:"address"`
-
-	// main server options
-	// TODO: add r/w buffers ortions
-	MaxMessageSize       int  `mapstructure:"max_message_size"`
-	NumStreamWorkers     uint `mapstructure:"num_stream_workers"`
-	MaxConcurrentStreams uint `mapstructure:"max_concurrent_streams"`
-
-	// keepalive server options
-	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`     // ServerParameters.MaxConnectionIdle
-	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`      // ServerParameters.MaxConnectionAge
-	MaxConnectionGrace    time.Duration `mapstructure:"max_connection_grace"`    // ServerParameters.MaxConnectionAgeGrace
-	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"` // ServerParameters.Time
-	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
-
+	alias         string
+	pipe          string
+	Address       string            `mapstructure:"address"`
+	ServerOptions ServerOptions     `mapstructure:"server_options"`
 	LabelMetadata map[string]string `mapstructure:"labelmetadata"`
 
 	server   *grpc.Server
@@ -58,6 +45,21 @@ type Grpc struct {
 	sendBulkDesc string
 
 	common.UnimplementedInputServer
+}
+
+type ServerOptions struct {
+	// main server options
+	// TODO: add r/w buffers ortions
+	MaxMessageSize       int    `mapstructure:"max_message_size"`
+	NumStreamWorkers     uint32 `mapstructure:"num_stream_workers"`
+	MaxConcurrentStreams uint32 `mapstructure:"max_concurrent_streams"`
+
+	// keepalive server options
+	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`     // ServerParameters.MaxConnectionIdle
+	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`      // ServerParameters.MaxConnectionAge
+	MaxConnectionGrace    time.Duration `mapstructure:"max_connection_grace"`    // ServerParameters.MaxConnectionAgeGrace
+	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"` // ServerParameters.Time
+	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
 }
 
 func (i *Grpc) Alias() string {
@@ -91,16 +93,16 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log lo
 	i.listener = listener
 
 	i.server = grpc.NewServer([]grpc.ServerOption{
-		grpc.MaxRecvMsgSize(i.MaxMessageSize),
-		grpc.MaxSendMsgSize(i.MaxMessageSize),
-		grpc.NumStreamWorkers(uint32(i.NumStreamWorkers)),
-		grpc.MaxConcurrentStreams(uint32(i.MaxConcurrentStreams)),
+		grpc.MaxRecvMsgSize(i.ServerOptions.MaxMessageSize),
+		grpc.MaxSendMsgSize(i.ServerOptions.MaxMessageSize),
+		grpc.NumStreamWorkers(i.ServerOptions.NumStreamWorkers),
+		grpc.MaxConcurrentStreams(i.ServerOptions.MaxConcurrentStreams),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
-			MaxConnectionIdle:     i.MaxConnectionIdle,
-			MaxConnectionAge:      i.MaxConnectionAge,
-			MaxConnectionAgeGrace: i.MaxConnectionGrace,
-			Time:                  i.InactiveTransportPing,
-			Timeout:               i.InactiveTransportAge,
+			MaxConnectionIdle:     i.ServerOptions.MaxConnectionIdle,
+			MaxConnectionAge:      i.ServerOptions.MaxConnectionAge,
+			MaxConnectionAgeGrace: i.ServerOptions.MaxConnectionGrace,
+			Time:                  i.ServerOptions.InactiveTransportPing,
+			Timeout:               i.ServerOptions.InactiveTransportAge,
 		}),
 	}...)
 	common.RegisterInputServer(i.server, i)
@@ -200,7 +202,6 @@ func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
 	for {
 		select {
 		case <-i.closeCtx.Done():
-			stream.SendAndClose(&common.Nil{})
 			return status.Error(codes.Canceled, "server stopping")
 		default:
 		}
@@ -295,15 +296,17 @@ func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
 func init() {
 	plugins.AddInput("grpc", func() core.Input {
 		return &Grpc{
-			Address:               ":5800",
-			MaxMessageSize:        4 * 1024 * 1024, // 4 MiB
-			NumStreamWorkers:      5,
-			MaxConcurrentStreams:  5,
-			MaxConnectionIdle:     5 * time.Minute,
-			MaxConnectionAge:      5 * time.Minute,
-			MaxConnectionGrace:    30 * time.Second,
-			InactiveTransportPing: 30 * time.Second,
-			InactiveTransportAge:  30 * time.Second,
+			Address: ":5800",
+			ServerOptions: ServerOptions{
+				MaxMessageSize:        4 * 1024 * 1024, // 4 MiB
+				NumStreamWorkers:      5,
+				MaxConcurrentStreams:  5,
+				MaxConnectionIdle:     5 * time.Minute,
+				MaxConnectionAge:      5 * time.Minute,
+				MaxConnectionGrace:    30 * time.Second,
+				InactiveTransportPing: 30 * time.Second,
+				InactiveTransportAge:  30 * time.Second,
+			},
 		}
 	})
 }
