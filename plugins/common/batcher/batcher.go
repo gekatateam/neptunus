@@ -27,12 +27,14 @@ func (b *Batcher) Run(in <-chan *core.Event, flushFn func(buf []*core.Event)) {
 			buf = append(buf, e)
 			if len(buf) == b.Buffer { // buffer fullness
 				flushFn(buf)
+				buf = nil
+				ticker.Reset(b.Interval)
 			}
-			buf = nil
-			ticker.Reset(b.Interval)
 		case <-ticker.C:
-			flushFn(buf)
-			buf = nil
+			if len(buf) > 0 {
+				flushFn(buf)
+				buf = nil
+			}
 		}
 	}
 }
