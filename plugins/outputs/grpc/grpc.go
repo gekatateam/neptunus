@@ -72,7 +72,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	case "bulk":
 		o.sendFn = o.sendBulk
 	case "stream":
-		o.sendFn = o.openStream
+		o.sendFn = o.sendStream
 	default:
 		return fmt.Errorf("unknown method: %v; expected one of: one, bulk, stream", o.Method)
 	}
@@ -132,13 +132,55 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 
 func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 	flushFn := func(buf []*core.Event) {
+		stream := o.newBulkStream()
+		
+		for _, e := range buf {
+			now := time.Now()
+			event, err := o.ser.Serialize(e)
+			if err != nil {
+				o.log.Errorf("serialization failed: %v", err.Error())
+				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+				continue
+			}
 
+			for {
+				if stream == nil {
+					stream = o.newBulkStream()
+				}
+
+				err = stream.Send(&common.Data{
+					Data: event,
+				})
+
+				if err == nil {
+					o.log.Debugf("sent event id: %v", e.Id)
+					break
+				}
+
+				// io.EOF means than stream is dead on server side
+				if err == io.EOF {
+					stream = nil
+				}
+
+				o.log.Errorf("sending to stream failed: %v; event id: %v", err.Error(), e.Id)
+				time.Sleep(o.Sleep)
+			}
+
+			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+		}
+
+		sum, err := stream.CloseAndRecv()
+		if err != nil {
+			o.log.Errorf("all events have been sent, but summary receiving failed: %v", err.Error())
+			return
+		}
+		o.log.Debugf("accepted: %v, failed: %v", sum.Accepted, sum.Failed)
 	}
 
 	o.b.Run(ch, flushFn)
 }
 
-func (o *Grpc) openStream(ch <-chan *core.Event) {
+func (o *Grpc) sendStream(ch <-chan *core.Event) {
 	stream := o.newInternalStream()
 	doneCh := make(chan struct{})
 	stopCh := make(chan struct{}, 1)
@@ -171,7 +213,7 @@ func (o *Grpc) openStream(ch <-chan *core.Event) {
 	for e := range ch {
 		select {
 		case <-doneCh:
-			o.log.Debug("cancel signal received, closing stream")
+			o.log.Info("cancel signal received, closing stream")
 			stream.CloseSend()
 			stream = nil
 			time.Sleep(o.Sleep)
@@ -221,13 +263,13 @@ func (o *Grpc) openStream(ch <-chan *core.Event) {
 	wg.Wait()
 }
 
-func (o *Grpc) newInternalStream() common.Input_OpenStreamClient {
-	var stream common.Input_OpenStreamClient
+func (o *Grpc) newInternalStream() common.Input_SendStreamClient {
+	var stream common.Input_SendStreamClient
 	var err error
 	for {
-		stream, err = o.client.OpenStream(context.Background())
+		stream, err = o.client.SendStream(context.Background())
 		if err == nil {
-			o.log.Debug("internal stream opened")
+			o.log.Info("internal stream opened")
 			break
 		}
 

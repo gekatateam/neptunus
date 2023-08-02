@@ -195,7 +195,7 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 	return nil
 }
 
-func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
+func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 	p, _ := peer.FromContext(stream.Context())
 	i.log.Debugf("accepted stream from: %v", p.Addr.String())
 

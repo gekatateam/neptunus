@@ -27,7 +27,7 @@ type InputClient interface {
 	// planned for internal usage only
 	// this method is used to stream data
 	// from outputs.grpc to inputs.grpc
-	OpenStream(ctx context.Context, opts ...grpc.CallOption) (Input_OpenStreamClient, error)
+	SendStream(ctx context.Context, opts ...grpc.CallOption) (Input_SendStreamClient, error)
 }
 
 type inputClient struct {
@@ -81,30 +81,30 @@ func (c *inputClient) SendOne(ctx context.Context, in *Data, opts ...grpc.CallOp
 	return out, nil
 }
 
-func (c *inputClient) OpenStream(ctx context.Context, opts ...grpc.CallOption) (Input_OpenStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Input_ServiceDesc.Streams[1], "/neptunus.plugins.common.grpc.Input/OpenStream", opts...)
+func (c *inputClient) SendStream(ctx context.Context, opts ...grpc.CallOption) (Input_SendStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Input_ServiceDesc.Streams[1], "/neptunus.plugins.common.grpc.Input/SendStream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &inputOpenStreamClient{stream}
+	x := &inputSendStreamClient{stream}
 	return x, nil
 }
 
-type Input_OpenStreamClient interface {
+type Input_SendStreamClient interface {
 	Send(*Event) error
 	Recv() (*Cancel, error)
 	grpc.ClientStream
 }
 
-type inputOpenStreamClient struct {
+type inputSendStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *inputOpenStreamClient) Send(m *Event) error {
+func (x *inputSendStreamClient) Send(m *Event) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *inputOpenStreamClient) Recv() (*Cancel, error) {
+func (x *inputSendStreamClient) Recv() (*Cancel, error) {
 	m := new(Cancel)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ type InputServer interface {
 	// planned for internal usage only
 	// this method is used to stream data
 	// from outputs.grpc to inputs.grpc
-	OpenStream(Input_OpenStreamServer) error
+	SendStream(Input_SendStreamServer) error
 	mustEmbedUnimplementedInputServer()
 }
 
@@ -135,8 +135,8 @@ func (UnimplementedInputServer) SendBulk(Input_SendBulkServer) error {
 func (UnimplementedInputServer) SendOne(context.Context, *Data) (*Nil, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOne not implemented")
 }
-func (UnimplementedInputServer) OpenStream(Input_OpenStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method OpenStream not implemented")
+func (UnimplementedInputServer) SendStream(Input_SendStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method SendStream not implemented")
 }
 func (UnimplementedInputServer) mustEmbedUnimplementedInputServer() {}
 
@@ -195,25 +195,25 @@ func _Input_SendOne_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Input_OpenStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(InputServer).OpenStream(&inputOpenStreamServer{stream})
+func _Input_SendStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(InputServer).SendStream(&inputSendStreamServer{stream})
 }
 
-type Input_OpenStreamServer interface {
+type Input_SendStreamServer interface {
 	Send(*Cancel) error
 	Recv() (*Event, error)
 	grpc.ServerStream
 }
 
-type inputOpenStreamServer struct {
+type inputSendStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *inputOpenStreamServer) Send(m *Cancel) error {
+func (x *inputSendStreamServer) Send(m *Cancel) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *inputOpenStreamServer) Recv() (*Event, error) {
+func (x *inputSendStreamServer) Recv() (*Event, error) {
 	m := new(Event)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -240,8 +240,8 @@ var Input_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 		{
-			StreamName:    "OpenStream",
-			Handler:       _Input_OpenStream_Handler,
+			StreamName:    "SendStream",
+			Handler:       _Input_SendStream_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

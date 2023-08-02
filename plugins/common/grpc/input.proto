@@ -10,7 +10,7 @@ service Input {
     // planned for internal usage only
     // this method is used to stream data 
     // from outputs.grpc to inputs.grpc
-    rpc OpenStream(stream Event) returns (stream Cancel) {} 
+    rpc SendStream(stream Event) returns (stream Cancel) {} 
 }
 
 message Data {
