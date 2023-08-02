@@ -202,13 +202,17 @@ func (i *Grpc) OpenStream(stream common.Input_OpenStreamServer) error {
 	for {
 		select {
 		case <-i.closeCtx.Done():
-			return status.Error(codes.Canceled, "server stopping")
+			for { // send close signal to client
+				if err := stream.Send(&common.Cancel{}); err == nil {
+					break
+				}
+				time.Sleep(1 * time.Second)
+			}
 		default:
 		}
 
 		event, err := stream.Recv()
 		if err == io.EOF {
-			stream.SendAndClose(&common.Nil{})
 			break
 		}
 		now := time.Now()

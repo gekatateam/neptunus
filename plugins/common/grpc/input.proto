@@ -10,7 +10,7 @@ service Input {
     // planned for internal usage only
     // this method is used to stream data 
     // from outputs.grpc to inputs.grpc
-    rpc OpenStream(stream Event) returns (Nil) {} 
+    rpc OpenStream(stream Event) returns (stream Cancel) {} 
 }
 
 message Data {
@@ -32,5 +32,7 @@ message BulkSummary {
     int32 Failed = 2;
     map<int32, string> Errors = 3;
 }
+
+message Cancel {}
 
 message Nil {}

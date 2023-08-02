@@ -92,7 +92,7 @@ func (c *inputClient) OpenStream(ctx context.Context, opts ...grpc.CallOption) (
 
 type Input_OpenStreamClient interface {
 	Send(*Event) error
-	CloseAndRecv() (*Nil, error)
+	Recv() (*Cancel, error)
 	grpc.ClientStream
 }
 
@@ -104,11 +104,8 @@ func (x *inputOpenStreamClient) Send(m *Event) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *inputOpenStreamClient) CloseAndRecv() (*Nil, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(Nil)
+func (x *inputOpenStreamClient) Recv() (*Cancel, error) {
+	m := new(Cancel)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -203,7 +200,7 @@ func _Input_OpenStream_Handler(srv interface{}, stream grpc.ServerStream) error 
 }
 
 type Input_OpenStreamServer interface {
-	SendAndClose(*Nil) error
+	Send(*Cancel) error
 	Recv() (*Event, error)
 	grpc.ServerStream
 }
@@ -212,7 +209,7 @@ type inputOpenStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *inputOpenStreamServer) SendAndClose(m *Nil) error {
+func (x *inputOpenStreamServer) Send(m *Cancel) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -245,6 +242,7 @@ var Input_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "OpenStream",
 			Handler:       _Input_OpenStream_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -15,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 )
 
@@ -25,6 +27,8 @@ type Grpc struct {
 	Address     string        `mapstructure:"address"`
 	Method      string        `mapstructure:"method"`
 	Sleep       time.Duration `mapstructure:"sleep"`
+	Buffer      int           `mapstructure:"buffer"`
+	Interval    time.Duration `mapstructure:"interval"`
 	DialOptions DialOptions   `mapstructure:"dial_options"`
 	CallOptions CallOptions   `mapstructure:"call_options"`
 
@@ -35,6 +39,7 @@ type Grpc struct {
 	in  <-chan *core.Event
 	log logger.Logger
 	ser core.Serializer
+	b   *batcher.Batcher
 }
 
 type DialOptions struct{}
@@ -70,6 +75,11 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 		o.sendFn = o.openStream
 	default:
 		return fmt.Errorf("unknown method: %v; expected one of: one, bulk, stream", o.Method)
+	}
+
+	o.b = &batcher.Batcher{
+		Buffer:   o.Buffer,
+		Interval: o.Interval,
 	}
 
 	return nil
@@ -121,34 +131,53 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 }
 
 func (o *Grpc) sendBulk(ch <-chan *core.Event) {
-	buf := make([]*core.Event, 0, 100)
-	ticker := time.NewTicker(10 * time.Second)
+	flushFn := func(buf []*core.Event) {
 
-	for {
-		select {
-		case e, ok := <-ch:
-			if !ok { // channel closed
-				ticker.Stop()
-				// release the buffer
-				return
-			}
-
-			buf = append(buf, e)
-			if len(buf) == cap(buf) {
-				// do stuff
-			}
-
-			ticker.Reset(10 * time.Second)
-		case <-ticker.C:
-
-		}
 	}
+
+	o.b.Run(ch, flushFn)
 }
 
 func (o *Grpc) openStream(ch <-chan *core.Event) {
-	var stream common.Input_OpenStreamClient
+	stream := o.newInternalStream()
+	doneCh := make(chan struct{})
+	stopCh := make(chan struct{}, 1)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				o.log.Debug("receiving goroutine returns")
+				return
+			default:
+			}
+
+			// handle cancel signal from server and close the stream
+			// it's not for gracefull shutdown, but for gracefull disconnect
+			// from stopping server without data loss
+			// after this, client will try to reopen the stream in main loop
+			if stream != nil {
+				_, err := stream.Recv()
+				if err == nil {
+					doneCh <- struct{}{}
+				}
+			}
+		}
+	}()
 
 	for e := range ch {
+		select {
+		case <-doneCh:
+			o.log.Debug("cancel signal received, closing stream")
+			stream.CloseSend()
+			stream = nil
+			time.Sleep(o.Sleep)
+		default:
+		}
+
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
 		if err != nil {
@@ -187,7 +216,9 @@ func (o *Grpc) openStream(ch <-chan *core.Event) {
 		metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
-	stream.CloseAndRecv()
+	stopCh <- struct{}{}
+	stream.CloseSend()
+	wg.Wait()
 }
 
 func (o *Grpc) newInternalStream() common.Input_OpenStreamClient {
@@ -225,7 +256,9 @@ func (o *Grpc) newBulkStream() common.Input_SendBulkClient {
 func init() {
 	plugins.AddOutput("grpc", func() core.Output {
 		return &Grpc{
-			Sleep: 5 * time.Second,
+			Sleep:    5 * time.Second,
+			Buffer:   100,
+			Interval: 5 * time.Second,
 		}
 	})
 }
