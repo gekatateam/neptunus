@@ -10,6 +10,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
@@ -24,17 +26,19 @@ type Grpc struct {
 	alias string
 	pipe  string
 
-	Address     string        `mapstructure:"address"`
-	Method      string        `mapstructure:"method"`
-	Sleep       time.Duration `mapstructure:"sleep"`
-	Buffer      int           `mapstructure:"buffer"`
-	Interval    time.Duration `mapstructure:"interval"`
-	DialOptions DialOptions   `mapstructure:"dial_options"`
-	CallOptions CallOptions   `mapstructure:"call_options"`
+	Address      string            `mapstructure:"address"`
+	Method       string            `mapstructure:"method"`
+	Sleep        time.Duration     `mapstructure:"sleep"`
+	Buffer       int               `mapstructure:"buffer"`
+	Interval     time.Duration     `mapstructure:"interval"`
+	DialOptions  DialOptions       `mapstructure:"dial_options"`
+	CallOptions  CallOptions       `mapstructure:"call_options"`
+	HeaderLabels map[string]string `mapstructure:"headerlabels"`
 
-	sendFn func(ch <-chan *core.Event)
-	client common.InputClient
-	conn   *grpc.ClientConn
+	sendFn   func(ch <-chan *core.Event)
+	client   common.InputClient
+	conn     *grpc.ClientConn
+	callOpts []grpc.CallOption
 
 	in  <-chan *core.Event
 	log logger.Logger
@@ -42,9 +46,18 @@ type Grpc struct {
 	b   *batcher.Batcher
 }
 
-type DialOptions struct{}
+type DialOptions struct {
+	Authority             string        `mapstructure:"authority"`               // https://pkg.go.dev/google.golang.org/grpc#WithAuthority
+	UserAgent             string        `mapstructure:"user_agent"`              // https://pkg.go.dev/google.golang.org/grpc#WithUserAgent
+	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"` // keepalive ClientParameters.Time
+	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // keepalive ClientParameters.Timeout
+	PermitWithoutStream   bool          `mapstructure:"permit_without_stream"`   // keepalive ClientParameters.PermitWithoutStream
+}
 
-type CallOptions struct{}
+type CallOptions struct {
+	ContentSUbtype string `mapstructure:"content_subtype"` // https://pkg.go.dev/google.golang.org/grpc#WithUserAgent
+	WaitForReady   bool   `mapstructure:"wait_for_ready"`  // https://pkg.go.dev/google.golang.org/grpc#WaitForReady
+}
 
 func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
 	if err := mapstructure.Decode(config, o); err != nil {
@@ -60,11 +73,12 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	}
 
 	var err error
-	o.conn, err = grpc.Dial(o.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	o.conn, err = grpc.Dial(o.Address, dialOptions(o.DialOptions)...)
 	if err != nil {
 		return err
 	}
 	o.client = common.NewInputClient(o.conn)
+	o.callOpts = callOptions(o.CallOptions)
 
 	switch o.Method {
 	case "one":
@@ -115,8 +129,19 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			continue
 		}
 
+		md := metadata.MD{}
+		for k, v := range o.HeaderLabels {
+			if label, ok := e.GetLabel(v); ok {
+				md.Append(k, label)
+			}
+		}
+
 		for {
-			_, err = o.client.SendOne(context.Background(), &common.Data{Data: event}, grpc.WaitForReady(true))
+			_, err = o.client.SendOne(
+				metadata.NewOutgoingContext(context.Background(), md),
+				&common.Data{Data: event},
+				o.callOpts...,
+			)
 			if err == nil {
 				o.log.Debugf("sent event id: %v", e.Id)
 				break
@@ -131,9 +156,9 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 }
 
 func (o *Grpc) sendBulk(ch <-chan *core.Event) {
-	flushFn := func(buf []*core.Event) {
+	o.b.Run(ch, func(buf []*core.Event) {
 		stream := o.newBulkStream()
-		
+
 		for _, e := range buf {
 			now := time.Now()
 			event, err := o.ser.Serialize(e)
@@ -175,9 +200,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 			return
 		}
 		o.log.Debugf("accepted: %v, failed: %v", sum.Accepted, sum.Failed)
-	}
-
-	o.b.Run(ch, flushFn)
+	})
 }
 
 func (o *Grpc) sendStream(ch <-chan *core.Event) {
@@ -267,7 +290,7 @@ func (o *Grpc) newInternalStream() common.Input_SendStreamClient {
 	var stream common.Input_SendStreamClient
 	var err error
 	for {
-		stream, err = o.client.SendStream(context.Background())
+		stream, err = o.client.SendStream(context.Background(), o.callOpts...)
 		if err == nil {
 			o.log.Info("internal stream opened")
 			break
@@ -283,7 +306,7 @@ func (o *Grpc) newBulkStream() common.Input_SendBulkClient {
 	var stream common.Input_SendBulkClient
 	var err error
 	for {
-		stream, err = o.client.SendBulk(context.Background())
+		stream, err = o.client.SendBulk(context.Background(), o.callOpts...)
 		if err == nil {
 			o.log.Debug("bulk stream opened")
 			break
@@ -293,6 +316,40 @@ func (o *Grpc) newBulkStream() common.Input_SendBulkClient {
 		time.Sleep(o.Sleep)
 	}
 	return stream
+}
+
+func dialOptions(opts DialOptions) []grpc.DialOption {
+	var dialOpts []grpc.DialOption
+
+	if len(opts.Authority) > 0 {
+		dialOpts = append(dialOpts, grpc.WithAuthority(opts.Authority))
+	}
+
+	if len(opts.UserAgent) > 0 {
+		dialOpts = append(dialOpts, grpc.WithUserAgent(opts.UserAgent))
+	}
+
+	dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:                opts.InactiveTransportPing,
+		Timeout:             opts.InactiveTransportAge,
+		PermitWithoutStream: opts.PermitWithoutStream,
+	}))
+
+	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	return dialOpts
+}
+
+func callOptions(opts CallOptions) []grpc.CallOption {
+	var callOpts []grpc.CallOption
+
+	if len(opts.ContentSUbtype) > 0 {
+		callOpts = append(callOpts, grpc.CallContentSubtype(opts.ContentSUbtype))
+	}
+
+	callOpts = append(callOpts, grpc.WaitForReady(opts.WaitForReady))
+
+	return callOpts
 }
 
 func init() {
