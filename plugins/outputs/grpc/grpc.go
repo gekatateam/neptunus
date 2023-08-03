@@ -27,7 +27,7 @@ type Grpc struct {
 	pipe  string
 
 	Address        string            `mapstructure:"address"`
-	Method         string            `mapstructure:"method"`
+	Procedure      string            `mapstructure:"procedure"`
 	Sleep          time.Duration     `mapstructure:"sleep"`
 	Buffer         int               `mapstructure:"buffer"`
 	Interval       time.Duration     `mapstructure:"interval"`
@@ -80,7 +80,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	o.client = common.NewInputClient(o.conn)
 	o.callOpts = callOptions(o.CallOptions)
 
-	switch o.Method {
+	switch o.Procedure {
 	case "one":
 		o.sendFn = o.sendOne
 	case "bulk":
@@ -88,7 +88,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	case "stream":
 		o.sendFn = o.sendStream
 	default:
-		return fmt.Errorf("unknown method: %v; expected one of: one, bulk, stream", o.Method)
+		return fmt.Errorf("unknown procedure: %v; expected one of: one, bulk, stream", o.Procedure)
 	}
 
 	o.b = &batcher.Batcher{

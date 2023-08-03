@@ -22,7 +22,7 @@
 [[outputs]]
   [outputs.grpc]
     address = "localhost:5800"
-    method = "bulk"
+    procedure = "bulk"
   [outputs.grpc.serializer]
     type = "json"
     data_only = true
