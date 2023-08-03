@@ -4,7 +4,7 @@ The `httpl` input plugin serves requests on configured address and streams reque
 
 If all body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
 
-This plugin produce events with routing key as request path,  `server` label with configured addres and `sender` label with request RemoteAddr address.
+This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
 
 ## Configuration
 ```toml

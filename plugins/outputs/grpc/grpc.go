@@ -26,13 +26,13 @@ type Grpc struct {
 	alias string
 	pipe  string
 
-	Address      string            `mapstructure:"address"`
-	Method       string            `mapstructure:"method"`
-	Sleep        time.Duration     `mapstructure:"sleep"`
-	Buffer       int               `mapstructure:"buffer"`
-	Interval     time.Duration     `mapstructure:"interval"`
-	DialOptions  DialOptions       `mapstructure:"dial_options"`
-	CallOptions  CallOptions       `mapstructure:"call_options"`
+	Address        string            `mapstructure:"address"`
+	Method         string            `mapstructure:"method"`
+	Sleep          time.Duration     `mapstructure:"sleep"`
+	Buffer         int               `mapstructure:"buffer"`
+	Interval       time.Duration     `mapstructure:"interval"`
+	DialOptions    DialOptions       `mapstructure:"dial_options"`
+	CallOptions    CallOptions       `mapstructure:"call_options"`
 	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
 
 	sendFn   func(ch <-chan *core.Event)

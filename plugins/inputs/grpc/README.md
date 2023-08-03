@@ -7,6 +7,8 @@ Plugin behavoiur depends on the procedure being called:
  - `SendBulk` accepts stream and passes each message to configured parser; it's strongly NOT recommended to use this procedure for long-living streams, as the server will not shutdown before the RPC finishes. At the end, procedure returns summary with count of accepted and failed events and, if there were errors, a map with message index as a key and occured error as a value. Message index is counted from zero.
  - `SendStream` uses **bidi stream** with **event** as an input and **cancellation token** as an output; received event data is passed to configured parser and uses as event body. This procedure MAY be used for long-lived streams, but it's designed for streaming between Neptunes. When the server is shutting down, it sends a cancellation token, and when a client receives it, it MUST close stream and wait for some time before calling the procedure again.
 
+`SendOne` and `SendBulk` produces events with full procedure name as routing key, `server` label with configured address and `sender` label with peer address.
+
 ## Configuration
 ```toml
 [[inputs]]
