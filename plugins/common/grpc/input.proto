@@ -19,12 +19,12 @@ message Data {
 
 message Event {
     string RoutingKey = 1;
-    map<string, string> Labels = 2;
+    map<string, string> Labels = 2; // may be empty
     bytes Data = 3;
-    repeated string Tags = 4;
+    repeated string Tags = 4; // may be empty
     string Id = 5;
     string Timestamp = 6;
-    repeated string Errors = 7;
+    repeated string Errors = 7; // may be empty
 }
 
 message BulkSummary {

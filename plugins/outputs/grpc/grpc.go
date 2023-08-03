@@ -33,7 +33,7 @@ type Grpc struct {
 	Interval     time.Duration     `mapstructure:"interval"`
 	DialOptions  DialOptions       `mapstructure:"dial_options"`
 	CallOptions  CallOptions       `mapstructure:"call_options"`
-	HeaderLabels map[string]string `mapstructure:"headerlabels"`
+	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
 
 	sendFn   func(ch <-chan *core.Event)
 	client   common.InputClient
@@ -130,7 +130,7 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 		}
 
 		md := metadata.MD{}
-		for k, v := range o.HeaderLabels {
+		for k, v := range o.MetadataLabels {
 			if label, ok := e.GetLabel(v); ok {
 				md.Append(k, label)
 			}

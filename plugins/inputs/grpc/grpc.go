@@ -305,11 +305,11 @@ func init() {
 				MaxMessageSize:        4 * 1024 * 1024, // 4 MiB
 				NumStreamWorkers:      5,
 				MaxConcurrentStreams:  5,
-				MaxConnectionIdle:     5 * time.Minute,
-				MaxConnectionAge:      5 * time.Minute,
-				MaxConnectionGrace:    30 * time.Second,
-				InactiveTransportPing: 30 * time.Second,
-				InactiveTransportAge:  30 * time.Second,
+				MaxConnectionIdle:     0,
+				MaxConnectionAge:      0,
+				MaxConnectionGrace:    0,
+				InactiveTransportPing: 0,
+				InactiveTransportAge:  0,
 			},
 		}
 	})
