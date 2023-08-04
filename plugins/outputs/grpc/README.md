@@ -4,7 +4,61 @@ The `grpc` output plugin sends an events to external systems using gRPC. See [in
 
 Plugin can be configured for using one of three RPCs:
  - `one` - plugin passes each event in serializer and send it by unary call.
- - `bulk` - plugin sends a stream of data after every __interval__ or when __buffer__ of events is full.
- - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a __sleep__ and reconnects.
+ - `bulk` - plugin sends a stream of data after every `interval` or when events `buffer` is full.
+ - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects.
 
 ## Configuration
+```toml
+[[outputs]]
+  [outputs.grpc]
+    # server address, see more info about uri schemes
+    # https://grpc.github.io/grpc/core/md_doc_naming.html
+    address = "localhost:5800"
+
+    # procedure to be used by plugin; "one", "bulk", or "stream"
+    procedure = "bulk"
+
+    # interval between retries to (re-)establish a connection
+    sleep = "5s"
+
+    ## batching settings, using only in "bulk" mode
+    # interval between sending event batches
+    interval = "5s"
+
+    # events buffer size
+    buffer = 100
+
+    # connections set up parameters
+    [outputs.grpc.dial_options]
+      # if set, value will be used as the :authority pseudo-header 
+      # and as the server name in authentication handshake
+      authority = ""
+
+      # specifies a user agent string for all the RPCs
+      user_agent = ""
+
+      # client keepalive options
+      # see more in https://pkg.go.dev/google.golang.org/grpc/keepalive#ClientParameters
+      inactive_transport_ping = "0s" # zero is for infinity
+      inactive_transport_age = "0s"
+      permit_without_stream = false
+
+    # calls configuration, applies to each RPC
+    [outputs.grpc.call_options]
+      # set the content-subtype for a call
+      content_subtype = ""
+
+      # configures the action to take when an RPC is attempted on 
+      # broken connections or unreachable servers
+      wait_for_ready = false
+
+    # a "metadata -> label" map
+    # if event label exists, it will be added as a call metadata
+    # used in "one" mode only
+    [outputs.grpc.metadatalabels]
+      custom_header = "my_label_name"
+
+    [outputs.grpc.serializer]
+      type = "json"
+      data_only = true
+```

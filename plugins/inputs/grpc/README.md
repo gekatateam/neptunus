@@ -27,20 +27,20 @@ Plugin behavoiur depends on the procedure being called:
       # limit on the number of concurrent streams to each ServerTransport
       max_concurrent_streams = 5
 
-      # keepalive options
+      # server keepalive options
       # see more in https://pkg.go.dev/google.golang.org/grpc/keepalive#ServerParameters
-      max_connection_idle = "0s" # zero if for infinity
+      max_connection_idle = "0s" # zero is for infinity
       max_connection_age = "0s"
       max_connection_grace = "0s"
       inactive_transport_ping = "2h"
       inactive_transport_age = "20s"
 
-  # a "label name -> header" map
-  # if request metadata exists, it will be saved as configured label
-  # used in SendOne and SendBulk procedures only
-  [inputs.grpc.labelmetadata]
-    agent = "user-agent"
+    # a "label name -> metadata" map
+    # if request metadata exists, it will be saved as configured label
+    # used in SendOne and SendBulk procedures only
+    [inputs.grpc.labelmetadata]
+        agent = "user-agent"
 
-  [inputs.grpc.parser]
-    type = "json"
+    [inputs.grpc.parser]
+        type = "json"
 ```
