@@ -177,8 +177,8 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 
 		events, err := i.unpackData(stream.Context(), data, i.sendBulkDesc)
 		if err != nil {
-			sum.Failed++
 			sum.Errors[sum.Failed+sum.Accepted] = err.Error()
+			sum.Failed++
 			i.log.Warn(err)
 			continue
 		}
