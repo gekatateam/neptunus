@@ -39,7 +39,7 @@ Plugin can be configured for using one of three RPCs:
       # client keepalive options
       # see more in https://pkg.go.dev/google.golang.org/grpc/keepalive#ClientParameters
       inactive_transport_ping = "0s" # zero is for infinity
-      inactive_transport_age = "0s"
+      inactive_transport_age = "20s"
       permit_without_stream = false
 
     # calls configuration, applies to each RPC
