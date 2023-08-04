@@ -23,7 +23,7 @@ Glob syntax is similar to [standard wildcards](https://tldp.org/LDP/GNU-Linux-To
       sender = [ "*:8765" ]
 
     # "fields" is a "field path -> patterns list" map
-    [processors.through.filters.glob.filters]
+    [processors.through.filters.glob.fields]
       # list of patterns, one of which an event field must match
       # if field does not exists, not a string or not matched any pattern
       # event will be rejected

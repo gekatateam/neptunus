@@ -29,8 +29,8 @@ The `parser` processor parses string or bytes slice field into (new) event(s). T
     # path to field, where result of a parser's work will be placed
     # if empty, fields will be placed in root of event data map
     to = "path.to.field"
-  [processors.parser.parser]
-    type = "json"
+    [processors.parser.parser]
+      type = "json"
 ```
 
 ## Examples

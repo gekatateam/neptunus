@@ -83,7 +83,7 @@ func (i *Httpl) Run() {
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.log.Errorf("http server startup failed: %v", err.Error())
 	} else {
-		i.log.Debug("http server stopped")
+		i.log.Info("http server stopped")
 	}
 }
 
@@ -154,6 +154,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			i.out <- event
 			events++
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+			now = time.Now()
 		}
 	}
 

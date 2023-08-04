@@ -4,7 +4,7 @@ The `httpl` input plugin serves requests on configured address and streams reque
 
 If all body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
 
-This plugin produce events with routing key as request path,  `server` label with configured addres and `sender` label with request RemoteAddr address.
+This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
 
 ## Configuration
 ```toml
@@ -22,12 +22,12 @@ This plugin produce events with routing key as request path,  `server` label wit
     # maximum duration before timing out write of the response
     write_timeout = "10s"
 
-  # a "label name -> header" map
-  # if request header exists, it will be saved as configured label
-  [inputs.httpl.labelheaders]
-    length = "Content-Length"
-    encoding = "Content-Type"
+    # a "label name -> header" map
+    # if request header exists, it will be saved as configured label
+    [inputs.httpl.labelheaders]
+      length = "Content-Length"
+      encoding = "Content-Type"
 
-  [inputs.httpl.parser]
-    type = "json"
+    [inputs.httpl.parser]
+      type = "json"
 ```

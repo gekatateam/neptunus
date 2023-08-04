@@ -72,7 +72,7 @@ func (o *Log) Run() {
 }
 
 func (o *Log) Close() error {
-	return o.ser.Close()
+	return nil
 }
 
 func (o *Log) Alias() string {

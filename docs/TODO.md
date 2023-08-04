@@ -1,7 +1,7 @@
 # TODO
 ## Common
  - [x] Pipelines manager
- - [ ] Events buffering and batch producing example
+ - [x] Events buffering and batch producing example - see [grpc output](../plugins/outputs/grpc/grpc.go) and [Batcher](../plugins/common/batcher/batcher.go)
  - [ ] Delivery control, event tracing
  - [x] Parser plugins
  - [x] Serializer plugins
@@ -12,7 +12,7 @@
 ## Inputs
  - [ ] Kafka
  - [ ] AMQP
- - [ ] gRPC stream
+ - [x] gRPC stream
 
 ## Outputs
 With batching and buffering
@@ -20,7 +20,7 @@ With batching and buffering
  - [ ] AMQP
  - [ ] Elasticsearch
  - [ ] PostgreSQL
- - [ ] gRPC stream
+ - [x] gRPC stream
 
 ## Filters
  - [x] Glob for labels, fields, routing keys

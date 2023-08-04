@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.1"
   lines = 5
-  run = true
+#  run = true #
   buffer = 1_000
 
 [[inputs]]
@@ -13,11 +13,17 @@
   [inputs.httpl.filters.pass]
 
 [[inputs]]
-  [inputs.httpl]
-    address = ":9400"
-  [inputs.httpl.parser]
+  [inputs.grpc]
+    address = ":5800"
+    [inputs.grpc.server_options]
+      max_connection_idle = "5s"
+      max_connection_age = "5m"
+      max_connection_grace = "5s"
+      inactive_transport_ping = "10s"
+      inactive_transport_age = "10s"
+  [inputs.grpc.parser]
     type = "json"
-  [inputs.httpl.filters.pass]
+
 
 [[processors]]
   [processors.starlark]
@@ -31,10 +37,11 @@ def process(event):
   [processors.defaults.fields]
     "type" = "451"
 
+
 [[outputs]]
   [outputs.log]
   [outputs.log.serializer]
     type = "json"
-    data_only = true
+    data_only = false
     mode = "array"
   [outputs.log.filters.pass]
