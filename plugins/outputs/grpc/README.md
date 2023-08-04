@@ -24,7 +24,6 @@ Plugin can be configured for using one of three RPCs:
     ## batching settings, using only in "bulk" mode
     # interval between sending event batches
     interval = "5s"
-
     # events buffer size
     buffer = 100
 
