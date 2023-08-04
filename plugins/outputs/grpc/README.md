@@ -5,7 +5,7 @@ The `grpc` output plugin sends an events to external systems using gRPC. See [in
 Plugin can be configured for using one of three RPCs:
  - `one` - plugin passes each event in serializer and send it by unary call.
  - `bulk` - plugin sends a stream of data after every `interval` or when events `buffer` is full.
- - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects.
+ - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects. This mode for streaming between Neptunes.
 
 ## Configuration
 ```toml
