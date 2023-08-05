@@ -262,7 +262,7 @@ func (i *Grpc) unpackData(ctx context.Context, data *common.Data, defaultkey str
 }
 
 func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
-	events, err := i.parser.Parse(event.GetData(), "")
+	events, err := i.parser.Parse(event.GetData(), event.GetRoutingKey())
 	if err != nil {
 		return nil, fmt.Errorf("data parsing failed: %w", err)
 	}
@@ -279,8 +279,6 @@ func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
 		return nil, fmt.Errorf("timestamp parsing failed: %w", err)
 	}
 	e.Timestamp = timestamp
-
-	e.RoutingKey = event.GetRoutingKey()
 
 	for k, v := range event.GetLabels() {
 		e.AddLabel(k, v)
