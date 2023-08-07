@@ -165,7 +165,7 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 
 	m.log.Infof("building pipeline %v", pipeCfg.Settings.Id)
 	if err := pipe.Build(); err != nil {
-		m.log.Error(fmt.Sprintf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error()))
+		m.log.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())
 		m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipe, nil}
 		pipe.Close()
 		m.log.Warnf("pipeline %v was closed as not ready for event processing", pipeCfg.Settings.Id)
