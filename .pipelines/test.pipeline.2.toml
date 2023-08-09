@@ -23,6 +23,7 @@
   [outputs.grpc]
     address = "localhost:5800"
     procedure = "bulk"
+    buffer = 100
   [outputs.grpc.serializer]
     type = "json"
     data_only = true
