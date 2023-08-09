@@ -27,7 +27,9 @@ func (b *Batcher) Run(in <-chan *core.Event, flushFn func(buf []*core.Event)) {
 		case e, ok := <-in:
 			if !ok { // channel closed
 				ticker.Stop()
-				flushFn(buf)
+				if len(buf) > 0 {
+					flushFn(buf)
+				}
 				return
 			}
 
