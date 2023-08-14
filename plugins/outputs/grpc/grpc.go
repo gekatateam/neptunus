@@ -31,6 +31,7 @@ type Grpc struct {
 	Sleep          time.Duration     `mapstructure:"sleep"`
 	Buffer         int               `mapstructure:"buffer"`
 	Interval       time.Duration     `mapstructure:"interval"`
+	MaxAttempts    int               `mapstructure:"max_attempts"`
 	DialOptions    DialOptions       `mapstructure:"dial_options"`
 	CallOptions    CallOptions       `mapstructure:"call_options"`
 	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
@@ -136,7 +137,9 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			}
 		}
 
+		var attempts int = 0
 		for {
+			attempts++
 			_, err = o.client.SendOne(
 				metadata.NewOutgoingContext(context.Background(), md),
 				&common.Data{Data: event},
@@ -144,14 +147,22 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			)
 			if err == nil {
 				o.log.Debugf("sent event id: %v", e.Id)
+				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 				break
 			}
-			o.log.Errorf("unary call failed: %v", err.Error())
-			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-			time.Sleep(o.Sleep)
-		}
 
-		metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+			if o.MaxAttempts > 0 && attempts <= o.MaxAttempts {
+				o.log.Debugf("unary call attempt %v of %v failed", attempts, o.MaxAttempts)
+				time.Sleep(o.Sleep)
+			} else if o.MaxAttempts > 0 && attempts > o.MaxAttempts {
+				o.log.Errorf("unary call failed after %v attemtps: %v", attempts, err.Error())
+				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+				break
+			} else {
+				o.log.Errorf("unary call failed: %v", err.Error())
+				time.Sleep(o.Sleep)
+			}
+		}
 	}
 }
 

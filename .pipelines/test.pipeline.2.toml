@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.2"
   lines = 5
-  run = true #
+#  run = true #
   buffer = 100
 
 [[inputs]]
@@ -22,7 +22,9 @@
 [[outputs]]
   [outputs.grpc]
     address = "localhost:5800"
-    procedure = "bulk"
+    procedure = "one"
+    max_attempts = 5
+    sleep = "2s"
     buffer = 100
   [outputs.grpc.serializer]
     type = "json"
