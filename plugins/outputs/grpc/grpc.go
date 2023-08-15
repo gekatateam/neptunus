@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -91,6 +90,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	default:
 		return fmt.Errorf("unknown procedure: %v; expected one of: one, bulk, stream", o.Procedure)
 	}
+	o.log.Infof("gRPC client works in %v mode", o.Procedure)
 
 	o.b = &batcher.Batcher{
 		Buffer:   o.Buffer,
@@ -156,11 +156,11 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 				attempts++
 				time.Sleep(o.Sleep)
 			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
-				o.log.Errorf("unary call failed after %v attemtps: %v", attempts, err.Error())
+				o.log.Errorf("unary call for event %v failed after %v attemtps: %v", e.Id, attempts, err.Error())
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				goto SEND_LOOP_OUT
 			default:
-				o.log.Errorf("unary call failed: %v", err.Error())
+				o.log.Errorf("unary call for event %v failed: %v", e.Id, err.Error())
 				time.Sleep(o.Sleep)
 			}
 		}
@@ -170,8 +170,9 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 
 func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 	o.b.Run(ch, func(buf []*core.Event) {
-		stream := o.newBulkStream()
+		var stream common.Input_SendBulkClient
 
+	MAIN_LOOP:
 		for _, e := range buf {
 			now := time.Now()
 			event, err := o.ser.Serialize(e)
@@ -183,7 +184,12 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 
 			for {
 				if stream == nil {
-					stream = o.newBulkStream()
+					stream, err = o.newBulkStream()
+					if err != nil {
+						o.log.Errorf("event %v send failed: %v", e.Id, err.Error())
+						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+						continue MAIN_LOOP
+					}
 				}
 
 				err = stream.Send(&common.Data{
@@ -195,11 +201,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 					break
 				}
 
-				// io.EOF means than stream is dead on server side
-				if err == io.EOF {
-					stream = nil
-				}
-
+				stream = nil // if error occured, stream is already aborted, so we need to reopen it
 				o.log.Errorf("sending to stream failed: %v; event id: %v", err.Error(), e.Id)
 				time.Sleep(o.Sleep)
 			}
@@ -217,12 +219,12 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 }
 
 func (o *Grpc) sendStream(ch <-chan *core.Event) {
-	stream := o.newInternalStream()
 	doneCh := make(chan struct{})
 	stopCh := make(chan struct{}, 1)
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	var stream common.Input_SendStreamClient
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
@@ -246,6 +248,7 @@ func (o *Grpc) sendStream(ch <-chan *core.Event) {
 		}
 	}()
 
+MAIN_LOOP:
 	for e := range ch {
 		select {
 		case <-doneCh:
@@ -266,7 +269,12 @@ func (o *Grpc) sendStream(ch <-chan *core.Event) {
 
 		for {
 			if stream == nil {
-				stream = o.newInternalStream()
+				stream, err = o.newInternalStream()
+				if err != nil {
+					o.log.Errorf("event %v send failed: %v", e.Id, err.Error())
+					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+					continue MAIN_LOOP
+				}
 			}
 
 			err := stream.Send(&common.Event{
@@ -283,11 +291,7 @@ func (o *Grpc) sendStream(ch <-chan *core.Event) {
 				break
 			}
 
-			// io.EOF means than stream is dead on server side
-			if err == io.EOF {
-				stream = nil
-			}
-
+			stream = nil // if error occured, stream is already aborted, so we need to reopen it
 			o.log.Errorf("sending to stream failed: %v; event id: %v", err.Error(), e.Id)
 			time.Sleep(o.Sleep)
 		}
@@ -299,9 +303,10 @@ func (o *Grpc) sendStream(ch <-chan *core.Event) {
 	wg.Wait()
 }
 
-func (o *Grpc) newInternalStream() common.Input_SendStreamClient {
+func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
 	var stream common.Input_SendStreamClient
 	var err error
+	var attempts int = 1
 	for {
 		stream, err = o.client.SendStream(context.Background(), o.callOpts...)
 		if err == nil {
@@ -309,15 +314,26 @@ func (o *Grpc) newInternalStream() common.Input_SendStreamClient {
 			break
 		}
 
-		o.log.Errorf("internal stream open failed: %v", err.Error())
-		time.Sleep(o.Sleep)
+		switch {
+		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
+			o.log.Debugf("internal stream open attempt %v of %v failed", attempts, o.MaxAttempts)
+			attempts++
+			time.Sleep(o.Sleep)
+		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
+			o.log.Errorf("internal stream open failed after %v attemtps: %v", attempts, err.Error())
+			return nil, err
+		default:
+			o.log.Errorf("internal stream open failed: %v", err.Error())
+			time.Sleep(o.Sleep)
+		}
 	}
-	return stream
+	return stream, nil
 }
 
-func (o *Grpc) newBulkStream() common.Input_SendBulkClient {
+func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 	var stream common.Input_SendBulkClient
 	var err error
+	var attempts int = 1
 	for {
 		stream, err = o.client.SendBulk(context.Background(), o.callOpts...)
 		if err == nil {
@@ -325,10 +341,20 @@ func (o *Grpc) newBulkStream() common.Input_SendBulkClient {
 			break
 		}
 
-		o.log.Errorf("bulk stream open failed: %v", err.Error())
-		time.Sleep(o.Sleep)
+		switch {
+		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
+			o.log.Debugf("bulk stream open attempt %v of %v failed", attempts, o.MaxAttempts)
+			attempts++
+			time.Sleep(o.Sleep)
+		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
+			o.log.Errorf("bulk stream open failed after %v attemtps: %v", attempts, err.Error())
+			return nil, err
+		default:
+			o.log.Errorf("bulk stream open failed: %v", err.Error())
+			time.Sleep(o.Sleep)
+		}
 	}
-	return stream
+	return stream, nil
 }
 
 func dialOptions(opts DialOptions) []grpc.DialOption {

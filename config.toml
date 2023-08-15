@@ -1,6 +1,6 @@
 [common]
   log_level = "trace"
-  http_port = ":9601"
+#  http_port = ":9601"
     [common.log_fields]
       runner = "local"
 

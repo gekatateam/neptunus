@@ -21,6 +21,10 @@ Plugin can be configured for using one of three RPCs:
     # interval between retries to (re-)establish a connection
     sleep = "5s"
 
+    # maximum number of attempts of unary calls/to reopen streams
+    # before the event will be marked as failed
+    max_attempts = 0 # zero for endless attempts
+
     ## batching settings, using only in "bulk" mode
     # interval between sending event batches
     interval = "5s"
