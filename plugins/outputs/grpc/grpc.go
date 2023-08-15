@@ -121,6 +121,7 @@ func (o *Grpc) Alias() string {
 }
 
 func (o *Grpc) sendOne(ch <-chan *core.Event) {
+MAIN_LOOP:
 	for e := range ch {
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
@@ -158,13 +159,12 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
 				o.log.Errorf("unary call for event %v failed after %v attemtps: %v", e.Id, attempts, err.Error())
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-				goto SEND_LOOP_OUT
+				continue MAIN_LOOP
 			default:
 				o.log.Errorf("unary call for event %v failed: %v", e.Id, err.Error())
 				time.Sleep(o.Sleep)
 			}
 		}
-	SEND_LOOP_OUT:
 	}
 }
 
