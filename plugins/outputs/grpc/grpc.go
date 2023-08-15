@@ -137,9 +137,8 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			}
 		}
 
-		var attempts int = 0
+		var attempts int = 1
 		for {
-			attempts++
 			_, err = o.client.SendOne(
 				metadata.NewOutgoingContext(context.Background(), md),
 				&common.Data{Data: event},
@@ -151,18 +150,21 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 				break
 			}
 
-			if o.MaxAttempts > 0 && attempts <= o.MaxAttempts {
+			switch {
+			case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
 				o.log.Debugf("unary call attempt %v of %v failed", attempts, o.MaxAttempts)
+				attempts++
 				time.Sleep(o.Sleep)
-			} else if o.MaxAttempts > 0 && attempts > o.MaxAttempts {
+			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
 				o.log.Errorf("unary call failed after %v attemtps: %v", attempts, err.Error())
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-				break
-			} else {
+				goto SEND_LOOP_OUT
+			default:
 				o.log.Errorf("unary call failed: %v", err.Error())
 				time.Sleep(o.Sleep)
 			}
 		}
+	SEND_LOOP_OUT:
 	}
 }
 
