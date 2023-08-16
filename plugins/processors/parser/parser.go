@@ -69,7 +69,7 @@ func (p *Parser) SetParser(parser core.Parser) {
 }
 
 func (p *Parser) Run() {
-MAIN:
+MAIN_LOOP:
 	for e := range p.in {
 		now := time.Now()
 
@@ -132,7 +132,7 @@ MAIN:
 						e.AddTag("::parser_processing_failed")
 						p.out <- e
 						metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
-						continue MAIN // continue main loop with error if set failed
+						continue MAIN_LOOP // continue main loop with error if set failed
 					}
 				}
 				p.out <- event
