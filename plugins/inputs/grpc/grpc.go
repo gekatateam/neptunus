@@ -202,12 +202,10 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 	for {
 		select {
 		case <-i.closeCtx.Done():
-			for { // send close signal to client
-				if err := stream.Send(&common.Cancel{}); err == nil {
-					break
-				}
-				time.Sleep(1 * time.Second)
-			}
+			// send close signal to client
+			// there is no need to handle an error because
+			// the stream may be already aborted
+			stream.Send(&common.Cancel{})
 		default:
 		}
 
