@@ -145,10 +145,11 @@ MAIN_LOOP:
 				&common.Data{Data: event},
 				o.callOpts...,
 			)
+
 			if err == nil {
 				o.log.Debugf("sent event id: %v", e.Id)
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
-				break
+				continue MAIN_LOOP
 			}
 
 			switch {
@@ -198,15 +199,14 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 
 				if err == nil {
 					o.log.Debugf("sent event id: %v", e.Id)
-					break
+					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+					continue MAIN_LOOP
 				}
 
 				stream = nil // if error occured, stream is already aborted, so we need to reopen it
 				o.log.Errorf("sending to stream failed: %v; event id: %v", err.Error(), e.Id)
 				time.Sleep(o.Sleep)
 			}
-
-			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 		}
 
 		sum, err := stream.CloseAndRecv()
@@ -286,16 +286,17 @@ MAIN_LOOP:
 				Errors:     e.Errors.Slice(),
 				Timestamp:  e.Timestamp.Format(time.RFC3339Nano),
 			})
+
 			if err == nil {
 				o.log.Debugf("sent event id: %v", e.Id)
-				break
+				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+				continue MAIN_LOOP
 			}
 
 			stream = nil // if error occured, stream is already aborted, so we need to reopen it
 			o.log.Errorf("sending to stream failed: %v; event id: %v", err.Error(), e.Id)
 			time.Sleep(o.Sleep)
 		}
-		metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
 	stopCh <- struct{}{}
@@ -311,7 +312,7 @@ func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
 		stream, err = o.client.SendStream(context.Background(), o.callOpts...)
 		if err == nil {
 			o.log.Info("internal stream opened")
-			break
+			return stream, nil
 		}
 
 		switch {
@@ -327,7 +328,6 @@ func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
 			time.Sleep(o.Sleep)
 		}
 	}
-	return stream, nil
 }
 
 func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
@@ -338,7 +338,7 @@ func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 		stream, err = o.client.SendBulk(context.Background(), o.callOpts...)
 		if err == nil {
 			o.log.Debug("bulk stream opened")
-			break
+			return stream, nil
 		}
 
 		switch {
@@ -354,7 +354,6 @@ func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 			time.Sleep(o.Sleep)
 		}
 	}
-	return stream, nil
 }
 
 func dialOptions(opts DialOptions) []grpc.DialOption {
