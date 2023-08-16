@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -209,9 +208,14 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 			}
 		}
 
+		if stream == nil {  // stream may be dead after failed attempts
+			o.log.Warn("some events are not sent beacuse the stream is Nil at the end of buffer")
+			return
+		}
+
 		sum, err := stream.CloseAndRecv()
 		if err != nil {
-			o.log.Errorf("all events have been sent, but summary receiving failed: %v", err.Error())
+			o.log.Warnf("all events has been sent, but summary receiving failed: %v", err.Error())
 			return
 		}
 		o.log.Debugf("accepted: %v, failed: %v", sum.Accepted, sum.Failed)
@@ -220,13 +224,10 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 
 func (o *Grpc) sendStream(ch <-chan *core.Event) {
 	doneCh := make(chan struct{})
-	stopCh := make(chan struct{}, 1)
-	wg := &sync.WaitGroup{}
+	stopCh := make(chan struct{})
 	var stream common.Input_SendStreamClient
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		for {
 			select {
 			case <-stopCh:
@@ -299,9 +300,10 @@ MAIN_LOOP:
 		}
 	}
 
+	if stream != nil { // stream may be dead after failed attempts
+		stream.CloseSend()
+	}
 	stopCh <- struct{}{}
-	stream.CloseSend()
-	wg.Wait()
 }
 
 func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
