@@ -209,7 +209,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 		}
 
 		if stream == nil {  // stream may be dead after failed attempts
-			o.log.Warn("some events are not sent beacuse the stream is Nil at the end of buffer")
+			o.log.Warn("summary receiving failed beacuse the stream is already dead")
 			return
 		}
 
@@ -218,6 +218,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 			o.log.Warnf("all events has been sent, but summary receiving failed: %v", err.Error())
 			return
 		}
+		
 		o.log.Debugf("accepted: %v, failed: %v", sum.Accepted, sum.Failed)
 	})
 }
