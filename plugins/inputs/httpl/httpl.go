@@ -138,11 +138,9 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, event := range e {
-			event.Labels = map[string]string{
-				"input":  "httpl",
-				"server": i.Address,
-				"sender": r.RemoteAddr,
-			}
+			event.AddLabel("input", "httpl")
+			event.AddLabel("server", i.Address)
+			event.AddLabel("sender", r.RemoteAddr)
 
 			for k, v := range i.LabelHeaders {
 				h := r.Header.Get(v)
