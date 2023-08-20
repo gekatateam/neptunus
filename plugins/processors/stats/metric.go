@@ -1,8 +1,21 @@
 package stats
 
+import "hash/fnv"
+
 type metric struct {
 	Descr metricDescr
 	Value metricValue
+	Stats metricStats
+}
+
+func (m metric) hash() uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(m.Descr.Name))
+	for _, v := range m.Descr.Labels {
+		h.Write([]byte(v.Key))
+		h.Write([]byte(v.Value))
+	}
+	return h.Sum64()
 }
 
 type metricDescr struct {
@@ -24,4 +37,11 @@ type metricValue struct {
 	Max   float64
 }
 
-
+type metricStats struct {
+	Count bool
+	Sum   bool
+	Gauge bool
+	Ang   bool
+	Min   bool
+	Max   bool
+}

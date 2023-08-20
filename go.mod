@@ -1,6 +1,6 @@
 module github.com/gekatateam/neptunus
 
-go 1.19
+go 1.21.0
 
 require (
 	github.com/google/uuid v1.3.0
