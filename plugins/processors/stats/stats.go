@@ -3,6 +3,7 @@ package stats
 import (
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -11,15 +12,6 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
-
-var statsMap = map[string]bool{
-	"count": true,
-	"sum":   true,
-	"gauge": true,
-	"avg":   true,
-	"min":   true,
-	"max":   true,
-}
 
 type Stats struct {
 	alias      string
@@ -32,12 +24,23 @@ type Stats struct {
 
 	cache  map[uint64]*metric
 	fields map[string]metricStats
-	in     <-chan *core.Event
-	out    chan<- *core.Event
-	log    logger.Logger
+	mu     *sync.Mutex
+
+	in  <-chan *core.Event
+	out chan<- *core.Event
+	log logger.Logger
 }
 
 func (p *Stats) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+	var statsMap = map[string]bool{
+		"count": true,
+		"sum":   true,
+		"gauge": true,
+		"avg":   true,
+		"min":   true,
+		"max":   true,
+	}
+
 	p.alias = alias
 	p.pipe = pipeline
 	p.log = log
