@@ -12,13 +12,13 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 )
 
-var statsMap = map[string]bool {
+var statsMap = map[string]bool{
 	"count": true,
-	"sum": true,
+	"sum":   true,
 	"gauge": true,
-	"avg": true,
-	"min": true,
-	"max": true,
+	"avg":   true,
+	"min":   true,
+	"max":   true,
 }
 
 type Stats struct {
@@ -130,7 +130,7 @@ func (p *Stats) Observe(e *core.Event) {
 			if !ok {
 				return // if event has no label, skip it
 			}
-	
+
 			labels = append(labels, metricLabel{
 				Key:   k,
 				Value: v,
