@@ -3,6 +3,7 @@ package stats
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,23 +33,16 @@ type Stats struct {
 }
 
 func (p *Stats) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
-	var statsMap = map[string]bool{
-		"count": true,
-		"sum":   true,
-		"gauge": true,
-		"avg":   true,
-		"min":   true,
-		"max":   true,
+	if err := mapstructure.Decode(config, p); err != nil {
+		return err
 	}
 
 	p.alias = alias
 	p.pipe = pipeline
 	p.log = log
-
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
+	p.fields = make(map[string]metricStats)
+	p.cache = make(map[uint64]*metric)
+	p.mu = &sync.Mutex{}
 	p.Labels = slices.Compact(p.Labels)
 
 	for k, v := range p.Fields {
@@ -89,13 +83,18 @@ func (p *Stats) Run() {
 	stop, done := make(chan struct{}), make(chan struct{})
 	ticker := time.NewTicker(p.Interval)
 	go func() {
-		select {
-		case <-stop:
-			p.Flush()
-			close(done)
-			return
-		case <-ticker.C:
-			p.Flush()
+		p.log.Info("flushing goroutine started")
+		for {
+			select {
+			case <-stop:
+				ticker.Stop()
+				p.Flush()
+				p.log.Info("flushing goroutine stopped")
+				close(done)
+				return
+			case <-ticker.C:
+				p.Flush()
+			}
 		}
 	}()
 
@@ -108,12 +107,52 @@ func (p *Stats) Run() {
 		metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
-	ticker.Stop()
 	close(stop)
 	<-done
 }
 
-func (p *Stats) Flush() {}
+func (p *Stats) Flush() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	now := time.Now()
+	for _, m := range p.cache {
+		e := core.NewEvent(p.RoutingKey)
+		e.Timestamp = now
+		e.AddLabel("::type", "metric")
+		e.AddLabel("::name", m.Descr.Name)
+		for _, label := range m.Descr.Labels {
+			e.AddLabel(label.Key, label.Value)
+		}
+
+		if m.Stats.Count {
+			e.SetField("count", m.Value.Count)			
+		}
+
+		if m.Stats.Sum {
+			e.SetField("sum", m.Value.Sum)
+		}
+
+		if m.Stats.Gauge {
+			e.SetField("gauge", m.Value.Gauge)
+		}
+
+		if m.Stats.Avg {
+			e.SetField("avg", m.Value.Avg)
+		}
+
+		if m.Stats.Min {
+			e.SetField("min", m.Value.Min)
+		}
+
+		if m.Stats.Max {
+			e.SetField("max", m.Value.Max)
+		}
+
+		p.out <- e
+		m.reset()
+	}
+}
 
 func (p *Stats) Observe(e *core.Event) {
 	for field, stats := range p.fields {
@@ -141,7 +180,7 @@ func (p *Stats) Observe(e *core.Event) {
 		}
 
 		m := &metric{Descr: metricDescr{
-			Name:   field,
+			Name:   strings.Replace(field, ".", "_", -1),
 			Labels: labels,
 		}}
 
@@ -151,7 +190,10 @@ func (p *Stats) Observe(e *core.Event) {
 			m.Stats = stats
 			p.cache[m.hash()] = m
 		}
+
+		p.mu.Lock()
 		m.observe(fv)
+		p.mu.Unlock()
 	}
 }
 
@@ -186,29 +228,11 @@ func convert(value any) (float64, bool) {
 	}
 }
 
-func stats(stats []string) metricStats {
-	s := metricStats{}
-	for _, v := range stats {
-		switch v {
-		case "sum":
-			s.Sum = true
-		case "count":
-			s.Count = true
-		case "gauge":
-			s.Gauge = true
-		case "avg":
-			s.Avg = true
-		case "min":
-			s.Min = true
-		case "max":
-			s.Max = true
-		}
-	}
-	return s
-}
-
 func init() {
 	plugins.AddProcessor("stats", func() core.Processor {
-		return &Stats{}
+		return &Stats{
+			Interval:   time.Minute,
+			RoutingKey: "neptunus.generated.metric",
+		}
 	})
 }

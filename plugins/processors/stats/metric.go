@@ -5,6 +5,15 @@ import (
 	"math"
 )
 
+var statsMap = map[string]bool{
+	"count": true,
+	"sum":   true,
+	"gauge": true,
+	"avg":   true,
+	"min":   true,
+	"max":   true,
+}
+
 type metric struct {
 	Descr    metricDescr
 	Value    metricValue
@@ -97,4 +106,25 @@ type metricStats struct {
 	Avg   bool
 	Min   bool
 	Max   bool
+}
+
+func stats(stats []string) metricStats {
+	s := metricStats{}
+	for _, v := range stats {
+		switch v {
+		case "sum":
+			s.Sum = true
+		case "count":
+			s.Count = true
+		case "gauge":
+			s.Gauge = true
+		case "avg":
+			s.Avg = true
+		case "min":
+			s.Min = true
+		case "max":
+			s.Max = true
+		}
+	}
+	return s
 }

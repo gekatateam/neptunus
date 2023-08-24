@@ -24,6 +24,8 @@
   [inputs.grpc.parser]
     type = "json"
 
+[[processors]]
+  [processors.line]
 
 [[processors]]
   [processors.starlark]
@@ -37,6 +39,12 @@ def process(event):
   [processors.defaults.fields]
     "type" = "451"
 
+[[processors]]
+  [processors.stats]
+    interval = "10s"
+    labels = [ "::line" ]
+    [processors.stats.fields]
+      "new.field" = ["count", "sum", "avg"]
 
 [[outputs]]
   [outputs.log]
