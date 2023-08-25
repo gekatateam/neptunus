@@ -3,7 +3,6 @@ package stats
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -82,6 +81,7 @@ func (p *Stats) Alias() string {
 func (p *Stats) Run() {
 	stop, done := make(chan struct{}), make(chan struct{})
 	ticker := time.NewTicker(p.Interval)
+
 	go func() {
 		p.log.Info("flushing goroutine started")
 		for {
@@ -119,34 +119,36 @@ func (p *Stats) Flush() {
 	for _, m := range p.cache {
 		e := core.NewEvent(p.RoutingKey)
 		e.Timestamp = now
+
 		e.AddLabel("::type", "metric")
 		e.AddLabel("::name", m.Descr.Name)
+
 		for _, label := range m.Descr.Labels {
 			e.AddLabel(label.Key, label.Value)
 		}
 
 		if m.Stats.Count {
-			e.SetField("count", m.Value.Count)			
+			e.SetField("stats.count", m.Value.Count)
 		}
 
 		if m.Stats.Sum {
-			e.SetField("sum", m.Value.Sum)
+			e.SetField("stats.sum", m.Value.Sum)
 		}
 
 		if m.Stats.Gauge {
-			e.SetField("gauge", m.Value.Gauge)
+			e.SetField("stats.gauge", m.Value.Gauge)
 		}
 
 		if m.Stats.Avg {
-			e.SetField("avg", m.Value.Avg)
+			e.SetField("stats.avg", m.Value.Avg)
 		}
 
 		if m.Stats.Min {
-			e.SetField("min", m.Value.Min)
+			e.SetField("stats.min", m.Value.Min)
 		}
 
 		if m.Stats.Max {
-			e.SetField("max", m.Value.Max)
+			e.SetField("stats.max", m.Value.Max)
 		}
 
 		p.out <- e
@@ -180,7 +182,7 @@ func (p *Stats) Observe(e *core.Event) {
 		}
 
 		m := &metric{Descr: metricDescr{
-			Name:   strings.Replace(field, ".", "_", -1),
+			Name:   field,
 			Labels: labels,
 		}}
 

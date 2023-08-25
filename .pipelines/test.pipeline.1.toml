@@ -38,6 +38,7 @@ def process(event):
 [[processors]]
   [processors.defaults.fields]
     "type" = "451"
+    "farenheit" = 451
 
 [[processors]]
   [processors.stats]
@@ -45,6 +46,7 @@ def process(event):
     labels = [ "::line" ]
     [processors.stats.fields]
       "new.field" = ["count", "sum", "avg"]
+      "farenheit" = ["gauge", "max"]
 
 [[outputs]]
   [outputs.log]

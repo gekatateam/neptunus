@@ -12,6 +12,7 @@ Regex processor only works with string fields, any other types will be ignored. 
   # "labels" is a "label name -> regexp" map
   [processors.regex.labels]
     sender = '^(?P<host>.+):(?P<port>[0-9]+)$'
+
   # "fields" is a "field path -> regexp" map
   [processors.regex.fields]
     message = '(?P<url>http(s)://\S+)'
