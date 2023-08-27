@@ -158,6 +158,21 @@ func (p *Stats) Flush() {
 }
 
 func (p *Stats) Observe(e *core.Event) {
+	// it is okay if multiple stats will store one label set
+	// because there is no race condition
+	labels := []metricLabel{}
+	for _, k := range p.Labels {
+		v, ok := e.GetLabel(k)
+		if !ok {
+			return // if event has no label, skip it
+		}
+
+		labels = append(labels, metricLabel{
+			Key:   k,
+			Value: v,
+		})
+	}
+
 	for field, stats := range p.fields {
 		f, err := e.GetField(field)
 		if err != nil {
@@ -169,22 +184,9 @@ func (p *Stats) Observe(e *core.Event) {
 			continue // if field is not a number, skip it
 		}
 
-		labels := []metricLabel{}
-		for _, k := range p.Labels {
-			v, ok := e.GetLabel(k)
-			if !ok {
-				return // if event has no label, skip it
-			}
-
-			labels = append(labels, metricLabel{
-				Key:   k,
-				Value: v,
-			})
-		}
-
 		m := &metric{Descr: metricDescr{
 			Name:   field,
-			Labels: labels,
+			Labels: labels, // previously saved labels shares here
 		}}
 
 		if metric, ok := p.cache[m.hash()]; ok {
