@@ -2,7 +2,7 @@
 
 The `stats` processor calculates count, sum, average, min, max and stores field last value as gauge for each configured field and produces it as an event each `interval`.
 
-Plugin collects and produces stats for each combination of field and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field, field stats will not updated.
+Plugin collects and produces stats for each combination of field and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field type is not a number, field stats will not updated.
 
 Stats stored as child fields in `stats` key.
 
@@ -15,7 +15,7 @@ This is the format of stats event:
   "tags": [],
   "labels": {
     "::line": 3,
-    "server": "::9801",
+    "region": "US/California",
     "::type": "metric", # <- internal label
     "::name": "path.to.one" # <- field name
   },
@@ -42,7 +42,7 @@ This is the format of stats event:
     routing_key = "neptunus.generated.metric"
 
     # labels of incoming events by which metrics will be grouped
-    labels = [ "::line", "server" ]
+    labels = [ "::line", "region" ]
 
     # if true, consumed events will be dropped after stats collection
     drop_origin = false
@@ -51,6 +51,6 @@ This is the format of stats event:
     # plugin expects: "count", "sum", "gauge", "avg", "min", "max"
     # any other value or an empty list will cause an error
     [processors.stats.fields]
-      "new.field" = ["count", "sum", "avg"]
-      "temperature" = ["gauge", "max", "min"]
+      "measurements.count" = ["count", "sum", "avg"]
+      temperature = ["gauge", "max", "min"]
 ```
