@@ -71,6 +71,7 @@ func (p *Stats) Prepare(
 }
 
 func (p *Stats) Close() error {
+	clear(p.cache)
 	return nil
 }
 
