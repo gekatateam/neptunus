@@ -69,7 +69,7 @@ func (m *metric) observe(value float64) {
 	}
 }
 
-// count and are not reset
+// count and sum are not reset
 func (m *metric) reset() {
 	m.Observed = false
 	m.Value.Gauge = 0

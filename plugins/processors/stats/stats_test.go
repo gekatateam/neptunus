@@ -24,6 +24,7 @@ func TestStats(t *testing.T) {
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
+				"mode":        "individual",
 				"fields": map[string][]string{
 					"duration": {"count", "sum", "gauge"},
 				},
@@ -84,6 +85,7 @@ func TestStats(t *testing.T) {
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
+				"mode":        "individual",
 				"fields": map[string][]string{
 					"duration": {"count", "sum", "gauge"},
 				},
@@ -148,6 +150,7 @@ func TestStats(t *testing.T) {
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
+				"mode":        "individual",
 				"fields": map[string][]string{
 					"duration": {"min", "max", "avg"},
 				},
@@ -208,6 +211,7 @@ func TestStats(t *testing.T) {
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
+				"mode":        "individual",
 				"fields": map[string][]string{
 					"duration":      {"sum"},
 					"response_time": {"avg"},
@@ -313,7 +317,7 @@ func TestStats(t *testing.T) {
 					}
 
 					if v != val.(float64) {
-						t.Fatalf("unexpected value for field %v; got: %v, want %v", f, val, v)
+						t.Fatalf("unexpected value for field %v; got: %v, want: %v", f, val, v)
 					}
 				}
 
@@ -321,7 +325,11 @@ func TestStats(t *testing.T) {
 			}
 
 			if len(test.expectEvents) != 0 {
-				t.Fatalf("processor not produce all expexted events, lost: %v", test.expectEvents)
+				t.Fatalf("processor not produced all expexted events, lost: %v", test.expectEvents)
+			}
+
+			if len(test.output) != 0 {
+				t.Fatalf("processor produced more than expexted events, left: %v", len(test.output))
 			}
 		})
 	}

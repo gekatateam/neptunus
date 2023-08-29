@@ -312,6 +312,10 @@ func (p *Pipeline) configureOutputs() error {
 				parserNeedy.SetParser(parser)
 			}
 
+			if idNeedy, ok := output.(core.IdNeedy); ok {
+				idNeedy.SetId(outputCfg.Id())
+			}
+
 			err := output.Init(outputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"output":   plugin,
@@ -375,6 +379,10 @@ func (p *Pipeline) configureProcessors() error {
 						return fmt.Errorf("%v processor parser configuration error: %v", plugin, err.Error())
 					}
 					parserNeedy.SetParser(parser)
+				}
+
+				if idNeedy, ok := processor.(core.IdNeedy); ok {
+					idNeedy.SetId(processorCfg.Id())
 				}
 
 				processorCfg["::line"] = i
@@ -445,6 +453,10 @@ func (p *Pipeline) configureInputs() error {
 				parserNeedy.SetParser(parser)
 			}
 
+			if idNeedy, ok := input.(core.IdNeedy); ok {
+				idNeedy.SetId(inputCfg.Id())
+			}
+
 			err := input.Init(inputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 				"pipeline": p.config.Settings.Id,
 				"input":    plugin,
@@ -505,6 +517,10 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			parserNeedy.SetParser(parser)
 		}
 
+		if idNeedy, ok := filter.(core.IdNeedy); ok {
+			idNeedy.SetId(filterCfg.Id())
+		}
+
 		err := filter.Init(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 			"pipeline": p.config.Settings.Id,
 			"filter":   plugin,
@@ -531,6 +547,10 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
 	}
 
+	if idNeedy, ok := parser.(core.IdNeedy); ok {
+		idNeedy.SetId(parserCfg.Id())
+	}
+
 	err := parser.Init(parserCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
 		"pipeline": p.config.Settings.Id,
 		"parser":   plugin,
@@ -554,6 +574,10 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
 	if len(serCfg.Alias()) > 0 {
 		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
+	}
+
+	if idNeedy, ok := serializer.(core.IdNeedy); ok {
+		idNeedy.SetId(serCfg.Id())
 	}
 
 	err := serializer.Init(serCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{

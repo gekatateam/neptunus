@@ -42,6 +42,16 @@ def process(event):
 
 [[processors]]
   [processors.stats]
+    alias = "s2"
+    interval = "10s"
+    labels = [ "::line" ]
+    [processors.stats.fields]
+      "new.field" = ["count", "sum", "avg"]
+      "farenheit" = ["gauge", "max"]
+
+[[processors]]
+  [processors.stats]
+    alias = "s1"
     interval = "10s"
     labels = [ "::line" ]
     [processors.stats.fields]
