@@ -89,37 +89,27 @@ func (p *Stats) SetId(id uint64) {
 }
 
 func (p *Stats) Run() {
-	stop, done := make(chan struct{}), make(chan struct{})
 	ticker := time.NewTicker(p.Interval)
 
-	go func() {
-		p.log.Info("flushing goroutine started")
-		for {
-			select {
-			case <-stop:
+	for {
+		select {
+		case <-ticker.C:
+			p.Flush()
+		case e, ok := <-p.in:
+			if !ok {
 				ticker.Stop()
 				p.Flush()
-				p.log.Info("flushing goroutine stopped")
-				close(done)
 				return
-			case <-ticker.C:
-				p.Flush()
 			}
-		}
-	}()
 
-	for e := range p.in {
-		now := time.Now()
-		p.Observe(e)
-		if !p.DropOrigin {
-			p.out <- e
+			now := time.Now()
+			p.Observe(e)
+			if !p.DropOrigin {
+				p.out <- e
+			}
+			metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 		}
-		metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
-
-	p.log.Info("stop signal sent")
-	close(stop)
-	<-done
 }
 
 func (p *Stats) Flush() {

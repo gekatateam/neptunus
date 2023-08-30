@@ -1,48 +1,34 @@
 package stats
 
-import "sync"
-
-type individualCache struct {
-	c  map[uint64]*metric
-	mu *sync.Mutex
-}
-
 type cache interface {
 	observe(m *metric, v float64)
 	flush(flushFn func(m *metric))
 	clear()
 }
 
+type individualCache map[uint64]*metric
+
 func newIndividualCache() cache {
-	return &individualCache{
-		c:  make(map[uint64]*metric),
-		mu: &sync.Mutex{},
-	}
+	return make(individualCache)
 }
 
-func (c *individualCache) observe(m *metric, v float64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if metric, ok := c.c[m.hash()]; ok {
+func (c individualCache) observe(m *metric, v float64) {
+	if metric, ok := c[m.hash()]; ok {
 		m = metric
 	} else { // hit an uncached netric
-		c.c[m.hash()] = m
+		c[m.hash()] = m
 	}
 
 	m.observe(v)
 }
 
-func (c *individualCache) flush(flushFn func(m *metric)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for _, m := range c.c {
+func (c individualCache) flush(flushFn func(m *metric)) {
+	for _, m := range c {
 		flushFn(m)
 		m.reset()
 	}
 }
 
-func (c *individualCache) clear() {
-	clear(c.c)
+func (c individualCache) clear() {
+	clear(c)
 }
