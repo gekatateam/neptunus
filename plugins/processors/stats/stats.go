@@ -23,7 +23,7 @@ type Stats struct {
 	DropOrigin bool                `mapstructure:"drop_origin"`
 	Fields     map[string][]string `mapstructure:"fields"`
 
-	cache  *cache
+	cache  cache
 	fields map[string]metricStats
 
 	in  <-chan *core.Event
@@ -161,7 +161,6 @@ func (p *Stats) Flush() {
 		}
 
 		p.out <- e
-		m.reset()
 	})
 }
 

@@ -2,19 +2,25 @@ package stats
 
 import "sync"
 
-type cache struct {
+type individualCache struct {
 	c  map[uint64]*metric
 	mu *sync.Mutex
 }
 
-func newIndividualCache() *cache {
-	return &cache{
+type cache interface {
+	observe(m *metric, v float64)
+	flush(flushFn func(m *metric))
+	clear()
+}
+
+func newIndividualCache() cache {
+	return &individualCache{
 		c:  make(map[uint64]*metric),
 		mu: &sync.Mutex{},
 	}
 }
 
-func (c *cache) observe(m *metric, v float64) {
+func (c *individualCache) observe(m *metric, v float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -27,14 +33,16 @@ func (c *cache) observe(m *metric, v float64) {
 	m.observe(v)
 }
 
-func (c *cache) flush(flushFn func(m *metric)) {
+func (c *individualCache) flush(flushFn func(m *metric)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for _, m := range c.c {
-		c.mu.Lock()
 		flushFn(m)
-		c.mu.Unlock()
+		m.reset()
 	}
 }
 
-func (c *cache) clear() {
+func (c *individualCache) clear() {
 	clear(c.c)
 }
