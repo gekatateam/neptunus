@@ -42,7 +42,7 @@ This is the format of stats event:
     mode = "individual"
 
     # stats collection, producing and reset interval
-    # count and sum are not reset, other stats are set to zero
+    # count, sum and gauge are not reset, other stats are set to zero
     # after stats events are produced
     interval = "1m"
 
