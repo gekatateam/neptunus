@@ -44,6 +44,7 @@ This is the format of stats event:
     # stats collection, producing and reset interval
     # count, sum and gauge are not reset, other stats are set to zero
     # after stats events are produced
+    # if configured value less than 1s, it will be set to 1s 
     interval = "1m"
 
     # routing key with which events will be created
