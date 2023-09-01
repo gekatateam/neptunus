@@ -42,8 +42,11 @@ def process(event):
 
 [[processors]]
   [processors.stats]
+    alias = "s2"
     interval = "10s"
-    labels = [ "::line" ]
+    mode = "shared"
+    drop_origin = true
+    labels = [ "server" ]
     [processors.stats.fields]
       "new.field" = ["count", "sum", "avg"]
       "farenheit" = ["gauge", "max"]

@@ -3,7 +3,6 @@ package stats
 import (
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -16,15 +15,16 @@ import (
 type Stats struct {
 	alias      string
 	pipe       string
+	id         uint64
 	Interval   time.Duration       `mapstructure:"interval"`
+	Mode       string              `mapstructure:"mode"`
 	RoutingKey string              `mapstructure:"routing_key"`
 	Labels     []string            `mapstructure:"labels"`
 	DropOrigin bool                `mapstructure:"drop_origin"`
 	Fields     map[string][]string `mapstructure:"fields"`
 
-	cache  map[uint64]*metric
+	cache  cache
 	fields map[string]metricStats
-	mu     *sync.Mutex
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
@@ -40,9 +40,20 @@ func (p *Stats) Init(config map[string]any, alias, pipeline string, log logger.L
 	p.pipe = pipeline
 	p.log = log
 	p.fields = make(map[string]metricStats)
-	p.cache = make(map[uint64]*metric)
-	p.mu = &sync.Mutex{}
 	p.Labels = slices.Compact(p.Labels)
+
+	if p.Interval < time.Second {
+		p.Interval = time.Second
+	}
+
+	switch p.Mode {
+	case "individual":
+		p.cache = newIndividualCache()
+	case "shared":
+		p.cache = newSharedCache(p.id)
+	default:
+		return fmt.Errorf("unknown mode: %v, expected one of: shared, individual", p.Mode)
+	}
 
 	for k, v := range p.Fields {
 		if len(v) == 0 {
@@ -71,7 +82,7 @@ func (p *Stats) Prepare(
 }
 
 func (p *Stats) Close() error {
-	clear(p.cache)
+	p.cache.clear()
 	return nil
 }
 
@@ -79,45 +90,38 @@ func (p *Stats) Alias() string {
 	return p.alias
 }
 
+func (p *Stats) SetId(id uint64) {
+	p.id = id
+}
+
 func (p *Stats) Run() {
-	stop, done := make(chan struct{}), make(chan struct{})
 	ticker := time.NewTicker(p.Interval)
 
-	go func() {
-		p.log.Info("flushing goroutine started")
-		for {
-			select {
-			case <-stop:
+	for {
+		select {
+		case <-ticker.C:
+			p.Flush()
+		case e, ok := <-p.in:
+			if !ok {
 				ticker.Stop()
 				p.Flush()
-				p.log.Info("flushing goroutine stopped")
-				close(done)
 				return
-			case <-ticker.C:
-				p.Flush()
 			}
-		}
-	}()
 
-	for e := range p.in {
-		now := time.Now()
-		p.Observe(e)
-		if !p.DropOrigin {
-			p.out <- e
+			now := time.Now()
+			p.Observe(e)
+			if !p.DropOrigin {
+				p.out <- e
+			}
+			metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 		}
-		metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
-
-	close(stop)
-	<-done
 }
 
 func (p *Stats) Flush() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	now := time.Now()
-	for _, m := range p.cache {
+
+	p.cache.flush(p.out, func(m *metric, ch chan<- *core.Event) {
 		e := core.NewEvent(p.RoutingKey)
 		e.Timestamp = now
 
@@ -152,9 +156,8 @@ func (p *Stats) Flush() {
 			e.SetField("stats.max", m.Value.Max)
 		}
 
-		p.out <- e
-		m.reset()
-	}
+		ch <- e
+	})
 }
 
 func (p *Stats) Observe(e *core.Event) {
@@ -184,21 +187,15 @@ func (p *Stats) Observe(e *core.Event) {
 			continue // if field is not a number, skip it
 		}
 
-		m := &metric{Descr: metricDescr{
-			Name:   field,
-			Labels: labels, // previously saved labels shares here
-		}}
-
-		if metric, ok := p.cache[m.hash()]; ok {
-			m = metric
-		} else { // hit an uncached netric
-			m.Stats = stats
-			p.cache[m.hash()] = m
+		m := &metric{
+			Stats: stats,
+			Descr: metricDescr{
+				Name:   field,
+				Labels: labels, // previously saved labels shares here
+			},
 		}
 
-		p.mu.Lock()
-		m.observe(fv)
-		p.mu.Unlock()
+		p.cache.observe(m, fv)
 	}
 }
 
@@ -238,6 +235,7 @@ func init() {
 		return &Stats{
 			Interval:   time.Minute,
 			RoutingKey: "neptunus.generated.metric",
+			Mode:       "individual",
 		}
 	})
 }

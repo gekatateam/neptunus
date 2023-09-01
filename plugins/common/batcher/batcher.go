@@ -2,8 +2,6 @@ package batcher
 
 import (
 	"time"
-
-	"github.com/gekatateam/neptunus/core"
 )
 
 // batcher is a helper for cases when plugin needs to send events in batches
@@ -13,13 +11,13 @@ import (
 // - input chanel is closed and readed to the end
 //
 // batcher clears buffer after each call of flushFn()
-type Batcher struct {
+type Batcher[T any] struct {
 	Buffer   int
 	Interval time.Duration
 }
 
-func (b *Batcher) Run(in <-chan *core.Event, flushFn func(buf []*core.Event)) {
-	buf := make([]*core.Event, 0, b.Buffer)
+func (b *Batcher[T]) Run(in <-chan T, flushFn func(buf []T)) {
+	buf := make([]T, 0, b.Buffer)
 	ticker := time.NewTicker(b.Interval)
 
 	for {

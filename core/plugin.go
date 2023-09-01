@@ -72,6 +72,14 @@ type SerializerNeedy interface {
 	SetSerializer(s Serializer)
 }
 
+// plugins that need unique id must implement this interface
+// id is unique for each plugin, but it's same for one processor
+// in multiple lines
+// id is randomly generated at application startup
+type IdNeedy interface {
+	SetId(id uint64)
+}
+
 // core plugins
 // used in core units only
 type Fusion interface {

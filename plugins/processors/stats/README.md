@@ -2,7 +2,7 @@
 
 The `stats` processor calculates count, sum, average, min, max and stores field last value as gauge for each configured field and produces it as an event every `interval`.
 
-Plugin collects and produces stats for each combination of field and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field type is not a number, field stats will not updated.
+Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field type is not a number, field stats will not updated.
 
 Stats stored as child fields in `stats` key.
 
@@ -14,7 +14,7 @@ This is the format of stats event:
   "timestamp": "2023-08-25T22:29:28.9120822+03:00", # <- time of an event creation
   "tags": [],
   "labels": {
-    "::line": 3,
+    "::line": "3",
     "region": "US/California",
     "::type": "metric", # <- internal label
     "::name": "path.to.one" # <- field name
@@ -33,9 +33,18 @@ This is the format of stats event:
 ```toml
 [[processors]]
   [processors.stats]
+    # plugin mode, "individual" or "shared"
+    # in individual mode each plugin collects and produces it's own stats
+    # 
+    # in shared mode with multiple processors lines
+    # each plugin set uses a shared stats cache
+    # and sends stats events to plugins channels using ROUND ROBIN algorithm
+    mode = "individual"
+
     # stats collection, producing and reset interval
-    # count and sum are not reset, other stats are set to zero
+    # count, sum and gauge are not reset, other stats are set to zero
     # after stats events are produced
+    # if configured value less than 1s, it will be set to 1s 
     interval = "1m"
 
     # routing key with which events will be created

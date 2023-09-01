@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 
 	"github.com/BurntSushi/toml"
 	"github.com/goccy/go-yaml"
@@ -27,6 +28,18 @@ type PipeSettings struct {
 type PluginSet map[string]Plugin
 
 type Plugin map[string]any
+
+func (p Plugin) Id() uint64 {
+	if rawId, ok := p["::plugin_id"]; ok {
+		if id, ok := rawId.(uint64); ok {
+			return id
+		}
+	}
+	
+	id := rand.Uint64()
+	p["::plugin_id"] = id
+	return id
+}
 
 func (p Plugin) Alias() string {
 	aliasRaw, ok := p["alias"]

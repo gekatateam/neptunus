@@ -42,7 +42,7 @@ type Grpc struct {
 	in  <-chan *core.Event
 	log logger.Logger
 	ser core.Serializer
-	b   *batcher.Batcher
+	b   *batcher.Batcher[*core.Event]
 }
 
 type DialOptions struct {
@@ -91,7 +91,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log logger.Lo
 	}
 	o.log.Infof("gRPC client works in %v mode", o.Procedure)
 
-	o.b = &batcher.Batcher{
+	o.b = &batcher.Batcher[*core.Event]{
 		Buffer:   o.Buffer,
 		Interval: o.Interval,
 	}
