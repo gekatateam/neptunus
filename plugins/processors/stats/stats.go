@@ -42,9 +42,15 @@ func (p *Stats) Init(config map[string]any, alias, pipeline string, log logger.L
 	p.fields = make(map[string]metricStats)
 	p.Labels = slices.Compact(p.Labels)
 
+	if p.Interval < time.Second {
+		p.Interval = time.Second
+	}
+
 	switch p.Mode {
-	case "shared", "individual":
+	case "individual":
 		p.cache = newIndividualCache()
+	case "shared":
+		p.cache = newSharedCache(p.id)
 	default:
 		return fmt.Errorf("unknown mode: %v, expected one of: shared, individual", p.Mode)
 	}
@@ -115,7 +121,7 @@ func (p *Stats) Run() {
 func (p *Stats) Flush() {
 	now := time.Now()
 
-	p.cache.flush(func(m *metric) {
+	p.cache.flush(p.out, func(m *metric, ch chan<- *core.Event) {
 		e := core.NewEvent(p.RoutingKey)
 		e.Timestamp = now
 
@@ -150,7 +156,7 @@ func (p *Stats) Flush() {
 			e.SetField("stats.max", m.Value.Max)
 		}
 
-		p.out <- e
+		ch <- e
 	})
 }
 

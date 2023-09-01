@@ -33,6 +33,14 @@ This is the format of stats event:
 ```toml
 [[processors]]
   [processors.stats]
+    # plugin mode, "individual" or "shared"
+    # in individual mode each plugin collects and produces it's own stats
+    # 
+    # in shared mode with multiple processors lines
+    # each plugin set uses a shared stats cache
+    # and sends stats events to plugins channels using ROUND ROBIN algorithm
+    mode = "individual"
+
     # stats collection, producing and reset interval
     # count and sum are not reset, other stats are set to zero
     # after stats events are produced
