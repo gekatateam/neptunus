@@ -2,7 +2,7 @@
 
 The `stats` processor calculates count, sum, average, min, max and stores field last value as gauge for each configured field and produces it as an event every `interval`.
 
-Plugin collects and produces stats for each combination of field and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field type is not a number, field stats will not updated.
+Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field type is not a number, field stats will not updated.
 
 Stats stored as child fields in `stats` key.
 
@@ -14,7 +14,7 @@ This is the format of stats event:
   "timestamp": "2023-08-25T22:29:28.9120822+03:00", # <- time of an event creation
   "tags": [],
   "labels": {
-    "::line": 3,
+    "::line": "3",
     "region": "US/California",
     "::type": "metric", # <- internal label
     "::name": "path.to.one" # <- field name

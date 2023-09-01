@@ -1,5 +1,7 @@
 package distributor
 
+// distributor is a helper for cases when plugin 
+// needs to distribute events between multiple channels
 type Distributor[T any] struct {
 	outs []chan<- T
 }

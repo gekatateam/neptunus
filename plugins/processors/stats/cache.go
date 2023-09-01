@@ -2,7 +2,6 @@ package stats
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins/common/distributor"
@@ -72,7 +71,7 @@ func (s *sharedStorage) newCache(k uint64) *sharedCache {
 		writers:   1,
 		cache:     newIndividualCache(),
 		distrib:   &distributor.Distributor[*core.Event]{},
-		syncPoint: &atomic.Int32{},
+		syncPoint: 0,
 		mu:        &sync.Mutex{},
 	}
 	s.s[k] = cache
@@ -91,7 +90,7 @@ type sharedCache struct {
 	cache   individualCache
 	distrib *distributor.Distributor[*core.Event]
 
-	syncPoint *atomic.Int32
+	syncPoint int32
 	mu        *sync.Mutex
 }
 
@@ -103,20 +102,21 @@ func (c *sharedCache) observe(m *metric, v float64) {
 }
 
 func (c *sharedCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.distrib.AppendOut(out)
 
-	if c.syncPoint.Add(1) == c.writers {
+	c.syncPoint += 1
+	if c.syncPoint == c.writers {
 		c.flush2(flushFn)
 		c.distrib.Reset()
-		c.syncPoint.Store(0)
+		c.syncPoint = 0
 	}
 }
 
 func (c *sharedCache) flush2(flushFn func(m *metric, out chan<- *core.Event)) {
 	out, done := make(chan *core.Event), make(chan struct{})
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	go func() {
 		c.distrib.Run(out)
