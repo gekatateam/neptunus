@@ -1,5 +1,8 @@
 package prettylog
 
+// all credits to https://github.com/dusted-go/logging
+// with minimum fixes
+
 import (
 	"bytes"
 	"context"
@@ -177,7 +180,7 @@ func NewHandler(opts *slog.HandlerOptions) *Handler {
 	}
 
 	if opts.ReplaceAttr == nil {
-		opts.ReplaceAttr = noReplace
+		opts.ReplaceAttr = func(_ []string, a slog.Attr) slog.Attr { return a }
 	}
 
 	b := &bytes.Buffer{}
@@ -191,8 +194,4 @@ func NewHandler(opts *slog.HandlerOptions) *Handler {
 		r: opts.ReplaceAttr,
 		m: &sync.Mutex{},
 	}
-}
-
-func noReplace(_ []string, a slog.Attr) slog.Attr {
-	return a
 }
