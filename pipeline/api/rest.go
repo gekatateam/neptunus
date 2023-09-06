@@ -4,22 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/gekatateam/neptunus/config"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/pipeline"
 	"github.com/gekatateam/neptunus/pipeline/model"
 )
 
 type restApi struct {
 	s   pipeline.Service
-	log logger.Logger
+	log *slog.Logger
 }
 
-func Rest(s pipeline.Service, log logger.Logger) *restApi {
+func Rest(s pipeline.Service, log *slog.Logger) *restApi {
 	return &restApi{s: s, log: log}
 }
 
@@ -61,7 +61,10 @@ func (a *restApi) Start() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -85,7 +88,10 @@ func (a *restApi) Stop() http.Handler {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -106,7 +112,10 @@ func (a *restApi) State() http.Handler {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -129,7 +138,10 @@ func (a *restApi) List() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -157,7 +169,10 @@ func (a *restApi) Get() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -173,7 +188,10 @@ func (a *restApi) Add() http.Handler {
 		switch {
 		case err == nil:
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(model.ErrToJson(err.Error()))
 			return
@@ -195,7 +213,10 @@ func (a *restApi) Add() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -235,7 +256,10 @@ func (a *restApi) Update() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}
@@ -262,7 +286,10 @@ func (a *restApi) Delete() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Errorf("internal error at %v: %v", r.URL.Path, err.Error())
+			a.log.Error("internal error occured",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		}

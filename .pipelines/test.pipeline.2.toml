@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.2"
   lines = 5
-#  run = true #
+  run = true #
   buffer = 100
 
 [[inputs]]
@@ -9,8 +9,16 @@
     address = ":9300"
   [inputs.httpl.parser]
     type = "json"
-  [inputs.httpl.filters.pass]
+  [inputs.httpl.filters.glob]
     alias = "t4"
+
+[[processors]]
+  [processors.line]
+
+[[processors]]
+  [processors.drop]
+    [processors.drop.filters.glob.labels]
+      "::line" = ["4"]
 
 [[processors]]
   [processors.log]

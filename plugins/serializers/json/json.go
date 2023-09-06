@@ -3,12 +3,12 @@ package json
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/goccy/go-json"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -21,7 +21,7 @@ type Json struct {
 	OmitFailed bool   `mapstructure:"omit_failed"`
 	Mode       string `mapstructure:"mode"`
 
-	log     logger.Logger
+	log     *slog.Logger
 	serFunc func(event *core.Event) ([]byte, error)
 
 	delim byte
@@ -30,7 +30,7 @@ type Json struct {
 	buf   *bytes.Buffer
 }
 
-func (s *Json) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (s *Json) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, s); err != nil {
 		return err
 	}
@@ -81,7 +81,13 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 		rawData, err := s.serFunc(e)
 		if err != nil {
 			metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
-			s.log.Errorf("serialization failed for event %v: %v", e.Id, err)
+			s.log.Error("serialization failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			e.AddTag("::json_serialization_failed")
 			if s.OmitFailed {
 				now = time.Now()

@@ -35,7 +35,7 @@ func (p Plugin) Id() uint64 {
 			return id
 		}
 	}
-	
+
 	id := rand.Uint64()
 	p["::plugin_id"] = id
 	return id

@@ -2,10 +2,10 @@ package log
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -16,14 +16,14 @@ type Log struct {
 	pipe  string
 	Level string `mapstructure:"level"`
 
-	logFunc func(args ...interface{})
+	logFunc func(msg string, args ...any)
 
 	in  <-chan *core.Event
-	log logger.Logger
+	log *slog.Logger
 	ser core.Serializer
 }
 
-func (o *Log) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (o *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, o); err != nil {
 		return err
 	}
@@ -33,8 +33,6 @@ func (o *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 	o.log = log
 
 	switch o.Level {
-	case "trace":
-		o.logFunc = o.log.Trace
 	case "debug":
 		o.logFunc = o.log.Debug
 	case "info":
@@ -42,7 +40,7 @@ func (o *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 	case "warn":
 		o.logFunc = o.log.Warn
 	default:
-		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", o.Level)
+		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn", o.Level)
 	}
 
 	return nil
@@ -61,7 +59,13 @@ func (o *Log) Run() {
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
 		if err != nil {
-			o.log.Errorf("serialization failed: %v", err.Error())
+			o.log.Error("serialization failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}

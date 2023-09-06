@@ -3,6 +3,7 @@ package starlark
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"go.starlark.net/starlarkstruct"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -30,10 +30,10 @@ type Starlark struct {
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
-	log logger.Logger
+	log *slog.Logger
 }
 
-func (p *Starlark) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Starlark) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ SCRIPT_LOADED:
 
 	p.thread = &starlark.Thread{
 		Print: func(_ *starlark.Thread, msg string) {
-			p.log.Debugf("from starlark: %v", msg)
+			p.log.Debug(fmt.Sprintf("from starlark: %v", msg))
 		},
 		Load: func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
 			switch module {
@@ -145,7 +145,13 @@ func (p *Starlark) Run() {
 		now := time.Now()
 		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e.Clone()}}, nil)
 		if err != nil {
-			p.log.Errorf("exec failed: %v", err)
+			p.log.Error("exec failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
 			e.AddTag("::starlark_processing_failed")
 			p.out <- e
@@ -155,7 +161,13 @@ func (p *Starlark) Run() {
 
 		events, err := unpackEvents(result)
 		if err != nil {
-			p.log.Errorf("exec failed: %v", err)
+			p.log.Error("exec failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
 			e.AddTag("::starlark_processing_failed")
 			p.out <- e

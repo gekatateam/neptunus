@@ -2,10 +2,10 @@ package defaults
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -19,10 +19,10 @@ type Defaults struct {
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
-	log logger.Logger
+	log *slog.Logger
 }
 
-func (p *Defaults) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Defaults) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}
@@ -64,7 +64,14 @@ func (p *Defaults) Run() {
 		for k, v := range p.Fields {
 			if _, err := e.GetField(k); err != nil {
 				if err := e.SetField(k, v); err != nil {
-					p.log.Error("error set field %v", k)
+					p.log.Error("error set field",
+						"error", err,
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+							"field", k,
+						),
+					)
 					e.StackError(fmt.Errorf("error set field %v", k))
 					e.AddTag("::defaults_processing_failed")
 					hasError = true

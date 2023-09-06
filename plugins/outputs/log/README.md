@@ -6,7 +6,7 @@ The `log` output writes events into logs at configured level. This plugin requir
 ```toml
 [[outputs]]
   [outputs.log]
-    # logging level, "trace", "debug", "info" or "warn"
+    # logging level, "debug", "info" or "warn"
     level = "info"
   [outputs.log.serializer]
     type = "json"

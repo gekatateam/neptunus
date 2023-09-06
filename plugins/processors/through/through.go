@@ -1,10 +1,10 @@
 package through
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 )
@@ -14,10 +14,10 @@ type Through struct {
 	pipe  string
 	in    <-chan *core.Event
 	out   chan<- *core.Event
-	log   logger.Logger
+	log   *slog.Logger
 }
 
-func (p *Through) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Through) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) error {
 	p.alias = alias
 	p.pipe = pipeline
 	p.log = log

@@ -1,6 +1,6 @@
 package core
 
-// soft (consistency) units does not guarantee the order of processing, 
+// soft (consistency) units does not guarantee the order of processing,
 // because of async filtering, but (planned to be) fast
 
 import "sync"
@@ -18,13 +18,13 @@ type fToCh struct {
 // rejected events are going to unit output
 // accepted events are going to next filter or processor
 //
-//  ┌────────────────┐
-//  |┌───┐           |
+//	┌────────────────┐
+//	|┌───┐           |
 // ─┼┤ f ├┬─────────┐|
-//  |└─┬┬┴┴─┐ ┌────┐||
-//  |  └┤ f ├─┤proc├┴┼─
-//  |   └───┘ └────┘ |
-//  └────────────────┘
+//	|└─┬┬┴┴─┐ ┌────┐||
+//	|  └┤ f ├─┤proc├┴┼─
+//	|   └───┘ └────┘ |
+//	└────────────────┘
 type procSoftUnit struct {
 	p   Processor
 	f   []fToCh
@@ -88,13 +88,13 @@ func (u *procSoftUnit) Run() {
 // if filters are set, each event passes through them
 // rejected events are not going to next filter or output
 //
-//  ┌────────────────┐
-//  |┌───┐           |
+//	┌────────────────┐
+//	|┌───┐           |
 // ─┼┤ f ├┬────────Θ |
-//  |└─┬┬┴┴─┐ ┌────┐ |
-//  |  └┤ f ├─┤out>| |
-//  |   └───┘ └────┘ |
-//  └────────────────┘
+//	|└─┬┬┴┴─┐ ┌────┐ |
+//	|  └┤ f ├─┤out>| |
+//	|   └───┘ └────┘ |
+//	└────────────────┘
 type outSoftUnit struct {
 	o   Output
 	f   []fToCh
@@ -216,11 +216,11 @@ func (u *inSoftUnit) Run() {
 		for range u.rej {
 		}
 	}()
-	
-	<-u.stop // wait for stop signal
-	u.i.Close() // then close the input
+
+	<-u.stop     // wait for stop signal
+	u.i.Close()  // then close the input
 	close(u.out) // and close first channel in unit chain (trigger filters to close)
-	u.wg.Wait() // wait for all goroutines stopped
+	u.wg.Wait()  // wait for all goroutines stopped
 	close(u.rej) // rejected chan can be closed only when all filters stopped
 }
 
@@ -228,11 +228,11 @@ func (u *inSoftUnit) Run() {
 // and sends clones of each event to all outputs
 // this unit uses plugin for avoid concrete metrics writing in core
 //
-//  ┌────────┐
-//  |   ┌────┼─
+//	┌────────┐
+//	|   ┌────┼─
 // ─┼───█────┼─
-//  |   └────┼─
-//  └────────┘
+//	|   └────┼─
+//	└────────┘
 type bcastSoftUnit struct {
 	c    Broadcast
 	in   <-chan *Event
@@ -272,11 +272,11 @@ func (u *bcastSoftUnit) Run() {
 // and sends them to one output channel
 // this unit uses plugin for avoid concrete metrics writing in core
 //
-//  ┌────────┐
+//	┌────────┐
 // ─┼───┐    |
 // ─┼───█────┼─
 // ─┼───┘    |
-//  └────────┘
+//	└────────┘
 type fusionSoftUnit struct {
 	c   Fusion
 	ins []<-chan *Event
@@ -284,7 +284,7 @@ type fusionSoftUnit struct {
 }
 
 func NewDirectFusionSoftUnit(c Fusion, ins []<-chan *Event, bufferSize int) (unit *fusionSoftUnit, unitOut <-chan *Event) {
-	out := make(chan *Event, bufferSize * len(ins))
+	out := make(chan *Event, bufferSize*len(ins))
 	unit = &fusionSoftUnit{
 		c:   c,
 		ins: ins,

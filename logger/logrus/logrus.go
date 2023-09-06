@@ -1,4 +1,4 @@
-package logrus
+package logrus_old
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var extraFields map[string]any
+var extraFields map[string]string
 
 func InitializeLogger(cfg config.Common) error {
 	switch l := cfg.LogLevel; l {

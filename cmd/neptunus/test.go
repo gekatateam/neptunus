@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/urfave/cli/v2"
 
 	"github.com/gekatateam/neptunus/config"
-	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/pipeline"
 )
 
@@ -16,10 +17,9 @@ func test(cCtx *cli.Context) error {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())
 	}
 
-	if err = logrus.InitializeLogger(cfg.Common); err != nil {
+	if err = logger.Init(cfg.Common); err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
-	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 	storage, err := getStorage(&cfg.Engine)
 	if err != nil {
@@ -32,10 +32,11 @@ func test(cCtx *cli.Context) error {
 	}
 
 	for _, v := range pipesCfg {
-		pipe := pipeline.New(v, logrus.NewLogger(map[string]any{
-			"scope": "pipeline",
-			"id":    v.Settings.Id,
-		}))
+		pipe := pipeline.New(v, logger.Default.With(
+			slog.Group("pipeline",
+				"id", v.Settings.Id,
+			),
+		))
 		err = pipe.Test()
 	}
 

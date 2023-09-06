@@ -2,10 +2,10 @@ package log
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -16,15 +16,15 @@ type Log struct {
 	pipe  string
 	Level string `mapstructure:"level"`
 
-	logFunc func(args ...interface{})
+	logFunc func(msg string, args ...any)
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
-	log logger.Logger
+	log *slog.Logger
 	ser core.Serializer
 }
 
-func (p *Log) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}
@@ -34,8 +34,6 @@ func (p *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 	p.log = log
 
 	switch p.Level {
-	case "trace":
-		p.logFunc = p.log.Trace
 	case "debug":
 		p.logFunc = p.log.Debug
 	case "info":
@@ -43,7 +41,7 @@ func (p *Log) Init(config map[string]any, alias, pipeline string, log logger.Log
 	case "warn":
 		p.logFunc = p.log.Warn
 	default:
-		return fmt.Errorf("forbidden logging level: %v; expected one of: trace, debug, info, warn", p.Level)
+		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn", p.Level)
 	}
 
 	return nil
@@ -66,9 +64,16 @@ func (p *Log) Run() {
 		now := time.Now()
 		event, err := p.ser.Serialize(e)
 		if err != nil {
-			p.log.Errorf("event serialization failed: %v", err.Error())
+			p.log.Error("event serialization failed",
+				"error", err.Error(),
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
 			e.AddTag("::log_processing_failed")
+			p.out <- e
 			metrics.ObserveProcessorSummary("log", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}

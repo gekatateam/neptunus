@@ -33,6 +33,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1
+	github.com/dusted-go/logging v1.1.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-json v0.10.2

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -37,7 +37,7 @@ type Grpc struct {
 	closeFn  context.CancelFunc
 	closeCtx context.Context
 
-	log    logger.Logger
+	log    *slog.Logger
 	out    chan<- *core.Event
 	parser core.Parser
 
@@ -72,7 +72,7 @@ func (i *Grpc) Close() error {
 	return nil
 }
 
-func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log logger.Logger) error {
+func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, i); err != nil {
 		return err
 	}
@@ -118,9 +118,11 @@ func (i *Grpc) Prepare(out chan<- *core.Event) {
 }
 
 func (i *Grpc) Run() {
-	i.log.Infof("starting grpc server on %v", i.Address)
+	i.log.Info(fmt.Sprintf("starting grpc server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil {
-		i.log.Errorf("grpc server startup failed: %v", err.Error())
+		i.log.Error("grpc server startup failed",
+			"error", err.Error(),
+		)
 	} else {
 		i.log.Info("grpc server stopped")
 	}
@@ -133,11 +135,15 @@ func (i *Grpc) SetParser(p core.Parser) {
 func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, error) {
 	now := time.Now()
 	p, _ := peer.FromContext(ctx)
-	i.log.Debugf("received request from: %v", p.Addr.String())
+	i.log.Debug("request received",
+		"sender", p.Addr.String(),
+	)
 
 	events, err := i.unpackData(ctx, data, i.sendOneDesc)
 	if err != nil {
-		i.log.Error(err)
+		i.log.Error("data unpack failed",
+			"error", err,
+		)
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 		return &common.Nil{}, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -153,7 +159,9 @@ func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, err
 
 func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 	p, _ := peer.FromContext(stream.Context())
-	i.log.Debugf("received stream from: %v", p.Addr.String())
+	i.log.Debug("stream accepted",
+		"sender", p.Addr.String(),
+	)
 
 	sum := &common.BulkSummary{
 		Accepted: 0,
@@ -170,7 +178,9 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		now := time.Now()
 
 		if err != nil {
-			i.log.Error(err)
+			i.log.Error("receiving from stream failed",
+				"error", err,
+			)
 			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return err
 		}
@@ -179,7 +189,9 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		if err != nil {
 			sum.Errors[sum.Failed+sum.Accepted] = err.Error()
 			sum.Failed++
-			i.log.Warn(err)
+			i.log.Warn("data unpack failed",
+				"error", err,
+			)
 			continue
 		}
 
@@ -197,7 +209,9 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 
 func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 	p, _ := peer.FromContext(stream.Context())
-	i.log.Debugf("accepted stream from: %v", p.Addr.String())
+	i.log.Debug("stream accepted",
+		"sender", p.Addr.String(),
+	)
 
 	for {
 		select {
@@ -216,14 +230,18 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 		now := time.Now()
 
 		if err != nil {
-			i.log.Error(err)
+			i.log.Error("receiving from stream failed",
+				"error", err,
+			)
 			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return err
 		}
 
 		e, err := i.unpackEvent(event)
 		if err != nil {
-			i.log.Warn(err)
+			i.log.Warn("event unpack failed",
+				"error", err,
+			)
 			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}

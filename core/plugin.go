@@ -1,13 +1,13 @@
 package core
 
-import "github.com/gekatateam/neptunus/logger"
+import "log/slog"
 
 type Aliaser interface {
 	Alias() string
 }
 
 type Initer interface {
-	Init(config map[string]any, alias, pipeline string, log logger.Logger) error
+	Init(config map[string]any, alias, pipeline string, log *slog.Logger) error
 }
 
 // input plugin consumes events from outer world

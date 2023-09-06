@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
-	"github.com/gekatateam/neptunus/logger/logrus"
 	"github.com/gekatateam/neptunus/pipeline"
 )
 
@@ -21,12 +21,12 @@ type pipeUnit struct {
 
 type internalService struct {
 	pipes map[string]pipeUnit
-	log   logger.Logger
+	log   *slog.Logger
 	wg    *sync.WaitGroup
 	s     pipeline.Storage
 }
 
-func Internal(s pipeline.Storage, log logger.Logger) *internalService {
+func Internal(s pipeline.Storage, log *slog.Logger) *internalService {
 	return &internalService{
 		log:   log,
 		s:     s,
@@ -158,17 +158,25 @@ func (m *internalService) Delete(id string) error {
 }
 
 func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
-	pipe := pipeline.New(pipeCfg, logrus.NewLogger(map[string]any{
-		"scope": "pipeline",
-		"id":    pipeCfg.Settings.Id,
-	}))
+	pipe := pipeline.New(pipeCfg, logger.Default.With(
+		slog.Group("pipeline",
+			"id", pipeCfg.Settings.Id,
+		),
+	))
 
-	m.log.Infof("building pipeline %v", pipeCfg.Settings.Id)
+	m.log.Info("building pipeline",
+		"id", pipeCfg.Settings.Id,
+	)
 	if err := pipe.Build(); err != nil {
-		m.log.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())
+		m.log.Error("pipeline building failed",
+			"id", pipeCfg.Settings.Id,
+			"error", err.Error(),
+		)
 		m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipe, nil}
 		pipe.Close()
-		m.log.Warnf("pipeline %v was closed as not ready for event processing", pipeCfg.Settings.Id)
+		m.log.Warn("pipeline was closed as not ready for event processing",
+			"id", pipeCfg.Settings.Id,
+		)
 		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())}
 	}
 

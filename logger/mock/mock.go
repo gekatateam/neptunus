@@ -1,4 +1,4 @@
-package mock
+package mock_old
 
 type mockLogger struct{}
 

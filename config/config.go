@@ -27,15 +27,15 @@ var (
 )
 
 type Config struct {
-	Common  Common  `toml:"common" yaml:"common"`
-	Engine  Engine  `toml:"engine" yaml:"engine"`
+	Common Common `toml:"common" yaml:"common"`
+	Engine Engine `toml:"engine" yaml:"engine"`
 }
 
 type Common struct {
-	LogLevel  string         `toml:"log_level"  yaml:"log_level"`
-	LogFormat string         `toml:"log_format" yaml:"log_format"`
-	LogFields map[string]any `toml:"log_fields" yaml:"log_fields"`
-	HttpPort  string         `toml:"http_port"  yaml:"http_port"`
+	LogLevel  string            `toml:"log_level"  yaml:"log_level"`
+	LogFormat string            `toml:"log_format" yaml:"log_format"`
+	LogFields map[string]string `toml:"log_fields" yaml:"log_fields"`
+	HttpPort  string            `toml:"http_port"  yaml:"http_port"`
 }
 
 type Engine struct {

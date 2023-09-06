@@ -3,10 +3,10 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -23,10 +23,10 @@ type Parser struct {
 	parser core.Parser
 	in     <-chan *core.Event
 	out    chan<- *core.Event
-	log    logger.Logger
+	log    *slog.Logger
 }
 
-func (p *Parser) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Parser) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}
@@ -94,7 +94,13 @@ MAIN_LOOP:
 
 		events, err := p.parser.Parse(field, e.RoutingKey)
 		if err != nil {
-			p.log.Errorf("parsing failed: %v", err)
+			p.log.Error("parsing failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			e.StackError(err)
 			e.AddTag("::parser_processing_failed")
 			p.out <- e
@@ -115,7 +121,7 @@ MAIN_LOOP:
 			if !p.DropOrigin {
 				p.out <- e
 			}
-			p.log.Debugf("produced %v events", len(events))
+			p.log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		case "merge":
 			for _, donor := range events {
 				event := e.Copy()
@@ -127,7 +133,14 @@ MAIN_LOOP:
 					event.AppendFields(donor.Data)
 				} else {
 					if err := event.SetField(p.To, donor.Data); err != nil {
-						p.log.Errorf("error set to field %v: %v", p.To, err)
+						p.log.Error("error set field",
+							"error", err,
+							slog.Group("event",
+								"id", e.Id,
+								"key", e.RoutingKey,
+								"field", p.To,
+							),
+						)
 						e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
 						e.AddTag("::parser_processing_failed")
 						p.out <- e
@@ -137,7 +150,7 @@ MAIN_LOOP:
 				}
 				p.out <- event
 			}
-			p.log.Debugf("produced %v events", len(events))
+			p.log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		}
 
 		metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
