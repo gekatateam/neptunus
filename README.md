@@ -1,5 +1,7 @@
 # Neptunus
 
+<img src="assets/neptunus.svg" width="250" height="250">
+
 Neptunus is a data processing engine for consuming, transforming and producing events. Neptunus is based on data processing pipelines - a compositions of six types of plugins:
  - [Inputs](plugins/inputs/) consume events from external sources
  - [Processors](plugins/processors/) transform events
