@@ -84,17 +84,16 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 		o.sendFn = o.sendOne
 	case "bulk":
 		o.sendFn = o.sendBulk
+		o.b = &batcher.Batcher[*core.Event]{
+			Buffer:   o.Buffer,
+			Interval: o.Interval,
+		}
 	case "stream":
 		o.sendFn = o.sendStream
 	default:
 		return fmt.Errorf("unknown procedure: %v; expected one of: one, bulk, stream", o.Procedure)
 	}
 	o.log.Info(fmt.Sprintf("gRPC client works in %v mode", o.Procedure))
-
-	o.b = &batcher.Batcher[*core.Event]{
-		Buffer:   o.Buffer,
-		Interval: o.Interval,
-	}
 
 	return nil
 }
@@ -215,7 +214,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 				if stream == nil {
 					stream, err = o.newBulkStream()
 					if err != nil {
-						o.log.Error("open bulk stream failed",
+						o.log.Error("event sending failed",
 							"error", err,
 							slog.Group("event",
 								"id", e.Id,
@@ -232,7 +231,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 				})
 
 				if err == nil {
-					o.log.Debug("event send",
+					o.log.Debug("event sent",
 						slog.Group("event",
 							"id", e.Id,
 							"key", e.RoutingKey,
@@ -327,7 +326,7 @@ MAIN_LOOP:
 			if stream == nil {
 				stream, err = o.newInternalStream()
 				if err != nil {
-					o.log.Error("open internal stream failed",
+					o.log.Error("event sending failed",
 						"error", err,
 						slog.Group("event",
 							"id", e.Id,
@@ -350,7 +349,7 @@ MAIN_LOOP:
 			})
 
 			if err == nil {
-				o.log.Debug("event send",
+				o.log.Debug("event sent",
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
@@ -391,7 +390,7 @@ func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
 
 		switch {
 		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-			o.log.Debug(fmt.Sprintf("internal stream open attempt %v of %v failed", attempts, o.MaxAttempts))
+			o.log.Warn(fmt.Sprintf("internal stream open attempt %v of %v failed", attempts, o.MaxAttempts))
 			attempts++
 			time.Sleep(o.Sleep)
 		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
@@ -421,7 +420,7 @@ func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 
 		switch {
 		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-			o.log.Debug(fmt.Sprintf("bulk stream open attempt %v of %v failed", attempts, o.MaxAttempts))
+			o.log.Warn(fmt.Sprintf("bulk stream open attempt %v of %v failed", attempts, o.MaxAttempts))
 			attempts++
 			time.Sleep(o.Sleep)
 		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:

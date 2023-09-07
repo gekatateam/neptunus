@@ -150,6 +150,12 @@ func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, err
 
 	for _, e := range events {
 		i.out <- e
+		i.log.Debug("event accepted",
+			slog.Group("event",
+				"id", e.Id,
+				"key", e.RoutingKey,
+			),
+		)
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 		now = time.Now()
 	}
@@ -198,6 +204,12 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		sum.Accepted++
 		for _, e := range events {
 			i.out <- e
+			i.log.Debug("event accepted",
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
 			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 			now = time.Now()
 		}
@@ -247,6 +259,12 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 		}
 
 		i.out <- e
+		i.log.Debug("event accepted",
+			slog.Group("event",
+				"id", e.Id,
+				"key", e.RoutingKey,
+			),
+		)
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
 

@@ -160,6 +160,12 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			i.out <- event
+			i.log.Debug("event accepted",
+				slog.Group("event",
+					"id", event.Id,
+					"key", event.RoutingKey,
+				),
+			)
 			events++
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 			now = time.Now()
