@@ -8,6 +8,12 @@ Neptunus is a data processing engine for consuming, transforming and producing e
  - [Parsers](plugins/parsers/) convert raw data into events
  - [Serializers](plugins/serializers/) convert events into data formats for sending to external systems
 
+Originally conceived as a central part of a mediation platform, Neptunus may:
+ - receive data from a number of different sources, either from message brokers or by acting as a server
+ - manage event streams based on filtering rules
+ - transform, enrich and create new events
+ - deliver events to consumers in various formats and protocols
+
 # Configuration
 Neptunus configuration has two parts - daemon config and pipelines.
 
