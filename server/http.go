@@ -11,7 +11,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gekatateam/neptunus/config"
-	"github.com/gekatateam/neptunus/logger"
 )
 
 type httpServer struct {
@@ -38,7 +37,6 @@ func Http(cfg config.Common) (*httpServer, error) {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		Handler:      mux,
-		ErrorLog:     logger.Default.,
 	}
 
 	return &httpServer{mux, s, l}, nil
