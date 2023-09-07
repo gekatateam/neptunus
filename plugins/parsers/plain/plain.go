@@ -1,10 +1,10 @@
 package plain
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -14,10 +14,10 @@ type Plain struct {
 	alias string
 	pipe  string
 	Field string `mapstructure:"field"`
-	log   logger.Logger
+	log   *slog.Logger
 }
 
-func (p *Plain) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Plain) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}

@@ -2,12 +2,12 @@ package glob
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gobwas/glob"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -23,7 +23,7 @@ type Glob struct {
 	in       <-chan *core.Event
 	accepted chan<- *core.Event
 	rejected chan<- *core.Event
-	log      logger.Logger
+	log      *slog.Logger
 
 	noGlobs bool
 	rk      []glob.Glob
@@ -31,7 +31,7 @@ type Glob struct {
 	labels  map[string][]glob.Glob
 }
 
-func (f *Glob) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (f *Glob) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, f); err != nil {
 		return err
 	}

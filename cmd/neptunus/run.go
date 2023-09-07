@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -12,7 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/gekatateam/neptunus/config"
-	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline/api"
 	"github.com/gekatateam/neptunus/pipeline/service"
@@ -25,10 +26,9 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())
 	}
 
-	if err = logrus.InitializeLogger(cfg.Common); err != nil {
+	if err := logger.Init(cfg.Common); err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
-	log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit,
@@ -44,16 +44,18 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
 
-	s := service.Internal(storage, logrus.NewLogger(map[string]any{
-		"scope": "service",
-		"type":  "internal",
-	}))
+	s := service.Internal(storage, logger.Default.With(
+		slog.Group("service",
+			"kind", "internal",
+		),
+	))
 	metrics.CollectPipes(s.Metrics)
 
-	restApi := api.Rest(s, logrus.NewLogger(map[string]any{
-		"scope": "api",
-		"type":  "rest",
-	}))
+	restApi := api.Rest(s, logger.Default.With(
+		slog.Group("controller",
+			"kind", "rest",
+		),
+	))
 
 	httpServer, err := server.Http(cfg.Common)
 	if err != nil {
@@ -66,7 +68,10 @@ func run(cCtx *cli.Context) error {
 	wg.Add(1)
 	go func() {
 		if err := httpServer.Serve(); err != nil {
-			log.Fatalf("http server startup error: %v", err.Error())
+			logger.Default.Error("http server startup failed",
+				"error", err,
+			)
+			os.Exit(1)
 		}
 		wg.Done()
 	}()
@@ -79,11 +84,13 @@ func run(cCtx *cli.Context) error {
 	s.StopAll()
 
 	if err := httpServer.Shutdown(context.Background()); err != nil {
-		log.Errorf("http server stop error: %v", err.Error())
+		logger.Default.Warn("http server stopped with error",
+			"error", err,
+		)
 	}
 
 	wg.Wait()
-	log.Info("we're done here")
+	logger.Default.Info("we're done here")
 
 	return nil
 }

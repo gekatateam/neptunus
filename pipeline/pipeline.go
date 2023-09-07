@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
-	"github.com/gekatateam/neptunus/logger/logrus"
 	"github.com/gekatateam/neptunus/plugins"
 
 	"github.com/gekatateam/neptunus/plugins/core/broadcast"
@@ -63,7 +62,7 @@ type unit interface {
 // pipeline run a set of plugins
 type Pipeline struct {
 	config *config.Pipeline
-	log    logger.Logger
+	log    *slog.Logger
 
 	state   state
 	lastErr error
@@ -72,7 +71,7 @@ type Pipeline struct {
 	ins     []inputSet
 }
 
-func New(config *config.Pipeline, log logger.Logger) *Pipeline {
+func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 	return &Pipeline{
 		config: config,
 		log:    log,
@@ -124,19 +123,25 @@ func (p *Pipeline) Close() error {
 func (p *Pipeline) Test() error {
 	var err error
 	if err = p.configureInputs(); err != nil {
-		p.log.Errorf("inputs confiruration test failed: %v", err.Error())
+		p.log.Error("inputs confiruration test failed",
+			"error", err.Error(),
+		)
 		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("inputs confiruration has no errors")
 
 	if err = p.configureProcessors(); err != nil {
-		p.log.Errorf("processors confiruration test failed: %v", err.Error())
+		p.log.Error("inputs confiruration test failed",
+			"error", err.Error(),
+		)
 		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("processors confiruration has no errors")
 
 	if err = p.configureOutputs(); err != nil {
-		p.log.Errorf("outputs confiruration test failed: %v", err.Error())
+		p.log.Error("inputs confiruration test failed",
+			"error", err.Error(),
+		)
 		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("outputs confiruration has no errors")
@@ -183,7 +188,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
-		p.log.Tracef("input plugin %v out channel: %v", i, outCh)
+		p.log.Debug(fmt.Sprintf("input plugin %v out channel: %v", i, outCh))
 		go func(u unit) {
 			u.Run()
 			wg.Done()
@@ -193,23 +198,23 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting inputs-to-processors fusionner")
 	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::inputs", p.config.Settings.Id), inputsOutChannels, p.config.Settings.Buffer)
 	wg.Add(1)
-	p.log.Tracef("inputs-to-processors fusion plugin in channels: %v", inputsOutChannels)
-	p.log.Tracef("inputs-to-processors fusion plugin out channel: %v", outCh)
+	p.log.Debug(fmt.Sprintf("inputs-to-processors fusion plugin in channels: %v", inputsOutChannels))
+	p.log.Debug(fmt.Sprintf("inputs-to-processors fusion plugin out channel: %v", outCh))
 	go func(u unit) {
 		u.Run()
 		wg.Done()
 	}(inFusionUnit)
 
 	if len(p.procs) > 0 {
-		p.log.Infof("starting processors, scaling to %v parallel lines", p.config.Settings.Lines)
+		p.log.Info(fmt.Sprintf("starting processors, scaling to %v parallel lines", p.config.Settings.Lines))
 		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
 			for j, processor := range p.procs[i] {
 				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput, p.config.Settings.Buffer)
 				wg.Add(1)
-				p.log.Tracef("line %v, processor %v plugin in channel: %v", i, j, procInput)
-				p.log.Tracef("line %v, processor %v plugin out channel: %v", i, j, procOut)
+				p.log.Debug(fmt.Sprintf("line %v, processor %v plugin in channel: %v", i, j, procInput))
+				p.log.Debug(fmt.Sprintf("line %v, processor %v plugin out channel: %v", i, j, procOut))
 				go func(u unit) {
 					u.Run()
 					wg.Done()
@@ -217,15 +222,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 				procInput = procOut
 			}
 			procsOutChannels = append(procsOutChannels, procInput)
-			p.log.Infof("line %v started", i)
+			p.log.Info(fmt.Sprintf("line %v started", i))
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
 		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::processors", p.config.Settings.Id), procsOutChannels, p.config.Settings.Buffer)
 		outCh = fusionOutCh
 		wg.Add(1)
-		p.log.Tracef("processors-to-broadcast fusion plugin in channels: %v", procsOutChannels)
-		p.log.Tracef("processors-to-broadcast fusion plugin out channel: %v", outCh)
+		p.log.Debug(fmt.Sprintf("processors-to-broadcast fusion plugin in channels: %v", procsOutChannels))
+		p.log.Debug(fmt.Sprintf("processors-to-broadcast fusion plugin out channel: %v", outCh))
 		go func(u unit) {
 			u.Run()
 			wg.Done()
@@ -235,8 +240,8 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting broadcaster")
 	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("broadcast::processors", p.config.Settings.Id), outCh, len(p.outs), p.config.Settings.Buffer)
 	wg.Add(1)
-	p.log.Tracef("broadcast plugin in channel: %v", outCh)
-	p.log.Tracef("broadcast plugin out channels: %v", bcastChs)
+	p.log.Debug(fmt.Sprintf("broadcast plugin in channel: %v", outCh))
+	p.log.Debug(fmt.Sprintf("broadcast plugin out channels: %v", bcastChs))
 	go func(u unit) {
 		u.Run()
 		wg.Done()
@@ -246,7 +251,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	for i, output := range p.outs {
 		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
 		wg.Add(1)
-		p.log.Tracef("output plugin %v in channel: %v", i, bcastChs[i])
+		p.log.Debug(fmt.Sprintf("output plugin %v in channel: %v", i, bcastChs[i]))
 		go func(u unit) {
 			u.Run()
 			wg.Done()
@@ -316,11 +321,12 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
-			err := output.Init(outputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-				"pipeline": p.config.Settings.Id,
-				"output":   plugin,
-				"name":     alias,
-			}))
+			err := output.Init(outputCfg, alias, p.config.Settings.Id, p.log.With(
+				slog.Group("output",
+					"plugin", plugin,
+					"name", alias,
+				),
+			))
 			if err != nil {
 				return fmt.Errorf("%v output configuration error: %v", plugin, err.Error())
 			}
@@ -386,11 +392,12 @@ func (p *Pipeline) configureProcessors() error {
 				}
 
 				processorCfg["::line"] = i
-				err := processor.Init(processorCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-					"pipeline":  p.config.Settings.Id,
-					"processor": plugin,
-					"name":      alias,
-				}))
+				err := processor.Init(processorCfg, alias, p.config.Settings.Id, p.log.With(
+					slog.Group("processor",
+						"plugin", plugin,
+						"name", alias,
+					),
+				))
 				delete(processorCfg, "::line")
 				if err != nil {
 					return fmt.Errorf("%v processor configuration error: %v", plugin, err.Error())
@@ -457,11 +464,12 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
-			err := input.Init(inputCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-				"pipeline": p.config.Settings.Id,
-				"input":    plugin,
-				"name":     alias,
-			}))
+			err := input.Init(inputCfg, alias, p.config.Settings.Id, p.log.With(
+				slog.Group("input",
+					"plugin", plugin,
+					"name", alias,
+				),
+			))
 			if err != nil {
 				return fmt.Errorf("%v input configuration error: %v", plugin, err.Error())
 			}
@@ -521,11 +529,12 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
-		err := filter.Init(filterCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-			"pipeline": p.config.Settings.Id,
-			"filter":   plugin,
-			"name":     alias,
-		}))
+		err := filter.Init(filterCfg, alias, p.config.Settings.Id, p.log.With(
+			slog.Group("filter",
+				"plugin", plugin,
+				"name", alias,
+			),
+		))
 		if err != nil {
 			return nil, fmt.Errorf("%v filter configuration error: %v", plugin, err.Error())
 		}
@@ -551,11 +560,12 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		idNeedy.SetId(parserCfg.Id())
 	}
 
-	err := parser.Init(parserCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-		"pipeline": p.config.Settings.Id,
-		"parser":   plugin,
-		"name":     alias,
-	}))
+	err := parser.Init(parserCfg, alias, p.config.Settings.Id, p.log.With(
+		slog.Group("parser",
+			"plugin", plugin,
+			"name", alias,
+		),
+	))
 	if err != nil {
 		return nil, fmt.Errorf("%v parser configuration error: %v", plugin, err.Error())
 	}
@@ -580,11 +590,12 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		idNeedy.SetId(serCfg.Id())
 	}
 
-	err := serializer.Init(serCfg, alias, p.config.Settings.Id, logrus.NewLogger(map[string]any{
-		"pipeline":   p.config.Settings.Id,
-		"serializer": plugin,
-		"name":       alias,
-	}))
+	err := serializer.Init(serCfg, alias, p.config.Settings.Id, p.log.With(
+		slog.Group("serializer",
+			"plugin", plugin,
+			"name", alias,
+		),
+	))
 	if err != nil {
 		return nil, fmt.Errorf("%v serializer configuration error: %v", plugin, err.Error())
 	}

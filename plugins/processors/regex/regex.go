@@ -2,11 +2,11 @@ package regex
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -20,13 +20,13 @@ type Regex struct {
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
-	log logger.Logger
+	log *slog.Logger
 
 	fields map[string]*regexp.Regexp
 	labels map[string]*regexp.Regexp
 }
 
-func (p *Regex) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Regex) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}

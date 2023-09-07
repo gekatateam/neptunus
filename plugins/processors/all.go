@@ -1,6 +1,7 @@
 package processors
 
 import (
+	_ "github.com/gekatateam/neptunus/plugins/processors/copy"
 	_ "github.com/gekatateam/neptunus/plugins/processors/defaults"
 	_ "github.com/gekatateam/neptunus/plugins/processors/drop"
 	_ "github.com/gekatateam/neptunus/plugins/processors/line"

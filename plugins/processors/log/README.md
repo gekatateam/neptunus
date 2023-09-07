@@ -6,7 +6,7 @@ The `log` processor writes events into logs at configured level. This plugin req
 ```toml
 [[processors]]
   [processors.log]
-    # logging level, "trace", "debug", "info" or "warn"
+    # logging level, "debug", "info" or "warn"
     level = "info"
   [processors.log.serializer]
     type = "json"

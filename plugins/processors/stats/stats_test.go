@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger/mock"
+	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/plugins/processors/stats"
 )
 
@@ -265,7 +265,7 @@ func TestStats(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			processor := &stats.Stats{}
-			err := processor.Init(test.config, "", "", mock.NewLogger())
+			err := processor.Init(test.config, "", "", logger.Mock())
 			if err != nil {
 				t.Fatalf("processor not initialized: %v", err)
 			}

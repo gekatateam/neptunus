@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"golang.org/x/net/netutil"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -30,12 +30,12 @@ type Httpl struct {
 	server   *http.Server
 	listener net.Listener
 
-	log    logger.Logger
+	log    *slog.Logger
 	out    chan<- *core.Event
 	parser core.Parser
 }
 
-func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, i); err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log logger.L
 
 	if i.MaxConnections > 0 {
 		listener = netutil.LimitListener(listener, i.MaxConnections)
-		i.log.Debugf("listener is limited to %v simultaneous connections", i.MaxConnections)
+		i.log.Debug(fmt.Sprintf("listener is limited to %v simultaneous connections", i.MaxConnections))
 	}
 
 	i.listener = listener
@@ -79,9 +79,11 @@ func (i *Httpl) SetParser(p core.Parser) {
 }
 
 func (i *Httpl) Run() {
-	i.log.Infof("starting http server on %v", i.Address)
+	i.log.Info(fmt.Sprintf("starting http server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
-		i.log.Errorf("http server startup failed: %v", err.Error())
+		i.log.Error("http server startup failed",
+			"error", err.Error(),
+		)
 	} else {
 		i.log.Info("http server stopped")
 	}
@@ -92,11 +94,15 @@ func (i *Httpl) Close() error {
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
 	if err := i.server.Shutdown(ctx); err != nil {
-		i.log.Errorf("http server graceful shutdown ended with error: %v", err.Error())
+		i.log.Error("http server graceful shutdown ended with error",
+			"error", err.Error(),
+		)
 	}
 
 	if err := i.parser.Close(); err != nil {
-		i.log.Errorf("parser closed with error: %v", err.Error())
+		i.log.Error("parser closed with error",
+			"error", err.Error(),
+		)
 	}
 
 	return nil
@@ -112,7 +118,9 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-	i.log.Debugf("received request from: %v", r.RemoteAddr)
+	i.log.Debug("request received",
+		"sender", r.RemoteAddr,
+	)
 
 	var cursor, events = 0, 0
 	scanner := bufio.NewScanner(r.Body)
@@ -121,18 +129,20 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cursor++
 
 		if err := scanner.Err(); err != nil {
-			errMsg := fmt.Sprintf("reading error at line %v: %v", cursor, err.Error())
-			i.log.Errorf(errMsg)
-			http.Error(w, errMsg, http.StatusInternalServerError)
+			i.log.Error(fmt.Sprintf("reading error at line %v", cursor),
+				"error", err,
+			)
+			http.Error(w, fmt.Sprintf("reading error at line %v: %v", cursor, err.Error()), http.StatusInternalServerError)
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
 
 		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
 		if err != nil {
-			errMsg := fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error())
-			i.log.Errorf(errMsg)
-			http.Error(w, errMsg, http.StatusBadRequest)
+			i.log.Error(fmt.Sprintf("parsing error at line %v", cursor),
+				"error", err,
+			)
+			http.Error(w, fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
@@ -150,6 +160,12 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			i.out <- event
+			i.log.Debug("event accepted",
+				slog.Group("event",
+					"id", event.Id,
+					"key", event.RoutingKey,
+				),
+			)
 			events++
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 			now = time.Now()
@@ -157,7 +173,12 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))
+	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))
+	if err != nil {
+		i.log.Warn("all events accepted, but sending response to client failed",
+			"error", err,
+		)
+	}
 }
 
 func init() {

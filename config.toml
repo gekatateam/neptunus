@@ -1,8 +1,10 @@
 [common]
-  log_level = "trace"
+  log_level = "debug"
+  log_format = "pretty"
 #  http_port = ":9601"
     [common.log_fields]
       runner = "local"
+      dc = "east-01"
 
 [engine]
   storage = "fs"

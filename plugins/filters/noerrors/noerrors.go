@@ -1,10 +1,10 @@
 package noerrors
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 )
@@ -15,10 +15,10 @@ type NoErrors struct {
 	in       <-chan *core.Event
 	accepted chan<- *core.Event
 	rejected chan<- *core.Event
-	log      logger.Logger
+	log      *slog.Logger
 }
 
-func (f *NoErrors) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+func (f *NoErrors) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) error {
 	f.alias = alias
 	f.pipe = pipeline
 	f.log = log

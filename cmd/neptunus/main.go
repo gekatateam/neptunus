@@ -7,15 +7,17 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/gekatateam/neptunus/config"
-	"github.com/gekatateam/neptunus/logger/logrus"
+	"github.com/gekatateam/neptunus/logger"
 )
-
-var log = logrus.NewLogger(map[string]any{"scope": "main"})
 
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("unexpected panic recovered: %v; stack trace: %v", r, string(debug.Stack()))
+			logger.Default.Error(
+				"unexpected panic recovered",
+				"error", r,
+				"stack_trace", string(debug.Stack()),
+			)
 		}
 	}()
 
@@ -164,6 +166,8 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatalf("application error: %v", err.Error())
+		logger.Default.Error("application startup failed",
+			"error", err,
+		)
 	}
 }

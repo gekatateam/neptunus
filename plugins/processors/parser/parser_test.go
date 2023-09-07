@@ -2,13 +2,13 @@ package parser_test
 
 import (
 	"errors"
+	"log/slog"
 	"reflect"
 	"sync"
 	"testing"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
-	"github.com/gekatateam/neptunus/logger/mock"
 	"github.com/gekatateam/neptunus/plugins/processors/parser"
 )
 
@@ -39,7 +39,7 @@ func (m *mockParser) Close() error {
 	return nil
 }
 
-func (m *mockParser) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (m *mockParser) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	return nil
 }
 
@@ -297,7 +297,7 @@ func TestParser(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			processor := &parser.Parser{}
-			err := processor.Init(test.config, "", "", mock.NewLogger())
+			err := processor.Init(test.config, "", "", logger.Mock())
 			if err != nil {
 				t.Fatalf("processor not initialized: %v", err)
 			}

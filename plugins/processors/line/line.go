@@ -1,11 +1,11 @@
 package line
 
 import (
+	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -19,10 +19,10 @@ type Line struct {
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
-	log logger.Logger
+	log *slog.Logger
 }
 
-func (p *Line) Init(config map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Line) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	if err := mapstructure.Decode(config, p); err != nil {
 		return err
 	}

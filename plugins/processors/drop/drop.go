@@ -1,8 +1,10 @@
 package drop
 
 import (
+	"log/slog"
+	"time"
+
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 )
@@ -11,10 +13,10 @@ type Drop struct {
 	alias string
 	pipe  string
 	in    <-chan *core.Event
-	log   logger.Logger
+	log   *slog.Logger
 }
 
-func (p *Drop) Init(_ map[string]any, alias, pipeline string, log logger.Logger) error {
+func (p *Drop) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) error {
 	p.alias = alias
 	p.pipe = pipeline
 	p.log = log
@@ -38,10 +40,15 @@ func (p *Drop) Alias() string {
 }
 
 func (p *Drop) Run() {
-	for range p.in {
-		metrics.ObserveProcessorSummary("drop", p.alias, p.pipe, metrics.EventAccepted, 0)
-		p.log.Debug("event dropped")
-		continue
+	for e := range p.in {
+		now := time.Now()
+		p.log.Debug("event dropped",
+			slog.Group("event",
+				"id", e.Id,
+				"key", e.RoutingKey,
+			),
+		)
+		metrics.ObserveProcessorSummary("drop", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
 
