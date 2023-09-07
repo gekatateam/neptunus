@@ -53,7 +53,7 @@ Pipeline settings are not directly related to event processing, these parameters
  - **run** - Should engine starts pipeline at daemon startup.
  - **buffer** - Buffer size of channels connecting a plugins.
 
-> **Important!** It has been experimentally found that processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of filling channels buffers). You should use scaling after preliminary testing.  
+> **Important!** It has been experimentally found that processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of filling channels buffers). You should test it first before it can be used in production.  
 
 Settings example:
 ```toml
