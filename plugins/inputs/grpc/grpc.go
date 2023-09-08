@@ -34,8 +34,7 @@ type Grpc struct {
 
 	server   *grpc.Server
 	listener net.Listener
-	closeFn  context.CancelFunc
-	closeCtx context.Context
+	closeCh  chan struct{}
 
 	log    *slog.Logger
 	out    chan<- *core.Event
@@ -67,7 +66,8 @@ func (i *Grpc) Alias() string {
 }
 
 func (i *Grpc) Close() error {
-	i.closeFn()
+	i.log.Debug("closing plugin")
+	close(i.closeCh)
 	i.server.GracefulStop()
 	return nil
 }
@@ -80,7 +80,7 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	i.alias = alias
 	i.pipe = pipeline
 	i.log = log
-	i.closeCtx, i.closeFn = context.WithCancel(context.Background())
+	i.closeCh = make(chan struct{})
 
 	if len(i.Address) == 0 {
 		return errors.New("address required")
@@ -165,7 +165,7 @@ func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, err
 
 func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 	p, _ := peer.FromContext(stream.Context())
-	i.log.Debug("stream accepted",
+	i.log.Debug("bulk stream accepted",
 		"sender", p.Addr.String(),
 	)
 
@@ -221,22 +221,32 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 
 func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 	p, _ := peer.FromContext(stream.Context())
-	i.log.Debug("stream accepted",
+	i.log.Debug("internal stream accepted",
 		"sender", p.Addr.String(),
 	)
 
-	for {
+	doneCh := make(chan struct{})
+	stopCh := make(chan struct{})
+
+	go func() {
 		select {
-		case <-i.closeCtx.Done():
+		case <-i.closeCh:
 			// send close signal to client
 			// there is no need to handle an error because
 			// the stream may be already aborted
+			i.log.Debug("plugin closing, sending cancellation token")
 			stream.Send(&common.Cancel{})
-		default:
+		case <- stopCh:
+			i.log.Debug("internal stream done")
 		}
+		close(doneCh)
+		i.log.Debug("internal stream sending goroutine returns")
+	}()
 
+	for {
 		event, err := stream.Recv()
 		if err == io.EOF {
+			close(stopCh)
 			break
 		}
 		now := time.Now()
@@ -246,6 +256,7 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 				"error", err,
 			)
 			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			close(stopCh)
 			return err
 		}
 
@@ -268,7 +279,8 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
-	i.log.Debug("stream closed")
+	<- doneCh
+	i.log.Debug("internal stream closed")
 	return nil
 }
 
