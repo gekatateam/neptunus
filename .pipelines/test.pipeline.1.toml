@@ -24,33 +24,6 @@
   [inputs.grpc.parser]
     type = "json"
 
-[[processors]]
-  [processors.line]
-
-[[processors]]
-  [processors.starlark]
-    code = '''
-def process(event):
-    event.setField("new.field", 42)
-    return event
-    '''
-
-[[processors]]
-  [processors.defaults.fields]
-    "type" = "451"
-    "farenheit" = 451
-
-[[processors]]
-  [processors.stats]
-    alias = "s2"
-    interval = "10s"
-    mode = "shared"
-    drop_origin = true
-    labels = [ "server" ]
-    [processors.stats.fields]
-      "new.field" = ["count", "sum", "avg"]
-      "farenheit" = ["gauge", "max"]
-
 [[outputs]]
   [outputs.log]
   [outputs.log.serializer]

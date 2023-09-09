@@ -1,7 +1,7 @@
 [common]
   log_level = "debug"
-  log_format = "pretty"
-#  http_port = ":9601"
+  log_format = "logfmt"
+  http_port = ":9601"
     [common.log_fields]
       runner = "local"
       dc = "east-01"
