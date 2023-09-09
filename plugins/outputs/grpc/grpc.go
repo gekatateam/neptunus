@@ -151,7 +151,7 @@ MAIN_LOOP:
 			)
 
 			if err == nil {
-				o.log.Debug("event send",
+				o.log.Debug("event sent",
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
@@ -272,112 +272,90 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 
 func (o *Grpc) sendStream(ch <-chan *core.Event) {
 	doneCh := make(chan struct{})
-	stopCh := make(chan struct{})
 	var stream common.Input_SendStreamClient
 
-	go func() {
-		for {
-			select {
-			case <-stopCh:
-				o.log.Debug("receiving goroutine returns")
-				return
-			default:
-			}
-
-			// handle cancel signal from server and close the stream
-			// it's not for gracefull shutdown, but for gracefull disconnect
-			// from stopping server without data loss
-			// after this, client will try to reopen the stream in main loop
-			if stream != nil {
-				_, err := stream.Recv()
-				if err == nil {
-					doneCh <- struct{}{}
-				}
-			}
-		}
-	}()
-
 MAIN_LOOP:
-	for e := range ch {
+	for {
 		select {
 		case <-doneCh:
 			o.log.Info("cancel signal received, closing stream")
 			stream.CloseSend()
 			stream = nil
 			time.Sleep(o.Sleep)
-		default:
-		}
-
-		now := time.Now()
-		event, err := o.ser.Serialize(e)
-		if err != nil {
-			o.log.Error("serialization failed",
-				"error", err.Error(),
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
-			)
-			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-			continue
-		}
-
-		for {
-			if stream == nil {
-				stream, err = o.newInternalStream()
-				if err != nil {
-					o.log.Error("event sending failed",
-						"error", err,
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
-					)
-					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-					continue MAIN_LOOP
+		case e, ok := <-ch:
+			if !ok { // no events left
+				if stream != nil { // stream may be dead after failed attempts
+					stream.CloseSend()
 				}
+				return
 			}
 
-			err := stream.Send(&common.Event{
-				RoutingKey: e.RoutingKey,
-				Labels:     e.Labels,
-				Data:       event,
-				Tags:       e.Tags,
-				Id:         e.Id.String(),
-				Errors:     e.Errors.Slice(),
-				Timestamp:  e.Timestamp.Format(time.RFC3339Nano),
-			})
-
-			if err == nil {
-				o.log.Debug("event sent",
+			now := time.Now()
+			event, err := o.ser.Serialize(e)
+			if err != nil {
+				o.log.Error("serialization failed",
+					"error", err.Error(),
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			}
 
-			stream = nil // if error occured, stream is already aborted, so we need to reopen it
-			o.log.Error("sending to internal stream failed",
-				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
-			)
-			time.Sleep(o.Sleep)
+			for {
+				if stream == nil {
+					stream, err = o.newInternalStream(doneCh)
+					if err != nil {
+						o.log.Error("event sending failed",
+							"error", err,
+							slog.Group("event",
+								"id", e.Id,
+								"key", e.RoutingKey,
+							),
+						)
+						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+						continue MAIN_LOOP
+					}
+				}
+
+				err := stream.Send(&common.Event{
+					RoutingKey: e.RoutingKey,
+					Labels:     e.Labels,
+					Data:       event,
+					Tags:       e.Tags,
+					Id:         e.Id.String(),
+					Errors:     e.Errors.Slice(),
+					Timestamp:  e.Timestamp.Format(time.RFC3339Nano),
+				})
+
+				if err == nil {
+					o.log.Debug("event sent",
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+						),
+					)
+					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+					continue MAIN_LOOP
+				}
+
+				stream = nil // if error occured, stream is already aborted, so we need to reopen it
+				o.log.Error("sending to internal stream failed",
+					"error", err,
+					slog.Group("event",
+						"id", e.Id,
+						"key", e.RoutingKey,
+					),
+				)
+				time.Sleep(o.Sleep)
+			}
 		}
 	}
-
-	if stream != nil { // stream may be dead after failed attempts
-		stream.CloseSend()
-	}
-	stopCh <- struct{}{}
 }
 
-func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
+func (o *Grpc) newInternalStream(cancelCh chan<- struct{}) (common.Input_SendStreamClient, error) {
 	var stream common.Input_SendStreamClient
 	var err error
 	var attempts int = 1
@@ -385,6 +363,20 @@ func (o *Grpc) newInternalStream() (common.Input_SendStreamClient, error) {
 		stream, err = o.client.SendStream(context.Background(), o.callOpts...)
 		if err == nil {
 			o.log.Info("internal stream opened")
+
+			go func() {
+				// handle cancel signal from server and close the stream
+				// it's not for gracefull shutdown, but for gracefull disconnect
+				// from stopping server without data loss
+				// after this, client will try to reopen the stream in main loop
+				_, err := stream.Recv()
+				if err == nil {
+					cancelCh <- struct{}{}
+				}
+
+				o.log.Debug("receiving goroutine returns")
+			}()
+
 			return stream, nil
 		}
 

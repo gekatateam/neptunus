@@ -236,7 +236,7 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 			// the stream may be already aborted
 			i.log.Debug("plugin closing, sending cancellation token")
 			stream.Send(&common.Cancel{})
-		case <- stopCh:
+		case <-stopCh:
 			i.log.Debug("internal stream done")
 		}
 		close(doneCh)
@@ -279,7 +279,7 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 	}
 
-	<- doneCh
+	<-doneCh
 	i.log.Debug("internal stream closed")
 	return nil
 }
