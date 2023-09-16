@@ -14,7 +14,12 @@ The processor defines new builtin type - `event` - as Neptunus event representat
  - `delTag(tag String)` - delete tag from event
  - `hasTag(tag String) ok Bool` - check if event has tag
  - `copy() event Event` - copy event
- - `clone() event Event` - clone event
+ <!-- - `clone() event Event` - clone event
+ - `done()` - mark event as complete
+
+> **Warning**
+> If you create new event using `clone()` or `copy()` method and do not return it from script, you MUST mark that event as completed by calling `done()`
+> However, this methods are experimental and may be removed or changed in future releases -->
 
 Also, you can create a new event using `newEvent(key String)` builtin function.
 
@@ -25,8 +30,7 @@ Minimalistic example:
 def process(event):
     return event
 ```
-
-Processor passes a **clone** of an event to script, so event is not changed when an error occurs.
+<!-- Processor passes a **clone** of an event to script, so event is not changed when an error occurs. -->
 
 ## Configuration
 ```toml

@@ -16,6 +16,7 @@ type Event struct {
 	Data       Map
 	Errors     Errors
 	ctx        context.Context
+	tracker    *tracker
 }
 
 func NewEvent(routingKey string) *Event {
@@ -27,6 +28,7 @@ func NewEvent(routingKey string) *Event {
 		Labels:     make(map[string]string),
 		Data:       make(Map),
 		ctx:        context.Background(),
+		tracker:    newTracker(func(payload any) {}, nil),
 	}
 }
 
@@ -39,7 +41,29 @@ func NewEventWithData(routingKey string, data Map) *Event {
 		Labels:     make(map[string]string),
 		Data:       data,
 		ctx:        context.Background(),
+		tracker:    newTracker(func(payload any) {}, nil),
 	}
+}
+
+func (e *Event) SetHook(hook hookFunc, payload any) {
+	if e.tracker != nil {
+		e.tracker.NewHook(hook, payload)
+		return
+	}
+	e.tracker = newTracker(hook, payload)
+}
+
+func (e *Event) Done() {
+	if e.tracker != nil {
+		e.tracker.Decreace()
+	}
+}
+
+func (e *Event) Duty() int32 {
+	if e.tracker != nil {
+		return e.tracker.duty
+	}
+	return -1
 }
 
 func (e *Event) GetField(key string) (any, error) {
@@ -71,7 +95,10 @@ func (e *Event) Copy() *Event {
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
 		ctx:        context.Background(),
+		tracker:    e.tracker,
 	}
+
+	e.tracker.Increace()
 
 	copy(event.Tags, e.Tags)
 	for k, v := range e.Labels {
@@ -90,7 +117,10 @@ func (e *Event) Clone() *Event {
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
 		ctx:        e.ctx,
+		tracker:    e.tracker,
 	}
+
+	e.tracker.Increace()
 
 	copy(event.Tags, e.Tags)
 	for k, v := range e.Labels {

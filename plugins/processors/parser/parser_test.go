@@ -48,7 +48,7 @@ func (m *mockParser) Alias() string {
 }
 
 func TestParser(t *testing.T) {
-	tests := map[string]struct {
+	tests := map[string]*struct {
 		config         map[string]any
 		input          chan *core.Event
 		output         chan *core.Event
@@ -314,6 +314,7 @@ func TestParser(t *testing.T) {
 				wg.Done()
 			}()
 
+			test.event.SetHook(func(payload any){}, nil)
 			test.input <- test.event
 			close(test.input)
 			processor.Close()
@@ -321,6 +322,7 @@ func TestParser(t *testing.T) {
 			close(test.output)
 
 			cursor := 0
+			duty := -1
 			for e := range test.output {
 				if len(e.Errors) != test.expectErrors[cursor] {
 					t.Fatalf("expected errors: %v, got: %v; errors: %v", test.expectErrors[cursor], len(e.Errors), e.Errors)
@@ -340,7 +342,17 @@ func TestParser(t *testing.T) {
 					}
 				}
 
+				e.Done()
+				duty = int(e.Duty())
 				cursor++
+			}
+
+			if test.event.Duty() != 0 {
+				t.Fatal("incoming metric not delivered")
+			}
+
+			if duty != 0 {
+				t.Fatal("outgoing metric not delivered")
 			}
 		})
 	}

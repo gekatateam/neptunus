@@ -135,10 +135,11 @@ func (u *outSoftUnit) Run() {
 		}(v.f, v.c)
 	}
 
-	// consume rejected events to nothing
+	// consume rejected events
 	u.wg.Add(1)
 	go func() {
-		for range u.rej {
+		for e := range u.rej {
+			e.Done()
 		}
 		u.wg.Done()
 	}()
@@ -198,6 +199,7 @@ func (u *inSoftUnit) Run() {
 	u.wg.Add(1)
 	go func() {
 		u.i.Run() // blocking call, loop inside
+		close(u.out) // close first channel in unit chain (trigger filters to close)
 		u.wg.Done()
 	}()
 
@@ -212,16 +214,20 @@ func (u *inSoftUnit) Run() {
 		}(v.f, v.c)
 	}
 
+	rejWg := &sync.WaitGroup{}
+	rejWg.Add(1)
 	go func() {
-		for range u.rej {
+		for e := range u.rej {
+			e.Done()
 		}
+		rejWg.Done()
 	}()
 
 	<-u.stop     // wait for stop signal
 	u.i.Close()  // then close the input
-	close(u.out) // and close first channel in unit chain (trigger filters to close)
 	u.wg.Wait()  // wait for all goroutines stopped
 	close(u.rej) // rejected chan can be closed only when all filters stopped
+	rejWg.Wait() // and wait for rejection goroutine
 }
 
 // broadcast unit consumes events from input

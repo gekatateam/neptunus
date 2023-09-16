@@ -112,6 +112,8 @@ func (p *Stats) Run() {
 			p.Observe(e)
 			if !p.DropOrigin {
 				p.out <- e
+			} else {
+				e.Done()
 			}
 			metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 		}
