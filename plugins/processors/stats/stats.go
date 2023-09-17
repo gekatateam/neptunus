@@ -16,7 +16,7 @@ type Stats struct {
 	alias      string
 	pipe       string
 	id         uint64
-	Interval   time.Duration       `mapstructure:"interval"`
+	Period     time.Duration       `mapstructure:"period"`
 	Mode       string              `mapstructure:"mode"`
 	RoutingKey string              `mapstructure:"routing_key"`
 	Labels     []string            `mapstructure:"labels"`
@@ -42,8 +42,8 @@ func (p *Stats) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	p.fields = make(map[string]metricStats)
 	p.Labels = slices.Compact(p.Labels)
 
-	if p.Interval < time.Second {
-		p.Interval = time.Second
+	if p.Period < time.Second {
+		p.Period = time.Second
 	}
 
 	switch p.Mode {
@@ -95,7 +95,7 @@ func (p *Stats) SetId(id uint64) {
 }
 
 func (p *Stats) Run() {
-	ticker := time.NewTicker(p.Interval)
+	ticker := time.NewTicker(p.Period)
 
 	for {
 		select {
@@ -235,7 +235,7 @@ func convert(value any) (float64, bool) {
 func init() {
 	plugins.AddProcessor("stats", func() core.Processor {
 		return &Stats{
-			Interval:   time.Minute,
+			Period:     time.Minute,
 			RoutingKey: "neptunus.generated.metric",
 			Mode:       "individual",
 		}

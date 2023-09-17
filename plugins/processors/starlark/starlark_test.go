@@ -11,10 +11,10 @@ import (
 
 func TestStarlark(t *testing.T) {
 	tests := map[string]*struct {
-		config         map[string]any
-		input          chan *core.Event
-		output         chan *core.Event
-		event          *core.Event
+		config map[string]any
+		input  chan *core.Event
+		output chan *core.Event
+		event  *core.Event
 	}{
 		"return-same-event": {
 			config: map[string]any{
@@ -23,9 +23,9 @@ def process(event):
 	return event
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-none": {
 			config: map[string]any{
@@ -34,9 +34,9 @@ def process(event):
 	return None
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-error": {
 			config: map[string]any{
@@ -45,9 +45,9 @@ def process(event):
 	return error("that was really bad")
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-new-event": {
 			config: map[string]any{
@@ -56,9 +56,9 @@ def process(event):
 	return newEvent("super-test-key")
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-list-of-new": {
 			config: map[string]any{
@@ -67,9 +67,9 @@ def process(event):
 	return [newEvent("new")]
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-list-of-same": {
 			config: map[string]any{
@@ -78,9 +78,9 @@ def process(event):
 	return [event]
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-list-of-mixed": {
 			config: map[string]any{
@@ -89,9 +89,9 @@ def process(event):
 	return [event, newEvent("new-test-key")]
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 		"return-bad-type": {
 			config: map[string]any{
@@ -100,9 +100,9 @@ def process(event):
 	return "event"
 				`,
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
-			event: core.NewEvent("test-key"),
+			event:  core.NewEvent("test-key"),
 		},
 	}
 

@@ -31,7 +31,7 @@ var eventMethods = map[string]*starlark.Builtin{
 	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
 
 	// object methods
-	// this methods does not exported because it is very hard to control 
+	// this methods does not exported because it is very hard to control
 	// devivery of cloned or copied events
 	// "copy":  starlark.NewBuiltin("copy", copyEvent),   // f() Event
 	// "clone": starlark.NewBuiltin("clone", cloneEvent), // f() Event

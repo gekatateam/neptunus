@@ -1,6 +1,6 @@
 # Stats Processor Plugin
 
-The `stats` processor calculates count, sum, average, min, max and stores field last value as gauge for each configured field and produces it as an event every `interval`.
+The `stats` processor calculates count, sum, average, min, max and stores field last value as gauge for each configured field and produces it as an event every `period`.
 
 Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field type is not a number, field stats will not updated.
 
@@ -45,7 +45,7 @@ This is the format of stats event:
     # count, sum and gauge are not reset, other stats are set to zero
     # after stats events are produced
     # if configured value less than 1s, it will be set to 1s 
-    interval = "1m"
+    period = "1m"
 
     # routing key with which events will be created
     routing_key = "neptunus.generated.metric"
