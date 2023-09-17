@@ -31,8 +31,10 @@ var eventMethods = map[string]*starlark.Builtin{
 	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
 
 	// object methods
-	"copy":  starlark.NewBuiltin("copy", copyEvent),   // f() Event
-	"clone": starlark.NewBuiltin("clone", cloneEvent), // f() Event
+	// this methods does not exported because it is very hard to control
+	// devivery of cloned or copied events
+	// "copy":  starlark.NewBuiltin("copy", copyEvent),   // f() Event
+	// "clone": starlark.NewBuiltin("clone", cloneEvent), // f() Event
 }
 
 //type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)

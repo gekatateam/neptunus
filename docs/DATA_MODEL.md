@@ -24,6 +24,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
  - `AppendFields(data Map)` - append fields to the root of data map
  - `Clone() *Event` - clone event
  - `Copy() *Event` - copy event; new Id and Timestamp will be generated
+ - `Done()` - mark event as delivered, deleted from pipeline or finally failed
  - `StackError(err error)` - add error to event
 
 `SetField`, `GetField` and `DeleteField` use dots as path separator. For example:
@@ -55,3 +56,15 @@ To get user name, call `GetField("metadata.user.name")`, to add a new field with
 ```
 
 These types can be used as field values: strings, integers (signed and unsigned), booleans, floating point numbers, arrays, slices and maps with string as a key. Any other types may cause errors at the serialization stage.
+
+## Delivery Control
+
+Each new event has a tracker with duty counter equal `1` at creation stage. That counter changes in two cases:
+ - it increases when an event is copied or cloned using corresponding method; copied or cloned events shares tracker.
+ - it decreases when an event `Done()` method calls.
+
+You can set a hook for an event using `SetHook(hook hookFunc, payload any)` method. When tracker duty counter decreases to zero, tracker will call hook function with passed payload as an argument.
+
+This can typically be used by input plugins that want to monitor event processing and delivery, such as `rabbitmq` or `kafka`, before telling a client/broker that the message has been accepted.
+
+It also means than processors and outputs must call `Done()` method when an event no more needed, delivered or failed after configured attemts.

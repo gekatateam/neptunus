@@ -143,7 +143,7 @@ func (p *Starlark) Alias() string {
 func (p *Starlark) Run() {
 	for e := range p.in {
 		now := time.Now()
-		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e.Clone()}}, nil)
+		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e}}, nil)
 		if err != nil {
 			p.log.Error("exec failed",
 				"error", err,
@@ -159,7 +159,7 @@ func (p *Starlark) Run() {
 			continue
 		}
 
-		events, err := unpackEvents(result)
+		events, err := unpack(result)
 		if err != nil {
 			p.log.Error("exec failed",
 				"error", err,
@@ -175,6 +175,7 @@ func (p *Starlark) Run() {
 			continue
 		}
 
+		markAsDone(e, events)
 		for _, event := range events {
 			p.out <- event
 		}
@@ -182,7 +183,7 @@ func (p *Starlark) Run() {
 	}
 }
 
-func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
+func unpack(starValue starlark.Value) ([]*core.Event, error) {
 	events := []*core.Event{}
 
 	switch v := starValue.(type) {
@@ -195,7 +196,7 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 		defer iter.Done()
 		var value starlark.Value
 		for iter.Next(&value) {
-			r, err := unpackEvents(value)
+			r, err := unpack(value)
 			if err != nil {
 				return nil, err
 			}
@@ -207,6 +208,15 @@ func unpackEvents(starValue starlark.Value) ([]*core.Event, error) {
 	}
 
 	return nil, fmt.Errorf("unknown function result, expected event, events list, error or none, got %v", starValue.Type())
+}
+
+func markAsDone(e *core.Event, events []*core.Event) {
+	for _, v := range events {
+		if v == e {
+			return
+		}
+	}
+	e.Done()
 }
 
 func init() {

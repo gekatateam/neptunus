@@ -42,6 +42,7 @@ func (p *Drop) Alias() string {
 func (p *Drop) Run() {
 	for e := range p.in {
 		now := time.Now()
+		e.Done()
 		p.log.Debug("event dropped",
 			slog.Group("event",
 				"id", e.Id,

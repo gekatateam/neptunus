@@ -20,7 +20,7 @@ func TestStats(t *testing.T) {
 	}{
 		"sum-count-gauge-test": {
 			config: map[string]any{
-				"interval":    "1m",
+				"period":      "1m",
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
@@ -81,7 +81,7 @@ func TestStats(t *testing.T) {
 		},
 		"no-label-or-field-test": {
 			config: map[string]any{
-				"interval":    "1m",
+				"period":      "1m",
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
@@ -146,7 +146,7 @@ func TestStats(t *testing.T) {
 		},
 		"min-max-avg-test": {
 			config: map[string]any{
-				"interval":    "1m",
+				"period":      "1m",
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events
@@ -207,7 +207,7 @@ func TestStats(t *testing.T) {
 		},
 		"multiple-fields-test": {
 			config: map[string]any{
-				"interval":    "1m",
+				"period":      "1m",
 				"routing_key": "ngm",
 				"labels":      []string{"code", "proto"},
 				"drop_origin": true, // in all tests processor drops origin events

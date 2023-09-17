@@ -13,8 +13,13 @@ The processor defines new builtin type - `event` - as Neptunus event representat
  - `addTag(tag String)` - add tag to event
  - `delTag(tag String)` - delete tag from event
  - `hasTag(tag String) ok Bool` - check if event has tag
- - `copy() event Event` - copy event
+ <!-- - `copy() event Event` - copy event
  - `clone() event Event` - clone event
+ - `done()` - mark event as complete
+
+> **Warning**
+> If you create new event using `clone()` or `copy()` method and do not return it from script, you MUST mark that event as completed by calling `done()`
+> However, this methods are experimental and may be removed or changed in future releases -->
 
 Also, you can create a new event using `newEvent(key String)` builtin function.
 
@@ -25,8 +30,7 @@ Minimalistic example:
 def process(event):
     return event
 ```
-
-Processor passes a **clone** of an event to script, so event is not changed when an error occurs.
+<!-- Processor passes a **clone** of an event to script, so event is not changed when an error occurs. -->
 
 ## Configuration
 ```toml
@@ -53,7 +57,8 @@ def process(event):
  - Golang array or slice -> Starlark List -> Gloang slice
  - Golang map[string]T <-> Starlark Dict
 
-Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
+> **Warning**
+> Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
 
 ```python
 # bad
@@ -73,7 +78,8 @@ def process(event):
 
 ## Starlark modules
 
-> **Warning!** Modules import is only allowed in the main script, to avoid import loops.
+> **Note** 
+> Modules import is only allowed in the main script, to avoid import loops.
 
 ### Embedded
 

@@ -26,13 +26,13 @@ type Grpc struct {
 
 	Address        string            `mapstructure:"address"`
 	Procedure      string            `mapstructure:"procedure"`
-	Sleep          time.Duration     `mapstructure:"sleep"`
-	Buffer         int               `mapstructure:"buffer"`
-	Interval       time.Duration     `mapstructure:"interval"`
+	RetryAfter     time.Duration     `mapstructure:"retry_after"`
 	MaxAttempts    int               `mapstructure:"max_attempts"`
 	DialOptions    DialOptions       `mapstructure:"dial_options"`
 	CallOptions    CallOptions       `mapstructure:"call_options"`
 	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
+
+	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	sendFn   func(ch <-chan *core.Event)
 	client   common.InputClient
@@ -42,7 +42,6 @@ type Grpc struct {
 	in  <-chan *core.Event
 	log *slog.Logger
 	ser core.Serializer
-	b   *batcher.Batcher[*core.Event]
 }
 
 type DialOptions struct {
@@ -84,10 +83,6 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 		o.sendFn = o.sendOne
 	case "bulk":
 		o.sendFn = o.sendBulk
-		o.b = &batcher.Batcher[*core.Event]{
-			Buffer:   o.Buffer,
-			Interval: o.Interval,
-		}
 	case "stream":
 		o.sendFn = o.sendStream
 	default:
@@ -131,6 +126,7 @@ MAIN_LOOP:
 					"key", e.RoutingKey,
 				),
 			)
+			e.Done()
 			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}
@@ -157,6 +153,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 				continue MAIN_LOOP
 			}
@@ -165,7 +162,7 @@ MAIN_LOOP:
 			case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
 				o.log.Warn(fmt.Sprintf("unary call attempt %v of %v failed", attempts, o.MaxAttempts))
 				attempts++
-				time.Sleep(o.Sleep)
+				time.Sleep(o.RetryAfter)
 			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
 				o.log.Error(fmt.Sprintf("unary call failed after %v attemtps", attempts),
 					"error", err,
@@ -174,6 +171,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			default:
@@ -184,14 +182,18 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
-				time.Sleep(o.Sleep)
+				time.Sleep(o.RetryAfter)
 			}
 		}
 	}
 }
 
 func (o *Grpc) sendBulk(ch <-chan *core.Event) {
-	o.b.Run(ch, func(buf []*core.Event) {
+	o.Batcher.Run(ch, func(buf []*core.Event) {
+		if len(buf) == 0 {
+			return
+		}
+
 		var stream common.Input_SendBulkClient
 
 	MAIN_LOOP:
@@ -206,6 +208,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue
 			}
@@ -221,6 +224,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 								"key", e.RoutingKey,
 							),
 						)
+						e.Done()
 						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
@@ -237,6 +241,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 							"key", e.RoutingKey,
 						),
 					)
+					e.Done()
 					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}
@@ -249,7 +254,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 						"key", e.RoutingKey,
 					),
 				)
-				time.Sleep(o.Sleep)
+				time.Sleep(o.RetryAfter)
 			}
 		}
 
@@ -281,7 +286,7 @@ MAIN_LOOP:
 			o.log.Info("cancel signal received, closing stream")
 			stream.CloseSend()
 			stream = nil
-			time.Sleep(o.Sleep)
+			time.Sleep(o.RetryAfter)
 		case e, ok := <-ch:
 			if !ok { // no events left
 				if stream != nil { // stream may be dead after failed attempts
@@ -300,6 +305,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			}
@@ -315,6 +321,7 @@ MAIN_LOOP:
 								"key", e.RoutingKey,
 							),
 						)
+						e.Done()
 						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
@@ -337,6 +344,7 @@ MAIN_LOOP:
 							"key", e.RoutingKey,
 						),
 					)
+					e.Done()
 					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}
@@ -349,7 +357,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
-				time.Sleep(o.Sleep)
+				time.Sleep(o.RetryAfter)
 			}
 		}
 	}
@@ -384,7 +392,7 @@ func (o *Grpc) newInternalStream(cancelCh chan<- struct{}) (common.Input_SendStr
 		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
 			o.log.Warn(fmt.Sprintf("internal stream open attempt %v of %v failed", attempts, o.MaxAttempts))
 			attempts++
-			time.Sleep(o.Sleep)
+			time.Sleep(o.RetryAfter)
 		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
 			o.log.Error(fmt.Sprintf("internal stream open failed after %v attemtps", attempts),
 				"error", err,
@@ -394,7 +402,7 @@ func (o *Grpc) newInternalStream(cancelCh chan<- struct{}) (common.Input_SendStr
 			o.log.Error("internal stream open failed",
 				"error", err,
 			)
-			time.Sleep(o.Sleep)
+			time.Sleep(o.RetryAfter)
 		}
 	}
 }
@@ -414,7 +422,7 @@ func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
 			o.log.Warn(fmt.Sprintf("bulk stream open attempt %v of %v failed", attempts, o.MaxAttempts))
 			attempts++
-			time.Sleep(o.Sleep)
+			time.Sleep(o.RetryAfter)
 		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
 			o.log.Error(fmt.Sprintf("bulk stream open failed after %v attemtps", attempts),
 				"error", err,
@@ -424,7 +432,7 @@ func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 			o.log.Error("bulk stream open failed",
 				"error", err,
 			)
-			time.Sleep(o.Sleep)
+			time.Sleep(o.RetryAfter)
 		}
 	}
 }
@@ -466,9 +474,11 @@ func callOptions(opts CallOptions) []grpc.CallOption {
 func init() {
 	plugins.AddOutput("grpc", func() core.Output {
 		return &Grpc{
-			Sleep:    5 * time.Second,
-			Buffer:   100,
-			Interval: 5 * time.Second,
+			RetryAfter: 5 * time.Second,
+			Batcher: &batcher.Batcher[*core.Event]{
+				Buffer:   100,
+				Interval: 5 * time.Second,
+			},
 		}
 	})
 }

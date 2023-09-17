@@ -120,6 +120,8 @@ MAIN_LOOP:
 			}
 			if !p.DropOrigin {
 				p.out <- e
+			} else {
+				e.Done()
 			}
 			p.log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		case "merge":
@@ -143,6 +145,7 @@ MAIN_LOOP:
 						)
 						e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
 						e.AddTag("::parser_processing_failed")
+						e.Done() // decrease duty counter to compensate Copy()
 						p.out <- e
 						metrics.ObserveProcessorSummary("parser", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP // continue main loop with error if set failed
@@ -150,6 +153,7 @@ MAIN_LOOP:
 				}
 				p.out <- event
 			}
+			e.Done() // decrease duty because origin event not returns
 			p.log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		}
 

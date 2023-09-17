@@ -19,7 +19,7 @@ Plugin can be configured for using one of three RPCs:
     procedure = "bulk"
 
     # interval between retries to (re-)establish a connection
-    sleep = "5s"
+    retry_after = "5s"
 
     # maximum number of attempts of unary calls/to reopen streams
     # before the event will be marked as failed

@@ -66,11 +66,13 @@ func (o *Log) Run() {
 					"key", e.RoutingKey,
 				),
 			)
+			e.Done()
 			metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}
 
 		o.logFunc(string(event))
+		e.Done()
 		metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 	}
 }
