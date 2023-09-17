@@ -78,7 +78,8 @@ def process(event):
 
 ## Starlark modules
 
-> **Warning!** Modules import is only allowed in the main script, to avoid import loops.
+> **Info** 
+> Modules import is only allowed in the main script, to avoid import loops.
 
 ### Embedded
 
