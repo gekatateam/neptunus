@@ -13,8 +13,8 @@ The processor defines new builtin type - `event` - as Neptunus event representat
  - `addTag(tag String)` - add tag to event
  - `delTag(tag String)` - delete tag from event
  - `hasTag(tag String) ok Bool` - check if event has tag
- - `copy() event Event` - copy event
- <!-- - `clone() event Event` - clone event
+ <!-- - `copy() event Event` - copy event
+ - `clone() event Event` - clone event
  - `done()` - mark event as complete
 
 > **Warning**
@@ -57,7 +57,8 @@ def process(event):
  - Golang array or slice -> Starlark List -> Gloang slice
  - Golang map[string]T <-> Starlark Dict
 
-Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
+> **Warning**
+> Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
 
 ```python
 # bad
