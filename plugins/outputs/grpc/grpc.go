@@ -131,6 +131,7 @@ MAIN_LOOP:
 					"key", e.RoutingKey,
 				),
 			)
+			e.Done()
 			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 			continue
 		}
@@ -157,6 +158,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 				continue MAIN_LOOP
 			}
@@ -174,6 +176,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			default:
@@ -206,6 +209,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue
 			}
@@ -221,6 +225,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 								"key", e.RoutingKey,
 							),
 						)
+						e.Done()
 						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
@@ -237,6 +242,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 							"key", e.RoutingKey,
 						),
 					)
+					e.Done()
 					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}
@@ -300,6 +306,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
+				e.Done()
 				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			}
@@ -315,6 +322,7 @@ MAIN_LOOP:
 								"key", e.RoutingKey,
 							),
 						)
+						e.Done()
 						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
@@ -337,6 +345,7 @@ MAIN_LOOP:
 							"key", e.RoutingKey,
 						),
 					)
+					e.Done()
 					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}

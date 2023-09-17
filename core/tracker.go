@@ -13,18 +13,16 @@ type tracker struct {
 }
 
 func newTracker(hook hookFunc, payload any) *tracker {
-	t := &tracker{
-		duty: 1,
-		hook: hook,
+	return &tracker{
+		duty:    1,
+		hook:    hook,
 		payload: payload,
 	}
-
-	return t
 }
 
-func (d *tracker) NewHook(hook hookFunc, payload any) {
-	d.hook = hook
-	d.payload = payload
+func (d *tracker) Copy() *tracker {
+	atomic.AddInt32(&d.duty, 1)
+	return d
 }
 
 func (d *tracker) Increace() {

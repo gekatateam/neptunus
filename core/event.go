@@ -46,11 +46,9 @@ func NewEventWithData(routingKey string, data Map) *Event {
 }
 
 func (e *Event) SetHook(hook hookFunc, payload any) {
-	if e.tracker != nil {
-		e.tracker.NewHook(hook, payload)
-		return
+	if e.tracker == nil {
+		e.tracker = newTracker(hook, payload)
 	}
-	e.tracker = newTracker(hook, payload)
 }
 
 func (e *Event) Done() {
@@ -95,10 +93,8 @@ func (e *Event) Copy() *Event {
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
 		ctx:        context.Background(),
-		tracker:    e.tracker,
+		tracker:    e.tracker.Copy(),
 	}
-
-	e.tracker.Increace()
 
 	copy(event.Tags, e.Tags)
 	for k, v := range e.Labels {
@@ -117,10 +113,8 @@ func (e *Event) Clone() *Event {
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
 		ctx:        e.ctx,
-		tracker:    e.tracker,
+		tracker:    e.tracker.Copy(),
 	}
-
-	e.tracker.Increace()
 
 	copy(event.Tags, e.Tags)
 	for k, v := range e.Labels {
