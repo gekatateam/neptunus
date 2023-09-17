@@ -20,6 +20,11 @@ func newTracker(hook hookFunc, payload any) *tracker {
 	}
 }
 
+func (d *tracker) SetHook(hook hookFunc, payload any) {
+	d.hook = hook
+	d.payload = payload
+}
+
 func (d *tracker) Copy() *tracker {
 	atomic.AddInt32(&d.duty, 1)
 	return d
