@@ -2,7 +2,7 @@
   id = "test.pipeline.2"
   lines = 5
   run = true #
-  buffer = 100
+  buffer = 1_000
 
 [[inputs]]
   [inputs.httpl]
@@ -23,7 +23,7 @@
   [outputs.grpc]
     address = "localhost:5800"
     procedure = "stream"
-    max_attempts = 0
+    max_attempts = 1
     sleep = "2s"
     buffer = 100
   [outputs.grpc.serializer]

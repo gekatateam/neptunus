@@ -8,12 +8,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var httpPluginServerSummary *prometheus.SummaryVec
+var httpServerSummary *prometheus.SummaryVec
 
 func init() {
-	httpPluginServerSummary = prometheus.NewSummaryVec(
+	httpServerSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
-			Name:       "http_plugin_server_requests_seconds",
+			Name:       "plugin_http_server_requests_seconds",
 			Help:       "Incoming http requests stats.",
 			MaxAge:     time.Minute,
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
@@ -21,7 +21,7 @@ func init() {
 		[]string{"pipeline", "plugin_name", "address", "uri", "method", "status"},
 	)
 
-	prometheus.MustRegister(httpPluginServerSummary)
+	prometheus.MustRegister(httpServerSummary)
 }
 
 type statusRecorder struct {
@@ -59,7 +59,7 @@ func (m *httpMiddleware) Wrap(next http.Handler) http.Handler {
 
 		next.ServeHTTP(s, r)
 
-		httpPluginServerSummary.WithLabelValues(
+		httpServerSummary.WithLabelValues(
 			m.pipeline, m.pluginName, m.address, r.URL.Path, r.Method, strconv.Itoa(s.Status),
 		).Observe(float64(time.Since(begin)) / float64(time.Second))
 	})
