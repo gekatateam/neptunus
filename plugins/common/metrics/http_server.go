@@ -57,12 +57,10 @@ func (m *httpMiddleware) Wrap(next http.Handler) http.Handler {
 			Status:         http.StatusOK,
 		}
 
-		defer func() {
-			httpPluginServerSummary.WithLabelValues(
-				m.pipeline, m.pluginName, m.address, r.URL.Path, r.Method, strconv.Itoa(s.Status),
-			).Observe(float64(time.Since(begin)) / float64(time.Second))
-		}()
-
 		next.ServeHTTP(s, r)
+
+		httpPluginServerSummary.WithLabelValues(
+			m.pipeline, m.pluginName, m.address, r.URL.Path, r.Method, strconv.Itoa(s.Status),
+		).Observe(float64(time.Since(begin)) / float64(time.Second))
 	})
 }
