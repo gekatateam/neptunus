@@ -99,7 +99,7 @@ Labels:
 
 ## Plugins optional
 
-Optional metrics that may be written by plugin. Usually, it's protocol-specific metrics.
+Optional metrics that plugins may write. Usually, it's protocol-specific metrics.
 
 #### Summary `plugin_http_server_requests_seconds`
 Incoming http requests stats.
