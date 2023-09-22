@@ -16,11 +16,13 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 type Httpl struct {
 	alias          string
 	pipe           string
+	EnableMetrics  bool              `mapstructure:"enable_metrics"`
 	Address        string            `mapstructure:"address"`
 	ReadTimeout    time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
@@ -60,7 +62,12 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	i.listener = listener
 	mux := http.NewServeMux()
-	mux.Handle("/", i)
+	if i.EnableMetrics {
+		mux.Handle("/", httpstats.NewHttpMiddleware(pipeline, alias, i.Address).Wrap(i))
+	} else {
+		mux.Handle("/", i)
+	}
+
 	i.server = &http.Server{
 		ReadTimeout:  i.ReadTimeout,
 		WriteTimeout: i.WriteTimeout,

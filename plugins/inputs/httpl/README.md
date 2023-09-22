@@ -10,6 +10,10 @@ This plugin produce events with routing key as request path, `server` label with
 ```toml
 [[inputs]]
   [inputs.httpl]
+    # if true, plugin server writes it's own metrics
+    # see plugins/common/metrics/http_server.go
+    enable_metrics = false
+
     # address and port to host HTTP listener on
     address = ":9200"
 
