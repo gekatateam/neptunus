@@ -2,6 +2,8 @@
 
 ## Pipelines common
 
+Metrics that writes by each pipeline
+
 #### Gauge `pipeline_state`
 Pipeline state: 1-5 is for Created, Starting, Running, Stopping, Stopped.
 
@@ -15,6 +17,8 @@ Labels:
  - **pipeline** - pipeline Id
 
 ## Plugins common
+
+Metrics that writes by each plugin, depends on plugin kind
 
 #### Summary `input_plugin_processed_events`
 Events statistic for inputs.
@@ -94,6 +98,8 @@ Labels:
  - **status** - event status, `failed`, `rejected` or `accepted`
 
 ## Plugins optional
+
+Optional metrics that may be written by plugin. Usually, it's protocol-specific metrics.
 
 #### Summary `plugin_http_server_requests_seconds`
 Incoming http requests stats.

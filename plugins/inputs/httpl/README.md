@@ -7,14 +7,13 @@ If all body parsed without errors, plugin returns `200 OK` with `accepted events
 This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
 
 > **Note**
-> This plugin may write it's own metrics
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#summary-plugin_http_server_requests_seconds)
 
 ## Configuration
 ```toml
 [[inputs]]
   [inputs.httpl]
     # if true, plugin server writes it's own metrics
-    # see plugins/common/metrics/http_server.go
     enable_metrics = false
 
     # address and port to host HTTP listener on
