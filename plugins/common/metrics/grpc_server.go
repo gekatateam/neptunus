@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"io"
 	"sync"
 	"time"
 
@@ -83,17 +84,21 @@ type streamWrapper struct {
 
 func (w *streamWrapper) RecvMsg(m any) error {
 	err := w.ServerStream.RecvMsg(m)
-	grpcServerReceivedMsgTotal.WithLabelValues(
-		w.pipeline, w.pluginName, w.procedure, string(w.gRPCType),
-	).Inc()
+	if err != io.EOF {
+		grpcServerReceivedMsgTotal.WithLabelValues(
+			w.pipeline, w.pluginName, w.procedure, string(w.gRPCType),
+		).Inc()
+	}
 	return err
 }
 
 func (w *streamWrapper) SendMsg(m any) error {
 	err := w.ServerStream.SendMsg(m)
-	grpcServerSentMsgTotal.WithLabelValues(
-		w.pipeline, w.pluginName, w.procedure, string(w.gRPCType),
-	).Inc()
+	if err != io.EOF {
+		grpcServerSentMsgTotal.WithLabelValues(
+			w.pipeline, w.pluginName, w.procedure, string(w.gRPCType),
+		).Inc()
+	}
 	return err
 }
 
