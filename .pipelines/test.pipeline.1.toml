@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.1"
   lines = 5
-#  run = true #
+  run = true #
   buffer = 1_000
 
 [[inputs]]
@@ -15,6 +15,7 @@
 [[inputs]]
   [inputs.grpc]
     address = ":5800"
+    enable_metrics = true
     [inputs.grpc.server_options]
       max_connection_idle = "5s"
       max_connection_age = "5m"

@@ -104,12 +104,59 @@ Optional metrics that plugins may write. Usually, it's protocol-specific metrics
 #### Summary `plugin_http_server_requests_seconds`
 Incoming http requests stats.
 
-Quantiles: 0.5, 0.9, 0.99, 1.0
+Quantiles: 0.5, 0.9, 0.99
 
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
- - **address** - address that HTTP server is listening to
  - **uri** - incoming request path
  - **method** - incoming request method
  - **status** - request status
+
+#### Summary `plugin_grpc_server_calls_seconds`
+Handled RPCs stats.
+
+Quantiles: 0.5, 0.9, 0.99
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+ - **status** - RPC status
+
+#### Counter `plugin_grpc_server_called_total`
+Total number of started RPCs.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+
+#### Counter `plugin_grpc_server_completed_total`
+Total number of completed RPCs.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+
+#### Counter `plugin_grpc_server_received_messages_total`
+Total number of received messages.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+
+#### Counter `plugin_grpc_server_sent_messages_total`
+Total number of sent messages.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type

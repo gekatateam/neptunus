@@ -63,7 +63,7 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	i.listener = listener
 	mux := http.NewServeMux()
 	if i.EnableMetrics {
-		mux.Handle("/", httpstats.NewHttpMiddleware(pipeline, alias, i.Address).Wrap(i))
+		mux.Handle("/", httpstats.HttpServerMiddleware(pipeline, alias, i))
 	} else {
 		mux.Handle("/", i)
 	}

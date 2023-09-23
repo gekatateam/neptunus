@@ -23,11 +23,13 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
+	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 type Grpc struct {
 	alias         string
 	pipe          string
+	EnableMetrics bool              `mapstructure:"enable_metrics"`
 	Address       string            `mapstructure:"address"`
 	ServerOptions ServerOptions     `mapstructure:"server_options"`
 	LabelMetadata map[string]string `mapstructure:"labelmetadata"`
@@ -92,7 +94,7 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	}
 	i.listener = listener
 
-	i.server = grpc.NewServer([]grpc.ServerOption{
+	options := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(i.ServerOptions.MaxMessageSize),
 		grpc.MaxSendMsgSize(i.ServerOptions.MaxMessageSize),
 		grpc.NumStreamWorkers(i.ServerOptions.NumStreamWorkers),
@@ -104,7 +106,13 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 			Time:                  i.ServerOptions.InactiveTransportPing,
 			Timeout:               i.ServerOptions.InactiveTransportAge,
 		}),
-	}...)
+	}
+	if i.EnableMetrics {
+		options = append(options, grpc.StreamInterceptor(grpcstats.GrpcServerStreamInterceptor(pipeline, alias)))
+		options = append(options, grpc.UnaryInterceptor(grpcstats.GrpcServerUnaryInterceptor(pipeline, alias)))
+	}
+
+	i.server = grpc.NewServer(options...)
 	common.RegisterInputServer(i.server, i)
 
 	i.sendOneDesc = "/" + common.Input_ServiceDesc.ServiceName + "/" + common.Input_ServiceDesc.Methods[0].MethodName
