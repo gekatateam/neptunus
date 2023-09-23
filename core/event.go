@@ -28,7 +28,6 @@ func NewEvent(routingKey string) *Event {
 		Labels:     make(map[string]string),
 		Data:       make(Map),
 		ctx:        context.Background(),
-		tracker:    newTracker(func(payload any) {}, nil),
 	}
 }
 
@@ -41,13 +40,12 @@ func NewEventWithData(routingKey string, data Map) *Event {
 		Labels:     make(map[string]string),
 		Data:       data,
 		ctx:        context.Background(),
-		tracker:    newTracker(func(payload any) {}, nil),
 	}
 }
 
 func (e *Event) SetHook(hook hookFunc, payload any) {
-	if e.tracker != nil {
-		e.tracker.SetHook(hook, payload)
+	if e.tracker == nil {
+		e.tracker = newTracker(hook, payload)
 	}
 }
 
@@ -85,7 +83,7 @@ func (e *Event) StackError(err error) {
 }
 
 func (e *Event) Copy() *Event {
-	event := Event{
+	event := &Event{
 		Id:         uuid.New(),
 		Timestamp:  e.Timestamp,
 		RoutingKey: e.RoutingKey,
@@ -93,7 +91,10 @@ func (e *Event) Copy() *Event {
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
 		ctx:        context.Background(),
-		tracker:    e.tracker.Copy(),
+	}
+
+	if e.tracker != nil {
+		event.tracker = e.tracker.Copy()
 	}
 
 	copy(event.Tags, e.Tags)
@@ -101,11 +102,11 @@ func (e *Event) Copy() *Event {
 		event.Labels[k] = v
 	}
 
-	return &event
+	return event
 }
 
 func (e *Event) Clone() *Event {
-	event := Event{
+	event := &Event{
 		Id:         e.Id,
 		Timestamp:  e.Timestamp,
 		RoutingKey: e.RoutingKey,
@@ -113,7 +114,10 @@ func (e *Event) Clone() *Event {
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       e.Data.Clone(),
 		ctx:        e.ctx,
-		tracker:    e.tracker.Copy(),
+	}
+
+	if e.tracker != nil {
+		event.tracker = e.tracker.Copy()
 	}
 
 	copy(event.Tags, e.Tags)
@@ -121,7 +125,7 @@ func (e *Event) Clone() *Event {
 		event.Labels[k] = v
 	}
 
-	return &event
+	return event
 }
 
 func (e *Event) Context() context.Context {

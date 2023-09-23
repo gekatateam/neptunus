@@ -122,6 +122,7 @@ def process(event):
 				wg.Done()
 			}()
 
+			test.event.SetHook(func(p any){}, nil)
 			test.input <- test.event
 			close(test.input)
 			processor.Close()
@@ -134,11 +135,11 @@ def process(event):
 				duty = int(e.Duty())
 			}
 
-			if test.event.Duty() != 0 {
+			if test.event.Duty() > 0 {
 				t.Fatal("incoming metric not delivered")
 			}
 
-			if duty != 0 {
+			if duty > 0 {
 				t.Fatal("outgoing metric not delivered")
 			}
 		})

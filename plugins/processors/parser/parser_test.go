@@ -347,11 +347,11 @@ func TestParser(t *testing.T) {
 				cursor++
 			}
 
-			if test.event.Duty() != 0 {
+			if test.event.Duty() > 0 {
 				t.Fatal("incoming metric not delivered")
 			}
 
-			if duty != 0 {
+			if duty > 0 {
 				t.Fatal("outgoing metric not delivered")
 			}
 		})

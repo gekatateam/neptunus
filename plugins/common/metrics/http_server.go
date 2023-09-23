@@ -3,12 +3,16 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var httpServerSummary *prometheus.SummaryVec
+var (
+	httpServerSummary         *prometheus.SummaryVec
+	httpServerSummaryRegister = &sync.Once{}
+)
 
 func init() {
 	httpServerSummary = prometheus.NewSummaryVec(
@@ -20,8 +24,6 @@ func init() {
 		},
 		[]string{"pipeline", "plugin_name", "address", "uri", "method", "status"},
 	)
-
-	prometheus.MustRegister(httpServerSummary)
 }
 
 type statusRecorder struct {
@@ -41,6 +43,8 @@ type httpMiddleware struct {
 }
 
 func NewHttpMiddleware(pipeline string, pluginName string, address string) *httpMiddleware {
+	httpServerSummaryRegister.Do(func() { prometheus.MustRegister(httpServerSummary) })
+
 	return &httpMiddleware{
 		pipeline:   pipeline,
 		pluginName: pluginName,
