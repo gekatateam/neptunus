@@ -2,13 +2,11 @@ package metrics
 
 import (
 	"context"
-	"io"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
 )
 
 var (
@@ -64,16 +62,7 @@ func init() {
 	)
 }
 
-type gRPCType string
-
-const (
-	unary        gRPCType = "unary"
-	serverStream gRPCType = "server_stream"
-	clientStream gRPCType = "client_stream"
-	bidiStream   gRPCType = "bidi_stream"
-)
-
-type streamWrapper struct {
+type serverStreamWrapper struct {
 	grpc.ServerStream
 
 	pipeline   string
@@ -82,9 +71,9 @@ type streamWrapper struct {
 	gRPCType   gRPCType
 }
 
-func (w *streamWrapper) RecvMsg(m any) error {
+func (w *serverStreamWrapper) RecvMsg(m any) error {
 	err := w.ServerStream.RecvMsg(m)
-	if err != io.EOF {
+	if err == nil {
 		grpcServerReceivedMsgTotal.WithLabelValues(
 			w.pipeline, w.pluginName, w.procedure, string(w.gRPCType),
 		).Inc()
@@ -92,9 +81,9 @@ func (w *streamWrapper) RecvMsg(m any) error {
 	return err
 }
 
-func (w *streamWrapper) SendMsg(m any) error {
+func (w *serverStreamWrapper) SendMsg(m any) error {
 	err := w.ServerStream.SendMsg(m)
-	if err != io.EOF {
+	if err == nil {
 		grpcServerSentMsgTotal.WithLabelValues(
 			w.pipeline, w.pluginName, w.procedure, string(w.gRPCType),
 		).Inc()
@@ -120,11 +109,17 @@ func GrpcServerStreamInterceptor(pipeline, pluginName string) grpc.StreamServerI
 			pipeline, pluginName, procedure, string(rpcType),
 		).Inc()
 
-		err := handler(srv, &streamWrapper{ServerStream: ss, procedure: procedure, gRPCType: rpcType})
+		err := handler(srv, &serverStreamWrapper{
+			ServerStream: ss,
+			pipeline:     pipeline,
+			pluginName:   pluginName,
+			procedure:    procedure,
+			gRPCType:     rpcType,
+		})
 
 		grpcServerCallsSummary.WithLabelValues(
 			pipeline, pluginName, procedure, string(rpcType), fromError(err).Code().String(),
-		).Observe(float64(time.Since(begin)) / float64(time.Second))
+		).Observe(floatSeconds(begin))
 
 		grpcServerCompletedTotal.WithLabelValues(
 			pipeline, pluginName, procedure, string(rpcType),
@@ -156,12 +151,15 @@ func GrpcServerUnaryInterceptor(pipeline, pluginName string) grpc.UnaryServerInt
 
 		grpcServerCallsSummary.WithLabelValues(
 			pipeline, pluginName, procedure, string(rpcType), fromError(err).Code().String(),
-		).Observe(float64(time.Since(begin)) / float64(time.Second))
+		).Observe(floatSeconds(begin))
 
 		grpcServerCompletedTotal.WithLabelValues(
 			pipeline, pluginName, procedure, string(rpcType),
 		).Inc()
 
+		// TODO
+		// these two metrics may not work correctly 
+		// because possible errors are not taken into account here
 		grpcServerReceivedMsgTotal.WithLabelValues(
 			pipeline, pluginName, procedure, string(rpcType),
 		).Inc()
@@ -181,13 +179,4 @@ func serverStreamType(info *grpc.StreamServerInfo) gRPCType {
 		return serverStream
 	}
 	return bidiStream
-}
-
-func fromError(err error) *status.Status {
-	s, ok := status.FromError(err)
-	// Mirror what the grpc server itself does, i.e. also convert context errors to status
-	if !ok {
-		s = status.FromContextError(err)
-	}
-	return s
 }

@@ -49,6 +49,6 @@ func HttpServerMiddleware(pipeline string, pluginName string, next http.Handler)
 
 		httpServerRequestsSummary.WithLabelValues(
 			pipeline, pluginName, r.URL.Path, r.Method, strconv.Itoa(s.Status),
-		).Observe(float64(time.Since(begin)) / float64(time.Second))
+		).Observe(floatSeconds(begin))
 	})
 }
