@@ -7,10 +7,16 @@ Plugin can be configured for using one of three RPCs:
  - `bulk` - plugin sends a stream of data after every `interval` or when events `buffer` is full.
  - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects. This mode designed for streaming between Neptunes.
 
+> **Note**
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#summary-plugin_grpc_client_called_total)
+
 ## Configuration
 ```toml
 [[outputs]]
   [outputs.grpc]
+    # if true, plugin client writes it's own metrics
+    enable_metrics = false
+
     # server address, see more info about uri schemes
     # https://grpc.github.io/grpc/core/md_doc_naming.html
     address = "localhost:5800"

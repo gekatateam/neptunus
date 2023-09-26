@@ -160,3 +160,55 @@ Labels:
  - **plugin_name** - plugin name (alias)
  - **procedure** - method full name
  - **type** - RPC type
+
+#### Counter `plugin_grpc_client_called_total`
+Total number of started RPCs.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+
+#### Counter `plugin_grpc_client_completed_total`
+Total number of completed RPCs.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+
+#### Summary `plugin_grpc_client_calls_seconds`
+Handled RPCs stats.
+
+Quantiles: 0.5, 0.9, 0.99
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+ - **status** - RPC status
+
+#### Summary `plugin_grpc_client_received_messages_seconds`
+Total number of received stream messages.
+
+Quantiles: 0.5, 0.9, 0.99
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
+
+#### Summary `plugin_grpc_client_sent_messages_seconds`
+Total number of sent stream messages.
+
+Quantiles: 0.5, 0.9, 0.99
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **procedure** - method full name
+ - **type** - RPC type
