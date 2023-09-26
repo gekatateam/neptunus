@@ -3,7 +3,7 @@
 The `grpc` output plugin sends an events to external systems using gRPC. See [input.proto](../../common/grpc/input.proto) for more information. This plugin requires serializer.
 
 Plugin can be configured for using one of three RPCs:
- - `one` - plugin passes each event in serializer and send it by unary call.
+ - `unary` - plugin passes each event in serializer and send it by unary call.
  - `bulk` - plugin sends a stream of data after every `interval` or when events `buffer` is full.
  - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects. This mode designed for streaming between Neptunes.
 
@@ -15,7 +15,7 @@ Plugin can be configured for using one of three RPCs:
     # https://grpc.github.io/grpc/core/md_doc_naming.html
     address = "localhost:5800"
 
-    # procedure to be used by plugin, "one", "bulk", or "stream"
+    # procedure to be used by plugin, "unary", "bulk", or "stream"
     procedure = "bulk"
 
     # interval between retries to (re-)establish a connection

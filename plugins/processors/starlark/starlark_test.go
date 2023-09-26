@@ -122,7 +122,7 @@ def process(event):
 				wg.Done()
 			}()
 
-			test.event.SetHook(func(p any){}, nil)
+			test.event.SetHook(func(p any) {}, nil)
 			test.input <- test.event
 			close(test.input)
 			processor.Close()

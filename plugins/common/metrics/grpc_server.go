@@ -48,7 +48,7 @@ func init() {
 	grpcServerReceivedMsgTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_grpc_server_received_messages_total",
-			Help: "Total number of received messages.",
+			Help: "Total number of received stream messages.",
 		},
 		[]string{"pipeline", "plugin_name", "procedure", "type"},
 	)
@@ -56,7 +56,7 @@ func init() {
 	grpcServerSentMsgTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_grpc_server_sent_messages_total",
-			Help: "Total number of sent messages.",
+			Help: "Total number of sent stream messages.",
 		},
 		[]string{"pipeline", "plugin_name", "procedure", "type"},
 	)
@@ -118,7 +118,7 @@ func GrpcServerStreamInterceptor(pipeline, pluginName string) grpc.StreamServerI
 		})
 
 		grpcServerCallsSummary.WithLabelValues(
-			pipeline, pluginName, procedure, string(rpcType), fromError(err).Code().String(),
+			pipeline, pluginName, procedure, string(rpcType), fromGrpcError(err).Code().String(),
 		).Observe(floatSeconds(begin))
 
 		grpcServerCompletedTotal.WithLabelValues(
@@ -150,21 +150,10 @@ func GrpcServerUnaryInterceptor(pipeline, pluginName string) grpc.UnaryServerInt
 		resp, err = handler(ctx, req)
 
 		grpcServerCallsSummary.WithLabelValues(
-			pipeline, pluginName, procedure, string(rpcType), fromError(err).Code().String(),
+			pipeline, pluginName, procedure, string(rpcType), fromGrpcError(err).Code().String(),
 		).Observe(floatSeconds(begin))
 
 		grpcServerCompletedTotal.WithLabelValues(
-			pipeline, pluginName, procedure, string(rpcType),
-		).Inc()
-
-		// TODO
-		// these two metrics may not work correctly 
-		// because possible errors are not taken into account here
-		grpcServerReceivedMsgTotal.WithLabelValues(
-			pipeline, pluginName, procedure, string(rpcType),
-		).Inc()
-
-		grpcServerSentMsgTotal.WithLabelValues(
 			pipeline, pluginName, procedure, string(rpcType),
 		).Inc()
 

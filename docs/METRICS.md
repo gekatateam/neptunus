@@ -144,7 +144,7 @@ Labels:
  - **type** - RPC type
 
 #### Counter `plugin_grpc_server_received_messages_total`
-Total number of received messages.
+Total number of received stream messages.
 
 Labels:
  - **pipeline** - pipeline Id
@@ -153,7 +153,7 @@ Labels:
  - **type** - RPC type
 
 #### Counter `plugin_grpc_server_sent_messages_total`
-Total number of sent messages.
+Total number of sent stream messages.
 
 Labels:
  - **pipeline** - pipeline Id

@@ -21,6 +21,7 @@
 
 [[outputs]]
   [outputs.grpc]
+    enable_metrics = true
     address = "localhost:5800"
     procedure = "stream"
     max_attempts = 1

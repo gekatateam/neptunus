@@ -11,7 +11,7 @@ const (
 	bidiStream   gRPCType = "bidi_stream"
 )
 
-func fromError(err error) *status.Status {
+func fromGrpcError(err error) *status.Status {
 	s, ok := status.FromError(err)
 	// Mirror what the grpc server itself does, i.e. also convert context errors to status
 	if !ok {
