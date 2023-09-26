@@ -8,7 +8,7 @@ Plugin can be configured for using one of three RPCs:
  - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects. This mode designed for streaming between Neptunes.
 
 > **Note**
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#summary-plugin_grpc_client_called_total)
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#counter-plugin_grpc_client_called_total)
 
 ## Configuration
 ```toml
