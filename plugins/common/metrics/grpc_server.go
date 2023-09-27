@@ -100,7 +100,7 @@ func GrpcServerStreamInterceptor(pipeline, pluginName string) grpc.StreamServerI
 		prometheus.MustRegister(grpcServerSentMsgTotal)
 	})
 
-	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		begin := time.Now()
 		procedure := info.FullMethod
 		rpcType := serverStreamType(info)
@@ -138,7 +138,7 @@ func GrpcServerUnaryInterceptor(pipeline, pluginName string) grpc.UnaryServerInt
 		prometheus.MustRegister(grpcServerSentMsgTotal)
 	})
 
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		begin := time.Now()
 		procedure := info.FullMethod
 		rpcType := unary
