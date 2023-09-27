@@ -59,12 +59,12 @@ These types can be used as field values: strings, integers (signed and unsigned)
 
 ## Delivery Control
 
-Each new event has a tracker with duty counter equal `1` at creation stage. That counter changes in two cases:
+You can set a tracker for each event using `SetHook(hook func(payload any), payload any)` method, but only once. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
  - it increases when an event is copied or cloned using corresponding method; copied or cloned events shares tracker.
  - it decreases when an event `Done()` method calls.
 
-You can set a hook for an event using `SetHook(hook hookFunc, payload any)` method. When tracker duty counter decreases to zero, tracker will call hook function with passed payload as an argument.
+When tracker duty counter decreases to zero, tracker will call hook function with passed payload as an argument.
 
-This can typically be used by input plugins that want to monitor event processing and delivery, such as `rabbitmq` or `kafka`, before telling a client/broker that the message has been accepted.
+This can typically be used by input plugins that want to monitor event processing and delivery, such as `rabbitmq` or `kafka`, before responding to a client/broker that the message has been accepted.
 
 It also means than processors and outputs must call `Done()` method when an event no more needed, delivered or failed after configured attemts.

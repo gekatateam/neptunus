@@ -18,12 +18,14 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
+	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 type Grpc struct {
 	alias string
 	pipe  string
 
+	EnableMetrics  bool              `mapstructure:"enable_metrics"`
 	Address        string            `mapstructure:"address"`
 	Procedure      string            `mapstructure:"procedure"`
 	RetryAfter     time.Duration     `mapstructure:"retry_after"`
@@ -70,8 +72,14 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 		return errors.New("address required")
 	}
 
+	options := dialOptions(o.DialOptions)
+	if o.EnableMetrics {
+		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(pipeline, alias)))
+		options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(pipeline, alias)))
+	}
+
 	var err error
-	o.conn, err = grpc.Dial(o.Address, dialOptions(o.DialOptions)...)
+	o.conn, err = grpc.Dial(o.Address, options...)
 	if err != nil {
 		return err
 	}
@@ -79,14 +87,14 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	o.callOpts = callOptions(o.CallOptions)
 
 	switch o.Procedure {
-	case "one":
+	case "unary":
 		o.sendFn = o.sendOne
 	case "bulk":
 		o.sendFn = o.sendBulk
 	case "stream":
 		o.sendFn = o.sendStream
 	default:
-		return fmt.Errorf("unknown procedure: %v; expected one of: one, bulk, stream", o.Procedure)
+		return fmt.Errorf("unknown procedure: %v; expected one of: unary, bulk, stream", o.Procedure)
 	}
 	o.log.Info(fmt.Sprintf("gRPC client works in %v mode", o.Procedure))
 
