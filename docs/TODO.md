@@ -2,7 +2,8 @@
 ## Common
  - [x] Pipelines manager
  - [x] Events buffering and batch producing example - see [grpc output](../plugins/outputs/grpc/grpc.go) and [Batcher](../plugins/common/batcher/batcher.go)
- - [ ] Delivery control, event tracing
+ - [x] Delivery control
+ - [ ] Event tracing
  - [x] Parser plugins
  - [x] Serializer plugins
  - [ ] Research binary data processing
