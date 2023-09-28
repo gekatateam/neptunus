@@ -26,6 +26,7 @@ type Kafka struct {
 	MaxAttempts int `mapstructure:"max_attempts"`
 	PartitionLabel string `mapstructure:"partition_label"`
 	SASL SASL `mapstructure:"sasl"`
+	HeaderLabels map[string]string `mapstructure:"headerlabels"`
 
 	*batcher.Batcher[*core.Event]
 	writer *kafka.Writer
@@ -50,7 +51,18 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	o.pipe = pipeline
 	o.log = log
 
+	writerConfig := &kafka.WriterConfig{
+		Brokers: o.Brokers,
+	}
 
+	switch o.Compression {
+	case "gzip":
+	case "snappy":
+	case "lz4":
+	case "zstd":
+	default:
+		return fmt.Errorf("unknown compression algorithm: %v; expected one of: gzip, snappy, lz4, zstd")
+	}
 
 	return nil
 }
@@ -93,10 +105,6 @@ func (o *Kafka) Close() error {
 
 func (o *Kafka) Alias() string {
 	return o.alias
-}
-
-func writerConfig(cfg *Kafka) (*kafka.WriterConfig, error) {
-
 }
 
 func saslConfig(cfg *SASL) (sasl.Mechanism, error) {
