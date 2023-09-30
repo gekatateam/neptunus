@@ -1,8 +1,11 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -18,17 +21,18 @@ import (
 )
 
 type Kafka struct {
-	alias            string
-	pipe             string
-	EnableMetrics    bool              `mapstructure:"enable_metrics"`
-	Brokers          []string          `mapstructure:"brokers"`
-	DialTimeout      time.Duration     `mapstructure:"dial_timeout"`
-	TopicsAutocreate bool              `mapstructure:"topics_autocreate"`
-	Compression      string            `mapstructure:"compression"` // gzip, snappy, lz4 or zstd
-	MaxAttempts      int               `mapstructure:"max_attempts"`
-	PartitionLabel   string            `mapstructure:"partition_label"`
-	SASL             SASL              `mapstructure:"sasl"`
-	HeaderLabels     map[string]string `mapstructure:"headerlabels"`
+	alias             string
+	pipe              string
+	EnableMetrics     bool              `mapstructure:"enable_metrics"`
+	Brokers           []string          `mapstructure:"brokers"`
+	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
+	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
+	Compression       string            `mapstructure:"compression"`
+	MaxAttempts       int               `mapstructure:"max_attempts"`
+	PartitionBalancer string            `mapstructure:"partition_balancer"`
+	PartitionLabel    string            `mapstructure:"partition_label"`
+	SASL              SASL              `mapstructure:"sasl"`
+	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
 	*batcher.Batcher[*core.Event]
 	writer *kafka.Writer
@@ -61,6 +65,10 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		Brokers:     o.Brokers,
 		MaxAttempts: o.MaxAttempts,
 		BatchSize:   o.Batcher.Buffer,
+	}
+
+	if len(o.Brokers) == 0 {
+		return errors.New("at least one broker address required")
 	}
 
 	// configure Writer retries
@@ -98,8 +106,30 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, scram", o.SASL.Mechanism)
 	}
 
-	if err := writerConfig.Validate(); err != nil {
-		return err
+	switch o.PartitionBalancer {
+	case "label":
+		if len(o.PartitionLabel) == 0 {
+			return errors.New("PartitionLabel requires for label balancer")
+		}
+		writerConfig.Balancer = o
+	case "round-robin":
+		writerConfig.Balancer = &kafka.RoundRobin{}
+	case "least-bytes":
+		writerConfig.Balancer = &kafka.LeastBytes{}
+	case "hash":
+		writerConfig.Balancer = &kafka.Hash{}
+	case "reference-hash":
+		writerConfig.Balancer = &kafka.ReferenceHash{}
+	case "consistent-random":
+		writerConfig.Balancer = &kafka.CRC32Balancer{}
+	case "consistent":
+		writerConfig.Balancer = &kafka.CRC32Balancer{Consistent: true}
+	case "murmur2-random":
+		writerConfig.Balancer = &kafka.Murmur2Balancer{}
+	case "murmur2":
+		writerConfig.Balancer = &kafka.Murmur2Balancer{Consistent: true}
+	default:
+		return fmt.Errorf("unknown balancer: %v", o.PartitionBalancer)
 	}
 
 	o.writer = kafka.NewWriter(writerConfig)
@@ -147,11 +177,36 @@ func (o *Kafka) Alias() string {
 	return o.alias
 }
 
+func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
+	for _, h := range msg.Headers {
+		if h.Key == o.PartitionLabel {
+			partition, err := strconv.Atoi(string(h.Value))
+			if err != nil {
+				o.log.Warn("partition calculation error",
+					"error", err,
+				)
+				return 0
+			}
+
+			if !slices.Contains(partitions, partition) {
+				o.log.Warn("partition calculation error",
+					"error", fmt.Sprintf("partition %v not in partitions list", partition),
+				)
+				return 0
+			}
+
+			return partition
+		}
+	}
+	return 0
+}
+
 func init() {
 	plugins.AddOutput("kafka", func() core.Output {
 		return &Kafka{
-			DialTimeout: 5 * time.Second,
-			Compression: "gzip",
+			DialTimeout:       5 * time.Second,
+			Compression:       "gzip",
+			PartitionBalancer: "least-bytes",
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
