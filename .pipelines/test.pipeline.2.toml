@@ -20,6 +20,13 @@
       data_only = false
 
 [[outputs]]
+  [outputs.kafka]
+    brokers = ["localhost:9120"]
+  [outputs.kafka.serializer]
+    type = "json"
+    data_only = true
+
+[[outputs]]
   [outputs.grpc]
     enable_metrics = true
     address = "localhost:5800"

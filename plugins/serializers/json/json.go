@@ -98,7 +98,7 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 		s.buf.Write(rawData)
 		s.buf.WriteByte(s.delim)
 
-		if i == lastIter {
+		if i == lastIter && s.buf.Len() > 0 {
 			s.buf.Truncate(s.buf.Len() - 1) // trim last delimeter
 			s.buf.Write(s.end)
 			result = make([]byte, s.buf.Len())

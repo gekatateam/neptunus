@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -57,14 +58,16 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	o.pipe = pipeline
 	o.log = log
 
-	writerConfig := kafka.WriterConfig{
-		Dialer: &kafka.Dialer{
-			Timeout:   o.DialTimeout,
-			DualStack: true,
-		},
-		Brokers:     o.Brokers,
-		MaxAttempts: o.MaxAttempts,
-		BatchSize:   o.Batcher.Buffer,
+	writer := &kafka.Writer{
+		Addr:                   kafka.TCP(o.Brokers...),
+		RequiredAcks:           kafka.RequireOne,
+		BatchSize:              o.Batcher.Buffer,
+		MaxAttempts:            o.MaxAttempts,
+		AllowAutoTopicCreation: o.TopicsAutocreate,
+	}
+
+	transport := &kafka.Transport{
+		DialTimeout: o.DialTimeout,
 	}
 
 	if len(o.Brokers) == 0 {
@@ -74,25 +77,27 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	// configure Writer retries
 	// zero means infinite number of retries that will be executed in the Run() loop
 	if o.MaxAttempts == 0 {
-		writerConfig.MaxAttempts = 10
+		writer.MaxAttempts = 10
 	}
 
 	switch o.Compression {
+	case "none":
+		writer.Compression = compress.None
 	case "gzip":
-		writerConfig.CompressionCodec = &compress.GzipCodec
+		writer.Compression = compress.Gzip
 	case "snappy":
-		writerConfig.CompressionCodec = &compress.SnappyCodec
+		writer.Compression = compress.Snappy
 	case "lz4":
-		writerConfig.CompressionCodec = &compress.Lz4Codec
+		writer.Compression = compress.Lz4
 	case "zstd":
-		writerConfig.CompressionCodec = &compress.ZstdCodec
+		writer.Compression = compress.Zstd
 	default:
 		return fmt.Errorf("unknown compression algorithm: %v; expected one of: gzip, snappy, lz4, zstd", o.Compression)
 	}
 
 	switch o.SASL.Mechanism {
 	case "plain":
-		writerConfig.Dialer.SASLMechanism = &plain.Mechanism{
+		transport.SASL = &plain.Mechanism{
 			Username: o.SASL.Username,
 			Password: o.SASL.Password,
 		}
@@ -101,7 +106,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		if err != nil {
 			return err
 		}
-		writerConfig.Dialer.SASLMechanism = m
+		transport.SASL = m
 	default:
 		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, scram", o.SASL.Mechanism)
 	}
@@ -111,28 +116,38 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		if len(o.PartitionLabel) == 0 {
 			return errors.New("PartitionLabel requires for label balancer")
 		}
-		writerConfig.Balancer = o
+		writer.Balancer = o
 	case "round-robin":
-		writerConfig.Balancer = &kafka.RoundRobin{}
+		writer.Balancer = &kafka.RoundRobin{}
 	case "least-bytes":
-		writerConfig.Balancer = &kafka.LeastBytes{}
+		writer.Balancer = &kafka.LeastBytes{}
 	case "hash":
-		writerConfig.Balancer = &kafka.Hash{}
+		writer.Balancer = &kafka.Hash{}
 	case "reference-hash":
-		writerConfig.Balancer = &kafka.ReferenceHash{}
+		writer.Balancer = &kafka.ReferenceHash{}
 	case "consistent-random":
-		writerConfig.Balancer = &kafka.CRC32Balancer{}
+		writer.Balancer = &kafka.CRC32Balancer{}
 	case "consistent":
-		writerConfig.Balancer = &kafka.CRC32Balancer{Consistent: true}
+		writer.Balancer = &kafka.CRC32Balancer{Consistent: true}
 	case "murmur2-random":
-		writerConfig.Balancer = &kafka.Murmur2Balancer{}
+		writer.Balancer = &kafka.Murmur2Balancer{}
 	case "murmur2":
-		writerConfig.Balancer = &kafka.Murmur2Balancer{Consistent: true}
+		writer.Balancer = &kafka.Murmur2Balancer{Consistent: true}
 	default:
 		return fmt.Errorf("unknown balancer: %v", o.PartitionBalancer)
 	}
 
-	o.writer = kafka.NewWriter(writerConfig)
+	client := &kafka.Client{
+		Addr:      kafka.TCP(o.Brokers...),
+		Transport: transport,
+	}
+	_, err := client.ApiVersions(context.Background(), &kafka.ApiVersionsRequest{})
+	if err != nil {
+		return err
+	}
+
+	writer.Transport = transport
+	o.writer = writer
 
 	return nil
 }
@@ -205,7 +220,7 @@ func init() {
 	plugins.AddOutput("kafka", func() core.Output {
 		return &Kafka{
 			DialTimeout:       5 * time.Second,
-			Compression:       "gzip",
+			Compression:       "none",
 			PartitionBalancer: "least-bytes",
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
