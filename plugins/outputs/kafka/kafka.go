@@ -11,6 +11,7 @@ import (
 
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/compress"
+	"github.com/segmentio/kafka-go/protocol"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
 
@@ -27,16 +28,19 @@ type Kafka struct {
 	EnableMetrics     bool              `mapstructure:"enable_metrics"`
 	Brokers           []string          `mapstructure:"brokers"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
+	WriteTimeout      time.Duration     `mapstructure:"write_timeout"`
+	BatchTimeout      time.Duration     `mapstructure:"batch_timeout"`
 	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
 	Compression       string            `mapstructure:"compression"`
 	MaxAttempts       int               `mapstructure:"max_attempts"`
+	RetryAfter        time.Duration     `mapstructure:"retry_after"`
 	PartitionBalancer string            `mapstructure:"partition_balancer"`
 	PartitionLabel    string            `mapstructure:"partition_label"`
 	SASL              SASL              `mapstructure:"sasl"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
-	*batcher.Batcher[*core.Event]
-	writer *kafka.Writer
+	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	writer                        *kafka.Writer
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -58,26 +62,26 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	o.pipe = pipeline
 	o.log = log
 
-	writer := &kafka.Writer{
-		Addr:                   kafka.TCP(o.Brokers...),
-		RequiredAcks:           kafka.RequireOne,
-		BatchSize:              o.Batcher.Buffer,
-		MaxAttempts:            o.MaxAttempts,
-		AllowAutoTopicCreation: o.TopicsAutocreate,
-	}
-
-	transport := &kafka.Transport{
-		DialTimeout: o.DialTimeout,
-	}
-
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
 	}
 
-	// configure Writer retries
-	// zero means infinite number of retries that will be executed in the Run() loop
-	if o.MaxAttempts == 0 {
-		writer.MaxAttempts = 10
+	if o.Batcher.Buffer < 0 {
+		o.Batcher.Buffer = 1
+	}
+
+	writer := &kafka.Writer{
+		Addr:                   kafka.TCP(o.Brokers...),
+		RequiredAcks:           kafka.RequireOne,
+		BatchSize:              o.Batcher.Buffer,
+		AllowAutoTopicCreation: o.TopicsAutocreate,
+		WriteTimeout:           o.WriteTimeout,
+		BatchTimeout:           o.BatchTimeout,
+		MaxAttempts:            1,
+	}
+
+	transport := &kafka.Transport{
+		DialTimeout: o.DialTimeout,
 	}
 
 	switch o.Compression {
@@ -101,14 +105,20 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			Username: o.SASL.Username,
 			Password: o.SASL.Password,
 		}
-	case "scram":
+	case "sha-256":
+		m, err := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
+		if err != nil {
+			return err
+		}
+		transport.SASL = m
+	case "sha-512":
 		m, err := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
 		if err != nil {
 			return err
 		}
 		transport.SASL = m
 	default:
-		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, scram", o.SASL.Mechanism)
+		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", o.SASL.Mechanism)
 	}
 
 	switch o.PartitionBalancer {
@@ -141,8 +151,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		Addr:      kafka.TCP(o.Brokers...),
 		Transport: transport,
 	}
-	_, err := client.ApiVersions(context.Background(), &kafka.ApiVersionsRequest{})
-	if err != nil {
+	if _, err := client.ApiVersions(context.Background(), &kafka.ApiVersionsRequest{}); err != nil {
 		return err
 	}
 
@@ -161,27 +170,116 @@ func (o *Kafka) SetSerializer(s core.Serializer) {
 }
 
 func (o *Kafka) Run() {
-	for e := range o.in {
+	o.Batcher.Run(o.in, func(buf []*core.Event) {
 		now := time.Now()
-		event, err := o.ser.Serialize(e)
-		if err != nil {
-			o.log.Error("serialization failed",
-				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
-			)
-			e.Done()
-			metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-			continue
+		messages := []kafka.Message{}
+		readyEvents := make([]*core.Event, 0, len(buf))
+
+		for _, e := range buf {
+			event, err := o.ser.Serialize(e)
+			if err != nil {
+				o.log.Error("serialization failed, event skipped",
+					"error", err,
+					slog.Group("event",
+						"id", e.Id,
+						"key", e.RoutingKey,
+					),
+				)
+				e.Done()
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+				now = time.Now()
+				continue
+			}
+
+			msg := kafka.Message{
+				Topic: e.RoutingKey,
+				Time:  e.Timestamp,
+				Value: event,
+			}
+			for header, label := range o.HeaderLabels {
+				if v, ok := e.GetLabel(label); ok {
+					msg.Headers = append(msg.Headers, protocol.Header{
+						Key:   header,
+						Value: []byte(v),
+					})
+				}
+			}
+			if o.PartitionBalancer == "label" {
+				label, ok := e.GetLabel(o.PartitionLabel)
+				if !ok {
+					o.log.Error("label balancer configured, but event has no configured label",
+						"error", err,
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+						),
+					)
+					e.Done()
+					metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+					now = time.Now()
+					continue
+				}
+
+				msg.Headers = append(msg.Headers, protocol.Header{
+					Key:   o.PartitionLabel,
+					Value: []byte(label),
+				})
+			}
+			messages = append(messages, msg)
+			readyEvents = append(readyEvents, e)
+			now = time.Now()
 		}
 
-		fmt.Println(event)
+		var attempts int = 0
+		var err error = nil
+	SEND_LOOP:
+		for {
+			if err = o.writer.WriteMessages(context.Background(), messages...); err == nil {
+				break SEND_LOOP
+			}
 
-		e.Done()
-		metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
-	}
+			switch {
+			case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
+				o.log.Warn(fmt.Sprintf("write %v of %v failed", attempts, o.MaxAttempts))
+				attempts++
+				time.Sleep(o.RetryAfter)
+			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
+				o.log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
+					"error", err,
+				)
+				break SEND_LOOP
+			default:
+				o.log.Error("write failed",
+					"error", err,
+				)
+				time.Sleep(o.RetryAfter)
+			}
+		}
+
+		for _, e := range readyEvents {
+			// mark as done only after successful write
+			// or when the maximum number of attempts has been reached
+			e.Done()
+			if err != nil {
+				o.log.Error("event write failed",
+					"error", err,
+					slog.Group("event",
+						"id", e.Id,
+						"key", e.RoutingKey,
+					),
+				)
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now)) // THIS IS BAD MOVE
+			} else {
+				o.log.Debug("event sent",
+					slog.Group("event",
+						"id", e.Id,
+						"key", e.RoutingKey,
+					),
+				)
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+			}
+		}
+	})
 }
 
 func (o *Kafka) Close() error {
@@ -213,13 +311,16 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 			return partition
 		}
 	}
-	return 0
+	panic(fmt.Errorf("message has no %v header", o.PartitionLabel))
 }
 
 func init() {
 	plugins.AddOutput("kafka", func() core.Output {
 		return &Kafka{
 			DialTimeout:       5 * time.Second,
+			WriteTimeout:      5 * time.Second,
+			BatchTimeout:      100 * time.Microsecond,
+			RetryAfter:        5 * time.Second,
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",
 			Batcher: &batcher.Batcher[*core.Event]{

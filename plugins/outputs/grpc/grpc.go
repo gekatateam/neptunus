@@ -72,6 +72,10 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 		return errors.New("address required")
 	}
 
+	if o.Batcher.Buffer < 0 {
+		o.Batcher.Buffer = 1
+	}
+
 	options := dialOptions(o.DialOptions)
 	if o.EnableMetrics {
 		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(pipeline, alias)))
