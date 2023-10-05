@@ -171,11 +171,12 @@ func (o *Kafka) SetSerializer(s core.Serializer) {
 
 func (o *Kafka) Run() {
 	o.Batcher.Run(o.in, func(buf []*core.Event) {
-		now := time.Now()
 		messages := []kafka.Message{}
-		readyEvents := make([]*core.Event, 0, len(buf))
+		readyEvents := make(map[time.Duration]*core.Event) // time spent on event processing
+		writeErr := error(nil)
 
-		for _, e := range buf {
+		for i, e := range buf {
+			now := time.Now()
 			event, err := o.ser.Serialize(e)
 			if err != nil {
 				o.log.Error("serialization failed, event skipped",
@@ -187,7 +188,6 @@ func (o *Kafka) Run() {
 				)
 				e.Done()
 				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-				now = time.Now()
 				continue
 			}
 
@@ -196,6 +196,7 @@ func (o *Kafka) Run() {
 				Time:  e.Timestamp,
 				Value: event,
 			}
+
 			for header, label := range o.HeaderLabels {
 				if v, ok := e.GetLabel(label); ok {
 					msg.Headers = append(msg.Headers, protocol.Header{
@@ -204,71 +205,38 @@ func (o *Kafka) Run() {
 					})
 				}
 			}
+
 			if o.PartitionBalancer == "label" {
-				label, ok := e.GetLabel(o.PartitionLabel)
-				if !ok {
-					o.log.Error("label balancer configured, but event has no configured label",
-						"error", err,
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
-					)
-					e.Done()
-					metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-					now = time.Now()
-					continue
+				if label, ok := e.GetLabel(o.PartitionLabel); ok {
+					msg.Headers = append(msg.Headers, protocol.Header{
+						Key:   o.PartitionLabel,
+						Value: []byte(label),
+					})
 				}
-
-				msg.Headers = append(msg.Headers, protocol.Header{
-					Key:   o.PartitionLabel,
-					Value: []byte(label),
-				})
 			}
+
 			messages = append(messages, msg)
-			readyEvents = append(readyEvents, e)
-			now = time.Now()
-		}
 
-		var attempts int = 0
-		var err error = nil
-	SEND_LOOP:
-		for {
-			if err = o.writer.WriteMessages(context.Background(), messages...); err == nil {
-				break SEND_LOOP
+			if i == len(buf)-1 { // last iteration
+				writeErr = o.write(messages) // TODO catch error https://pkg.go.dev/github.com/segmentio/kafka-go@v0.4.43#Error
 			}
 
-			switch {
-			case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-				o.log.Warn(fmt.Sprintf("write %v of %v failed", attempts, o.MaxAttempts))
-				attempts++
-				time.Sleep(o.RetryAfter)
-			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
-				o.log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
-					"error", err,
-				)
-				break SEND_LOOP
-			default:
-				o.log.Error("write failed",
-					"error", err,
-				)
-				time.Sleep(o.RetryAfter)
-			}
+			readyEvents[time.Since(now)] = e
 		}
 
-		for _, e := range readyEvents {
-			// mark as done only after successful write
-			// or when the maximum number of attempts has been reached
+		// mark as done only after successful write
+		// or when the maximum number of attempts has been reached
+		for d, e := range readyEvents {
 			e.Done()
-			if err != nil {
+			if writeErr != nil {
 				o.log.Error("event write failed",
-					"error", err,
+					"error", writeErr,
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now)) // THIS IS BAD MOVE
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, d)
 			} else {
 				o.log.Debug("event sent",
 					slog.Group("event",
@@ -276,7 +244,7 @@ func (o *Kafka) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventAccepted, d)
 			}
 		}
 	})
@@ -298,20 +266,54 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 				o.log.Warn("partition calculation error",
 					"error", err,
 				)
-				return 0
+				return partitions[0]
 			}
 
 			if !slices.Contains(partitions, partition) {
 				o.log.Warn("partition calculation error",
 					"error", fmt.Sprintf("partition %v not in partitions list", partition),
 				)
-				return 0
+				return partitions[0]
 			}
 
 			return partition
 		}
 	}
-	panic(fmt.Errorf("message has no %v header", o.PartitionLabel))
+	o.log.Warn("partition calculation error",
+		"error", fmt.Sprintf("message has no %v header, 0 partition used", o.PartitionLabel),
+	)
+	return partitions[0]
+}
+
+func (o *Kafka) write(messages []kafka.Message) error {
+	var attempts int = 0
+	var err error = nil
+
+SEND_LOOP:
+	for {
+		if err = o.writer.WriteMessages(context.Background(), messages...); err == nil {
+			break SEND_LOOP
+		}
+
+		switch {
+		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
+			o.log.Warn(fmt.Sprintf("write %v of %v failed", attempts, o.MaxAttempts))
+			attempts++
+			time.Sleep(o.RetryAfter)
+		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
+			o.log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
+				"error", err,
+			)
+			break SEND_LOOP
+		default:
+			o.log.Error("write failed",
+				"error", err,
+			)
+			time.Sleep(o.RetryAfter)
+		}
+	}
+
+	return err
 }
 
 func init() {
