@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/compress"
 	"github.com/segmentio/kafka-go/protocol"
@@ -105,13 +106,13 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			Username: o.SASL.Username,
 			Password: o.SASL.Password,
 		}
-	case "sha-256":
+	case "scram-sha-256":
 		m, err := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
 		if err != nil {
 			return err
 		}
 		transport.SASL = m
-	case "sha-512":
+	case "scram-sha-512":
 		m, err := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
 		if err != nil {
 			return err
@@ -171,11 +172,14 @@ func (o *Kafka) SetSerializer(s core.Serializer) {
 
 func (o *Kafka) Run() {
 	o.Batcher.Run(o.in, func(buf []*core.Event) {
-		messages := []kafka.Message{}
-		readyEvents := make(map[time.Duration]*core.Event) // time spent on event processing
-		writeErr := error(nil)
+		if len(buf) == 0 {
+			return
+		}
 
-		for i, e := range buf {
+		messages := []kafka.Message{}
+		readyEvents := make(map[uuid.UUID]*eventWriteStatus)
+
+		for _, e := range buf {
 			now := time.Now()
 			event, err := o.ser.Serialize(e)
 			if err != nil {
@@ -195,6 +199,7 @@ func (o *Kafka) Run() {
 				Topic: e.RoutingKey,
 				Time:  e.Timestamp,
 				Value: event,
+				WriterData: e.Id,
 			}
 
 			for header, label := range o.HeaderLabels {
@@ -216,41 +221,43 @@ func (o *Kafka) Run() {
 			}
 
 			messages = append(messages, msg)
-
-			if i == len(buf)-1 { // last iteration
-				writeErr = o.write(messages) // TODO catch error https://pkg.go.dev/github.com/segmentio/kafka-go@v0.4.43#Error
+			readyEvents[e.Id] = &eventWriteStatus{
+				event: e,
+				spentTime: time.Since(now),
+				error: nil,
 			}
-
-			readyEvents[time.Since(now)] = e
 		}
+
+		eventsStat := o.write(messages, readyEvents)
 
 		// mark as done only after successful write
 		// or when the maximum number of attempts has been reached
-		for d, e := range readyEvents {
-			e.Done()
-			if writeErr != nil {
+		for _, e := range eventsStat {
+			e.event.Done()
+			if e.error != nil {
 				o.log.Error("event write failed",
-					"error", writeErr,
+					"error", e.error,
 					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
+						"id", e.event.Id,
+						"key", e.event.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, d)
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, e.spentTime)
 			} else {
 				o.log.Debug("event sent",
 					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
+						"id", e.event.Id,
+						"key", e.event.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventAccepted, d)
+				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventAccepted, e.spentTime)
 			}
 		}
 	})
 }
 
 func (o *Kafka) Close() error {
+	o.ser.Close()
 	return o.writer.Close()
 }
 
@@ -285,13 +292,60 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 	return partitions[0]
 }
 
-func (o *Kafka) write(messages []kafka.Message) error {
+func (o *Kafka) write(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventWriteStatus) map[uuid.UUID]*eventWriteStatus {
 	var attempts int = 0
-	var err error = nil
+
+	if len(messages) == 0 {
+		return eventsStatus
+	}
 
 SEND_LOOP:
 	for {
-		if err = o.writer.WriteMessages(context.Background(), messages...); err == nil {
+		now := time.Now()
+		err := o.writer.WriteMessages(context.Background(), messages...)
+		timePerEvent := durationPerEvent(time.Since(now), len(messages))
+		switch writeErr := err.(type) {
+		case nil:
+			break SEND_LOOP
+		case kafka.WriteErrors:
+			var retriable []kafka.Message = nil
+			for i, m := range messages {
+				msgErr := writeErr[i]
+				if msgErr == nil { // this message delivred successfully
+					eventsStatus[m.WriterData.(uuid.UUID)].spentTime += timePerEvent
+					continue
+				}
+
+				kafkaErr := msgErr.(kafka.Error) // timeout errors are retriable
+				if kafkaErr.Timeout() {
+					retriable = append(retriable, m)
+					eventsStatus[m.WriterData.(uuid.UUID)].spentTime += timePerEvent
+					continue
+				}
+
+				if kafkaErr.Temporary() { // temporary errors are retriable
+					retriable = append(retriable, m)
+					eventsStatus[m.WriterData.(uuid.UUID)].spentTime += timePerEvent
+					continue
+				}
+
+				// any other errors means than message cannot be writed
+				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				tooLargeMsg.spentTime += timePerEvent
+				tooLargeMsg.error = kafkaErr
+			}
+			messages = retriable
+		case kafka.MessageTooLargeError: // exclude too large message and send others
+			tooLargeMsg := eventsStatus[writeErr.Message.WriterData.(uuid.UUID)]
+			tooLargeMsg.spentTime += timePerEvent
+			tooLargeMsg.error = writeErr
+			messages = writeErr.Remaining
+		default: // any other errors, unretriable
+			for _, m := range messages {
+				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				tooLargeMsg.spentTime += timePerEvent
+				tooLargeMsg.error = writeErr
+			}
 			break SEND_LOOP
 		}
 
@@ -313,7 +367,17 @@ SEND_LOOP:
 		}
 	}
 
-	return err
+	return eventsStatus
+}
+
+type eventWriteStatus struct {
+	event     *core.Event
+	spentTime time.Duration
+	error     error
+}
+
+func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
+	return time.Duration(int64(totalTime)/int64(batchSize))
 }
 
 func init() {
@@ -330,7 +394,7 @@ func init() {
 				Interval: 5 * time.Second,
 			},
 			SASL: SASL{
-				Mechanism: "scram",
+				Mechanism: "scram-sha-512",
 			},
 		}
 	})
