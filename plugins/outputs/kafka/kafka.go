@@ -38,6 +38,7 @@ type Kafka struct {
 	RetryAfter        time.Duration     `mapstructure:"retry_after"`
 	PartitionBalancer string            `mapstructure:"partition_balancer"`
 	PartitionLabel    string            `mapstructure:"partition_label"`
+	KeyLabel          string            `mapstructure:"key_label"`
 	SASL              SASL              `mapstructure:"sasl"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
@@ -220,6 +221,12 @@ func (o *Kafka) Run() {
 						Key:   o.PartitionLabel,
 						Value: []byte(label),
 					})
+				}
+			}
+
+			if len(o.KeyLabel) > 0 {
+				if label, ok := e.GetLabel(o.KeyLabel); ok {
+					msg.Key = []byte(label)
 				}
 			}
 
