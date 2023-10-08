@@ -31,6 +31,7 @@ type Kafka struct {
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	WriteTimeout      time.Duration     `mapstructure:"write_timeout"`
 	BatchTimeout      time.Duration     `mapstructure:"batch_timeout"`
+	MaxMessageSize    int64             `mapstructure:"max_message_size"`
 	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
 	Compression       string            `mapstructure:"compression"`
 	MaxAttempts       int               `mapstructure:"max_attempts"`
@@ -41,7 +42,8 @@ type Kafka struct {
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
-	writer                        *kafka.Writer
+
+	writer *kafka.Writer
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -78,6 +80,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		AllowAutoTopicCreation: o.TopicsAutocreate,
 		WriteTimeout:           o.WriteTimeout,
 		BatchTimeout:           o.BatchTimeout,
+		BatchBytes:             o.MaxMessageSize,
 		MaxAttempts:            1,
 	}
 
@@ -177,7 +180,7 @@ func (o *Kafka) Run() {
 		}
 
 		messages := []kafka.Message{}
-		readyEvents := make(map[uuid.UUID]*eventWriteStatus)
+		readyEvents := make(map[uuid.UUID]*eventMsgStatus)
 
 		for _, e := range buf {
 			now := time.Now()
@@ -196,9 +199,9 @@ func (o *Kafka) Run() {
 			}
 
 			msg := kafka.Message{
-				Topic: e.RoutingKey,
-				Time:  e.Timestamp,
-				Value: event,
+				Topic:      e.RoutingKey,
+				Time:       e.Timestamp,
+				Value:      event,
 				WriterData: e.Id,
 			}
 
@@ -221,10 +224,10 @@ func (o *Kafka) Run() {
 			}
 
 			messages = append(messages, msg)
-			readyEvents[e.Id] = &eventWriteStatus{
-				event: e,
+			readyEvents[e.Id] = &eventMsgStatus{
+				event:     e,
 				spentTime: time.Since(now),
-				error: nil,
+				error:     nil,
 			}
 		}
 
@@ -235,7 +238,7 @@ func (o *Kafka) Run() {
 		for _, e := range eventsStat {
 			e.event.Done()
 			if e.error != nil {
-				o.log.Error("event write failed",
+				o.log.Error("event produce failed",
 					"error", e.error,
 					slog.Group("event",
 						"id", e.event.Id,
@@ -244,7 +247,7 @@ func (o *Kafka) Run() {
 				)
 				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, e.spentTime)
 			} else {
-				o.log.Debug("event sent",
+				o.log.Debug("event produced",
 					slog.Group("event",
 						"id", e.event.Id,
 						"key", e.event.RoutingKey,
@@ -292,47 +295,51 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 	return partitions[0]
 }
 
-func (o *Kafka) write(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventWriteStatus) map[uuid.UUID]*eventWriteStatus {
+func (o *Kafka) write(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventMsgStatus) map[uuid.UUID]*eventMsgStatus {
 	var attempts int = 0
-
-	if len(messages) == 0 {
-		return eventsStatus
-	}
 
 SEND_LOOP:
 	for {
+		if len(messages) == 0 {
+			return eventsStatus
+		}
+
 		now := time.Now()
 		err := o.writer.WriteMessages(context.Background(), messages...)
 		timePerEvent := durationPerEvent(time.Since(now), len(messages))
+
 		switch writeErr := err.(type) {
-		case nil:
+		case nil: // all messages delivered successfully
+			for _, m := range messages {
+				successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				successMsg.spentTime += timePerEvent
+				successMsg.error = nil
+			}
 			break SEND_LOOP
 		case kafka.WriteErrors:
 			var retriable []kafka.Message = nil
 			for i, m := range messages {
 				msgErr := writeErr[i]
 				if msgErr == nil { // this message delivred successfully
-					eventsStatus[m.WriterData.(uuid.UUID)].spentTime += timePerEvent
+					successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					successMsg.spentTime += timePerEvent
+					successMsg.error = nil
 					continue
 				}
 
-				kafkaErr := msgErr.(kafka.Error) // timeout errors are retriable
-				if kafkaErr.Timeout() {
+				kafkaErr := msgErr.(kafka.Error)
+				if kafkaErr.Timeout() || kafkaErr.Temporary() { // timeout and temporary errors are retriable
 					retriable = append(retriable, m)
-					eventsStatus[m.WriterData.(uuid.UUID)].spentTime += timePerEvent
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					retriableMsg.spentTime += timePerEvent
+					retriableMsg.error = kafkaErr
 					continue
 				}
 
-				if kafkaErr.Temporary() { // temporary errors are retriable
-					retriable = append(retriable, m)
-					eventsStatus[m.WriterData.(uuid.UUID)].spentTime += timePerEvent
-					continue
-				}
-
-				// any other errors means than message cannot be writed
-				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-				tooLargeMsg.spentTime += timePerEvent
-				tooLargeMsg.error = kafkaErr
+				// any other errors means than message cannot be produced
+				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				failedMsg.spentTime += timePerEvent
+				failedMsg.error = kafkaErr
 			}
 			messages = retriable
 		case kafka.MessageTooLargeError: // exclude too large message and send others
@@ -340,7 +347,7 @@ SEND_LOOP:
 			tooLargeMsg.spentTime += timePerEvent
 			tooLargeMsg.error = writeErr
 			messages = writeErr.Remaining
-		default: // any other errors, unretriable
+		default: // any other errors are unretriable
 			for _, m := range messages {
 				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 				tooLargeMsg.spentTime += timePerEvent
@@ -370,14 +377,14 @@ SEND_LOOP:
 	return eventsStatus
 }
 
-type eventWriteStatus struct {
+type eventMsgStatus struct {
 	event     *core.Event
 	spentTime time.Duration
 	error     error
 }
 
 func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
-	return time.Duration(int64(totalTime)/int64(batchSize))
+	return time.Duration(int64(totalTime) / int64(batchSize))
 }
 
 func init() {
@@ -385,7 +392,8 @@ func init() {
 		return &Kafka{
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
-			BatchTimeout:      100 * time.Microsecond,
+			BatchTimeout:      100 * time.Millisecond,
+			MaxMessageSize:    1_048_576, // 1 MiB
 			RetryAfter:        5 * time.Second,
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",
