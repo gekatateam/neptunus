@@ -34,11 +34,12 @@ type Kafka struct {
 	MaxMessageSize    int64             `mapstructure:"max_message_size"`
 	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
 	Compression       string            `mapstructure:"compression"`
-	MaxAttempts       int               `mapstructure:"max_attempts"`
-	RetryAfter        time.Duration     `mapstructure:"retry_after"`
+	KeepTimestamp     bool              `mapstructure:"keep_timestamp"`
 	PartitionBalancer string            `mapstructure:"partition_balancer"`
 	PartitionLabel    string            `mapstructure:"partition_label"`
 	KeyLabel          string            `mapstructure:"key_label"`
+	MaxAttempts       int               `mapstructure:"max_attempts"`
+	RetryAfter        time.Duration     `mapstructure:"retry_after"`
 	SASL              SASL              `mapstructure:"sasl"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
@@ -282,6 +283,10 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 			if err != nil {
 				o.log.Warn("partition calculation error",
 					"error", err,
+					slog.Group("event",
+						"id", msg.WriterData.(uuid.UUID),
+						"key", msg.Topic,
+					),
 				)
 				return partitions[0]
 			}
@@ -289,6 +294,10 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 			if !slices.Contains(partitions, partition) {
 				o.log.Warn("partition calculation error",
 					"error", fmt.Sprintf("partition %v not in partitions list", partition),
+					slog.Group("event",
+						"id", msg.WriterData.(uuid.UUID),
+						"key", msg.Topic,
+					),
 				)
 				return partitions[0]
 			}
@@ -298,6 +307,10 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 	}
 	o.log.Warn("partition calculation error",
 		"error", fmt.Sprintf("message has no %v header, 0 partition used", o.PartitionLabel),
+		slog.Group("event",
+			"id", msg.WriterData.(uuid.UUID),
+			"key", msg.Topic,
+		),
 	)
 	return partitions[0]
 }
