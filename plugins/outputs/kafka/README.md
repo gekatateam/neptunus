@@ -84,6 +84,11 @@ Target topic name takes from an event routing key.
       username = ""
       password = ""
 
+    # a "header -> label" map
+    # if event label exists, it will be added as a message header
+    [outputs.kafka.headerlabels]
+      custom_header = "my_label_name"
+
     [outputs.kafka.serializer]
       type = "json"
       data_only = true
