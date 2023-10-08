@@ -137,9 +137,9 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		writer.Balancer = &kafka.RoundRobin{}
 	case "least-bytes":
 		writer.Balancer = &kafka.LeastBytes{}
-	case "hash":
+	case "fnv-1a":
 		writer.Balancer = &kafka.Hash{}
-	case "reference-hash":
+	case "fnv-1a-reference":
 		writer.Balancer = &kafka.ReferenceHash{}
 	case "consistent-random":
 		writer.Balancer = &kafka.CRC32Balancer{}
@@ -205,6 +205,10 @@ func (o *Kafka) Run() {
 				Time:       e.Timestamp,
 				Value:      event,
 				WriterData: e.Id,
+			}
+
+			if o.KeepTimestamp {
+				msg.Time = e.Timestamp
 			}
 
 			for header, label := range o.HeaderLabels {
