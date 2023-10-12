@@ -16,6 +16,10 @@ Target topic name takes from an event routing key.
     # list of kafka cluster nodes
     brokers = [ "localhost:9092" ]
 
+    # unique identifier that the transport communicates to the brokers 
+    # when it sends requests
+    client_id = "neptunus.kafka.output"
+
     # time limit set for establishing connections to the kafka cluster
     dial_timeout = "5s"
 
@@ -65,7 +69,7 @@ Target topic name takes from an event routing key.
     # name of label used as message key
     key_label = ""
 
-    # maximum number of attempts of attempts to send a batch of messages
+    # maximum number of attempts to send a batch of messages
     # before event will be marked as failed
     # 
     # only messages that ended with a retriable error will be used in next attempt

@@ -19,21 +19,16 @@
       type = "json"
       data_only = false
 
-[[outputs]]
-  [outputs.kafka]
-    brokers = ["localhost:9120"]
-  [outputs.kafka.serializer]
-    type = "json"
-    data_only = true
+[[processors]]
+  [processors.rk.mapping]
+    "neptunus.kafka.output" = [ "/http.input.test" ]
 
 [[outputs]]
-  [outputs.grpc]
-    enable_metrics = true
-    address = "localhost:5800"
-    procedure = "stream"
-    max_attempts = 1
-    sleep = "2s"
-    buffer = 100
-  [outputs.grpc.serializer]
+  [outputs.kafka]
+    brokers = ["localhost:9092"]
+    topics_autocreate = true
+  [outputs.kafka.sasl]
+    mechanism = "none"
+  [outputs.kafka.serializer]
     type = "json"
     data_only = true

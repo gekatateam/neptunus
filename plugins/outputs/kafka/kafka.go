@@ -28,6 +28,7 @@ type Kafka struct {
 	pipe              string
 	EnableMetrics     bool              `mapstructure:"enable_metrics"`
 	Brokers           []string          `mapstructure:"brokers"`
+	ClientId          string            `mapstructure:"client_id"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	WriteTimeout      time.Duration     `mapstructure:"write_timeout"`
 	BatchTimeout      time.Duration     `mapstructure:"batch_timeout"`
@@ -88,6 +89,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	transport := &kafka.Transport{
 		DialTimeout: o.DialTimeout,
+		ClientID:    o.ClientId,
 	}
 
 	switch o.Compression {
@@ -106,6 +108,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	}
 
 	switch o.SASL.Mechanism {
+	case "none":
 	case "plain":
 		transport.SASL = &plain.Mechanism{
 			Username: o.SASL.Username,
@@ -202,7 +205,6 @@ func (o *Kafka) Run() {
 
 			msg := kafka.Message{
 				Topic:      e.RoutingKey,
-				Time:       e.Timestamp,
 				Value:      event,
 				WriterData: e.Id,
 			}
@@ -351,19 +353,20 @@ SEND_LOOP:
 					continue
 				}
 
-				kafkaErr := msgErr.(kafka.Error)
-				if kafkaErr.Timeout() || kafkaErr.Temporary() { // timeout and temporary errors are retriable
-					retriable = append(retriable, m)
-					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-					retriableMsg.spentTime += timePerEvent
-					retriableMsg.error = kafkaErr
-					continue
+				if kafkaErr, ok := msgErr.(kafka.Error); ok {
+					if kafkaErr.Timeout() || kafkaErr.Temporary() { // timeout and temporary errors are retriable
+						retriable = append(retriable, m)
+						retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+						retriableMsg.spentTime += timePerEvent
+						retriableMsg.error = kafkaErr
+						continue
+					}
 				}
 
 				// any other errors means than message cannot be produced
 				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 				failedMsg.spentTime += timePerEvent
-				failedMsg.error = kafkaErr
+				failedMsg.error = msgErr
 			}
 			messages = retriable
 		case kafka.MessageTooLargeError: // exclude too large message and send others
@@ -371,6 +374,16 @@ SEND_LOOP:
 			tooLargeMsg.spentTime += timePerEvent
 			tooLargeMsg.error = writeErr
 			messages = writeErr.Remaining
+		case kafka.Error:
+			for _, m := range messages {
+				kafkaMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				kafkaMsg.spentTime += timePerEvent
+				kafkaMsg.error = writeErr
+			}
+
+			if !(writeErr.Timeout() || writeErr.Temporary()) { // timeout and temporary errors are retriable
+				break SEND_LOOP
+			}
 		default: // any other errors are unretriable
 			for _, m := range messages {
 				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
@@ -414,6 +427,7 @@ func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
 func init() {
 	plugins.AddOutput("kafka", func() core.Output {
 		return &Kafka{
+			ClientId:          "neptunus.kafka.output",
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
 			BatchTimeout:      100 * time.Millisecond,
