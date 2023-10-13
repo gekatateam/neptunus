@@ -29,6 +29,8 @@
     topics_autocreate = true
   [outputs.kafka.sasl]
     mechanism = "none"
+  [outputs.kafka.headerlabels]
+    input-from = "input"
   [outputs.kafka.serializer]
     type = "json"
     data_only = true

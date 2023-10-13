@@ -47,6 +47,12 @@ Target topic name takes from an event routing key.
     # if "none", messages are not compressed
     compression = "none"
 
+    # ack mode
+    # "none" - fire-and-forget, do not wait for acknowledgements
+    # "one" - wait for the leader to acknowledge the writes
+    # "all" - wait for the full ISR to acknowledge the writes
+    required_acks = "one"
+
     # if true, message timestamp takes from event timestamp
     # otherwise, it will be automatically set when writing the message
     keep_timestamp = false
@@ -81,7 +87,7 @@ Target topic name takes from an event routing key.
 
     # SASL settings
     [outputs.kafka.sasl]
-      # SASL mechanism, "plain", "scram-sha-256" or "scram-sha-512"
+      # SASL mechanism, "none", "plain", "scram-sha-256" or "scram-sha-512"
       mechanism = "scram-sha-512"
 
       # user credentials

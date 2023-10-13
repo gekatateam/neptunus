@@ -35,6 +35,7 @@ type Kafka struct {
 	MaxMessageSize    int64             `mapstructure:"max_message_size"`
 	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
 	Compression       string            `mapstructure:"compression"`
+	RequiredAcks      string            `mapstructure:"required_acks"`
 	KeepTimestamp     bool              `mapstructure:"keep_timestamp"`
 	PartitionBalancer string            `mapstructure:"partition_balancer"`
 	PartitionLabel    string            `mapstructure:"partition_label"`
@@ -78,7 +79,6 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	writer := &kafka.Writer{
 		Addr:                   kafka.TCP(o.Brokers...),
-		RequiredAcks:           kafka.RequireOne,
 		BatchSize:              o.Batcher.Buffer,
 		AllowAutoTopicCreation: o.TopicsAutocreate,
 		WriteTimeout:           o.WriteTimeout,
@@ -90,6 +90,17 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	transport := &kafka.Transport{
 		DialTimeout: o.DialTimeout,
 		ClientID:    o.ClientId,
+	}
+
+	switch o.RequiredAcks {
+	case "none":
+		writer.RequiredAcks = kafka.RequireNone
+	case "one":
+		writer.RequiredAcks = kafka.RequireOne
+	case "all":
+		writer.RequiredAcks = kafka.RequireAll
+	default:
+		return fmt.Errorf("unknown ack mode: %v; expected one of: none, one, all", o.RequiredAcks)
 	}
 
 	switch o.Compression {
@@ -433,6 +444,7 @@ func init() {
 			BatchTimeout:      100 * time.Millisecond,
 			MaxMessageSize:    1_048_576, // 1 MiB
 			RetryAfter:        5 * time.Second,
+			RequiredAcks:      "one",
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",
 			Batcher: &batcher.Batcher[*core.Event]{
