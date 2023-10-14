@@ -186,7 +186,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	}
 
 	if o.EnableMetrics {
-		kafkastats.RegisterKafkaWriter(o.ClientId, writer.Stats)
+		kafkastats.RegisterKafkaWriter(o.pipe, o.alias, o.ClientId, writer.Stats)
 	}
 
 	writer.Transport = transport
@@ -304,7 +304,7 @@ func (o *Kafka) Run() {
 
 func (o *Kafka) Close() error {
 	o.ser.Close()
-	kafkastats.UnregisterKafkaWriter(o.ClientId)
+	kafkastats.UnregisterKafkaWriter(o.pipe, o.alias, o.ClientId)
 	return o.writer.Close()
 }
 
