@@ -18,7 +18,8 @@ Target topic name takes from an event routing key.
 
     # unique identifier that the transport communicates to the brokers 
     # when it sends requests
-    client_id = "neptunus.kafka.output"
+    # value must be unique across the app
+    client_id = "neptunus.kafka.output.{{ PLUGIN_ID }}"
 
     # time limit set for establishing connections to the kafka cluster
     dial_timeout = "5s"

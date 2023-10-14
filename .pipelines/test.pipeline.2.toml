@@ -25,6 +25,7 @@
 
 [[outputs]]
   [outputs.kafka]
+    client_id = "kafka-one"
     brokers = ["localhost:9092"]
     topics_autocreate = true
   [outputs.kafka.sasl]

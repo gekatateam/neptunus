@@ -130,7 +130,7 @@ func init() {
 	)
 	pipeLines = prometheus.NewDesc(
 		"pipeline_processors_lines",
-		"Count of configured processors lines.",
+		"Number of configured processors lines.",
 		[]string{"pipeline"},
 		nil,
 	)

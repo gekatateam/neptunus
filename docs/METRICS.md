@@ -11,7 +11,7 @@ Labels:
  - **pipeline** - pipeline Id
 
 #### Gauge `pipeline_processors_lines`
-Count of configured processors lines.
+Number of configured processors lines.
 
 Labels:
  - **pipeline** - pipeline Id
