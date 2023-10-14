@@ -37,6 +37,10 @@ func (r *statusRecorder) WriteHeader(status int) {
 }
 
 func HttpServerMiddleware(pipeline string, pluginName string, next http.Handler) http.Handler {
+	httpServerMetricsRegister.Do(func() {
+		prometheus.MustRegister(httpServerRequestsSummary)
+	})
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		begin := time.Now()
 

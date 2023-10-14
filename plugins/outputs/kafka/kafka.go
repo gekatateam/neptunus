@@ -21,6 +21,7 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 type Kafka struct {
@@ -184,6 +185,10 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return err
 	}
 
+	if o.EnableMetrics {
+		kafkastats.RegisterKafkaWriter(o.ClientId, writer.Stats)
+	}
+
 	writer.Transport = transport
 	o.writer = writer
 
@@ -299,6 +304,7 @@ func (o *Kafka) Run() {
 
 func (o *Kafka) Close() error {
 	o.ser.Close()
+	kafkastats.UnregisterKafkaWriter(o.ClientId)
 	return o.writer.Close()
 }
 
