@@ -77,8 +77,6 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return fmt.Errorf("duplicate ClientId found: %v", o.ClientId)
 	}
 
-	println("ID CHECK PASSED")
-
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
 	}

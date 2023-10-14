@@ -25,6 +25,7 @@
 
 [[outputs]]
   [outputs.kafka]
+    enable_metrics = true
     client_id = "kafka-one"
     brokers = ["localhost:9092"]
     topics_autocreate = true
