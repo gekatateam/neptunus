@@ -221,7 +221,7 @@ Labels:
 
 ### Kafka Producer
 
-> **Warn**
+> **Warning**
 > Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, a gauges are reset after being read
 
 #### Counter `plugin_kafka_writer_messages_count`
