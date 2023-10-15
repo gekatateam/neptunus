@@ -391,7 +391,7 @@ Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
  - **client_id** - kafka client ID
----
+
 #### Gauge `plugin_kafka_writer_batch_bytes_min`
 Min written batch bytes
 

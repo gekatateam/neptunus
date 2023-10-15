@@ -17,7 +17,7 @@
 
 ## Outputs
 With batching and buffering
- - [ ] Kafka
+ - [x] Kafka
  - [ ] AMQP
  - [ ] Elasticsearch
  - [ ] PostgreSQL
