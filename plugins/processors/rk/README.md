@@ -1,6 +1,6 @@
 # Rk Processor Plugin
 
-The `rk` processor plugin replaces фт event routing key with a new one, depending on the current value.
+The `rk` processor plugin replaces an event routing key with a new one, depending on a current value.
 
 ## Configuration
 ```toml

@@ -7,7 +7,7 @@ If all body parsed without errors, plugin returns `200 OK` with `accepted events
 This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
 
 > **Note**
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#summary-plugin_http_server_requests_seconds)
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#http-server)
 
 ## Configuration
 ```toml

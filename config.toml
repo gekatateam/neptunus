@@ -1,5 +1,5 @@
 [common]
-  log_level = "error"
+  log_level = "info"
   log_format = "logfmt"
   http_port = ":9601"
     [common.log_fields]

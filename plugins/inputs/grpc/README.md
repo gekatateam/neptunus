@@ -10,7 +10,7 @@ Plugin behavoiur depends on the procedure being called:
 `SendOne` and `SendBulk` produces events with full procedure name as routing key, `server` label with configured address and `sender` label with peer address, `SendStream` produces events as-is.
 
 > **Note**
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#summary-plugin_grpc_server_calls_seconds)
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#grpc-server)
 
 ## Configuration
 ```toml

@@ -3,8 +3,10 @@ The `kafka` output plugin produces events to Kafka. This plugin requires seriali
 
 Target topic name takes from an event routing key.
 
+For better performance, `buffer` size should be such that the buffer is flushed as it fills, rather than at a configured `interval`. Timed flush of an underfilled buffer creates a write delay equal to `batch_interval`.
+
 > **Note**
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#TODO_KAFKA_PRODUCER_METRICS)
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-producer)
 
 ## Configuration
 ```toml
@@ -16,10 +18,9 @@ Target topic name takes from an event routing key.
     # list of kafka cluster nodes
     brokers = [ "localhost:9092" ]
 
-    # unique identifier that the transport communicates to the brokers 
-    # when it sends requests
+    # unique identifier that the transport communicates to the brokers when it sends requests
     # value must be unique across the app
-    client_id = "neptunus.kafka.output.{{ PLUGIN_ID }}"
+    client_id = "neptunus.kafka.output." # plus plugin id (random int64)
 
     # time limit set for establishing connections to the kafka cluster
     dial_timeout = "5s"
@@ -28,12 +29,13 @@ Target topic name takes from an event routing key.
     write_timeout = "5s"
 
     # time limit on how often incomplete message batches will be flushed from kafka client to broker
-    batch_timeout = "100ms"
+    batch_timeout = "10ms"
 
-    # interval between events buffer flushes
+    # interval between events buffer flushes if buffer length less than it's capacity
     interval = "5s"
 
     # events buffer size
+    # also, messages batch size, see batch_timeout
     buffer = 100
 
     # kafka message maximum size in bytes
