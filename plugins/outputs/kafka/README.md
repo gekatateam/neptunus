@@ -19,8 +19,7 @@ For better performance, `buffer` size should be such that the buffer is flushed 
     brokers = [ "localhost:9092" ]
 
     # unique identifier that the transport communicates to the brokers when it sends requests
-    # value must be unique across the app
-    client_id = "neptunus.kafka.output." # plus plugin id (random int64)
+    client_id = "neptunus.kafka.output"
 
     # time limit set for establishing connections to the kafka cluster
     dial_timeout = "5s"

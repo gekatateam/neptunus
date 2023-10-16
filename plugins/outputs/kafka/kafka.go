@@ -28,7 +28,6 @@ import (
 type Kafka struct {
 	alias             string
 	pipe              string
-	id                uint64
 	EnableMetrics     bool              `mapstructure:"enable_metrics"`
 	Brokers           []string          `mapstructure:"brokers"`
 	ClientId          string            `mapstructure:"client_id"`
@@ -64,8 +63,6 @@ type SASL struct {
 }
 
 func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	o.ClientId += strconv.Itoa(int(o.id))
-
 	if err := mapstructure.Decode(config, o); err != nil {
 		return err
 	}
@@ -73,10 +70,6 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	o.alias = alias
 	o.pipe = pipeline
 	o.log = log
-
-	if ok := checker.set(o.ClientId); !ok {
-		return fmt.Errorf("duplicate ClientId found: %v", o.ClientId)
-	}
 
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
@@ -200,10 +193,6 @@ func (o *Kafka) Prepare(in <-chan *core.Event) {
 
 func (o *Kafka) SetSerializer(s core.Serializer) {
 	o.ser = s
-}
-
-func (o *Kafka) SetId(id uint64) {
-	o.id = id
 }
 
 func (o *Kafka) Run() {
@@ -473,7 +462,7 @@ func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
 func init() {
 	plugins.AddOutput("kafka", func() core.Output {
 		return &Kafka{
-			ClientId:          "neptunus.kafka.output.",
+			ClientId:          "neptunus.kafka.output",
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
 			BatchTimeout:      10 * time.Millisecond,
