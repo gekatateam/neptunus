@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"slices"
 	"strconv"
@@ -382,7 +383,7 @@ SEND_LOOP:
 				}
 
 				if kafkaErr, ok := msgErr.(kafka.Error); ok {
-					if kafkaErr.Timeout() || kafkaErr.Temporary() { // timeout and temporary errors are retriable
+					if kafkaErr.Temporary() { // timeout and temporary errors are retriable
 						retriable = append(retriable, m)
 						retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 						retriableMsg.spentTime += timePerEvent
@@ -390,6 +391,23 @@ SEND_LOOP:
 						continue
 					}
 				}
+
+				var timeoutError interface { Timeout() bool }
+				if errors.As(msgErr, &timeoutError) && timeoutError.Timeout() { // typically it is a network io timeout
+					retriable = append(retriable, m)
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					retriableMsg.spentTime += timePerEvent
+					retriableMsg.error = msgErr
+					continue
+				}
+
+				if errors.Is(msgErr, io.ErrUnexpectedEOF) { // this error means that broker is down
+					retriable = append(retriable, m)
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					retriableMsg.spentTime += timePerEvent
+					retriableMsg.error = msgErr
+					continue
+				} 
 
 				// any other errors means than message cannot be produced
 				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
@@ -409,7 +427,7 @@ SEND_LOOP:
 				kafkaMsg.error = writeErr
 			}
 
-			if !(writeErr.Timeout() || writeErr.Temporary()) { // timeout and temporary errors are retriable
+			if !writeErr.Temporary() { // temporary errors are retriable
 				break SEND_LOOP
 			}
 		default: // any other errors are unretriable

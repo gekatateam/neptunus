@@ -243,6 +243,8 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 	for desc, f := range c.statFuncs {
 		stats := f()
 
+		println("TOPIC: "+stats.Topic)
+
 		// it is a hack for keeping counter totals
 		kafkaWriterMessagesCount.WithLabelValues(
 			desc.pipeline,
