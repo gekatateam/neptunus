@@ -1,28 +1,24 @@
 package kafka
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/compress"
-	"github.com/segmentio/kafka-go/protocol"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
-	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 type Kafka struct {
@@ -49,7 +45,7 @@ type Kafka struct {
 
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
-	writer *kafka.Writer
+	writersPool *writersPool
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -79,43 +75,20 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		o.Batcher.Buffer = 1
 	}
 
-	writer := &kafka.Writer{
-		Addr:                   kafka.TCP(o.Brokers...),
-		BatchSize:              o.Batcher.Buffer,
-		AllowAutoTopicCreation: o.TopicsAutocreate,
-		WriteTimeout:           o.WriteTimeout,
-		BatchTimeout:           o.BatchTimeout,
-		BatchBytes:             o.MaxMessageSize,
-		MaxAttempts:            1,
-	}
-
-	transport := &kafka.Transport{
-		DialTimeout: o.DialTimeout,
-		ClientID:    o.ClientId,
-	}
-
 	switch o.RequiredAcks {
 	case "none":
-		writer.RequiredAcks = kafka.RequireNone
 	case "one":
-		writer.RequiredAcks = kafka.RequireOne
 	case "all":
-		writer.RequiredAcks = kafka.RequireAll
 	default:
 		return fmt.Errorf("unknown ack mode: %v; expected one of: none, one, all", o.RequiredAcks)
 	}
 
 	switch o.Compression {
 	case "none":
-		writer.Compression = compress.None
 	case "gzip":
-		writer.Compression = compress.Gzip
 	case "snappy":
-		writer.Compression = compress.Snappy
 	case "lz4":
-		writer.Compression = compress.Lz4
 	case "zstd":
-		writer.Compression = compress.Zstd
 	default:
 		return fmt.Errorf("unknown compression algorithm: %v; expected one of: gzip, snappy, lz4, zstd", o.Compression)
 	}
@@ -123,22 +96,16 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	switch o.SASL.Mechanism {
 	case "none":
 	case "plain":
-		transport.SASL = &plain.Mechanism{
-			Username: o.SASL.Username,
-			Password: o.SASL.Password,
-		}
 	case "scram-sha-256":
-		m, err := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
+		_, err := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
 		if err != nil {
 			return err
 		}
-		transport.SASL = m
 	case "scram-sha-512":
-		m, err := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
+		_, err := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
 		if err != nil {
 			return err
 		}
-		transport.SASL = m
 	default:
 		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", o.SASL.Mechanism)
 	}
@@ -148,41 +115,44 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		if len(o.PartitionLabel) == 0 {
 			return errors.New("PartitionLabel requires for label balancer")
 		}
-		writer.Balancer = o
 	case "round-robin":
-		writer.Balancer = &kafka.RoundRobin{}
 	case "least-bytes":
-		writer.Balancer = &kafka.LeastBytes{}
 	case "fnv-1a":
-		writer.Balancer = &kafka.Hash{}
 	case "fnv-1a-reference":
-		writer.Balancer = &kafka.ReferenceHash{}
 	case "consistent-random":
-		writer.Balancer = &kafka.CRC32Balancer{}
 	case "consistent":
-		writer.Balancer = &kafka.CRC32Balancer{Consistent: true}
 	case "murmur2-random":
-		writer.Balancer = &kafka.Murmur2Balancer{}
 	case "murmur2":
-		writer.Balancer = &kafka.Murmur2Balancer{Consistent: true}
 	default:
 		return fmt.Errorf("unknown balancer: %v", o.PartitionBalancer)
 	}
 
-	client := &kafka.Client{
-		Addr:      kafka.TCP(o.Brokers...),
-		Transport: transport,
+	o.writersPool = &writersPool{
+		writers: make(map[string]*topicWriter),
+		mu:      &sync.Mutex{},
+		wg:      &sync.WaitGroup{},
+		new: func(topic string) *topicWriter {
+			writer := o.newWriter(topic)
+			return &topicWriter{
+				alias:             o.alias,
+				pipe:              o.pipe,
+				clientId:          o.ClientId,
+				enableMetrics:     o.EnableMetrics,
+				keepTimestamp:     o.KeepTimestamp,
+				partitionBalancer: o.PartitionBalancer,
+				partitionLabel:    o.PartitionLabel,
+				keyLabel:          o.KeyLabel,
+				headerLabels:      o.HeaderLabels,
+				maxAttempts:       o.MaxAttempts,
+				retryAfter:        o.RetryAfter,
+				input:             make(chan *core.Event),
+				writer:            writer,
+				batcher:           o.Batcher,
+				log:               o.log,
+				ser:               o.ser,
+			}
+		},
 	}
-	if _, err := client.ApiVersions(context.Background(), &kafka.ApiVersionsRequest{}); err != nil {
-		return err
-	}
-
-	if o.EnableMetrics {
-		kafkastats.RegisterKafkaWriter(o.pipe, o.alias, o.ClientId, writer.Stats)
-	}
-
-	writer.Transport = transport
-	o.writer = writer
 
 	return nil
 }
@@ -196,104 +166,16 @@ func (o *Kafka) SetSerializer(s core.Serializer) {
 }
 
 func (o *Kafka) Run() {
-	o.Batcher.Run(o.in, func(buf []*core.Event) {
-		if len(buf) == 0 {
-			return
-		}
+	for e := range o.in {
+		o.writersPool.Get(e.RoutingKey) <- e
+	}
 
-		messages := []kafka.Message{}
-		readyEvents := make(map[uuid.UUID]*eventMsgStatus)
-
-		for _, e := range buf {
-			now := time.Now()
-			event, err := o.ser.Serialize(e)
-			if err != nil {
-				o.log.Error("serialization failed, event skipped",
-					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
-				)
-				e.Done()
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
-				continue
-			}
-
-			msg := kafka.Message{
-				Topic:      e.RoutingKey,
-				Value:      event,
-				WriterData: e.Id,
-			}
-
-			if o.KeepTimestamp {
-				msg.Time = e.Timestamp
-			}
-
-			for header, label := range o.HeaderLabels {
-				if v, ok := e.GetLabel(label); ok {
-					msg.Headers = append(msg.Headers, protocol.Header{
-						Key:   header,
-						Value: []byte(v),
-					})
-				}
-			}
-
-			if o.PartitionBalancer == "label" {
-				if label, ok := e.GetLabel(o.PartitionLabel); ok {
-					msg.Headers = append(msg.Headers, protocol.Header{
-						Key:   o.PartitionLabel,
-						Value: []byte(label),
-					})
-				}
-			}
-
-			if len(o.KeyLabel) > 0 {
-				if label, ok := e.GetLabel(o.KeyLabel); ok {
-					msg.Key = []byte(label)
-				}
-			}
-
-			messages = append(messages, msg)
-			readyEvents[e.Id] = &eventMsgStatus{
-				event:     e,
-				spentTime: time.Since(now),
-				error:     nil,
-			}
-		}
-
-		eventsStat := o.write(messages, readyEvents)
-
-		// mark as done only after successful write
-		// or when the maximum number of attempts has been reached
-		for _, e := range eventsStat {
-			e.event.Done()
-			if e.error != nil {
-				o.log.Error("event produce failed",
-					"error", e.error,
-					slog.Group("event",
-						"id", e.event.Id,
-						"key", e.event.RoutingKey,
-					),
-				)
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventFailed, e.spentTime)
-			} else {
-				o.log.Debug("event produced",
-					slog.Group("event",
-						"id", e.event.Id,
-						"key", e.event.RoutingKey,
-					),
-				)
-				metrics.ObserveOutputSummary("kafka", o.alias, o.pipe, metrics.EventAccepted, e.spentTime)
-			}
-		}
-	})
+	o.writersPool.Close()
 }
 
 func (o *Kafka) Close() error {
 	o.ser.Close()
-	kafkastats.UnregisterKafkaWriter(o.pipe, o.alias, o.ClientId)
-	return o.writer.Close()
+	return nil
 }
 
 func (o *Kafka) Alias() string {
@@ -339,114 +221,83 @@ func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
 	return partitions[0]
 }
 
-func (o *Kafka) write(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventMsgStatus) map[uuid.UUID]*eventMsgStatus {
-	var attempts int = 0
-
-SEND_LOOP:
-	for {
-		if len(messages) == 0 {
-			return eventsStatus
-		}
-
-		now := time.Now()
-		err := o.writer.WriteMessages(context.Background(), messages...)
-		timePerEvent := durationPerEvent(time.Since(now), len(messages))
-
-		switch writeErr := err.(type) {
-		case nil: // all messages delivered successfully
-			for _, m := range messages {
-				successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-				successMsg.spentTime += timePerEvent
-				successMsg.error = nil
-			}
-			break SEND_LOOP
-		case kafka.WriteErrors:
-			var retriable []kafka.Message = nil
-			for i, m := range messages {
-				msgErr := writeErr[i]
-				if msgErr == nil { // this message delivred successfully
-					successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-					successMsg.spentTime += timePerEvent
-					successMsg.error = nil
-					continue
-				}
-
-				if kafkaErr, ok := msgErr.(kafka.Error); ok {
-					if kafkaErr.Temporary() { // timeout and temporary errors are retriable
-						retriable = append(retriable, m)
-						retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-						retriableMsg.spentTime += timePerEvent
-						retriableMsg.error = kafkaErr
-						continue
-					}
-				}
-
-				var timeoutError interface { Timeout() bool }
-				if errors.As(msgErr, &timeoutError) && timeoutError.Timeout() { // typically it is a network io timeout
-					retriable = append(retriable, m)
-					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-					retriableMsg.spentTime += timePerEvent
-					retriableMsg.error = msgErr
-					continue
-				}
-
-				if errors.Is(msgErr, io.ErrUnexpectedEOF) { // this error means that broker is down
-					retriable = append(retriable, m)
-					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-					retriableMsg.spentTime += timePerEvent
-					retriableMsg.error = msgErr
-					continue
-				} 
-
-				// any other errors means than message cannot be produced
-				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-				failedMsg.spentTime += timePerEvent
-				failedMsg.error = msgErr
-			}
-			messages = retriable
-		case kafka.MessageTooLargeError: // exclude too large message and send others
-			tooLargeMsg := eventsStatus[writeErr.Message.WriterData.(uuid.UUID)]
-			tooLargeMsg.spentTime += timePerEvent
-			tooLargeMsg.error = writeErr
-			messages = writeErr.Remaining
-		case kafka.Error:
-			for _, m := range messages {
-				kafkaMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-				kafkaMsg.spentTime += timePerEvent
-				kafkaMsg.error = writeErr
-			}
-
-			if !writeErr.Temporary() { // temporary errors are retriable
-				break SEND_LOOP
-			}
-		default: // any other errors are unretriable
-			for _, m := range messages {
-				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-				tooLargeMsg.spentTime += timePerEvent
-				tooLargeMsg.error = writeErr
-			}
-			break SEND_LOOP
-		}
-
-		switch {
-		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-			o.log.Warn(fmt.Sprintf("write %v of %v failed", attempts, o.MaxAttempts))
-			attempts++
-			time.Sleep(o.RetryAfter)
-		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
-			o.log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
-				"error", err,
-			)
-			break SEND_LOOP
-		default:
-			o.log.Error("write failed",
-				"error", err,
-			)
-			time.Sleep(o.RetryAfter)
-		}
+func (o *Kafka) newWriter(topic string) *kafka.Writer {
+	writer := &kafka.Writer{
+		Topic:                  topic,
+		Addr:                   kafka.TCP(o.Brokers...),
+		BatchSize:              o.Batcher.Buffer,
+		AllowAutoTopicCreation: o.TopicsAutocreate,
+		WriteTimeout:           o.WriteTimeout,
+		BatchTimeout:           o.BatchTimeout,
+		BatchBytes:             o.MaxMessageSize,
+		MaxAttempts:            1,
 	}
 
-	return eventsStatus
+	transport := &kafka.Transport{
+		DialTimeout: o.DialTimeout,
+		ClientID:    o.ClientId,
+	}
+
+	switch o.RequiredAcks {
+	case "none":
+		writer.RequiredAcks = kafka.RequireNone
+	case "one":
+		writer.RequiredAcks = kafka.RequireOne
+	case "all":
+		writer.RequiredAcks = kafka.RequireAll
+	}
+
+	switch o.Compression {
+	case "none":
+		writer.Compression = compress.None
+	case "gzip":
+		writer.Compression = compress.Gzip
+	case "snappy":
+		writer.Compression = compress.Snappy
+	case "lz4":
+		writer.Compression = compress.Lz4
+	case "zstd":
+		writer.Compression = compress.Zstd
+	}
+
+	switch o.SASL.Mechanism {
+	case "none":
+	case "plain":
+		transport.SASL = &plain.Mechanism{
+			Username: o.SASL.Username,
+			Password: o.SASL.Password,
+		}
+	case "scram-sha-256":
+		m, _ := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
+		transport.SASL = m
+	case "scram-sha-512":
+		m, _ := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
+		transport.SASL = m
+	}
+
+	switch o.PartitionBalancer {
+	case "label":
+		writer.Balancer = o
+	case "round-robin":
+		writer.Balancer = &kafka.RoundRobin{}
+	case "least-bytes":
+		writer.Balancer = &kafka.LeastBytes{}
+	case "fnv-1a":
+		writer.Balancer = &kafka.Hash{}
+	case "fnv-1a-reference":
+		writer.Balancer = &kafka.ReferenceHash{}
+	case "consistent-random":
+		writer.Balancer = &kafka.CRC32Balancer{}
+	case "consistent":
+		writer.Balancer = &kafka.CRC32Balancer{Consistent: true}
+	case "murmur2-random":
+		writer.Balancer = &kafka.Murmur2Balancer{}
+	case "murmur2":
+		writer.Balancer = &kafka.Murmur2Balancer{Consistent: true}
+	}
+
+	writer.Transport = transport
+	return writer
 }
 
 type eventMsgStatus struct {

@@ -52,21 +52,21 @@ func init() {
 			Name: "plugin_kafka_writer_messages_count",
 			Help: "Number of messages written by client",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterBytesCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_writer_bytes_count",
 			Help: "Number of bytes written by client",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_writer_errors_count",
 			Help: "Number of errors occurred during writing",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 
 	kafkaWriterBatchSecondsCount = prometheus.NewCounterVec(
@@ -74,31 +74,31 @@ func init() {
 			Name: "plugin_kafka_writer_batch_seconds_count",
 			Help: "Number of batches created by client",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterBatchSecondsSum = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_writer_batch_seconds_sum",
 			Help: "Total time spent on filling batches",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterBatchSecondsMin = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_seconds_min",
 		"Min time spent on filling batches",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchSecondsAvg = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_seconds_avg",
 		"Average time spent on filling batches",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchSecondsMax = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_seconds_max",
 		"Max time spent on filling batches",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 
@@ -107,31 +107,31 @@ func init() {
 			Name: "plugin_kafka_writer_write_seconds_count",
 			Help: "Number of writes performed by client",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterWriteSecondsSum = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_writer_write_seconds_sum",
 			Help: "Total time spent on writes",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterWriteSecondsMin = prometheus.NewDesc(
 		"plugin_kafka_writer_write_seconds_min",
 		"Min time spent on writes",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterWriteSecondsAvg = prometheus.NewDesc(
 		"plugin_kafka_writer_write_seconds_avg",
 		"Average time spent on writes",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterWriteSecondsMax = prometheus.NewDesc(
 		"plugin_kafka_writer_write_seconds_max",
 		"Max time spent on writes",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 
@@ -140,69 +140,69 @@ func init() {
 			Name: "plugin_kafka_writer_batch_queue_seconds_count",
 			Help: "Number of batches placed in queue",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterBatchQueueSecondsSum = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_writer_batch_queue_seconds_sum",
 			Help: "Total time spent in queue",
 		},
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 	kafkaWriterBatchQueueSecondsMin = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_queue_seconds_min",
 		"Min time spent in queue",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchQueueSecondsAvg = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_queue_seconds_avg",
 		"Average time spent in queue",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchQueueSecondsMax = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_queue_seconds_max",
 		"Max time spent in queue",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 
 	kafkaWriterBatchSizeMin = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_size_min",
 		"Min written batch size",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchSizeAvg = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_size_avg",
 		"Average written batch size",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchSizeMax = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_size_max",
 		"Max written batch size",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 
 	kafkaWriterBatchBytesMin = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_bytes_min",
 		"Min written batch bytes",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchBytesAvg = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_bytes_avg",
 		"Average written batch bytes",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 	kafkaWriterBatchBytesMax = prometheus.NewDesc(
 		"plugin_kafka_writer_batch_bytes_max",
 		"Max written batch bytes",
-		[]string{"pipeline", "plugin_name", "client_id"},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 		nil,
 	)
 }
@@ -210,6 +210,7 @@ func init() {
 type writerDescriptor struct {
 	pipeline   string
 	pluginName string
+	topic      string
 	clientId   string
 }
 
@@ -243,33 +244,36 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 	for desc, f := range c.statFuncs {
 		stats := f()
 
-		println("TOPIC: "+stats.Topic)
-
 		// it is a hack for keeping counter totals
 		kafkaWriterMessagesCount.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(float64(stats.Messages))
 		kafkaWriterBytesCount.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(float64(stats.Bytes))
 		kafkaWriterErrorsCount.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(float64(stats.Errors))
 
 		kafkaWriterBatchSecondsCount.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(float64(stats.BatchTime.Count))
 		kafkaWriterBatchSecondsSum.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(stats.BatchTime.Sum.Seconds())
 		ch <- prometheus.MustNewConstMetric(
@@ -278,6 +282,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.BatchTime.Min.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -286,6 +291,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.BatchTime.Avg.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -294,17 +300,20 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.BatchTime.Max.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 
 		kafkaWriterWriteSecondsCount.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(float64(stats.WriteTime.Count))
 		kafkaWriterWriteSecondsSum.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(stats.WriteTime.Sum.Seconds())
 		ch <- prometheus.MustNewConstMetric(
@@ -313,6 +322,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.WriteTime.Min.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -321,6 +331,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.WriteTime.Avg.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -329,17 +340,20 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.WriteTime.Max.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 
 		kafkaWriterBatchQueueSecondsCount.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(float64(stats.BatchQueueTime.Count))
 		kafkaWriterBatchQueueSecondsSum.WithLabelValues(
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		).Add(stats.BatchQueueTime.Sum.Seconds())
 		ch <- prometheus.MustNewConstMetric(
@@ -348,6 +362,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.BatchQueueTime.Min.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -356,6 +371,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.BatchQueueTime.Avg.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -364,6 +380,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			stats.BatchQueueTime.Max.Seconds(),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 	
@@ -373,6 +390,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BatchSize.Min),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -381,6 +399,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BatchSize.Avg),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -389,6 +408,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BatchSize.Max),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 	
@@ -398,6 +418,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BatchBytes.Min),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -406,6 +427,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BatchBytes.Avg),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 		ch <- prometheus.MustNewConstMetric(
@@ -414,6 +436,7 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BatchBytes.Max),
 			desc.pipeline,
 			desc.pluginName,
+			desc.topic,
 			desc.clientId,
 		)
 	}
@@ -427,7 +450,7 @@ func (c *kafkaWriterCollector) delete(d writerDescriptor) {
 	delete(c.statFuncs, d)
 }
 
-func RegisterKafkaWriter(pipeline, pluginName, clientId string, statFunc func() kafka.WriterStats) {
+func RegisterKafkaWriter(pipeline, pluginName, topic, clientId string, statFunc func() kafka.WriterStats) {
 	kafkaWriterMetricsRegister.Do(func() {
 		prometheus.MustRegister(kafkaWriterMetricsCollector)
 		prometheus.MustRegister(kafkaWriterMessagesCount)
@@ -444,14 +467,16 @@ func RegisterKafkaWriter(pipeline, pluginName, clientId string, statFunc func() 
 	kafkaWriterMetricsCollector.append(writerDescriptor{
 		pipeline:   pipeline,
 		pluginName: pluginName,
+		topic:      topic,
 		clientId:   clientId,
 	}, statFunc)
 }
 
-func UnregisterKafkaWriter(pipeline, pluginName, clientId string) {
+func UnregisterKafkaWriter(pipeline, pluginName, topic, clientId string) {
 	kafkaWriterMetricsCollector.delete(writerDescriptor{
 		pipeline:   pipeline,
 		pluginName: pluginName,
+		topic:      topic,
 		clientId:   clientId,
 	})
 }

@@ -22,6 +22,7 @@
 [[processors]]
   [processors.rk.mapping]
     "neptunus.kafka.output" = [ "/http.input.test" ]
+    "neptunus.kafka.output2" = [ "/http.input.test2" ]
 
 [[outputs]]
   [outputs.kafka]
@@ -36,3 +37,5 @@
   [outputs.kafka.serializer]
     type = "json"
     data_only = true
+  # [outputs.kafka.filters.glob]
+  #   routing_key = [ "denyall" ]
