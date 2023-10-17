@@ -73,7 +73,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("at least one broker address required")
 	}
 
-	if o.IdleTimeout < time.Minute {
+	if o.IdleTimeout > 0 && o.IdleTimeout < time.Minute {
 		o.IdleTimeout = time.Minute
 	}
 
@@ -160,6 +160,9 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	}
 
 	o.clearTicker = time.NewTicker(time.Minute)
+	if o.IdleTimeout == 0 {
+		o.clearTicker.Stop()
+	}
 
 	return nil
 }

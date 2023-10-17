@@ -18,11 +18,12 @@ For better performance, `buffer` size should be such that the buffer is flushed 
     # list of kafka cluster nodes
     brokers = [ "localhost:9092" ]
 
-    # unique identifier that the transport communicates to the brokers when it sends requests
+    # unique identifier that the transport communicates to brokers when it sends requests
     client_id = "neptunus.kafka.output"
 
     # time after which inactive producers will be closed
-    # if configured value less than 1m, it will be set to 1m
+    # if configured value a zero, idle producers will never be closed
+    # if configured value less than 1m but not zero, it will be set to 1m
     idle_timeout = "1h"
 
     # time limit set for establishing connections to the kafka cluster
@@ -61,7 +62,7 @@ For better performance, `buffer` size should be such that the buffer is flushed 
     required_acks = "one"
 
     # if true, message timestamp takes from event timestamp
-    # otherwise, it will be automatically set when writing the message
+    # otherwise, it will be automatically set when writing a message
     keep_timestamp = false
 
     # messages partition balancer

@@ -14,7 +14,7 @@
 
 [[processors]]
   [processors.log]
-    level = "warn"
+    level = "debug"
     [processors.log.serializer]
       type = "json"
       data_only = false
@@ -30,7 +30,9 @@
     client_id = "kafka-one"
     brokers = ["localhost:9092"]
     topics_autocreate = true
-    batch_timeout = "0"
+    batch_timeout = "0s"
+    idle_timeout = "0s"
+    buffer = 400
   [outputs.kafka.sasl]
     mechanism = "none"
   [outputs.kafka.headerlabels]
@@ -38,5 +40,3 @@
   [outputs.kafka.serializer]
     type = "json"
     data_only = true
-  # [outputs.kafka.filters.glob]
-  #   routing_key = [ "denyall" ]
