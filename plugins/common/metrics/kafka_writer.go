@@ -11,6 +11,7 @@ var (
 	kafkaWriterMetricsRegister  = &sync.Once{}
 	kafkaWriterMetricsCollector = &kafkaWriterCollector{
 		statFuncs: make(map[writerDescriptor]func() kafka.WriterStats),
+		mu:        &sync.Mutex{},
 	}
 
 	kafkaWriterMessagesCount *prometheus.CounterVec
@@ -216,6 +217,7 @@ type writerDescriptor struct {
 
 type kafkaWriterCollector struct {
 	statFuncs map[writerDescriptor]func() kafka.WriterStats
+	mu        *sync.Mutex
 }
 
 func (c *kafkaWriterCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -443,10 +445,14 @@ func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *kafkaWriterCollector) append(d writerDescriptor, f func() kafka.WriterStats) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.statFuncs[d] = f
 }
 
 func (c *kafkaWriterCollector) delete(d writerDescriptor) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	delete(c.statFuncs, d)
 }
 
