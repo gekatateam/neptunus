@@ -137,7 +137,6 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		writers: make(map[string]*topicWriter),
 		wg:      &sync.WaitGroup{},
 		new: func(topic string) *topicWriter {
-			writer := o.newWriter(topic)
 			return &topicWriter{
 				alias:             o.alias,
 				pipe:              o.pipe,
@@ -151,7 +150,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				maxAttempts:       o.MaxAttempts,
 				retryAfter:        o.RetryAfter,
 				input:             make(chan *core.Event),
-				writer:            writer,
+				writer:            o.newWriter(topic),
 				batcher:           o.Batcher,
 				log:               o.log,
 				ser:               o.ser,
@@ -179,13 +178,13 @@ func (o *Kafka) Run() {
 MAIN_LOOP:
 	for {
 		select {
-		case e, ok := <- o.in:
+		case e, ok := <-o.in:
 			if !ok {
 				o.clearTicker.Stop()
 				break MAIN_LOOP
 			}
 			o.writersPool.Get(e.RoutingKey).input <- e
-		case <- o.clearTicker.C:
+		case <-o.clearTicker.C:
 			for _, topic := range o.writersPool.Topics() {
 				if time.Since(o.writersPool.Get(topic).lastWrite) > o.IdleTimeout {
 					o.writersPool.Remove(topic)
@@ -204,45 +203,6 @@ func (o *Kafka) Close() error {
 
 func (o *Kafka) Alias() string {
 	return o.alias
-}
-
-func (o *Kafka) Balance(msg kafka.Message, partitions ...int) (partition int) {
-	for _, h := range msg.Headers {
-		if h.Key == o.PartitionLabel {
-			partition, err := strconv.Atoi(string(h.Value))
-			if err != nil {
-				o.log.Warn("partition calculation error",
-					"error", err,
-					slog.Group("event",
-						"id", msg.WriterData.(uuid.UUID),
-						"key", msg.Topic,
-					),
-				)
-				return partitions[0]
-			}
-
-			if !slices.Contains(partitions, partition) {
-				o.log.Warn("partition calculation error",
-					"error", fmt.Sprintf("partition %v not in partitions list", partition),
-					slog.Group("event",
-						"id", msg.WriterData.(uuid.UUID),
-						"key", msg.Topic,
-					),
-				)
-				return partitions[0]
-			}
-
-			return partition
-		}
-	}
-	o.log.Warn("partition calculation error",
-		"error", fmt.Sprintf("message has no %v header, 0 partition used", o.PartitionLabel),
-		slog.Group("event",
-			"id", msg.WriterData.(uuid.UUID),
-			"key", msg.Topic,
-		),
-	)
-	return partitions[0]
 }
 
 func (o *Kafka) newWriter(topic string) *kafka.Writer {
@@ -301,7 +261,7 @@ func (o *Kafka) newWriter(topic string) *kafka.Writer {
 
 	switch o.PartitionBalancer {
 	case "label":
-		writer.Balancer = o
+		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.log}
 	case "round-robin":
 		writer.Balancer = &kafka.RoundRobin{}
 	case "least-bytes":
@@ -322,6 +282,50 @@ func (o *Kafka) newWriter(topic string) *kafka.Writer {
 
 	writer.Transport = transport
 	return writer
+}
+
+type labelBalancer struct {
+	label string
+	log   *slog.Logger
+}
+
+func (o *labelBalancer) Balance(msg kafka.Message, partitions ...int) (partition int) {
+	for _, h := range msg.Headers {
+		if h.Key == o.label {
+			partition, err := strconv.Atoi(string(h.Value))
+			if err != nil {
+				o.log.Warn("partition calculation error",
+					"error", err,
+					slog.Group("event",
+						"id", msg.WriterData.(uuid.UUID),
+						"key", msg.Topic,
+					),
+				)
+				return partitions[0]
+			}
+
+			if !slices.Contains(partitions, partition) {
+				o.log.Warn("partition calculation error",
+					"error", fmt.Sprintf("partition %v not in partitions list", partition),
+					slog.Group("event",
+						"id", msg.WriterData.(uuid.UUID),
+						"key", msg.Topic,
+					),
+				)
+				return partitions[0]
+			}
+
+			return partition
+		}
+	}
+	o.log.Warn("partition calculation error",
+		"error", fmt.Sprintf("message has no %v header", o.label),
+		slog.Group("event",
+			"id", msg.WriterData.(uuid.UUID),
+			"key", msg.Topic,
+		),
+	)
+	return partitions[0]
 }
 
 func init() {

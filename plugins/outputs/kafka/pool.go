@@ -198,7 +198,7 @@ func (w *topicWriter) Run() {
 	} else {
 		w.log.Info(fmt.Sprintf("producer for topic %v closed", w.writer.Topic))
 	}
-	
+
 	if w.enableMetrics {
 		kafkastats.RegisterKafkaWriter(w.pipe, w.alias, w.writer.Topic, w.clientId, w.writer.Stats)
 	}

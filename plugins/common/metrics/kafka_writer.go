@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/segmentio/kafka-go"
@@ -20,31 +21,29 @@ var (
 
 	kafkaWriterWriteSecondsCount *prometheus.CounterVec // counter
 	kafkaWriterWriteSecondsSum   *prometheus.CounterVec
-	kafkaWriterWriteSecondsMin   *prometheus.Desc // gauge
-	kafkaWriterWriteSecondsAvg   *prometheus.Desc
-	kafkaWriterWriteSecondsMax   *prometheus.Desc
+	kafkaWriterWriteSecondsMin   *prometheus.GaugeVec // gauge
+	kafkaWriterWriteSecondsAvg   *prometheus.GaugeVec
+	kafkaWriterWriteSecondsMax   *prometheus.GaugeVec
 
-	// TODO what it means?
 	kafkaWriterBatchSecondsCount *prometheus.CounterVec // counter
 	kafkaWriterBatchSecondsSum   *prometheus.CounterVec
-	kafkaWriterBatchSecondsMin   *prometheus.Desc // gauge
-	kafkaWriterBatchSecondsAvg   *prometheus.Desc
-	kafkaWriterBatchSecondsMax   *prometheus.Desc
+	kafkaWriterBatchSecondsMin   *prometheus.GaugeVec // gauge
+	kafkaWriterBatchSecondsAvg   *prometheus.GaugeVec
+	kafkaWriterBatchSecondsMax   *prometheus.GaugeVec
 
-	// TODO what it means?
 	kafkaWriterBatchQueueSecondsCount *prometheus.CounterVec // counter
 	kafkaWriterBatchQueueSecondsSum   *prometheus.CounterVec
-	kafkaWriterBatchQueueSecondsMin   *prometheus.Desc // gauge
-	kafkaWriterBatchQueueSecondsAvg   *prometheus.Desc
-	kafkaWriterBatchQueueSecondsMax   *prometheus.Desc
+	kafkaWriterBatchQueueSecondsMin   *prometheus.GaugeVec // gauge
+	kafkaWriterBatchQueueSecondsAvg   *prometheus.GaugeVec
+	kafkaWriterBatchQueueSecondsMax   *prometheus.GaugeVec
 
-	kafkaWriterBatchSizeMin *prometheus.Desc // gauge
-	kafkaWriterBatchSizeAvg *prometheus.Desc
-	kafkaWriterBatchSizeMax *prometheus.Desc
+	kafkaWriterBatchSizeMin *prometheus.GaugeVec // gauge
+	kafkaWriterBatchSizeAvg *prometheus.GaugeVec
+	kafkaWriterBatchSizeMax *prometheus.GaugeVec
 
-	kafkaWriterBatchBytesMin *prometheus.Desc // gauge
-	kafkaWriterBatchBytesAvg *prometheus.Desc
-	kafkaWriterBatchBytesMax *prometheus.Desc
+	kafkaWriterBatchBytesMin *prometheus.GaugeVec // gauge
+	kafkaWriterBatchBytesAvg *prometheus.GaugeVec
+	kafkaWriterBatchBytesMax *prometheus.GaugeVec
 )
 
 func init() {
@@ -84,23 +83,26 @@ func init() {
 		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
-	kafkaWriterBatchSecondsMin = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_seconds_min",
-		"Min time spent on filling batches",
+	kafkaWriterBatchSecondsMin = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_seconds_min",
+			Help: "Min time spent on filling batches",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterBatchSecondsAvg = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_seconds_avg",
-		"Average time spent on filling batches",
+	kafkaWriterBatchSecondsAvg = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_seconds_avg",
+			Help: "Average time spent on filling batches",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterBatchSecondsMax = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_seconds_max",
-		"Max time spent on filling batches",
+	kafkaWriterBatchSecondsMax = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_seconds_max",
+			Help: "Max time spent on filling batches",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
 
 	kafkaWriterWriteSecondsCount = prometheus.NewCounterVec(
@@ -117,23 +119,26 @@ func init() {
 		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
-	kafkaWriterWriteSecondsMin = prometheus.NewDesc(
-		"plugin_kafka_writer_write_seconds_min",
-		"Min time spent on writes",
+	kafkaWriterWriteSecondsMin = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_write_seconds_min",
+			Help: "Min time spent on writes",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterWriteSecondsAvg = prometheus.NewDesc(
-		"plugin_kafka_writer_write_seconds_avg",
-		"Average time spent on writes",
+	kafkaWriterWriteSecondsAvg = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_write_seconds_avg",
+			Help: "Average time spent on writes",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterWriteSecondsMax = prometheus.NewDesc(
-		"plugin_kafka_writer_write_seconds_max",
-		"Max time spent on writes",
+	kafkaWriterWriteSecondsMax = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_write_seconds_max",
+			Help: "Max time spent on writes",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
 
 	kafkaWriterBatchQueueSecondsCount = prometheus.NewCounterVec(
@@ -150,61 +155,70 @@ func init() {
 		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
-	kafkaWriterBatchQueueSecondsMin = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_queue_seconds_min",
-		"Min time spent in queue",
+	kafkaWriterBatchQueueSecondsMin = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_queue_seconds_min",
+			Help: "Min time spent in queue",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterBatchQueueSecondsAvg = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_queue_seconds_avg",
-		"Average time spent in queue",
+	kafkaWriterBatchQueueSecondsAvg = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_queue_seconds_avg",
+			Help: "Average time spent in queue",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterBatchQueueSecondsMax = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_queue_seconds_max",
-		"Max time spent in queue",
+	kafkaWriterBatchQueueSecondsMax = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_queue_seconds_max",
+			Help: "Max time spent in queue",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
-	)
-
-	kafkaWriterBatchSizeMin = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_size_min",
-		"Min written batch size",
-		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
-	)
-	kafkaWriterBatchSizeAvg = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_size_avg",
-		"Average written batch size",
-		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
-	)
-	kafkaWriterBatchSizeMax = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_size_max",
-		"Max written batch size",
-		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
 
-	kafkaWriterBatchBytesMin = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_bytes_min",
-		"Min written batch bytes",
+	kafkaWriterBatchSizeMin = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_size_min",
+			Help: "Min written batch size",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterBatchBytesAvg = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_bytes_avg",
-		"Average written batch bytes",
+	kafkaWriterBatchSizeAvg = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_size_avg",
+			Help: "Average written batch size",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
 	)
-	kafkaWriterBatchBytesMax = prometheus.NewDesc(
-		"plugin_kafka_writer_batch_bytes_max",
-		"Max written batch bytes",
+	kafkaWriterBatchSizeMax = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_size_max",
+			Help: "Max written batch size",
+		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
-		nil,
+	)
+
+	kafkaWriterBatchBytesMin = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_bytes_min",
+			Help: "Min written batch bytes",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
+	)
+	kafkaWriterBatchBytesAvg = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_bytes_avg",
+			Help: "Average written batch bytes",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
+	)
+	kafkaWriterBatchBytesMax = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_writer_batch_bytes_max",
+			Help: "Max written batch bytes",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
 }
 
@@ -220,230 +234,6 @@ type kafkaWriterCollector struct {
 	mu        *sync.Mutex
 }
 
-func (c *kafkaWriterCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- kafkaWriterBatchSecondsMin
-	ch <- kafkaWriterBatchSecondsAvg
-	ch <- kafkaWriterBatchSecondsMax
-
-	ch <- kafkaWriterWriteSecondsMin
-	ch <- kafkaWriterWriteSecondsAvg
-	ch <- kafkaWriterWriteSecondsMax
-
-	ch <- kafkaWriterBatchQueueSecondsMin
-	ch <- kafkaWriterBatchQueueSecondsAvg
-	ch <- kafkaWriterBatchQueueSecondsMax
-
-	ch <- kafkaWriterBatchSizeMin
-	ch <- kafkaWriterBatchSizeAvg
-	ch <- kafkaWriterBatchSizeMax
-
-	ch <- kafkaWriterBatchBytesMin
-	ch <- kafkaWriterBatchBytesAvg
-	ch <- kafkaWriterBatchBytesMax
-}
-
-func (c *kafkaWriterCollector) Collect(ch chan<- prometheus.Metric) {
-	for desc, f := range c.statFuncs {
-		stats := f()
-
-		// it is a hack for keeping counter totals
-		kafkaWriterMessagesCount.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(float64(stats.Messages))
-		kafkaWriterBytesCount.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(float64(stats.Bytes))
-		kafkaWriterErrorsCount.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(float64(stats.Errors))
-
-		kafkaWriterBatchSecondsCount.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(float64(stats.BatchTime.Count))
-		kafkaWriterBatchSecondsSum.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(stats.BatchTime.Sum.Seconds())
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchSecondsMin,
-			prometheus.GaugeValue,
-			stats.BatchTime.Min.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchSecondsAvg,
-			prometheus.GaugeValue,
-			stats.BatchTime.Avg.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchSecondsMax,
-			prometheus.GaugeValue,
-			stats.BatchTime.Max.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-
-		kafkaWriterWriteSecondsCount.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(float64(stats.WriteTime.Count))
-		kafkaWriterWriteSecondsSum.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(stats.WriteTime.Sum.Seconds())
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterWriteSecondsMin,
-			prometheus.GaugeValue,
-			stats.WriteTime.Min.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterWriteSecondsAvg,
-			prometheus.GaugeValue,
-			stats.WriteTime.Avg.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterWriteSecondsMax,
-			prometheus.GaugeValue,
-			stats.WriteTime.Max.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-
-		kafkaWriterBatchQueueSecondsCount.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(float64(stats.BatchQueueTime.Count))
-		kafkaWriterBatchQueueSecondsSum.WithLabelValues(
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		).Add(stats.BatchQueueTime.Sum.Seconds())
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchQueueSecondsMin,
-			prometheus.GaugeValue,
-			stats.BatchQueueTime.Min.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchQueueSecondsAvg,
-			prometheus.GaugeValue,
-			stats.BatchQueueTime.Avg.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchQueueSecondsMax,
-			prometheus.GaugeValue,
-			stats.BatchQueueTime.Max.Seconds(),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-	
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchSizeMin,
-			prometheus.GaugeValue,
-			float64(stats.BatchSize.Min),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchSizeAvg,
-			prometheus.GaugeValue,
-			float64(stats.BatchSize.Avg),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchSizeMax,
-			prometheus.GaugeValue,
-			float64(stats.BatchSize.Max),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-	
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchBytesMin,
-			prometheus.GaugeValue,
-			float64(stats.BatchBytes.Min),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchBytesAvg,
-			prometheus.GaugeValue,
-			float64(stats.BatchBytes.Avg),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			kafkaWriterBatchBytesMax,
-			prometheus.GaugeValue,
-			float64(stats.BatchBytes.Max),
-			desc.pipeline,
-			desc.pluginName,
-			desc.topic,
-			desc.clientId,
-		)
-	}
-}
-
 func (c *kafkaWriterCollector) append(d writerDescriptor, f func() kafka.WriterStats) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -456,18 +246,155 @@ func (c *kafkaWriterCollector) delete(d writerDescriptor) {
 	delete(c.statFuncs, d)
 }
 
+func (c *kafkaWriterCollector) collect() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for desc, f := range c.statFuncs {
+		stats := f()
+
+		kafkaWriterMessagesCount.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(float64(stats.Messages))
+		kafkaWriterBytesCount.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(float64(stats.Bytes))
+		kafkaWriterErrorsCount.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(float64(stats.Errors))
+
+		kafkaWriterBatchSecondsCount.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(float64(stats.BatchTime.Count))
+		kafkaWriterBatchSecondsSum.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(stats.BatchTime.Sum.Seconds())
+		kafkaWriterBatchSecondsMin.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.BatchTime.Min.Seconds())
+		kafkaWriterBatchSecondsAvg.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.BatchTime.Avg.Seconds())
+		kafkaWriterBatchSecondsMax.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.BatchTime.Max.Seconds())
+
+		kafkaWriterWriteSecondsCount.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(float64(stats.WriteTime.Count))
+		kafkaWriterWriteSecondsSum.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(stats.WriteTime.Sum.Seconds())
+		kafkaWriterWriteSecondsMin.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.WriteTime.Min.Seconds())
+		kafkaWriterWriteSecondsAvg.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.WriteTime.Avg.Seconds())
+		kafkaWriterWriteSecondsMin.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.WriteTime.Max.Seconds())
+
+		kafkaWriterBatchQueueSecondsCount.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(float64(stats.BatchQueueTime.Count))
+		kafkaWriterBatchQueueSecondsSum.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Add(stats.BatchQueueTime.Sum.Seconds())
+		kafkaWriterBatchQueueSecondsMin.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.BatchQueueTime.Min.Seconds())
+		kafkaWriterBatchQueueSecondsAvg.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.BatchQueueTime.Avg.Seconds())
+		kafkaWriterBatchQueueSecondsMax.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(stats.BatchQueueTime.Max.Seconds())
+
+		kafkaWriterBatchSizeMin.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(float64(stats.BatchSize.Min))
+		kafkaWriterBatchSizeAvg.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(float64(stats.BatchSize.Avg))
+		kafkaWriterBatchSizeMax.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(float64(stats.BatchSize.Max))
+
+		kafkaWriterBatchBytesMin.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(float64(stats.BatchBytes.Min))
+		kafkaWriterBatchBytesAvg.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(float64(stats.BatchBytes.Avg))
+		kafkaWriterBatchBytesMax.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, desc.clientId,
+		).Set(float64(stats.BatchBytes.Max))
+	}
+}
+
 func RegisterKafkaWriter(pipeline, pluginName, topic, clientId string, statFunc func() kafka.WriterStats) {
 	kafkaWriterMetricsRegister.Do(func() {
-		prometheus.MustRegister(kafkaWriterMetricsCollector)
 		prometheus.MustRegister(kafkaWriterMessagesCount)
 		prometheus.MustRegister(kafkaWriterBytesCount)
 		prometheus.MustRegister(kafkaWriterErrorsCount)
-		prometheus.MustRegister(kafkaWriterBatchSecondsCount)
-		prometheus.MustRegister(kafkaWriterBatchSecondsSum)
+
 		prometheus.MustRegister(kafkaWriterWriteSecondsCount)
 		prometheus.MustRegister(kafkaWriterWriteSecondsSum)
+		prometheus.MustRegister(kafkaWriterWriteSecondsMin)
+		prometheus.MustRegister(kafkaWriterWriteSecondsAvg)
+		prometheus.MustRegister(kafkaWriterWriteSecondsMax)
+
+		prometheus.MustRegister(kafkaWriterBatchSecondsCount)
+		prometheus.MustRegister(kafkaWriterBatchSecondsSum)
+		prometheus.MustRegister(kafkaWriterBatchSecondsMin)
+		prometheus.MustRegister(kafkaWriterBatchSecondsAvg)
+		prometheus.MustRegister(kafkaWriterBatchSecondsMax)
+
 		prometheus.MustRegister(kafkaWriterBatchQueueSecondsCount)
 		prometheus.MustRegister(kafkaWriterBatchQueueSecondsSum)
+		prometheus.MustRegister(kafkaWriterBatchQueueSecondsMin)
+		prometheus.MustRegister(kafkaWriterBatchQueueSecondsAvg)
+		prometheus.MustRegister(kafkaWriterBatchQueueSecondsMax)
+
+		prometheus.MustRegister(kafkaWriterBatchSizeMin)
+		prometheus.MustRegister(kafkaWriterBatchSizeAvg)
+		prometheus.MustRegister(kafkaWriterBatchSizeMax)
+
+		prometheus.MustRegister(kafkaWriterBatchBytesMin)
+		prometheus.MustRegister(kafkaWriterBatchBytesAvg)
+		prometheus.MustRegister(kafkaWriterBatchBytesMax)
+
+		t := time.NewTicker(15 * time.Second)
+		go func() {
+			for range t.C {
+				kafkaWriterMetricsCollector.collect()
+			}
+		}()
 	})
 
 	kafkaWriterMetricsCollector.append(writerDescriptor{

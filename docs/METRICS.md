@@ -222,7 +222,7 @@ Labels:
 ### Kafka Producer
 
 > **Warning**
-> Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, a gauges are reset after being read
+> Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, producer metrics updates every 15 sec, not on read
 
 #### Counter `plugin_kafka_writer_messages_count`
 Number of messages written by client
