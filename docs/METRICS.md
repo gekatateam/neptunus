@@ -230,6 +230,7 @@ Number of messages written by client
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_bytes_count`
@@ -238,6 +239,7 @@ Number of bytes written by client
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_errors_count`
@@ -246,6 +248,7 @@ Number of errors occurred during writing
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_write_seconds_sum`
@@ -254,6 +257,7 @@ Number of writes performed by client
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_write_seconds_count`
@@ -262,6 +266,7 @@ Total time spent on writes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_write_seconds_min`
@@ -270,6 +275,7 @@ Min time spent on writes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_write_seconds_avg`
@@ -278,6 +284,7 @@ Average time spent on writes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_write_seconds_max`
@@ -286,6 +293,7 @@ Max time spent on writes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_batch_seconds_count`
@@ -294,6 +302,7 @@ Number of batches created by client
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_batch_seconds_sum`
@@ -302,6 +311,7 @@ Total time spent on filling batches
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_seconds_min`
@@ -310,6 +320,7 @@ Min time spent on filling batches
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_seconds_avg`
@@ -318,6 +329,7 @@ Average time spent on filling batches
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_seconds_max`
@@ -326,6 +338,7 @@ Max time spent on filling batches
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_batch_queue_seconds_count`
@@ -334,6 +347,7 @@ Number of batches submitted in queue
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Counter `plugin_kafka_writer_batch_queue_seconds_sum`
@@ -342,6 +356,7 @@ Total time spent in queue
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_queue_seconds_min`
@@ -350,6 +365,7 @@ Min time spent in queue
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_queue_seconds_avg`
@@ -358,6 +374,7 @@ Average time spent in queue
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_queue_seconds_max`
@@ -366,6 +383,7 @@ Max time spent in queue
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_size_min`
@@ -374,6 +392,7 @@ Min written batch size
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_size_avg`
@@ -382,6 +401,7 @@ Average written batch size
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_size_max`
@@ -390,6 +410,7 @@ Max written batch size
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_bytes_min`
@@ -398,6 +419,7 @@ Min written batch bytes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_bytes_avg`
@@ -406,6 +428,7 @@ Average written batch bytes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
 #### Gauge `plugin_kafka_writer_batch_bytes_max`
@@ -414,4 +437,5 @@ Max written batch bytes
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
  - **client_id** - kafka client ID

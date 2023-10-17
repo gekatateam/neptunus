@@ -1,9 +1,9 @@
 # Kafka Output Plugin
 The `kafka` output plugin produces events to Kafka. This plugin requires serializer.
 
-Target topic name takes from an event routing key.
+Target topic name takes from an event routing key. Plugin creates one writer per topic.
 
-For better performance, `buffer` size should be such that the buffer is flushed as it fills, rather than at a configured `interval`. Timed flush of an underfilled buffer creates a write delay equal to `batch_interval`.
+For better performance, `buffer` size should be such that the buffer is flushed as it fills, rather than at a configured `interval`. Timed flush of an underfilled buffer creates a write delay equal to `batch_interval`. Plugin creates one buffer per topic.
 
 > **Note**
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-producer)
@@ -18,9 +18,13 @@ For better performance, `buffer` size should be such that the buffer is flushed 
     # list of kafka cluster nodes
     brokers = [ "localhost:9092" ]
 
-    # unique identifier that the transport communicates to the brokers when it sends requests
-    # value must be unique across the app
-    client_id = "neptunus.kafka.output." # plus plugin id (random int64)
+    # unique identifier that the transport communicates to brokers when it sends requests
+    client_id = "neptunus.kafka.output"
+
+    # time after which inactive producers will be closed
+    # if configured value a zero, idle producers will never be closed
+    # if configured value less than 1m but not zero, it will be set to 1m
+    idle_timeout = "1h"
 
     # time limit set for establishing connections to the kafka cluster
     dial_timeout = "5s"
@@ -36,6 +40,7 @@ For better performance, `buffer` size should be such that the buffer is flushed 
 
     # events buffer size
     # also, messages batch size, see batch_timeout
+    # if configured value less than 1, it will be set to 1
     buffer = 100
 
     # kafka message maximum size in bytes
@@ -57,7 +62,7 @@ For better performance, `buffer` size should be such that the buffer is flushed 
     required_acks = "one"
 
     # if true, message timestamp takes from event timestamp
-    # otherwise, it will be automatically set when writing the message
+    # otherwise, it will be automatically set when writing a message
     keep_timestamp = false
 
     # messages partition balancer
@@ -81,8 +86,10 @@ For better performance, `buffer` size should be such that the buffer is flushed 
     # maximum number of attempts to send a batch of messages
     # before event will be marked as failed
     # 
-    # only messages that ended with a retriable error will be used in next attempt
-    # https://kafka.apache.org/protocol#protocol_error_codes
+    # only messages that ended with:
+    # - network timeout error 
+    # - retriable error - https://kafka.apache.org/protocol#protocol_error_codes
+    # will be used in next attempt
     max_attempts = 0 # zero for endless attempts
 
     # interval between retries to (re-)send a batch of messages
