@@ -27,6 +27,7 @@ type Kafka struct {
 	EnableMetrics     bool              `mapstructure:"enable_metrics"`
 	Brokers           []string          `mapstructure:"brokers"`
 	ClientId          string            `mapstructure:"client_id"`
+	IdleTimeout       time.Duration     `mapstructure:"idle_timeout"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	WriteTimeout      time.Duration     `mapstructure:"write_timeout"`
 	BatchTimeout      time.Duration     `mapstructure:"batch_timeout"`
@@ -46,6 +47,7 @@ type Kafka struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	writersPool *writersPool
+	clearTicker *time.Ticker
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -69,6 +71,10 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
+	}
+
+	if o.IdleTimeout < time.Minute {
+		o.IdleTimeout = time.Minute
 	}
 
 	if o.Batcher.Buffer < 0 {
@@ -129,7 +135,6 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	o.writersPool = &writersPool{
 		writers: make(map[string]*topicWriter),
-		mu:      &sync.Mutex{},
 		wg:      &sync.WaitGroup{},
 		new: func(topic string) *topicWriter {
 			writer := o.newWriter(topic)
@@ -154,6 +159,8 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		},
 	}
 
+	o.clearTicker = time.NewTicker(time.Minute)
+
 	return nil
 }
 
@@ -166,8 +173,22 @@ func (o *Kafka) SetSerializer(s core.Serializer) {
 }
 
 func (o *Kafka) Run() {
-	for e := range o.in {
-		o.writersPool.Get(e.RoutingKey) <- e
+MAIN_LOOP:
+	for {
+		select {
+		case e, ok := <- o.in:
+			if !ok {
+				o.clearTicker.Stop()
+				break MAIN_LOOP
+			}
+			o.writersPool.Get(e.RoutingKey).input <- e
+		case <- o.clearTicker.C:
+			for _, topic := range o.writersPool.Topics() {
+				if time.Since(o.writersPool.Get(topic).lastWrite) > o.IdleTimeout {
+					o.writersPool.Remove(topic)
+				}
+			}
+		}
 	}
 
 	o.writersPool.Close()
@@ -300,20 +321,11 @@ func (o *Kafka) newWriter(topic string) *kafka.Writer {
 	return writer
 }
 
-type eventMsgStatus struct {
-	event     *core.Event
-	spentTime time.Duration
-	error     error
-}
-
-func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
-	return time.Duration(int64(totalTime) / int64(batchSize))
-}
-
 func init() {
 	plugins.AddOutput("kafka", func() core.Output {
 		return &Kafka{
 			ClientId:          "neptunus.kafka.output",
+			IdleTimeout:       1 * time.Hour,
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
 			BatchTimeout:      10 * time.Millisecond,

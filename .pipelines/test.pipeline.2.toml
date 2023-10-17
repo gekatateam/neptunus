@@ -30,6 +30,7 @@
     client_id = "kafka-one"
     brokers = ["localhost:9092"]
     topics_autocreate = true
+    batch_timeout = "0"
   [outputs.kafka.sasl]
     mechanism = "none"
   [outputs.kafka.headerlabels]

@@ -22,17 +22,13 @@ import (
 type writersPool struct {
 	writers map[string]*topicWriter
 	new     func(topic string) *topicWriter
-	mu      *sync.Mutex
 	wg      *sync.WaitGroup
 }
 
-func (w *writersPool) Get(topic string) chan<- *core.Event {
+func (w *writersPool) Get(topic string) *topicWriter {
 	if writer, ok := w.writers[topic]; ok {
-		return writer.input
+		return writer
 	}
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
 
 	writer := w.new(topic)
 	w.writers[topic] = writer
@@ -43,24 +39,28 @@ func (w *writersPool) Get(topic string) chan<- *core.Event {
 		writer.Run()
 	}()
 
-	return writer.input
+	return writer
+}
+
+func (w *writersPool) Topics() []string {
+	var keys []string
+	for k := range w.writers {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func (w *writersPool) Remove(topic string) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	if writer, ok := w.writers[topic]; ok {
 		close(writer.input)
+		delete(w.writers, topic)
 	}
 }
 
 func (w *writersPool) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	for _, writer := range w.writers {
 		close(writer.input)
+		delete(w.writers, writer.writer.Topic)
 	}
 
 	w.wg.Wait()
@@ -82,6 +82,8 @@ type topicWriter struct {
 	maxAttempts int
 	retryAfter  time.Duration
 
+	lastWrite time.Time
+
 	input   chan *core.Event
 	writer  *kafka.Writer
 	batcher *batcher.Batcher[*core.Event]
@@ -94,11 +96,13 @@ func (w *topicWriter) Run() {
 		kafkastats.RegisterKafkaWriter(w.pipe, w.alias, w.writer.Topic, w.clientId, w.writer.Stats)
 	}
 	w.log.Info(fmt.Sprintf("producer for topic %v spawned", w.writer.Topic))
+	w.lastWrite = time.Now()
 
 	w.batcher.Run(w.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
 		}
+		w.lastWrite = time.Now()
 
 		messages := []kafka.Message{}
 		readyEvents := make(map[uuid.UUID]*eventMsgStatus)
@@ -312,4 +316,14 @@ SEND_LOOP:
 	}
 
 	return eventsStatus
+}
+
+type eventMsgStatus struct {
+	event     *core.Event
+	spentTime time.Duration
+	error     error
+}
+
+func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
+	return time.Duration(int64(totalTime) / int64(batchSize))
 }
