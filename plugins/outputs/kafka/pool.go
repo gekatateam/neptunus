@@ -205,7 +205,7 @@ func (w *topicWriter) Run() {
 }
 
 func (w *topicWriter) write(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventMsgStatus) map[uuid.UUID]*eventMsgStatus {
-	var attempts int = 0
+	var attempts int = 1
 
 SEND_LOOP:
 	for {

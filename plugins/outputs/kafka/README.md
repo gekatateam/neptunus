@@ -3,8 +3,6 @@ The `kafka` output plugin produces events to Kafka. This plugin requires seriali
 
 Target topic name takes from an event routing key. Plugin creates one writer per topic.
 
-For better performance, `buffer` size should be such that the buffer is flushed as it fills, rather than at a configured `interval`. Timed flush of an underfilled buffer creates a write delay equal to `batch_interval`. Plugin creates one buffer per topic.
-
 > **Note**
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-producer)
 

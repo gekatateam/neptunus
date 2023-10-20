@@ -55,7 +55,7 @@ type Kafka struct {
 }
 
 type SASL struct {
-	Mechanism string `mapstructure:"mechanism"` // plain or scram
+	Mechanism string `mapstructure:"mechanism"`
 	Username  string `mapstructure:"username"`
 	Password  string `mapstructure:"password"`
 }
