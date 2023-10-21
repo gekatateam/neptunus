@@ -1,11 +1,16 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
+	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
@@ -20,11 +25,15 @@ type Kafka struct {
 	ClientId      string            `mapstructure:"client_id"`
 	GroupId       string            `mapstructure:"group_id"`
 	Topics        []string          `mapstructure:"topics"`
+	Balancers     []string          `mapstructure:"balancers"`
+	DialTimeout   time.Duration     `mapstructure:"dial_timeout"`
 	SASL          SASL              `mapstructure:"sasl"`
 	LabelHeaders  map[string]string `mapstructure:"labelheaders"`
 
 	readersPool *readersPool
+	configs map[string]*kafka.ReaderConfig
 	reader *kafka.Reader
+	fetchCtx context.Context
 
 	log    *slog.Logger
 	out    chan<- *core.Event
@@ -65,10 +74,31 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	}
 
 	for _, topic := range i.Topics {
+		var m sasl.Mechanism
+		switch i.SASL.Mechanism {
+		case "none":
+		case "plain":
+			m = &plain.Mechanism{
+				Username: i.SASL.Username,
+				Password: i.SASL.Password,
+			}
+		case "scram-sha-256":
+			m, _ = scram.Mechanism(scram.SHA256, i.SASL.Username, i.SASL.Password)
+		case "scram-sha-512":
+			m, _ = scram.Mechanism(scram.SHA512, i.SASL.Username, i.SASL.Password)
+		}
+
 		readerConfig := &kafka.ReaderConfig{
 			Brokers: i.Brokers,
 			GroupID: i.GroupId,
 			Topic:   topic,
+			Dialer:  &kafka.Dialer{
+				ClientID:  i.ClientId,
+				DualStack: true,
+				Timeout:   i.DialTimeout,
+				SASLMechanism: m,
+			},
+			QueueCapacity: 1,
 		}
 	}
 
@@ -86,7 +116,7 @@ func (i *Kafka) SetParser(p core.Parser) {
 
 func (i *Kafka) Run() {
 	for {
-		msg, err := i.reader.FetchMessage()
+		msg, err := i.reader.FetchMessage(i.fetchCtx)
 	}
 }
 
