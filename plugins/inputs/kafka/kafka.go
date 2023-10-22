@@ -24,16 +24,24 @@ type Kafka struct {
 	Brokers       []string          `mapstructure:"brokers"`
 	ClientId      string            `mapstructure:"client_id"`
 	GroupId       string            `mapstructure:"group_id"`
+	GroupTTL      time.Duration     `mapstructure:"group_ttl"`
 	Topics        []string          `mapstructure:"topics"`
 	Balancers     []string          `mapstructure:"balancers"`
 	DialTimeout   time.Duration     `mapstructure:"dial_timeout"`
+	SessionTimeout time.Duration   `mapstructure:"session_timeout"`
+	RebalanceTimeout time.Duration `mapstructure:"rebalance_timeout"`
+	HeartbeatInterval time.Duration `mapstructure:"heartbeat_interval"`
+	StartOffset   string            `mapstructure:"start_offset"`
+	MaxBatchSize  int               `mapstructure:"max_batch_size"`
 	SASL          SASL              `mapstructure:"sasl"`
 	LabelHeaders  map[string]string `mapstructure:"labelheaders"`
 
 	readersPool *readersPool
 	configs map[string]*kafka.ReaderConfig
+	readers map[string]*kafka.Reader
 	reader *kafka.Reader
 	fetchCtx context.Context
+	cancelFunc context.CancelFunc
 
 	log    *slog.Logger
 	out    chan<- *core.Event
@@ -73,8 +81,19 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("group_id required")
 	}
 
+	var offset int64
+	switch i.StartOffset {
+	case "first":
+		offset = kafka.FirstOffset
+	case "last":
+		offset = kafka.LastOffset
+	default:
+		return fmt.Errorf("unknown offset: %v; expected one of: first, last", i.StartOffset)
+	}
+
 	for _, topic := range i.Topics {
 		var m sasl.Mechanism
+		var err error
 		switch i.SASL.Mechanism {
 		case "none":
 		case "plain":
@@ -83,25 +102,49 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				Password: i.SASL.Password,
 			}
 		case "scram-sha-256":
-			m, _ = scram.Mechanism(scram.SHA256, i.SASL.Username, i.SASL.Password)
+			m, err = scram.Mechanism(scram.SHA256, i.SASL.Username, i.SASL.Password)
+			if err != nil {
+				return err
+			}
 		case "scram-sha-512":
-			m, _ = scram.Mechanism(scram.SHA512, i.SASL.Username, i.SASL.Password)
+			m, err = scram.Mechanism(scram.SHA512, i.SASL.Username, i.SASL.Password)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", i.SASL.Mechanism)
+		}
+
+		dialer := &kafka.Dialer{
+			ClientID:  i.ClientId,
+			DualStack: true,
+			Timeout:   i.DialTimeout,
+			SASLMechanism: m,
 		}
 
 		readerConfig := &kafka.ReaderConfig{
 			Brokers: i.Brokers,
 			GroupID: i.GroupId,
 			Topic:   topic,
-			Dialer:  &kafka.Dialer{
-				ClientID:  i.ClientId,
-				DualStack: true,
-				Timeout:   i.DialTimeout,
-				SASLMechanism: m,
-			},
+			Dialer:  dialer,
 			QueueCapacity: 1,
+			MaxAttempts: 1,
+			WatchPartitionChanges: true,
+			StartOffset: offset,
+			HeartbeatInterval: i.HeartbeatInterval,
+			SessionTimeout: i.SessionTimeout,
+			RebalanceTimeout: i.RebalanceTimeout,
+			RetentionTime: i.GroupTTL,
 		}
+
+		i.configs[topic] = readerConfig
+		i.readers[topic] = kafka.NewReader(*readerConfig)
+		i.reader = kafka.NewReader(*readerConfig)
+
+
 	}
 
+	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
 
 	return nil
 }
@@ -117,11 +160,25 @@ func (i *Kafka) SetParser(p core.Parser) {
 func (i *Kafka) Run() {
 	for {
 		msg, err := i.reader.FetchMessage(i.fetchCtx)
+		if err != nil {
+			i.log.Error("fetch error", 
+				"error", err,
+			)
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+		}
+
+		i.log.Info(string(msg.Value))
 	}
 }
 
 func (i *Kafka) Close() error {
-	return nil
+	i.cancelFunc()
+	for _, reader := range i.readers {
+		reader.Close()
+	}
+	return i.reader.Close()
 }
 
 func (i *Kafka) Alias() string {
@@ -131,7 +188,8 @@ func (i *Kafka) Alias() string {
 func init() {
 	plugins.AddInput("kafka", func() core.Input {
 		return &Kafka{
-
+			configs: make(map[string]*kafka.ReaderConfig),
+			readers: make(map[string]*kafka.Reader),
 		}
 	})
 }

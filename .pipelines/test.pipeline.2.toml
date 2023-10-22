@@ -12,6 +12,18 @@
   [inputs.httpl.filters.glob]
     alias = "t4"
 
+[[inputs]]
+  [inputs.kafka]
+    client_id = "kafka-one"
+    group_id = "neptunus.kafka.input6"
+    start_offset = "first"
+    brokers = ["localhost:9092"]
+    topics = [ "neptunus.kafka.output" ]
+  [inputs.kafka.sasl]
+    mechanism = "none"
+  [inputs.kafka.parser]
+    type = "json"
+
 [[processors]]
   [processors.log]
     level = "debug"
@@ -24,19 +36,26 @@
     "neptunus.kafka.output" = [ "/http.input.test" ]
     "neptunus.kafka.output2" = [ "/http.input.test2" ]
 
+# [[outputs]]
+#   [outputs.kafka]
+#     enable_metrics = true
+#     client_id = "kafka-one"
+#     brokers = ["localhost:9092"]
+#     topics_autocreate = true
+#     batch_timeout = "0s"
+#     idle_timeout = "0s"
+#     buffer = 400
+#   [outputs.kafka.sasl]
+#     mechanism = "none"
+#   [outputs.kafka.headerlabels]
+#     input-from = "input"
+#   [outputs.kafka.serializer]
+#     type = "json"
+#     data_only = true
+
 [[outputs]]
-  [outputs.kafka]
-    enable_metrics = true
-    client_id = "kafka-one"
-    brokers = ["localhost:9092"]
-    topics_autocreate = true
-    batch_timeout = "0s"
-    idle_timeout = "0s"
-    buffer = 400
-  [outputs.kafka.sasl]
-    mechanism = "none"
-  [outputs.kafka.headerlabels]
-    input-from = "input"
-  [outputs.kafka.serializer]
-    type = "json"
-    data_only = true
+  [outputs.log]
+    level = "debug"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
