@@ -146,10 +146,10 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
 		if err != nil {
-			i.log.Error(fmt.Sprintf("parsing error at line %v", cursor),
+			i.log.Error(fmt.Sprintf("parser error at line %v", cursor),
 				"error", err,
 			)
-			http.Error(w, fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("parser error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}

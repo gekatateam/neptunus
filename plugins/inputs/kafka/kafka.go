@@ -165,7 +165,7 @@ func (i *Kafka) Run() {
 				"error", err,
 			)
 			if errors.Is(err, context.Canceled) {
-				return
+				i.log.Info(fmt.Sprintf("topic %v reader done", "TOPIC"))
 			}
 		}
 
