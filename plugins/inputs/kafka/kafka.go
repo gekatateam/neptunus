@@ -25,8 +25,8 @@ type Kafka struct {
 	ClientId      string            `mapstructure:"client_id"`
 	GroupId       string            `mapstructure:"group_id"`
 	GroupTTL      time.Duration     `mapstructure:"group_ttl"`
+	GroupBalancer      string          `mapstructure:"group_balancer"`
 	Topics        []string          `mapstructure:"topics"`
-	Balancers     []string          `mapstructure:"balancers"`
 	DialTimeout   time.Duration     `mapstructure:"dial_timeout"`
 	SessionTimeout time.Duration   `mapstructure:"session_timeout"`
 	RebalanceTimeout time.Duration `mapstructure:"rebalance_timeout"`
@@ -36,7 +36,6 @@ type Kafka struct {
 	SASL          SASL              `mapstructure:"sasl"`
 	LabelHeaders  map[string]string `mapstructure:"labelheaders"`
 
-	readersPool *readersPool
 	configs map[string]*kafka.ReaderConfig
 	readers map[string]*kafka.Reader
 	reader *kafka.Reader

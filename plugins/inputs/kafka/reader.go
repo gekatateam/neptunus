@@ -9,35 +9,40 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
-
-type readersPool struct {
-	new func() *topicReader
-}
 
 type topicReader struct {
 	alias         string
 	pipe          string
 	topic         string
+	groupId string
+	clientId string
+
+	enableMetrics bool
 	labelHeaders  map[string]string
 
 	reader *kafka.Reader
-	chSem   chan struct{}
-	wgSem   *sync.WaitGroup
+	sem    *commitSemaphore
+	cQueue *orderedmap.OrderedMap[int64, kafka.Message]
 
-	rCtx   context.Context
 	out    chan <- *core.Event
 	log     *slog.Logger
 	parser core.Parser
 }
 
-func (r *topicReader) Run() {
+func (r *topicReader) Run(rCtx context.Context) {
+	if r.enableMetrics {
+		kafkastats.RegisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId, r.reader.Stats)
+	}
+
 FETCH_LOOP:
 	for {
-		msg, err := r.reader.FetchMessage(r.rCtx)
+		msg, err := r.reader.FetchMessage(rCtx)
 		now := time.Now()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -57,7 +62,7 @@ FETCH_LOOP:
 			r.log.Error("parser error", 
 				"error", err,
 			)
-			// IF COMMIT ON PARSER ERROR HERE
+			
 			metrics.ObserveInputSummary("kafka", r.alias, r.pipe, metrics.EventFailed, time.Since(now))
 			continue FETCH_LOOP
 		}
@@ -69,9 +74,6 @@ FETCH_LOOP:
 		}
 
 		for _, e := range events {
-			r.chSem <- struct{}{}
-			r.wgSem.Add(1)
-
 			for label, header := range r.labelHeaders {
 				if h, ok := headers[header]; ok {
 					e.AddLabel(label, h)
@@ -80,9 +82,10 @@ FETCH_LOOP:
 
 			// HERE ADD TRACKER TO EVENT
 
+			r.sem.Add() // 
 			r.out <- e
 			r.log.Debug("event accepted",
-			slog.Group("event",
+				slog.Group("event",
 					"id", e.Id,
 					"key", e.RoutingKey,
 				),
@@ -92,8 +95,8 @@ FETCH_LOOP:
 		}
 	}
 
-	r.log.Info(fmt.Sprintf("consumer for topic %v done, waiting for %v events delivery", r.topic, len(r.chSem)))
-	r.wgSem.Wait()
+	r.log.Info(fmt.Sprintf("consumer for topic %v done, waiting for %v events delivery", r.topic, r.sem.Len()))
+	r.sem.Wait()
 
 	if err := r.reader.Close(); err != nil {
 		r.log.Warn(fmt.Sprintf("consumer for topic %v closed with error", r.topic),
@@ -103,5 +106,34 @@ FETCH_LOOP:
 		r.log.Info(fmt.Sprintf("consumer for topic %v closed", r.topic))
 	}
 
-	// ENABLE METRICS HANDLE HERE
+	if r.enableMetrics {
+		kafkastats.UnregisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId)
+	}
+}
+
+type commitSemaphore struct {
+	ch chan struct{}
+	wg *sync.WaitGroup
+}
+
+func (s *commitSemaphore) Add() {
+	s.ch <- struct{}{}
+	s.wg.Add(1)
+}
+
+func (s *commitSemaphore) Done() {
+	<- s.ch
+	s.wg.Done()
+}
+
+func (s *commitSemaphore) Len() int {
+	return len(s.ch)
+}
+
+func (s *commitSemaphore) Cap() int {
+	return cap(s.ch)
+}
+
+func (s *commitSemaphore) Wait() {
+	s.wg.Wait()
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	common "github.com/gekatateam/neptunus/plugins/common/kafka"
 )
 
 type Kafka struct {
@@ -215,6 +216,8 @@ func (o *Kafka) newWriter(topic string) *kafka.Writer {
 		BatchTimeout:           o.BatchTimeout,
 		BatchBytes:             o.MaxMessageSize,
 		MaxAttempts:            1,
+		Logger:                 common.NewLogger(o.log),
+		ErrorLogger:            common.NewErrorLogger(o.log),
 	}
 
 	transport := &kafka.Transport{
