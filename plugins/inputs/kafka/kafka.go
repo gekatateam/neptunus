@@ -83,6 +83,10 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("group_id required")
 	}
 
+	if i.MaxUncommitted < 0 {
+		i.MaxUncommitted = 100
+	}
+
 	var offset int64
 	switch i.StartOffset {
 	case "first":
@@ -169,7 +173,9 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				ch: make(chan struct{}, i.MaxUncommitted),
 				wg: &sync.WaitGroup{},
 			},
-			cQueue: &orderedmap.OrderedMap[int64, kafka.Message]{},
+			cQueue: orderedmap.New[int64, kafka.Message](
+				orderedmap.WithCapacity[int64, kafka.Message](i.MaxUncommitted),
+			),
 			log:    log,
 		}
 	}
