@@ -16,11 +16,13 @@ import (
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
+type readersPool map[string]*topicReader
+
 type topicReader struct {
-	alias         string
-	pipe          string
-	topic         string
-	groupId string
+	alias    string
+	pipe     string
+	topic    string
+	groupId  string
 	clientId string
 
 	enableMetrics bool
@@ -30,8 +32,8 @@ type topicReader struct {
 	sem    *commitSemaphore
 	cQueue *orderedmap.OrderedMap[int64, kafka.Message]
 
-	out    chan <- *core.Event
-	log     *slog.Logger
+	out    chan<- *core.Event
+	log    *slog.Logger
 	parser core.Parser
 }
 
@@ -40,17 +42,19 @@ func (r *topicReader) Run(rCtx context.Context) {
 		kafkastats.RegisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId, r.reader.Stats)
 	}
 
+	r.log.Info(fmt.Sprintf("consumer for topic %v spawned", r.topic))
+
 FETCH_LOOP:
 	for {
 		msg, err := r.reader.FetchMessage(rCtx)
 		now := time.Now()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				r.log.Debug(fmt.Sprintf("consumer for topic %v context canceled", r.topic))
+				r.log.Debug(fmt.Sprintf("consumer context for topic %v canceled", r.topic))
 				break FETCH_LOOP
 			}
 
-			r.log.Error("fetch error", 
+			r.log.Error("fetch error",
 				"error", err,
 			)
 			metrics.ObserveInputSummary("kafka", r.alias, r.pipe, metrics.EventFailed, time.Since(now))
@@ -59,10 +63,10 @@ FETCH_LOOP:
 
 		events, err := r.parser.Parse(msg.Value, r.topic)
 		if err != nil {
-			r.log.Error("parser error", 
+			r.log.Error("parser error",
 				"error", err,
 			)
-			
+
 			metrics.ObserveInputSummary("kafka", r.alias, r.pipe, metrics.EventFailed, time.Since(now))
 			continue FETCH_LOOP
 		}
@@ -82,7 +86,7 @@ FETCH_LOOP:
 
 			// HERE ADD TRACKER TO EVENT
 
-			r.sem.Add() // 
+			r.sem.Add() // <- ?????
 			r.out <- e
 			r.log.Debug("event accepted",
 				slog.Group("event",
@@ -122,7 +126,7 @@ func (s *commitSemaphore) Add() {
 }
 
 func (s *commitSemaphore) Done() {
-	<- s.ch
+	<-s.ch
 	s.wg.Done()
 }
 

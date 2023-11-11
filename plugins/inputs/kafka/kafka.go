@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
@@ -18,29 +20,30 @@ import (
 )
 
 type Kafka struct {
-	alias         string
-	pipe          string
-	EnableMetrics bool              `mapstructure:"enable_metrics"`
-	Brokers       []string          `mapstructure:"brokers"`
-	ClientId      string            `mapstructure:"client_id"`
-	GroupId       string            `mapstructure:"group_id"`
-	GroupTTL      time.Duration     `mapstructure:"group_ttl"`
-	GroupBalancer      string          `mapstructure:"group_balancer"`
-	Topics        []string          `mapstructure:"topics"`
-	DialTimeout   time.Duration     `mapstructure:"dial_timeout"`
-	SessionTimeout time.Duration   `mapstructure:"session_timeout"`
-	RebalanceTimeout time.Duration `mapstructure:"rebalance_timeout"`
-	HeartbeatInterval time.Duration `mapstructure:"heartbeat_interval"`
-	StartOffset   string            `mapstructure:"start_offset"`
-	MaxBatchSize  int               `mapstructure:"max_batch_size"`
-	SASL          SASL              `mapstructure:"sasl"`
-	LabelHeaders  map[string]string `mapstructure:"labelheaders"`
+	alias             string
+	pipe              string
+	EnableMetrics     bool              `mapstructure:"enable_metrics"`
+	Brokers           []string          `mapstructure:"brokers"`
+	ClientId          string            `mapstructure:"client_id"`
+	GroupId           string            `mapstructure:"group_id"`
+	GroupTTL          time.Duration     `mapstructure:"group_ttl"`
+	GroupBalancer     string            `mapstructure:"group_balancer"`
+	Rack              string            `mapstructure:"rack"`
+	Topics            []string          `mapstructure:"topics"`
+	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
+	SessionTimeout    time.Duration     `mapstructure:"session_timeout"`
+	RebalanceTimeout  time.Duration     `mapstructure:"rebalance_timeout"`
+	HeartbeatInterval time.Duration     `mapstructure:"heartbeat_interval"`
+	StartOffset       string            `mapstructure:"start_offset"`
+	MaxBatchSize      int               `mapstructure:"max_batch_size"`
+	MaxUncommitted    int               `mapstructure:"max_uncommitted"`
+	SASL              SASL              `mapstructure:"sasl"`
+	LabelHeaders      map[string]string `mapstructure:"labelheaders"`
 
-	configs map[string]*kafka.ReaderConfig
-	readers map[string]*kafka.Reader
-	reader *kafka.Reader
-	fetchCtx context.Context
-	cancelFunc context.CancelFunc
+	readersPool map[string]*topicReader
+	fetchCtx    context.Context
+	cancelFunc  context.CancelFunc
+	wg          *sync.WaitGroup
 
 	log    *slog.Logger
 	out    chan<- *core.Event
@@ -114,33 +117,62 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", i.SASL.Mechanism)
 		}
 
+		var groupBalancer kafka.GroupBalancer
+		switch i.GroupBalancer {
+		case "range":
+			groupBalancer = &kafka.RangeGroupBalancer{}
+		case "round-robin":
+			groupBalancer = &kafka.RoundRobinGroupBalancer{}
+		case "rack-affinity":
+			if len(i.Rack) == 0 {
+				return errors.New("rack required for rack-affinity gorup balancer")
+			}
+			groupBalancer = &kafka.RackAffinityGroupBalancer{
+				Rack: i.Rack,
+			}
+		default:
+			return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
+		}
+
 		dialer := &kafka.Dialer{
-			ClientID:  i.ClientId,
-			DualStack: true,
-			Timeout:   i.DialTimeout,
+			ClientID:      i.ClientId,
+			DualStack:     true,
+			Timeout:       i.DialTimeout,
 			SASLMechanism: m,
 		}
 
-		readerConfig := &kafka.ReaderConfig{
-			Brokers: i.Brokers,
-			GroupID: i.GroupId,
-			Topic:   topic,
-			Dialer:  dialer,
-			QueueCapacity: 1,
-			MaxAttempts: 1,
+		readerConfig := kafka.ReaderConfig{
+			Brokers:               i.Brokers,
+			GroupID:               i.GroupId,
+			Topic:                 topic,
+			Dialer:                dialer,
+			QueueCapacity:         1,
+			MaxAttempts:           1,
 			WatchPartitionChanges: true,
-			StartOffset: offset,
-			HeartbeatInterval: i.HeartbeatInterval,
-			SessionTimeout: i.SessionTimeout,
-			RebalanceTimeout: i.RebalanceTimeout,
-			RetentionTime: i.GroupTTL,
+			StartOffset:           offset,
+			HeartbeatInterval:     i.HeartbeatInterval,
+			SessionTimeout:        i.SessionTimeout,
+			RebalanceTimeout:      i.RebalanceTimeout,
+			RetentionTime:         i.GroupTTL,
+			GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
 		}
 
-		i.configs[topic] = readerConfig
-		i.readers[topic] = kafka.NewReader(*readerConfig)
-		i.reader = kafka.NewReader(*readerConfig)
-
-
+		i.readersPool[topic] = &topicReader{
+			alias:         i.alias,
+			pipe:          i.pipe,
+			topic:         topic,
+			groupId:       i.GroupId,
+			clientId:      i.ClientId,
+			enableMetrics: i.EnableMetrics,
+			labelHeaders:  i.LabelHeaders,
+			reader:        kafka.NewReader(readerConfig),
+			sem: &commitSemaphore{
+				ch: make(chan struct{}, i.MaxUncommitted),
+				wg: &sync.WaitGroup{},
+			},
+			cQueue: &orderedmap.OrderedMap[int64, kafka.Message]{},
+			log:    log,
+		}
 	}
 
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
@@ -149,35 +181,31 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 }
 
 func (i *Kafka) Prepare(out chan<- *core.Event) {
-	i.out = out
+	for _, reader := range i.readersPool {
+		reader.out = out
+	}
 }
 
 func (i *Kafka) SetParser(p core.Parser) {
-	i.parser = p
+	for _, reader := range i.readersPool {
+		reader.parser = p
+	}
 }
 
 func (i *Kafka) Run() {
-	for {
-		msg, err := i.reader.FetchMessage(i.fetchCtx)
-		if err != nil {
-			i.log.Error("fetch error", 
-				"error", err,
-			)
-			if errors.Is(err, context.Canceled) {
-				i.log.Info(fmt.Sprintf("topic %v reader done", "TOPIC"))
-			}
-		}
-
-		i.log.Info(string(msg.Value))
+	for _, reader := range i.readersPool {
+		go func(r *topicReader) {
+			i.wg.Add(1)
+			defer i.wg.Done()
+			r.Run(i.fetchCtx)
+		}(reader)
 	}
 }
 
 func (i *Kafka) Close() error {
 	i.cancelFunc()
-	for _, reader := range i.readers {
-		reader.Close()
-	}
-	return i.reader.Close()
+	i.wg.Wait()
+	return nil
 }
 
 func (i *Kafka) Alias() string {
@@ -187,8 +215,8 @@ func (i *Kafka) Alias() string {
 func init() {
 	plugins.AddInput("kafka", func() core.Input {
 		return &Kafka{
-			configs: make(map[string]*kafka.ReaderConfig),
-			readers: make(map[string]*kafka.Reader),
+			readersPool: make(map[string]*topicReader),
+			wg:          &sync.WaitGroup{},
 		}
 	})
 }
