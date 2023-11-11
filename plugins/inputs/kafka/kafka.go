@@ -17,6 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	common "github.com/gekatateam/neptunus/plugins/common/kafka"
 )
 
 type Kafka struct {
@@ -161,6 +162,8 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				RebalanceTimeout:      i.RebalanceTimeout,
 				RetentionTime:         i.GroupTTL,
 				GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
+				Logger:                common.NewLogger(log),
+				ErrorLogger:           common.NewErrorLogger(log),
 			}),
 			sem: &commitSemaphore{
 				ch: make(chan struct{}, i.MaxUncommitted),
