@@ -46,7 +46,6 @@ type Kafka struct {
 	wg          *sync.WaitGroup
 
 	log    *slog.Logger
-	out    chan<- *core.Event
 	parser core.Parser
 }
 
@@ -134,29 +133,6 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
 		}
 
-		dialer := &kafka.Dialer{
-			ClientID:      i.ClientId,
-			DualStack:     true,
-			Timeout:       i.DialTimeout,
-			SASLMechanism: m,
-		}
-
-		readerConfig := kafka.ReaderConfig{
-			Brokers:               i.Brokers,
-			GroupID:               i.GroupId,
-			Topic:                 topic,
-			Dialer:                dialer,
-			QueueCapacity:         1,
-			MaxAttempts:           1,
-			WatchPartitionChanges: true,
-			StartOffset:           offset,
-			HeartbeatInterval:     i.HeartbeatInterval,
-			SessionTimeout:        i.SessionTimeout,
-			RebalanceTimeout:      i.RebalanceTimeout,
-			RetentionTime:         i.GroupTTL,
-			GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
-		}
-
 		i.readersPool[topic] = &topicReader{
 			alias:         i.alias,
 			pipe:          i.pipe,
@@ -165,7 +141,27 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			clientId:      i.ClientId,
 			enableMetrics: i.EnableMetrics,
 			labelHeaders:  i.LabelHeaders,
-			reader:        kafka.NewReader(readerConfig),
+			reader: kafka.NewReader(kafka.ReaderConfig{
+				Brokers: i.Brokers,
+				GroupID: i.GroupId,
+				Topic:   topic,
+				Dialer: &kafka.Dialer{
+					ClientID:      i.ClientId,
+					DualStack:     true,
+					Timeout:       i.DialTimeout,
+					SASLMechanism: m,
+				},
+				MaxBytes:              i.MaxBatchSize,
+				QueueCapacity:         1,
+				MaxAttempts:           1,
+				WatchPartitionChanges: true,
+				StartOffset:           offset,
+				HeartbeatInterval:     i.HeartbeatInterval,
+				SessionTimeout:        i.SessionTimeout,
+				RebalanceTimeout:      i.RebalanceTimeout,
+				RetentionTime:         i.GroupTTL,
+				GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
+			}),
 			sem: &commitSemaphore{
 				ch: make(chan struct{}, i.MaxUncommitted),
 				wg: &sync.WaitGroup{},
@@ -215,6 +211,20 @@ func (i *Kafka) Alias() string {
 func init() {
 	plugins.AddInput("kafka", func() core.Input {
 		return &Kafka{
+			ClientId:          "neptunus.kafka.input",
+			GroupBalancer:     "range",
+			StartOffset:       "last",
+			GroupTTL:          24 * time.Hour,
+			DialTimeout:       5 * time.Second,
+			SessionTimeout:    30 * time.Second,
+			RebalanceTimeout:  30 * time.Second,
+			HeartbeatInterval: 3 * time.Second,
+			MaxUncommitted:    100,
+			MaxBatchSize:      1_048_576, // 1 MiB,
+			SASL: SASL{
+				Mechanism: "none",
+			},
+
 			readersPool: make(map[string]*topicReader),
 			wg:          &sync.WaitGroup{},
 		}
