@@ -83,7 +83,7 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("group_id required")
 	}
 
-	if i.MaxUncommitted < 0 {
+	if i.MaxUncommitted <= 0 {
 		i.MaxUncommitted = 100
 	}
 
@@ -205,6 +205,8 @@ func (i *Kafka) Run() {
 			r.Run(i.fetchCtx)
 		}(reader)
 	}
+
+	i.wg.Wait()
 }
 
 func (i *Kafka) Close() error {

@@ -82,56 +82,8 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		o.Batcher.Buffer = 1
 	}
 
-	switch o.RequiredAcks {
-	case "none":
-	case "one":
-	case "all":
-	default:
-		return fmt.Errorf("unknown ack mode: %v; expected one of: none, one, all", o.RequiredAcks)
-	}
-
-	switch o.Compression {
-	case "none":
-	case "gzip":
-	case "snappy":
-	case "lz4":
-	case "zstd":
-	default:
-		return fmt.Errorf("unknown compression algorithm: %v; expected one of: gzip, snappy, lz4, zstd", o.Compression)
-	}
-
-	switch o.SASL.Mechanism {
-	case "none":
-	case "plain":
-	case "scram-sha-256":
-		_, err := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
-		if err != nil {
-			return err
-		}
-	case "scram-sha-512":
-		_, err := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", o.SASL.Mechanism)
-	}
-
-	switch o.PartitionBalancer {
-	case "label":
-		if len(o.PartitionLabel) == 0 {
-			return errors.New("PartitionLabel requires for label balancer")
-		}
-	case "round-robin":
-	case "least-bytes":
-	case "fnv-1a":
-	case "fnv-1a-reference":
-	case "consistent-random":
-	case "consistent":
-	case "murmur2-random":
-	case "murmur2":
-	default:
-		return fmt.Errorf("unknown balancer: %v", o.PartitionBalancer)
+	if _, err := o.newWriter(""); err != nil {
+		return err
 	}
 
 	o.writersPool = &writersPool{
@@ -151,7 +103,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				maxAttempts:       o.MaxAttempts,
 				retryAfter:        o.RetryAfter,
 				input:             make(chan *core.Event),
-				writer:            o.newWriter(topic),
+				writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
 				batcher:           o.Batcher,
 				log:               o.log,
 				ser:               o.ser,
@@ -165,6 +117,104 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	}
 
 	return nil
+}
+
+func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
+	writer := &kafka.Writer{
+		Topic:                  topic,
+		Addr:                   kafka.TCP(o.Brokers...),
+		BatchSize:              o.Batcher.Buffer,
+		AllowAutoTopicCreation: o.TopicsAutocreate,
+		WriteTimeout:           o.WriteTimeout,
+		BatchTimeout:           o.BatchTimeout,
+		BatchBytes:             o.MaxMessageSize,
+		MaxAttempts:            1,
+		Logger:                 common.NewLogger(o.log),
+		ErrorLogger:            common.NewErrorLogger(o.log),
+	}
+
+	transport := &kafka.Transport{
+		DialTimeout: o.DialTimeout,
+		ClientID:    o.ClientId,
+	}
+
+	switch o.RequiredAcks {
+	case "none":
+		writer.RequiredAcks = kafka.RequireNone
+	case "one":
+		writer.RequiredAcks = kafka.RequireOne
+	case "all":
+		writer.RequiredAcks = kafka.RequireAll
+	default:
+		return nil, fmt.Errorf("unknown ack mode: %v; expected one of: none, one, all", o.RequiredAcks)
+	}
+
+	switch o.Compression {
+	case "none":
+		writer.Compression = compress.None
+	case "gzip":
+		writer.Compression = compress.Gzip
+	case "snappy":
+		writer.Compression = compress.Snappy
+	case "lz4":
+		writer.Compression = compress.Lz4
+	case "zstd":
+		writer.Compression = compress.Zstd
+	default:
+		return nil, fmt.Errorf("unknown compression algorithm: %v; expected one of: gzip, snappy, lz4, zstd", o.Compression)
+	}
+
+	switch o.SASL.Mechanism {
+	case "none":
+	case "plain":
+		transport.SASL = &plain.Mechanism{
+			Username: o.SASL.Username,
+			Password: o.SASL.Password,
+		}
+	case "scram-sha-256":
+		m, err := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
+		if err != nil {
+			return nil, err
+		}
+		transport.SASL = m
+	case "scram-sha-512":
+		m, err := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
+		if err != nil {
+			return nil, err
+		}
+		transport.SASL = m
+	default:
+		return nil, fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", o.SASL.Mechanism)
+	}
+
+	switch o.PartitionBalancer {
+	case "label":
+		if len(o.PartitionLabel) == 0 {
+			return nil, errors.New("PartitionLabel requires for label balancer")
+		}
+		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.log}
+	case "round-robin":
+		writer.Balancer = &kafka.RoundRobin{}
+	case "least-bytes":
+		writer.Balancer = &kafka.LeastBytes{}
+	case "fnv-1a":
+		writer.Balancer = &kafka.Hash{}
+	case "fnv-1a-reference":
+		writer.Balancer = &kafka.ReferenceHash{}
+	case "consistent-random":
+		writer.Balancer = &kafka.CRC32Balancer{}
+	case "consistent":
+		writer.Balancer = &kafka.CRC32Balancer{Consistent: true}
+	case "murmur2-random":
+		writer.Balancer = &kafka.Murmur2Balancer{}
+	case "murmur2":
+		writer.Balancer = &kafka.Murmur2Balancer{Consistent: true}
+	default:
+		return nil, fmt.Errorf("unknown balancer: %v", o.PartitionBalancer)
+	}
+
+	writer.Transport = transport
+	return writer, nil
 }
 
 func (o *Kafka) Prepare(in <-chan *core.Event) {
@@ -204,87 +254,6 @@ func (o *Kafka) Close() error {
 
 func (o *Kafka) Alias() string {
 	return o.alias
-}
-
-func (o *Kafka) newWriter(topic string) *kafka.Writer {
-	writer := &kafka.Writer{
-		Topic:                  topic,
-		Addr:                   kafka.TCP(o.Brokers...),
-		BatchSize:              o.Batcher.Buffer,
-		AllowAutoTopicCreation: o.TopicsAutocreate,
-		WriteTimeout:           o.WriteTimeout,
-		BatchTimeout:           o.BatchTimeout,
-		BatchBytes:             o.MaxMessageSize,
-		MaxAttempts:            1,
-		Logger:                 common.NewLogger(o.log),
-		ErrorLogger:            common.NewErrorLogger(o.log),
-	}
-
-	transport := &kafka.Transport{
-		DialTimeout: o.DialTimeout,
-		ClientID:    o.ClientId,
-	}
-
-	switch o.RequiredAcks {
-	case "none":
-		writer.RequiredAcks = kafka.RequireNone
-	case "one":
-		writer.RequiredAcks = kafka.RequireOne
-	case "all":
-		writer.RequiredAcks = kafka.RequireAll
-	}
-
-	switch o.Compression {
-	case "none":
-		writer.Compression = compress.None
-	case "gzip":
-		writer.Compression = compress.Gzip
-	case "snappy":
-		writer.Compression = compress.Snappy
-	case "lz4":
-		writer.Compression = compress.Lz4
-	case "zstd":
-		writer.Compression = compress.Zstd
-	}
-
-	switch o.SASL.Mechanism {
-	case "none":
-	case "plain":
-		transport.SASL = &plain.Mechanism{
-			Username: o.SASL.Username,
-			Password: o.SASL.Password,
-		}
-	case "scram-sha-256":
-		m, _ := scram.Mechanism(scram.SHA256, o.SASL.Username, o.SASL.Password)
-		transport.SASL = m
-	case "scram-sha-512":
-		m, _ := scram.Mechanism(scram.SHA512, o.SASL.Username, o.SASL.Password)
-		transport.SASL = m
-	}
-
-	switch o.PartitionBalancer {
-	case "label":
-		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.log}
-	case "round-robin":
-		writer.Balancer = &kafka.RoundRobin{}
-	case "least-bytes":
-		writer.Balancer = &kafka.LeastBytes{}
-	case "fnv-1a":
-		writer.Balancer = &kafka.Hash{}
-	case "fnv-1a-reference":
-		writer.Balancer = &kafka.ReferenceHash{}
-	case "consistent-random":
-		writer.Balancer = &kafka.CRC32Balancer{}
-	case "consistent":
-		writer.Balancer = &kafka.CRC32Balancer{Consistent: true}
-	case "murmur2-random":
-		writer.Balancer = &kafka.Murmur2Balancer{}
-	case "murmur2":
-		writer.Balancer = &kafka.Murmur2Balancer{Consistent: true}
-	}
-
-	writer.Transport = transport
-	return writer
 }
 
 type labelBalancer struct {

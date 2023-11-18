@@ -50,7 +50,7 @@ FETCH_LOOP:
 		now := time.Now()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				r.log.Debug(fmt.Sprintf("consumer context for topic %v canceled", r.topic))
+				r.log.Debug(fmt.Sprintf("consumer for topic %v context canceled", r.topic))
 				break FETCH_LOOP
 			}
 
