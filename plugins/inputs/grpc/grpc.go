@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
@@ -322,17 +321,14 @@ func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
 	}
 	e := events[0]
 
-	id, err := uuid.Parse(event.GetId())
-	if err != nil {
-		return nil, fmt.Errorf("id parsing failed: %w", err)
-	}
-	e.Id = id
-
 	timestamp, err := time.Parse(time.RFC3339Nano, event.GetTimestamp())
 	if err != nil {
 		return nil, fmt.Errorf("timestamp parsing failed: %w", err)
 	}
 	e.Timestamp = timestamp
+
+	
+	e.Id = event.GetId()
 
 	for k, v := range event.GetLabels() {
 		e.AddLabel(k, v)

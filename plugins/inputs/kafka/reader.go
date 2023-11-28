@@ -30,7 +30,8 @@ type topicReader struct {
 
 	reader *kafka.Reader
 	sem    *commitSemaphore
-	cQueue *orderedmap.OrderedMap[int64, kafka.Message]
+	cQueue *orderedmap.OrderedMap[int64, *kafka.Message]
+	cMutex *sync.Mutex
 
 	out    chan<- *core.Event
 	log    *slog.Logger
@@ -84,9 +85,35 @@ FETCH_LOOP:
 				}
 			}
 
-			// HERE ADD TRACKER TO EVENT
+			msg.WriterData = false // (un)boxing may affect performance 
+			r.sem.Add() // increase semaphore
+			r.cMutex.Lock()
+			r.cQueue.Set(msg.Offset, &msg) // add message to queue
+			r.cMutex.Unlock()
+			e.SetHook(func(offset any) { // set hook to tracker
+				r.cMutex.Lock()
+				if m, ok := r.cQueue.Get(offset.(int64)); ok {
+					m.WriterData = true
+				}
 
-			r.sem.Add() // <- ?????
+				var commitCandidates []kafka.Message
+				for pair := r.cQueue.Oldest(); pair != nil; pair = pair.Next() {
+					if !pair.Value.WriterData.(bool) {
+						break
+					}
+					commitCandidates = append(commitCandidates, *pair.Value)
+				}
+
+				if len(commitCandidates) > 0 {
+					r.reader.CommitMessages(context.Background(), commitCandidates...)
+
+					for _, m := range commitCandidates {
+
+					}
+				}
+				r.cMutex.Unlock()
+			}, msg.Offset)
+
 			r.out <- e
 			r.log.Debug("event accepted",
 				slog.Group("event",

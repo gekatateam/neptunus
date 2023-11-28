@@ -8,7 +8,7 @@ import (
 )
 
 type Event struct {
-	Id         uuid.UUID
+	Id         string
 	Timestamp  time.Time
 	RoutingKey string
 	Tags       []string
@@ -21,7 +21,7 @@ type Event struct {
 
 func NewEvent(routingKey string) *Event {
 	return &Event{
-		Id:         uuid.New(),
+		Id:         uuid.New().String(),
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
@@ -33,7 +33,7 @@ func NewEvent(routingKey string) *Event {
 
 func NewEventWithData(routingKey string, data Map) *Event {
 	return &Event{
-		Id:         uuid.New(),
+		Id:         uuid.New().String(),
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
@@ -84,7 +84,7 @@ func (e *Event) StackError(err error) {
 
 func (e *Event) Copy() *Event {
 	event := &Event{
-		Id:         uuid.New(),
+		Id:         uuid.New().String(),
 		Timestamp:  e.Timestamp,
 		RoutingKey: e.RoutingKey,
 		Tags:       make([]string, len(e.Tags)),

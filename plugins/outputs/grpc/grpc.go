@@ -344,7 +344,7 @@ MAIN_LOOP:
 					Labels:     e.Labels,
 					Data:       event,
 					Tags:       e.Tags,
-					Id:         e.Id.String(),
+					Id:         e.Id,
 					Errors:     e.Errors.Slice(),
 					Timestamp:  e.Timestamp.Format(time.RFC3339Nano),
 				})

@@ -1,7 +1,7 @@
 # Neptunus data model
 
 The Neptunus engine works with events - single data frames. An event is a structure with seven main fields:
- - **Id** - UUID of an event, which is usually generated when an event is created.
+ - **Id** - unique ID of an event, which is usually generated when an event is created.
  - **Timestamp** - the time an event was created.
  - **Routing key** - an event key, which should be used for events routing inside a pipeline and in outer world; usually it is a queue/topic name, URL path, etc.
  - **Labels** - an event metadata map, which are used for routing with routing key; think of this as an event headers.

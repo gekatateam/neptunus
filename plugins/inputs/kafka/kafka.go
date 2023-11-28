@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -86,6 +87,8 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	if i.MaxUncommitted <= 0 {
 		i.MaxUncommitted = 100
 	}
+
+	i.Topics = slices.Compact(i.Topics)
 
 	var offset int64
 	switch i.StartOffset {
@@ -173,9 +176,10 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				ch: make(chan struct{}, i.MaxUncommitted),
 				wg: &sync.WaitGroup{},
 			},
-			cQueue: orderedmap.New[int64, kafka.Message](
-				orderedmap.WithCapacity[int64, kafka.Message](i.MaxUncommitted),
+			cQueue: orderedmap.New[int64, *kafka.Message](
+				orderedmap.WithCapacity[int64, *kafka.Message](i.MaxUncommitted),
 			),
+			cMutex: &sync.Mutex{},
 			log:    log,
 		}
 	}
@@ -199,8 +203,8 @@ func (i *Kafka) SetParser(p core.Parser) {
 
 func (i *Kafka) Run() {
 	for _, reader := range i.readersPool {
+		i.wg.Add(1)
 		go func(r *topicReader) {
-			i.wg.Add(1)
 			defer i.wg.Done()
 			r.Run(i.fetchCtx)
 		}(reader)
