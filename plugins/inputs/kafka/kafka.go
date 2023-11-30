@@ -16,6 +16,7 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
@@ -172,12 +173,9 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				Logger:                common.NewLogger(log),
 				ErrorLogger:           common.NewErrorLogger(log),
 			}),
-			sem: &commitSemaphore{
-				ch: make(chan struct{}, i.MaxUncommitted),
-				wg: &sync.WaitGroup{},
-			},
-			cQueue: orderedmap.New[int64, *kafka.Message](
-				orderedmap.WithCapacity[int64, *kafka.Message](i.MaxUncommitted),
+			sem: limitedwaitgroup.New(i.MaxUncommitted),
+			cQueue: orderedmap.New[int64, *trackedMessage](
+				orderedmap.WithCapacity[int64, *trackedMessage](i.MaxUncommitted),
 			),
 			cMutex: &sync.Mutex{},
 			log:    log,
@@ -215,7 +213,6 @@ func (i *Kafka) Run() {
 
 func (i *Kafka) Close() error {
 	i.cancelFunc()
-	i.wg.Wait()
 	return nil
 }
 

@@ -9,12 +9,18 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
-	"github.com/wk8/go-ordered-map/v2"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
+
+type trackedMessage struct {
+	kafka.Message
+	delivered bool
+}
 
 type readersPool map[string]*topicReader
 
@@ -29,8 +35,8 @@ type topicReader struct {
 	labelHeaders  map[string]string
 
 	reader *kafka.Reader
-	sem    *commitSemaphore
-	cQueue *orderedmap.OrderedMap[int64, *kafka.Message]
+	sem    *limitedwaitgroup.LimitedWaitGroup
+	cQueue *orderedmap.OrderedMap[int64, *trackedMessage]
 	cMutex *sync.Mutex
 
 	out    chan<- *core.Event
@@ -85,32 +91,38 @@ FETCH_LOOP:
 				}
 			}
 
-			msg.WriterData = false // (un)boxing may affect performance 
 			r.sem.Add() // increase semaphore
 			r.cMutex.Lock()
-			r.cQueue.Set(msg.Offset, &msg) // add message to queue
+			r.cQueue.Store(msg.Offset, &trackedMessage{
+				Message:   msg,
+				delivered: false,
+			}) // add message to queue
 			r.cMutex.Unlock()
+
 			e.SetHook(func(offset any) { // set hook to tracker
 				r.cMutex.Lock()
 				if m, ok := r.cQueue.Get(offset.(int64)); ok {
-					m.WriterData = true
+					m.delivered = true
 				}
 
-				var commitCandidates []kafka.Message
+				var commitCandidate *kafka.Message
 				for pair := r.cQueue.Oldest(); pair != nil; pair = pair.Next() {
-					if !pair.Value.WriterData.(bool) {
+					if !pair.Value.delivered {
 						break
 					}
-					commitCandidates = append(commitCandidates, *pair.Value)
+					commitCandidate = &pair.Value.Message
 				}
 
-				if len(commitCandidates) > 0 {
-					r.reader.CommitMessages(context.Background(), commitCandidates...)
+				if commitCandidate != nil {
+					r.reader.CommitMessages(context.Background(), *commitCandidate)
 
-					for _, m := range commitCandidates {
-
+					for pair := r.cQueue.Oldest(); pair != nil; pair = pair.Next() {
+						if pair.Key <= commitCandidate.Offset {
+							r.cQueue.Delete(pair.Key)
+						}
 					}
 				}
+				
 				r.cMutex.Unlock()
 			}, msg.Offset)
 
@@ -140,31 +152,4 @@ FETCH_LOOP:
 	if r.enableMetrics {
 		kafkastats.UnregisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId)
 	}
-}
-
-type commitSemaphore struct {
-	ch chan struct{}
-	wg *sync.WaitGroup
-}
-
-func (s *commitSemaphore) Add() {
-	s.ch <- struct{}{}
-	s.wg.Add(1)
-}
-
-func (s *commitSemaphore) Done() {
-	<-s.ch
-	s.wg.Done()
-}
-
-func (s *commitSemaphore) Len() int {
-	return len(s.ch)
-}
-
-func (s *commitSemaphore) Cap() int {
-	return cap(s.ch)
-}
-
-func (s *commitSemaphore) Wait() {
-	s.wg.Wait()
 }
