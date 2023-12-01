@@ -100,11 +100,11 @@ FETCH_LOOP:
 			r.cMutex.Unlock()
 
 			e.SetHook(func(offset any) { // set hook to tracker
-				r.cMutex.Lock()
+				r.cMutex.Lock() 
 				if m, ok := r.cQueue.Get(offset.(int64)); ok {
 					m.delivered = true
 				}
-
+				// это следует выполнять в отдельной горутине по шедулеру
 				var commitCandidate *kafka.Message
 				for pair := r.cQueue.Oldest(); pair != nil; pair = pair.Next() {
 					if !pair.Value.delivered {
@@ -114,7 +114,14 @@ FETCH_LOOP:
 				}
 
 				if commitCandidate != nil {
-					r.reader.CommitMessages(context.Background(), *commitCandidate)
+				BEFORE_COMMIT: // есть много вопросов к обработке ошибок, в т.ч. при перебалансировке консьюмеров
+					if err := r.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
+						r.log.Error("offset commit failed, stream locked until successfull commit", 
+							"error", err,
+						)
+						time.Sleep(time.Second)
+						goto BEFORE_COMMIT
+					}
 
 					for pair := r.cQueue.Oldest(); pair != nil; pair = pair.Next() {
 						if pair.Key <= commitCandidate.Offset {
