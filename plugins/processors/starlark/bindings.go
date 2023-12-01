@@ -202,14 +202,6 @@ func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 	return starlark.Bool(b.Receiver().(*_event).event.HasTag(tag)), nil
 }
 
-func copyEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
-	// }
-
-	return &_event{event: b.Receiver().(*_event).event.Copy()}, nil
-}
-
 func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())

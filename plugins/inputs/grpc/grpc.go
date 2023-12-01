@@ -22,6 +22,7 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
@@ -32,6 +33,7 @@ type Grpc struct {
 	Address       string            `mapstructure:"address"`
 	ServerOptions ServerOptions     `mapstructure:"server_options"`
 	LabelMetadata map[string]string `mapstructure:"labelmetadata"`
+	*ider.Ider                      `mapstructure:",squash"`
 
 	server   *grpc.Server
 	listener net.Listener
@@ -309,6 +311,8 @@ func (i *Grpc) unpackData(ctx context.Context, data *common.Data, defaultkey str
 				e.AddLabel(k, strings.Join(val, ";"))
 			}
 		}
+
+		i.Ider.Apply(e)
 	}
 
 	return events, nil
@@ -359,6 +363,7 @@ func init() {
 				InactiveTransportPing: 0,
 				InactiveTransportAge:  0,
 			},
+			Ider: &ider.Ider{},
 		}
 	})
 }

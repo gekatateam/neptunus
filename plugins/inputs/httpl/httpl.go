@@ -16,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
@@ -28,6 +29,7 @@ type Httpl struct {
 	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
 	MaxConnections int               `mapstructure:"max_connections"`
 	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
+	*ider.Ider                       `mapstructure:",squash"`
 
 	server   *http.Server
 	listener net.Listener
@@ -166,6 +168,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			i.Ider.Apply(event)
 			i.out <- event
 			i.log.Debug("event accepted",
 				slog.Group("event",
@@ -195,6 +198,7 @@ func init() {
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxConnections: 0,
+			Ider:           &ider.Ider{},
 		}
 	})
 }

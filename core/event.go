@@ -82,7 +82,7 @@ func (e *Event) StackError(err error) {
 	e.Errors = append(e.Errors, err)
 }
 
-func (e *Event) Copy() *Event {
+func (e *Event) copy() *Event {
 	event := &Event{
 		Id:         uuid.New().String(),
 		Timestamp:  e.Timestamp,

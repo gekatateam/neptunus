@@ -23,7 +23,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
  - `DeleteField(key string) (any, error)` - delete field from event; if field does not exist, error returns
  - `AppendFields(data Map)` - append fields to the root of data map
  - `Clone() *Event` - clone event
- - `Copy() *Event` - copy event; new Id and Timestamp will be generated
+<!-- - `Copy() *Event` - copy event; new Id and Timestamp will be generated -->
  - `Done()` - mark event as delivered, deleted from pipeline or finally failed
  - `StackError(err error)` - add error to event
 

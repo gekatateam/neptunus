@@ -59,7 +59,7 @@ func (p *Copy) Run() {
 	for e := range p.in {
 		now := time.Now()
 
-		copy := e.Copy()
+		copy := e.Clone()
 		copy.RoutingKey = p.RoutingKey
 		for k, v := range p.Labels {
 			copy.AddLabel(k, v)

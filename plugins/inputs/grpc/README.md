@@ -22,6 +22,13 @@ Plugin behavoiur depends on the procedure being called:
     # address and port to host HTTP/2 listener on
     address = ":5800"
 
+    # only using in SendOne and SendBulk RPCs
+    # if configured, and field/label exists, an event id will overwritten
+    # by field/label data
+    # if both are set, only field will be checked
+    id_field = "path.to.id"
+    id_label = "id"
+
     # gRPC server options
     [inputs.grpc.server_options]
       # max size of input and output messages in bytes

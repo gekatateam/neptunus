@@ -10,6 +10,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 )
 
 type Parser struct {
@@ -19,6 +20,7 @@ type Parser struct {
 	From       string `mapstructure:"from"`
 	To         string `mapstructure:"to"`
 	DropOrigin bool   `mapstructure:"drop_origin"`
+	*ider.Ider        `mapstructure:",squash"`
 
 	parser core.Parser
 	in     <-chan *core.Event
@@ -114,19 +116,22 @@ MAIN_LOOP:
 				// here we using origin event copy instead of
 				// one of returned by parser because it's easyest way
 				// to copy origin labels and tags
-				event := e.Copy()
+				// and make sure than payload
+				// will be tracked as well
+				event := e.Clone()
 				event.Data = donor.Data
+				p.Ider.Apply(event)
 				p.out <- event
 			}
-			if !p.DropOrigin {
-				p.out <- e
-			} else {
+			if p.DropOrigin {
 				e.Done()
+			} else {
+				p.out <- e
 			}
 			p.log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		case "merge":
 			for _, donor := range events {
-				event := e.Copy()
+				event := e.Clone()
 				if p.DropOrigin {
 					event.DeleteField(p.From)
 				}
@@ -167,6 +172,7 @@ func init() {
 			Behaviour:  "merge",
 			DropOrigin: true,
 			To:         "",
+			Ider:       &ider.Ider{},
 		}
 	})
 }
