@@ -104,7 +104,7 @@ FETCH_LOOP:
 				if m, ok := r.cQueue.Get(offset.(int64)); ok {
 					m.delivered = true
 				}
-				// это следует выполнять в отдельной горутине по шедулеру
+				// всё, что дальше, следует выполнять в отдельной горутине по шедулеру
 				var commitCandidate *kafka.Message
 				for pair := r.cQueue.Oldest(); pair != nil; pair = pair.Next() {
 					if !pair.Value.delivered {
@@ -158,5 +158,72 @@ FETCH_LOOP:
 
 	if r.enableMetrics {
 		kafkastats.UnregisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId)
+	}
+}
+
+type commitController struct {
+	cQueue *orderedmap.OrderedMap[int64, *trackedMessage]
+	reader *kafka.Reader
+
+	fetchCh chan kafka.Message
+	doneCh  chan int64
+
+	log *slog.Logger
+}
+
+func (c *commitController) watch() {
+WATCH_LOOP:
+	for {
+		select {
+		case msg, ok := <- c.fetchCh:
+			if !ok {
+				c.fetchCh = nil
+				continue WATCH_LOOP
+			}
+
+			// add message to queue
+			c.cQueue.Store(msg.Offset, &trackedMessage{
+				Message:   msg,
+				delivered: false,
+			}) 
+		case offset, ok := <- c.doneCh:
+			if !ok {
+				c.doneCh = nil
+				continue WATCH_LOOP
+			}
+
+			// mark message as delivered
+			if m, ok := c.cQueue.Get(offset); ok {
+				m.delivered = true
+			}
+
+			// find the longest uncommitted sequence
+			var commitCandidate *kafka.Message
+			for pair := c.cQueue.Oldest(); pair != nil; pair = pair.Next() {
+				if !pair.Value.delivered {
+					break
+				}
+				commitCandidate = &pair.Value.Message
+			}
+
+			if commitCandidate != nil {
+			BEFORE_COMMIT:
+				if err := c.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
+					c.log.Error("offset commit failed", 
+						"error", err,
+					)
+					time.Sleep(time.Second)
+					goto BEFORE_COMMIT
+				}
+
+				for pair := c.cQueue.Oldest(); pair != nil; pair = pair.Next() {
+					if pair.Key <= commitCandidate.Offset {
+						c.cQueue.Delete(pair.Key)
+					}
+				}
+			}
+		default:
+			// 
+		}
 	}
 }
