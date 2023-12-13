@@ -16,7 +16,7 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
+	//	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
@@ -43,10 +43,11 @@ type Kafka struct {
 	SASL              SASL              `mapstructure:"sasl"`
 	LabelHeaders      map[string]string `mapstructure:"labelheaders"`
 
-	readersPool map[string]*topicReader
-	fetchCtx    context.Context
-	cancelFunc  context.CancelFunc
-	wg          *sync.WaitGroup
+	readersPool    map[string]*topicReader
+	commitConsPool map[string]*commitController
+	fetchCtx       context.Context
+	cancelFunc     context.CancelFunc
+	wg             *sync.WaitGroup
 
 	log    *slog.Logger
 	parser core.Parser
@@ -70,6 +71,9 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
+			for _, v := range i.readersPool {
+				v.reader.Close()
+			}
 		}
 	}()
 
@@ -85,21 +89,11 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("group_id required")
 	}
 
-	if i.MaxUncommitted <= 0 {
+	if i.MaxUncommitted < 0 {
 		i.MaxUncommitted = 100
 	}
 
 	i.Topics = slices.Compact(i.Topics)
-
-	var offset int64
-	switch i.StartOffset {
-	case "first":
-		offset = kafka.FirstOffset
-	case "last":
-		offset = kafka.LastOffset
-	default:
-		return fmt.Errorf("unknown offset: %v; expected one of: first, last", i.StartOffset)
-	}
 
 	for _, topic := range i.Topics {
 		var m sasl.Mechanism
@@ -125,6 +119,16 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", i.SASL.Mechanism)
 		}
 
+		var offset int64
+		switch i.StartOffset {
+		case "first":
+			offset = kafka.FirstOffset
+		case "last":
+			offset = kafka.LastOffset
+		default:
+			return fmt.Errorf("unknown offset: %v; expected one of: first, last", i.StartOffset)
+		}
+
 		var groupBalancer kafka.GroupBalancer
 		switch i.GroupBalancer {
 		case "range":
@@ -142,6 +146,38 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
 		}
 
+		var (
+			fetchCh  = make(chan kafka.Message)
+			commitCh = make(chan int64)
+			exitCh   = make(chan struct{})
+			doneCh   = make(chan struct{})
+			semCh    = make(chan struct{}, i.MaxUncommitted)
+		)
+
+		reader := kafka.NewReader(kafka.ReaderConfig{
+			Brokers: i.Brokers,
+			GroupID: i.GroupId,
+			Topic:   topic,
+			Dialer: &kafka.Dialer{
+				ClientID:      i.ClientId,
+				DualStack:     true,
+				Timeout:       i.DialTimeout,
+				SASLMechanism: m,
+			},
+			MaxBytes:              i.MaxBatchSize,
+			QueueCapacity:         1,
+			MaxAttempts:           1,
+			WatchPartitionChanges: true,
+			StartOffset:           offset,
+			HeartbeatInterval:     i.HeartbeatInterval,
+			SessionTimeout:        i.SessionTimeout,
+			RebalanceTimeout:      i.RebalanceTimeout,
+			RetentionTime:         i.GroupTTL,
+			GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
+			Logger:                common.NewLogger(log),
+			ErrorLogger:           common.NewErrorLogger(log),
+		})
+
 		i.readersPool[topic] = &topicReader{
 			alias:         i.alias,
 			pipe:          i.pipe,
@@ -150,35 +186,29 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			clientId:      i.ClientId,
 			enableMetrics: i.EnableMetrics,
 			labelHeaders:  i.LabelHeaders,
-			reader: kafka.NewReader(kafka.ReaderConfig{
-				Brokers: i.Brokers,
-				GroupID: i.GroupId,
-				Topic:   topic,
-				Dialer: &kafka.Dialer{
-					ClientID:      i.ClientId,
-					DualStack:     true,
-					Timeout:       i.DialTimeout,
-					SASLMechanism: m,
-				},
-				MaxBytes:              i.MaxBatchSize,
-				QueueCapacity:         1,
-				MaxAttempts:           1,
-				WatchPartitionChanges: true,
-				StartOffset:           offset,
-				HeartbeatInterval:     i.HeartbeatInterval,
-				SessionTimeout:        i.SessionTimeout,
-				RebalanceTimeout:      i.RebalanceTimeout,
-				RetentionTime:         i.GroupTTL,
-				GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
-				Logger:                common.NewLogger(log),
-				ErrorLogger:           common.NewErrorLogger(log),
-			}),
-			sem: limitedwaitgroup.New(i.MaxUncommitted),
-			cQueue: orderedmap.New[int64, *trackedMessage](
+			parser:        i.parser,
+
+			commitSemaphore: semCh,
+			reader:          reader,
+			fetchCh:         fetchCh,
+			commitCh:        commitCh,
+			exitCh:          exitCh,
+			doneCh:          doneCh,
+			log:             log,
+		}
+
+		i.commitConsPool[topic] = &commitController{
+			commitQueue: orderedmap.New[int64, *trackedMessage](
 				orderedmap.WithCapacity[int64, *trackedMessage](i.MaxUncommitted),
 			),
-			cMutex: &sync.Mutex{},
-			log:    log,
+			commitSemaphore: semCh,
+
+			reader:   reader,
+			fetchCh:  fetchCh,
+			commitCh: commitCh,
+			exitCh:   exitCh,
+			doneCh:   doneCh,
+			log:      log,
 		}
 	}
 
@@ -194,18 +224,22 @@ func (i *Kafka) Prepare(out chan<- *core.Event) {
 }
 
 func (i *Kafka) SetParser(p core.Parser) {
-	for _, reader := range i.readersPool {
-		reader.parser = p
-	}
+	i.parser = p
 }
 
 func (i *Kafka) Run() {
-	for _, reader := range i.readersPool {
+	for topic := range i.readersPool {
 		i.wg.Add(1)
 		go func(r *topicReader) {
 			defer i.wg.Done()
 			r.Run(i.fetchCtx)
-		}(reader)
+		}(i.readersPool[topic])
+
+		i.wg.Add(1)
+		go func(c *commitController) {
+			defer i.wg.Done()
+			c.watch()
+		}(i.commitConsPool[topic])
 	}
 
 	i.wg.Wait()
@@ -237,8 +271,9 @@ func init() {
 				Mechanism: "none",
 			},
 
-			readersPool: make(map[string]*topicReader),
-			wg:          &sync.WaitGroup{},
+			readersPool:    make(map[string]*topicReader),
+			commitConsPool: make(map[string]*commitController),
+			wg:             &sync.WaitGroup{},
 		}
 	})
 }

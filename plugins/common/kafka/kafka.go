@@ -32,6 +32,6 @@ func (l *kafkaLogger) Printf(msg string, args ...any) {
 	if l.isErr {
 		l.log.Error(fmt.Sprintf(msg, args...))
 	} else {
-		l.log.Info(fmt.Sprintf(msg, args...))
+		l.log.Debug(fmt.Sprintf(msg, args...))
 	}
 }

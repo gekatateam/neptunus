@@ -12,7 +12,8 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
+
+	//	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
@@ -34,10 +35,11 @@ type topicReader struct {
 	labelHeaders  map[string]string
 
 	reader          *kafka.Reader
-	commitSemaphore *limitedwaitgroup.LimitedWaitGroup
+	commitSemaphore chan struct{}
 
 	fetchCh  chan kafka.Message
 	commitCh chan int64
+	exitCh   chan struct{}
 	doneCh   chan struct{}
 
 	out    chan<- *core.Event
@@ -69,6 +71,8 @@ FETCH_LOOP:
 			continue FETCH_LOOP
 		}
 
+		r.log.Debug("message fetched")
+
 		events, err := r.parser.Parse(msg.Value, r.topic)
 		if err != nil {
 			r.log.Error("parser error",
@@ -92,9 +96,9 @@ FETCH_LOOP:
 				}
 			}
 
-			r.commitSemaphore.Add() // increase semaphore
+			r.commitSemaphore <- struct{}{}
 			r.fetchCh <- msg
-			e.SetHook(func(offset any) { // set hook to tracker
+			e.SetHook(func(offset any) {
 				r.commitCh <- offset.(int64)
 			}, msg.Offset)
 
@@ -110,10 +114,11 @@ FETCH_LOOP:
 		}
 	}
 
-	r.log.Info(fmt.Sprintf("consumer for topic %v done, waiting for %v events delivery", r.topic, r.commitSemaphore.Len()))
-	r.doneCh <- struct{}{}
-	r.commitSemaphore.Wait()
+	r.log.Info(fmt.Sprintf("consumer for topic %v done, waiting for events delivery", r.topic))
+	r.exitCh <- struct{}{}
+	<-r.doneCh
 
+	r.log.Info("commit queue is empty now, closing consumer")
 	if err := r.reader.Close(); err != nil {
 		r.log.Warn(fmt.Sprintf("consumer for topic %v closed with error", r.topic),
 			"error", err,
@@ -130,25 +135,22 @@ FETCH_LOOP:
 type commitController struct {
 	reader           *kafka.Reader
 	commitQueue      *orderedmap.OrderedMap[int64, *trackedMessage]
-	commitSemaphore  *limitedwaitgroup.LimitedWaitGroup
+	commitSemaphore  chan struct{} // max uncommitted control
 	exitIfQueueEmpty bool
 
-	fetchCh  chan kafka.Message
-	commitCh chan int64
-	doneCh   chan struct{}
+	fetchCh  chan kafka.Message // for new messages to push in commitQueue
+	commitCh chan int64         // for offsets that ready to be committed
+	exitCh   chan struct{}      // for exit preparation signal
+	doneCh   chan struct{}      // done signal, channel will be closed just before watch() returns
 
 	log *slog.Logger
 }
 
 func (c *commitController) watch() {
-	//WATCH_LOOP:
 	for {
 		select {
 		case msg, _ := <-c.fetchCh: // new message fetched
-			// if !ok {
-			// 	c.fetchCh = nil
-			// 	continue WATCH_LOOP
-			// }
+			c.log.Debug(fmt.Sprintf("accepted msg with offset: %v", msg.Offset))
 
 			// add message to queue
 			c.commitQueue.Store(msg.Offset, &trackedMessage{
@@ -156,26 +158,29 @@ func (c *commitController) watch() {
 				delivered: false,
 			})
 		case offset, _ := <-c.commitCh: // an event delivered
-			// if !ok {
-			// 	c.commitCh = nil
-			// 	continue WATCH_LOOP
-			// }
+			c.log.Debug(fmt.Sprintf("got delivered offset: %v", offset))
 
 			// mark message as delivered
 			if m, ok := c.commitQueue.Get(offset); ok {
 				m.delivered = true
+			} else { // normally it is never happens
+				c.log.Error("unexpected case, delivered offset is not in queue; please, report this issue")
 			}
 
+			// TODO: maybe it's better to do it on a schedule by ticker
 			// find the longest uncommitted sequence
+			var offsetsToDelete []int64
 			var commitCandidate *kafka.Message
 			for pair := c.commitQueue.Oldest(); pair != nil; pair = pair.Next() {
 				if !pair.Value.delivered {
 					break
 				}
 				commitCandidate = &pair.Value.Message
+				offsetsToDelete = append(offsetsToDelete, pair.Key)
 			}
 
 			if commitCandidate != nil {
+				c.log.Debug(fmt.Sprintf("got candidate with offset: %v", commitCandidate.Offset))
 			BEFORE_COMMIT:
 				if err := c.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
 					c.log.Error("offset commit failed",
@@ -185,21 +190,26 @@ func (c *commitController) watch() {
 					goto BEFORE_COMMIT
 				}
 
-				c.log.Debug(fmt.Sprintf("offset committed: %v", offset))
-
-				for pair := c.commitQueue.Oldest(); pair != nil; pair = pair.Next() {
-					if pair.Key <= commitCandidate.Offset {
-						c.commitQueue.Delete(pair.Key)
-						c.commitSemaphore.Done()
-					}
+				for _, v := range offsetsToDelete {
+					c.commitQueue.Delete(v)
+					<-c.commitSemaphore
+					c.log.Debug(fmt.Sprintf("offset deleted from queue: %v", v))
 				}
+
+				c.log.Debug(fmt.Sprintf("offset committed: %v, left in queue: %v, left in channel: %v",
+					commitCandidate.Offset, c.commitQueue.Len(), len(c.commitSemaphore)))
 			}
 
 			if c.exitIfQueueEmpty && c.commitQueue.Len() == 0 {
+				close(c.doneCh)
 				return
 			}
-		case <-c.doneCh: // reader context canceled
+		case <-c.exitCh:
 			c.exitIfQueueEmpty = true
+			if c.commitQueue.Len() == 0 {
+				close(c.doneCh)
+				return
+			}
 		}
 	}
 }
