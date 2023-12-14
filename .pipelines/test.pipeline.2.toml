@@ -7,24 +7,25 @@
 [[inputs]]
   [inputs.httpl]
     address = ":9300"
+    id_from = "field:type"
   [inputs.httpl.parser]
     type = "json"
   [inputs.httpl.filters.glob]
     alias = "t4"
 
-[[inputs]]
-  [inputs.kafka]
-    client_id = "kafka-one"
-    group_id = "neptunus.kafka.input6"
-    start_offset = "first"
-    brokers = ["localhost:9092"]
-    topics = [ "neptunus.kafka.output" ]
-    commit_interval = "1s"
-    max_uncommitted = 1_000
-  [inputs.kafka.sasl]
-    mechanism = "none"
-  [inputs.kafka.parser]
-    type = "json"
+# [[inputs]]
+#   [inputs.kafka]
+#     client_id = "kafka-one"
+#     group_id = "neptunus.kafka.input6"
+#     start_offset = "first"
+#     brokers = ["localhost:9092"]
+#     topics = [ "neptunus.kafka.output" ]
+#     commit_interval = "1s"
+#     max_uncommitted = 1_000
+#   [inputs.kafka.sasl]
+#     mechanism = "none"
+#   [inputs.kafka.parser]
+#     type = "json"
 
 [[processors]]
   [processors.log]
@@ -36,26 +37,26 @@
 [[processors]]
   [processors.rk.mapping]
     "/http.input.test" = [ "neptunus.kafka.output" ]
-    "neptunus.kafka.output" = [ "/http.input.test" ]
+    # "neptunus.kafka.output" = [ "/http.input.test" ]
 
-[[outputs]]
-  [outputs.kafka]
-    enable_metrics = true
-    client_id = "kafka-one"
-    brokers = ["localhost:9092"]
-    topics_autocreate = true
-    batch_timeout = "0s"
-    idle_timeout = "0s"
-    buffer = 400
-  [outputs.kafka.sasl]
-    mechanism = "none"
-  [outputs.kafka.headerlabels]
-    input-from = "input"
-  [outputs.kafka.serializer]
-    type = "json"
-    data_only = true
-  [outputs.kafka.filters.glob]
-    routing_key = [ "neptunus.kafka.output" ] 
+# [[outputs]]
+#   [outputs.kafka]
+#     enable_metrics = true
+#     client_id = "kafka-one"
+#     brokers = ["localhost:9092"]
+#     topics_autocreate = true
+#     batch_timeout = "0s"
+#     idle_timeout = "0s"
+#     buffer = 400
+#   [outputs.kafka.sasl]
+#     mechanism = "none"
+#   [outputs.kafka.headerlabels]
+#     input-from = "input"
+#   [outputs.kafka.serializer]
+#     type = "json"
+#     data_only = true
+#   [outputs.kafka.filters.glob]
+#     routing_key = [ "neptunus.kafka.output" ] 
 
 [[outputs]]
   [outputs.log]

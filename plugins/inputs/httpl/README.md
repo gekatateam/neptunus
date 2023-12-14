@@ -28,11 +28,9 @@ This plugin produce events with routing key as request path, `server` label with
     # maximum duration before timing out write of the response
     write_timeout = "10s"
 
-    # if configured, and field/label exists, an event id will overwritten
-    # by field/label data
-    # if both are set, only field will be checked
-    id_field = "path.to.id"
-    id_label = "id"
+    # if configured an event id will be set by data from path
+    # expected format - "type:path"
+    id_from = "filed:path.to.id"
 
     # a "label name -> header" map
     # if request header exists, it will be saved as configured label

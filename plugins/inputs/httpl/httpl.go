@@ -52,6 +52,10 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("address required")
 	}
 
+	if err := i.Ider.Init(); err != nil {
+		return err
+	}
+
 	listener, err := net.Listen("tcp", i.Address)
 	if err != nil {
 		return fmt.Errorf("error creating listener: %v", err)

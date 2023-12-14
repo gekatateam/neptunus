@@ -85,6 +85,10 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	i.log = log
 	i.closeCh = make(chan struct{})
 
+	if err := i.Ider.Init(); err != nil {
+		return err
+	}
+
 	if len(i.Address) == 0 {
 		return errors.New("address required")
 	}

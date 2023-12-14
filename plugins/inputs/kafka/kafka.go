@@ -16,9 +16,9 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
-	//	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
 )
 
@@ -43,6 +43,7 @@ type Kafka struct {
 	CommitInterval    time.Duration     `mapstructure:"commit_interval"`
 	SASL              SASL              `mapstructure:"sasl"`
 	LabelHeaders      map[string]string `mapstructure:"labelheaders"`
+	*ider.Ider                          `mapstructure:",squash"`
 
 	readersPool    map[string]*topicReader
 	commitConsPool map[string]*commitController
@@ -88,6 +89,10 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	if len(i.GroupId) == 0 {
 		return errors.New("group_id required")
+	}
+
+	if err := i.Ider.Init(); err != nil {
+		return err
 	}
 
 	if i.MaxUncommitted < 0 {
@@ -188,6 +193,7 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			enableMetrics: i.EnableMetrics,
 			labelHeaders:  i.LabelHeaders,
 			parser:        i.parser,
+			ider:          i.Ider,
 
 			commitSemaphore: semCh,
 			reader:          reader,

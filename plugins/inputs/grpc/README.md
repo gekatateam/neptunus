@@ -23,11 +23,9 @@ Plugin behavoiur depends on the procedure being called:
     address = ":5800"
 
     # only using in SendOne and SendBulk RPCs
-    # if configured, and field/label exists, an event id will overwritten
-    # by field/label data
-    # if both are set, only field will be checked
-    id_field = "path.to.id"
-    id_label = "id"
+    # if configured an event id will be set by data from path
+    # expected format - "type:path"
+    id_from = "filed:path.to.id"
 
     # gRPC server options
     [inputs.grpc.server_options]

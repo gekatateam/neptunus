@@ -37,6 +37,10 @@ func (p *Parser) Init(config map[string]any, alias, pipeline string, log *slog.L
 		return errors.New("target field required")
 	}
 
+	if err := p.Ider.Init(); err != nil {
+		return err
+	}
+
 	switch p.Behaviour {
 	case "merge", "produce":
 	default:

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
@@ -38,6 +39,7 @@ type topicReader struct {
 	out    chan<- *core.Event
 	log    *slog.Logger
 	parser core.Parser
+	ider   *ider.Ider
 }
 
 func (r *topicReader) Run(rCtx context.Context) {
@@ -95,6 +97,7 @@ FETCH_LOOP:
 				r.commitCh <- offset.(int64)
 			}, msg.Offset)
 
+			r.ider.Apply(e)
 			r.out <- e
 			r.log.Debug("event accepted",
 				slog.Group("event",

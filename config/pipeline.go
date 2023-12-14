@@ -65,6 +65,18 @@ func (p Plugin) Type() string {
 	return typeStr
 }
 
+func (p Plugin) LogLevel() string {
+	logLevelRaw, ok := p["log_level"]
+	if !ok {
+		return ""
+	}
+	logLevel, ok := logLevelRaw.(string)
+	if !ok {
+		return ""
+	}
+	return logLevel
+}
+
 func (p Plugin) Parser() Plugin {
 	parserRaw, ok := p["parser"]
 	if !ok {
