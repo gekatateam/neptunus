@@ -12,15 +12,8 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-
-	//	"github.com/gekatateam/neptunus/pkg/limitedwaitgroup"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
-
-type trackedMessage struct {
-	kafka.Message
-	delivered bool
-}
 
 type readersPool map[string]*topicReader
 
@@ -132,7 +125,14 @@ FETCH_LOOP:
 	}
 }
 
+type trackedMessage struct {
+	kafka.Message
+	delivered bool
+}
+
 type commitController struct {
+	commitInterval time.Duration
+
 	reader           *kafka.Reader
 	commitQueue      *orderedmap.OrderedMap[int64, *trackedMessage]
 	commitSemaphore  chan struct{} // max uncommitted control
@@ -146,7 +146,9 @@ type commitController struct {
 	log *slog.Logger
 }
 
-func (c *commitController) watch() {
+func (c *commitController) Run() {
+	ticker := time.NewTicker(c.commitInterval)
+
 	for {
 		select {
 		case msg, _ := <-c.fetchCh: // new message fetched
@@ -166,8 +168,9 @@ func (c *commitController) watch() {
 			} else { // normally it is never happens
 				c.log.Error("unexpected case, delivered offset is not in queue; please, report this issue")
 			}
+		case <-ticker.C: // it is time to commit messages
+			c.log.Debug("it is time to commit")
 
-			// TODO: maybe it's better to do it on a schedule by ticker
 			// find the longest uncommitted sequence
 			var offsetsToDelete []int64
 			var commitCandidate *kafka.Message
@@ -201,6 +204,7 @@ func (c *commitController) watch() {
 			}
 
 			if c.exitIfQueueEmpty && c.commitQueue.Len() == 0 {
+				ticker.Stop()
 				close(c.doneCh)
 				return
 			}

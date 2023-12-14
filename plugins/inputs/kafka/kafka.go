@@ -40,6 +40,7 @@ type Kafka struct {
 	StartOffset       string            `mapstructure:"start_offset"`
 	MaxBatchSize      int               `mapstructure:"max_batch_size"`
 	MaxUncommitted    int               `mapstructure:"max_uncommitted"`
+	CommitInterval    time.Duration     `mapstructure:"commit_interval"`
 	SASL              SASL              `mapstructure:"sasl"`
 	LabelHeaders      map[string]string `mapstructure:"labelheaders"`
 
@@ -198,6 +199,7 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		}
 
 		i.commitConsPool[topic] = &commitController{
+			commitInterval: i.CommitInterval,
 			commitQueue: orderedmap.New[int64, *trackedMessage](
 				orderedmap.WithCapacity[int64, *trackedMessage](i.MaxUncommitted),
 			),
@@ -238,7 +240,7 @@ func (i *Kafka) Run() {
 		i.wg.Add(1)
 		go func(c *commitController) {
 			defer i.wg.Done()
-			c.watch()
+			c.Run()
 		}(i.commitConsPool[topic])
 	}
 
@@ -266,6 +268,7 @@ func init() {
 			RebalanceTimeout:  30 * time.Second,
 			HeartbeatInterval: 3 * time.Second,
 			MaxUncommitted:    100,
+			CommitInterval:    300 * time.Millisecond,
 			MaxBatchSize:      1_048_576, // 1 MiB,
 			SASL: SASL{
 				Mechanism: "none",

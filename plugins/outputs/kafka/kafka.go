@@ -4,12 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/compress"
 	"github.com/segmentio/kafka-go/sasl/plain"
@@ -243,61 +240,16 @@ MAIN_LOOP:
 			}
 		}
 	}
-
-	o.writersPool.Close()
 }
 
 func (o *Kafka) Close() error {
+	o.writersPool.Close()
 	o.ser.Close()
 	return nil
 }
 
 func (o *Kafka) Alias() string {
 	return o.alias
-}
-
-type labelBalancer struct {
-	label string
-	log   *slog.Logger
-}
-
-func (o *labelBalancer) Balance(msg kafka.Message, partitions ...int) (partition int) {
-	for _, h := range msg.Headers {
-		if h.Key == o.label {
-			partition, err := strconv.Atoi(string(h.Value))
-			if err != nil {
-				o.log.Warn("partition calculation error",
-					"error", err,
-					slog.Group("event",
-						"id", msg.WriterData.(uuid.UUID),
-						"key", msg.Topic,
-					),
-				)
-				return partitions[0]
-			}
-
-			if !slices.Contains(partitions, partition) {
-				o.log.Warn("partition calculation error",
-					"error", fmt.Sprintf("partition %v not in partitions list", partition),
-					slog.Group("event",
-						"id", msg.WriterData.(uuid.UUID),
-						"key", msg.Topic,
-					),
-				)
-				return partitions[0]
-			}
-
-			return partition
-		}
-	}
-	o.log.Warn("partition calculation error",
-		"error", fmt.Sprintf("message has no %v header", o.label),
-		slog.Group("event",
-			"id", msg.WriterData.(uuid.UUID),
-			"key", msg.Topic,
-		),
-	)
-	return partitions[0]
 }
 
 func init() {
