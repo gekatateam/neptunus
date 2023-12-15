@@ -21,10 +21,6 @@ func (o *labelBalancer) Balance(msg kafka.Message, partitions ...int) (partition
 			if err != nil {
 				o.log.Warn("partition calculation error",
 					"error", err,
-					slog.Group("event",
-						"id", msg.WriterData.(string),
-						"key", msg.Topic,
-					),
 				)
 				return partitions[0]
 			}
@@ -32,10 +28,6 @@ func (o *labelBalancer) Balance(msg kafka.Message, partitions ...int) (partition
 			if !slices.Contains(partitions, partition) {
 				o.log.Warn("partition calculation error",
 					"error", fmt.Sprintf("partition %v not in partitions list", partition),
-					slog.Group("event",
-						"id", msg.WriterData.(string),
-						"key", msg.Topic,
-					),
 				)
 				return partitions[0]
 			}
@@ -45,10 +37,6 @@ func (o *labelBalancer) Balance(msg kafka.Message, partitions ...int) (partition
 	}
 	o.log.Warn("partition calculation error",
 		"error", fmt.Sprintf("message has no %v header", o.label),
-		slog.Group("event",
-			"id", msg.WriterData.(string),
-			"key", msg.Topic,
-		),
 	)
 	return partitions[0]
 }

@@ -9,6 +9,7 @@ import (
 
 type Event struct {
 	Id         string
+	UUID       uuid.UUID // for internal usage only
 	Timestamp  time.Time
 	RoutingKey string
 	Tags       []string
@@ -22,6 +23,7 @@ type Event struct {
 func NewEvent(routingKey string) *Event {
 	return &Event{
 		Id:         uuid.New().String(),
+		UUID:       uuid.New(),
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
@@ -34,6 +36,7 @@ func NewEvent(routingKey string) *Event {
 func NewEventWithData(routingKey string, data Map) *Event {
 	return &Event{
 		Id:         uuid.New().String(),
+		UUID:       uuid.New(),
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
@@ -85,6 +88,7 @@ func (e *Event) StackError(err error) {
 func (e *Event) copy() *Event {
 	event := &Event{
 		Id:         uuid.New().String(),
+		UUID:       uuid.New(),
 		Timestamp:  e.Timestamp,
 		RoutingKey: e.RoutingKey,
 		Tags:       make([]string, len(e.Tags)),
@@ -108,6 +112,7 @@ func (e *Event) copy() *Event {
 func (e *Event) Clone() *Event {
 	event := &Event{
 		Id:         e.Id,
+		UUID:       uuid.New(),
 		Timestamp:  e.Timestamp,
 		RoutingKey: e.RoutingKey,
 		Tags:       make([]string, len(e.Tags)),

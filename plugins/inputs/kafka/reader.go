@@ -172,9 +172,9 @@ func (c *commitController) Run() {
 				c.log.Error("unexpected case, delivered offset is not in queue; please, report this issue")
 			}
 		case <-ticker.C: // it is time to commit messages
-			c.log.Debug("it is time to commit")
+			c.log.Debug("commit phase started, consuming paused")
 
-			// find the longest uncommitted sequence
+			// find the uncommitted sequence from queue beginning
 			var offsetsToDelete []int64
 			var commitCandidate *kafka.Message
 			for pair := c.commitQueue.Oldest(); pair != nil; pair = pair.Next() {
@@ -199,7 +199,6 @@ func (c *commitController) Run() {
 				for _, v := range offsetsToDelete {
 					c.commitQueue.Delete(v)
 					<-c.commitSemaphore
-					c.log.Debug(fmt.Sprintf("offset deleted from queue: %v", v))
 				}
 
 				c.log.Debug(fmt.Sprintf("offset committed: %v, left in queue: %v, left in channel: %v",

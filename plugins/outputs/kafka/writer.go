@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/protocol"
 
@@ -104,7 +105,7 @@ func (w *topicWriter) Run() {
 		w.lastWrite = time.Now()
 
 		messages := []kafka.Message{}
-		readyEvents := make(map[string]*eventMsgStatus)
+		readyEvents := make(map[uuid.UUID]*eventMsgStatus)
 
 		for _, e := range buf {
 			now := time.Now()
@@ -124,7 +125,7 @@ func (w *topicWriter) Run() {
 
 			msg := kafka.Message{
 				Value:      event,
-				WriterData: e.Id,
+				WriterData: e.UUID,
 			}
 
 			if w.keepTimestamp {
@@ -156,7 +157,7 @@ func (w *topicWriter) Run() {
 			}
 
 			messages = append(messages, msg)
-			readyEvents[e.Id] = &eventMsgStatus{
+			readyEvents[e.UUID] = &eventMsgStatus{
 				event:     e,
 				spentTime: time.Since(now),
 				error:     nil,
@@ -203,7 +204,7 @@ func (w *topicWriter) Run() {
 	}
 }
 
-func (w *topicWriter) write(messages []kafka.Message, eventsStatus map[string]*eventMsgStatus) map[string]*eventMsgStatus {
+func (w *topicWriter) write(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventMsgStatus) map[uuid.UUID]*eventMsgStatus {
 	var attempts int = 1
 
 SEND_LOOP:
@@ -219,7 +220,7 @@ SEND_LOOP:
 		switch writeErr := err.(type) {
 		case nil: // all messages delivered successfully
 			for _, m := range messages {
-				successMsg := eventsStatus[m.WriterData.(string)]
+				successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 				successMsg.spentTime += timePerEvent
 				successMsg.error = nil
 			}
@@ -229,7 +230,7 @@ SEND_LOOP:
 			for i, m := range messages {
 				msgErr := writeErr[i]
 				if msgErr == nil { // this message delivred successfully
-					successMsg := eventsStatus[m.WriterData.(string)]
+					successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 					successMsg.spentTime += timePerEvent
 					successMsg.error = nil
 					continue
@@ -238,7 +239,7 @@ SEND_LOOP:
 				if kafkaErr, ok := msgErr.(kafka.Error); ok {
 					if kafkaErr.Temporary() { // timeout and temporary errors are retriable
 						retriable = append(retriable, m)
-						retriableMsg := eventsStatus[m.WriterData.(string)]
+						retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 						retriableMsg.spentTime += timePerEvent
 						retriableMsg.error = kafkaErr
 						continue
@@ -248,7 +249,7 @@ SEND_LOOP:
 				var timeoutError interface{ Timeout() bool }
 				if errors.As(msgErr, &timeoutError) && timeoutError.Timeout() { // typically it is a network io timeout
 					retriable = append(retriable, m)
-					retriableMsg := eventsStatus[m.WriterData.(string)]
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 					retriableMsg.spentTime += timePerEvent
 					retriableMsg.error = msgErr
 					continue
@@ -256,26 +257,26 @@ SEND_LOOP:
 
 				if errors.Is(msgErr, io.ErrUnexpectedEOF) { // this error means that broker is down
 					retriable = append(retriable, m)
-					retriableMsg := eventsStatus[m.WriterData.(string)]
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 					retriableMsg.spentTime += timePerEvent
 					retriableMsg.error = msgErr
 					continue
 				}
 
 				// any other errors means than message cannot be produced
-				failedMsg := eventsStatus[m.WriterData.(string)]
+				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 				failedMsg.spentTime += timePerEvent
 				failedMsg.error = msgErr
 			}
 			messages = retriable
 		case kafka.MessageTooLargeError: // exclude too large message and send others
-			tooLargeMsg := eventsStatus[writeErr.Message.WriterData.(string)]
+			tooLargeMsg := eventsStatus[writeErr.Message.WriterData.(uuid.UUID)]
 			tooLargeMsg.spentTime += timePerEvent
 			tooLargeMsg.error = writeErr
 			messages = writeErr.Remaining
 		case kafka.Error:
 			for _, m := range messages {
-				kafkaMsg := eventsStatus[m.WriterData.(string)]
+				kafkaMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 				kafkaMsg.spentTime += timePerEvent
 				kafkaMsg.error = writeErr
 			}
@@ -285,7 +286,7 @@ SEND_LOOP:
 			}
 		default: // any other errors are unretriable
 			for _, m := range messages {
-				tooLargeMsg := eventsStatus[m.WriterData.(string)]
+				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
 				tooLargeMsg.spentTime += timePerEvent
 				tooLargeMsg.error = writeErr
 			}

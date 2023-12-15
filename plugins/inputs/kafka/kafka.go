@@ -283,6 +283,7 @@ func init() {
 			readersPool:    make(map[string]*topicReader),
 			commitConsPool: make(map[string]*commitController),
 			wg:             &sync.WaitGroup{},
+			Ider:           &ider.Ider{},
 		}
 	})
 }
