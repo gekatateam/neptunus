@@ -37,6 +37,8 @@ type Kafka struct {
 	SessionTimeout    time.Duration     `mapstructure:"session_timeout"`
 	RebalanceTimeout  time.Duration     `mapstructure:"rebalance_timeout"`
 	HeartbeatInterval time.Duration     `mapstructure:"heartbeat_interval"`
+	ReadBatchTimeout  time.Duration     `mapstructure:"read_batch_timeout"`
+	WaitBatchTimeout  time.Duration     `mapstructure:"wait_batch_timeout"`
 	StartOffset       string            `mapstructure:"start_offset"`
 	MaxBatchSize      int               `mapstructure:"max_batch_size"`
 	MaxUncommitted    int               `mapstructure:"max_uncommitted"`
@@ -178,6 +180,8 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			HeartbeatInterval:     i.HeartbeatInterval,
 			SessionTimeout:        i.SessionTimeout,
 			RebalanceTimeout:      i.RebalanceTimeout,
+			ReadBatchTimeout:      i.ReadBatchTimeout,
+			MaxWait:               i.WaitBatchTimeout,
 			RetentionTime:         i.GroupTTL,
 			GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
 			Logger:                common.NewLogger(log),
@@ -273,6 +277,8 @@ func init() {
 			SessionTimeout:    30 * time.Second,
 			RebalanceTimeout:  30 * time.Second,
 			HeartbeatInterval: 3 * time.Second,
+			ReadBatchTimeout:  3 * time.Second,
+			WaitBatchTimeout:  3 * time.Second,
 			MaxUncommitted:    100,
 			CommitInterval:    300 * time.Millisecond,
 			MaxBatchSize:      1_048_576, // 1 MiB,

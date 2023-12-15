@@ -44,7 +44,13 @@ type topicReader struct {
 
 func (r *topicReader) Run(rCtx context.Context) {
 	if r.enableMetrics {
-		kafkastats.RegisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId, r.reader.Stats)
+		kafkastats.RegisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId, func() kafkastats.ReaderStats {
+			return kafkastats.ReaderStats{
+				ReaderStats:         r.reader.Stats(),
+				CommitQueueLenght:   len(r.commitSemaphore),
+				CommitQueueCapacity: cap(r.commitSemaphore),
+			}
+		})
 	}
 
 	r.log.Info(fmt.Sprintf("consumer for topic %v spawned", r.topic))
@@ -188,11 +194,13 @@ func (c *commitController) Run() {
 			if commitCandidate != nil {
 				c.log.Debug(fmt.Sprintf("got candidate with offset: %v", commitCandidate.Offset))
 			BEFORE_COMMIT:
+				// TODO: not the best solution because we don't know how library handling consumers rebalancing
+				// we need test it
 				if err := c.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
 					c.log.Error("offset commit failed",
 						"error", err,
 					)
-					time.Sleep(time.Second)
+					time.Sleep(time.Second) // TODO: make this configurable
 					goto BEFORE_COMMIT
 				}
 
@@ -213,6 +221,7 @@ func (c *commitController) Run() {
 		case <-c.exitCh:
 			c.exitIfQueueEmpty = true
 			if c.commitQueue.Len() == 0 {
+				ticker.Stop()
 				close(c.doneCh)
 				return
 			}

@@ -15,6 +15,7 @@
 
 [[inputs]]
   [inputs.kafka]
+    enable_metrics = true
     client_id = "kafka-one"
     group_id = "neptunus.kafka.input6"
     start_offset = "last"

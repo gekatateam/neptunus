@@ -64,7 +64,7 @@ func init() {
 	kafkaWriterErrorsCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_writer_errors_count",
-			Help: "Number of errors occurred during writing",
+			Help: "Number of errors occurred during writes",
 		},
 		[]string{"pipeline", "plugin_name", "topic", "client_id"},
 	)
