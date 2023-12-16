@@ -20,7 +20,7 @@ type Parser struct {
 	From       string `mapstructure:"from"`
 	To         string `mapstructure:"to"`
 	DropOrigin bool   `mapstructure:"drop_origin"`
-	*ider.Ider        `mapstructure:",squash"`
+	*ider.Ider `mapstructure:",squash"`
 
 	parser core.Parser
 	in     <-chan *core.Event

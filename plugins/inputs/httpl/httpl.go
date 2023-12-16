@@ -18,18 +18,20 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Httpl struct {
-	alias          string
-	pipe           string
-	EnableMetrics  bool              `mapstructure:"enable_metrics"`
-	Address        string            `mapstructure:"address"`
-	ReadTimeout    time.Duration     `mapstructure:"read_timeout"`
-	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
-	MaxConnections int               `mapstructure:"max_connections"`
-	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
-	*ider.Ider                       `mapstructure:",squash"`
+	alias                string
+	pipe                 string
+	EnableMetrics        bool              `mapstructure:"enable_metrics"`
+	Address              string            `mapstructure:"address"`
+	ReadTimeout          time.Duration     `mapstructure:"read_timeout"`
+	WriteTimeout         time.Duration     `mapstructure:"write_timeout"`
+	MaxConnections       int               `mapstructure:"max_connections"`
+	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
+	*ider.Ider           `mapstructure:",squash"`
+	*tls.TLSServerConfig `mapstructure:",squash"`
 
 	server   *http.Server
 	listener net.Listener
@@ -56,6 +58,11 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return err
 	}
 
+	tlsConfig, err := i.TLSServerConfig.Config()
+	if err != nil {
+		return err
+	}
+
 	listener, err := net.Listen("tcp", i.Address)
 	if err != nil {
 		return fmt.Errorf("error creating listener: %v", err)
@@ -78,6 +85,7 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		ReadTimeout:  i.ReadTimeout,
 		WriteTimeout: i.WriteTimeout,
 		Handler:      mux,
+		TLSConfig:    tlsConfig,
 	}
 
 	return nil
@@ -198,11 +206,12 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func init() {
 	plugins.AddInput("httpl", func() core.Input {
 		return &Httpl{
-			Address:        ":9800",
-			ReadTimeout:    10 * time.Second,
-			WriteTimeout:   10 * time.Second,
-			MaxConnections: 0,
-			Ider:           &ider.Ider{},
+			Address:         ":9800",
+			ReadTimeout:     10 * time.Second,
+			WriteTimeout:    10 * time.Second,
+			MaxConnections:  0,
+			Ider:            &ider.Ider{},
+			TLSServerConfig: &tls.TLSServerConfig{},
 		}
 	})
 }

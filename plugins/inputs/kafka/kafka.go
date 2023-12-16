@@ -20,32 +20,34 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Kafka struct {
-	alias             string
-	pipe              string
-	EnableMetrics     bool              `mapstructure:"enable_metrics"`
-	Brokers           []string          `mapstructure:"brokers"`
-	ClientId          string            `mapstructure:"client_id"`
-	GroupId           string            `mapstructure:"group_id"`
-	GroupTTL          time.Duration     `mapstructure:"group_ttl"`
-	GroupBalancer     string            `mapstructure:"group_balancer"`
-	Rack              string            `mapstructure:"rack"`
-	Topics            []string          `mapstructure:"topics"`
-	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
-	SessionTimeout    time.Duration     `mapstructure:"session_timeout"`
-	RebalanceTimeout  time.Duration     `mapstructure:"rebalance_timeout"`
-	HeartbeatInterval time.Duration     `mapstructure:"heartbeat_interval"`
-	ReadBatchTimeout  time.Duration     `mapstructure:"read_batch_timeout"`
-	WaitBatchTimeout  time.Duration     `mapstructure:"wait_batch_timeout"`
-	StartOffset       string            `mapstructure:"start_offset"`
-	MaxBatchSize      int               `mapstructure:"max_batch_size"`
-	MaxUncommitted    int               `mapstructure:"max_uncommitted"`
-	CommitInterval    time.Duration     `mapstructure:"commit_interval"`
-	SASL              SASL              `mapstructure:"sasl"`
-	LabelHeaders      map[string]string `mapstructure:"labelheaders"`
-	*ider.Ider                          `mapstructure:",squash"`
+	alias                string
+	pipe                 string
+	EnableMetrics        bool              `mapstructure:"enable_metrics"`
+	Brokers              []string          `mapstructure:"brokers"`
+	ClientId             string            `mapstructure:"client_id"`
+	GroupId              string            `mapstructure:"group_id"`
+	GroupTTL             time.Duration     `mapstructure:"group_ttl"`
+	GroupBalancer        string            `mapstructure:"group_balancer"`
+	Rack                 string            `mapstructure:"rack"`
+	Topics               []string          `mapstructure:"topics"`
+	DialTimeout          time.Duration     `mapstructure:"dial_timeout"`
+	SessionTimeout       time.Duration     `mapstructure:"session_timeout"`
+	RebalanceTimeout     time.Duration     `mapstructure:"rebalance_timeout"`
+	HeartbeatInterval    time.Duration     `mapstructure:"heartbeat_interval"`
+	ReadBatchTimeout     time.Duration     `mapstructure:"read_batch_timeout"`
+	WaitBatchTimeout     time.Duration     `mapstructure:"wait_batch_timeout"`
+	StartOffset          string            `mapstructure:"start_offset"`
+	MaxBatchSize         int               `mapstructure:"max_batch_size"`
+	MaxUncommitted       int               `mapstructure:"max_uncommitted"`
+	CommitInterval       time.Duration     `mapstructure:"commit_interval"`
+	SASL                 SASL              `mapstructure:"sasl"`
+	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
+	*ider.Ider           `mapstructure:",squash"`
+	*tls.TLSServerConfig `mapstructure:",squash"`
 
 	readersPool    map[string]*topicReader
 	commitConsPool map[string]*commitController
@@ -154,6 +156,11 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
 		}
 
+		tlsConfig, err := i.TLSServerConfig.Config()
+		if err != nil {
+			return err
+		}
+
 		var (
 			fetchCh  = make(chan kafka.Message)
 			commitCh = make(chan int64)
@@ -171,6 +178,7 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				DualStack:     true,
 				Timeout:       i.DialTimeout,
 				SASLMechanism: m,
+				TLS:           tlsConfig,
 			},
 			MaxBytes:              i.MaxBatchSize,
 			QueueCapacity:         1,
@@ -286,10 +294,11 @@ func init() {
 				Mechanism: "none",
 			},
 
-			readersPool:    make(map[string]*topicReader),
-			commitConsPool: make(map[string]*commitController),
-			wg:             &sync.WaitGroup{},
-			Ider:           &ider.Ider{},
+			readersPool:     make(map[string]*topicReader),
+			commitConsPool:  make(map[string]*commitController),
+			wg:              &sync.WaitGroup{},
+			Ider:            &ider.Ider{},
+			TLSServerConfig: &tls.TLSServerConfig{},
 		}
 	})
 }

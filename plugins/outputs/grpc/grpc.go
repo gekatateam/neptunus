@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
@@ -19,6 +20,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Grpc struct {
@@ -34,6 +36,7 @@ type Grpc struct {
 	CallOptions    CallOptions       `mapstructure:"call_options"`
 	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
 
+	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	sendFn   func(ch <-chan *core.Event)
@@ -76,17 +79,26 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 		o.Batcher.Buffer = 1
 	}
 
+	tlsConfig, err := o.TLSClientConfig.Config()
+	if err != nil {
+		return err
+	}
+
 	options := dialOptions(o.DialOptions)
 	if o.EnableMetrics {
 		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(pipeline, alias)))
 		options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(pipeline, alias)))
 	}
 
-	var err error
-	o.conn, err = grpc.Dial(o.Address, options...)
+	if tlsConfig != nil {
+		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	}
+
+	conn, err := grpc.Dial(o.Address, options...)
 	if err != nil {
 		return err
 	}
+	o.conn = conn
 	o.client = common.NewInputClient(o.conn)
 	o.callOpts = callOptions(o.CallOptions)
 
@@ -491,6 +503,7 @@ func init() {
 				Buffer:   100,
 				Interval: 5 * time.Second,
 			},
+			TLSClientConfig: &tls.TLSClientConfig{},
 		}
 	})
 }

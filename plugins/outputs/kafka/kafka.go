@@ -17,6 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Kafka struct {
@@ -42,6 +43,7 @@ type Kafka struct {
 	SASL              SASL              `mapstructure:"sasl"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
+	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	writersPool *writersPool
@@ -134,6 +136,12 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		DialTimeout: o.DialTimeout,
 		ClientID:    o.ClientId,
 	}
+
+	tlsConfig, err := o.TLSClientConfig.Config()
+	if err != nil {
+		return nil, err
+	}
+	transport.TLS = tlsConfig
 
 	switch o.RequiredAcks {
 	case "none":
@@ -265,13 +273,14 @@ func init() {
 			RequiredAcks:      "one",
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",
+			SASL: SASL{
+				Mechanism: "scram-sha-512",
+			},
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
 			},
-			SASL: SASL{
-				Mechanism: "scram-sha-512",
-			},
+			TLSClientConfig: &tls.TLSClientConfig{},
 		}
 	})
 }

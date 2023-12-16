@@ -186,53 +186,53 @@ func (c *kafkaReaderCollector) collect() {
 		kafkaReaderMessagesCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Add(float64(stats.Messages))
 		kafkaReaderBytesCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Add(float64(stats.Bytes))
 		kafkaReaderErrorsCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Add(float64(stats.Errors))
 		kafkaReaderRebalancesCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Add(float64(stats.Rebalances))
 		kafkaReaderFetchesCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Add(float64(stats.Fetches))
 		kafkaReaderTimeoutsCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Add(float64(stats.Timeouts))
 
 		kafkaReaderOffset.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Set(float64(stats.Offset))
 		kafkaReaderLag.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Set(float64(stats.Lag))
 		kafkaReaderCommitQueueCapacity.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Set(float64(stats.CommitQueueCapacity))
 		kafkaReaderCommitQueueLength.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId, 
+			desc.groupId, desc.clientId,
 		).Set(float64(stats.CommitQueueLenght))
 	}
 }

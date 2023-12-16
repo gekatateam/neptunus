@@ -64,11 +64,11 @@ func (p *Rk) Alias() string {
 func (p *Rk) Run() {
 	for e := range p.in {
 		now := time.Now()
-		
+
 		if newKey, ok := p.index[e.RoutingKey]; ok {
 			e.RoutingKey = newKey
 		}
-		
+
 		p.out <- e
 		metrics.ObserveProcessorSummary("rk", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}

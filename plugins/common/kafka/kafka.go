@@ -11,14 +11,14 @@ var _ kafka.Logger = (*kafkaLogger)(nil)
 
 func NewLogger(log *slog.Logger) *kafkaLogger {
 	return &kafkaLogger{
-		log: log,
+		log:   log,
 		isErr: false,
 	}
 }
 
 func NewErrorLogger(log *slog.Logger) *kafkaLogger {
 	return &kafkaLogger{
-		log: log,
+		log:   log,
 		isErr: true,
 	}
 }
