@@ -33,9 +33,9 @@ Plugin can be configured for using one of three RPCs:
 
     ## batching settings, using only in "bulk" mode
     # interval between sending event batches if buffer length less than it's capacity
-    interval = "5s"
+    batch_interval = "5s"
     # events buffer size
-    buffer = 100
+    batch_buffer = 100
 
     # connections set up parameters
     [outputs.grpc.dial_options]

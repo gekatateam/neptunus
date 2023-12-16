@@ -34,12 +34,11 @@ Target topic name takes from an event routing key. Plugin creates one writer per
     batch_timeout = "10ms"
 
     # interval between events buffer flushes if buffer length less than it's capacity
-    interval = "5s"
+    batch_interval = "5s"
 
-    # events buffer size
-    # also, messages batch size, see batch_timeout
+    # events buffer size, also, messages batch size, see batch_timeout
     # if configured value less than 1, it will be set to 1
-    buffer = 100
+    batch_buffer = 100
 
     # kafka message maximum size in bytes
     # too large messages will be dropped

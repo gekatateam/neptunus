@@ -9,7 +9,7 @@ The Neptunus engine works with events - single data frames. An event is a struct
 - **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
 - **Fields** - an event payload, data map, that is filling by parsers; it is essentially the body of an event.
 
-In addition, each event has a **UUID** field that is randomly generated. This field is for internal use only and may be useful as a unique identifier.
+Also, each event has a **UUID** field that is randomly generated. This field is for internal use only and may be useful as an unique identifier.
 
 ## Event API
 

@@ -22,6 +22,17 @@ var (
 	kafkaReaderRebalancesCount *prometheus.CounterVec
 	kafkaReaderTimeoutsCount   *prometheus.CounterVec
 	kafkaReaderFetchesCount    *prometheus.CounterVec
+
+	kafkaReaderOffset              *prometheus.GaugeVec
+	kafkaReaderLag                 *prometheus.GaugeVec
+	kafkaReaderCommitQueueCapacity *prometheus.GaugeVec
+	kafkaReaderCommitQueueLength   *prometheus.GaugeVec
+
+	kafkaReaderDialSecondsCount *prometheus.CounterVec
+	kafkaReaderDialSecondsSum   *prometheus.CounterVec
+	kafkaReaderDialSecondsMin   *prometheus.GaugeVec
+	kafkaReaderDialSecondsAvg   *prometheus.GaugeVec
+	kafkaReaderDialSecondsMax   *prometheus.GaugeVec
 )
 
 func init() {
@@ -64,6 +75,71 @@ func init() {
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_reader_fetches_count",
 			Help: "Total number of fetches done by client",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+
+	kafkaReaderOffset = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_offset",
+			Help: "Reader current offset",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderLag = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_lag",
+			Help: "Reader current lag",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderCommitQueueCapacity = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_commit_queue_capacity",
+			Help: "Reader internal commit queue capacity",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderCommitQueueLength = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_commit_queue_length",
+			Help: "Reader internal commit queue length",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+
+	kafkaReaderDialSecondsCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "plugin_kafka_reader_dial_seconds_count",
+			Help: "Number of dials performed by client",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderDialSecondsSum = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "plugin_kafka_reader_dial_seconds_sum",
+			Help: "Total time spent on dials",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderDialSecondsMin = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_dial_seconds_min",
+			Help: "Min time spent on dials",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderDialSecondsAvg = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_dial_seconds_avg",
+			Help: "Average time spent on dials",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderDialSecondsMax = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_dial_seconds_max",
+			Help: "Max time spent on dials",
 		},
 		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
 	)
@@ -137,6 +213,27 @@ func (c *kafkaReaderCollector) collect() {
 			desc.topic, stats.Partition,
 			desc.groupId, desc.clientId, 
 		).Add(float64(stats.Timeouts))
+
+		kafkaReaderOffset.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, stats.Partition,
+			desc.groupId, desc.clientId, 
+		).Set(float64(stats.Offset))
+		kafkaReaderLag.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, stats.Partition,
+			desc.groupId, desc.clientId, 
+		).Set(float64(stats.Lag))
+		kafkaReaderCommitQueueCapacity.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, stats.Partition,
+			desc.groupId, desc.clientId, 
+		).Set(float64(stats.CommitQueueCapacity))
+		kafkaReaderCommitQueueLength.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, stats.Partition,
+			desc.groupId, desc.clientId, 
+		).Set(float64(stats.CommitQueueLenght))
 	}
 }
 

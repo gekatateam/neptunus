@@ -37,7 +37,7 @@
     topics_autocreate = true
     batch_timeout = "0s"
     idle_timeout = "0s"
-    buffer = 400
+    batch_buffer = 400
   [outputs.kafka.sasl]
     mechanism = "none"
   [outputs.kafka.headerlabels]
