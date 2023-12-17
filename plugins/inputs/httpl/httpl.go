@@ -3,6 +3,7 @@ package httpl
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,7 +19,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
-	"github.com/gekatateam/neptunus/plugins/common/tls"
+	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Httpl struct {
@@ -31,7 +32,7 @@ type Httpl struct {
 	MaxConnections       int               `mapstructure:"max_connections"`
 	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider           `mapstructure:",squash"`
-	*tls.TLSServerConfig `mapstructure:",squash"`
+	*pkgtls.TLSServerConfig `mapstructure:",squash"`
 
 	server   *http.Server
 	listener net.Listener
@@ -63,9 +64,19 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return err
 	}
 
-	listener, err := net.Listen("tcp", i.Address)
-	if err != nil {
-		return fmt.Errorf("error creating listener: %v", err)
+	var listener net.Listener
+	if i.TLSServerConfig.Enable {
+		l, err := tls.Listen("tcp", i.Address, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("error creating TLS listener: %v", err)
+		}
+		listener = l
+	} else {
+		l, err := net.Listen("tcp", i.Address)
+		if err != nil {
+			return fmt.Errorf("error creating listener: %v", err)
+		}
+		listener = l
 	}
 
 	if i.MaxConnections > 0 {
@@ -211,7 +222,7 @@ func init() {
 			WriteTimeout:    10 * time.Second,
 			MaxConnections:  0,
 			Ider:            &ider.Ider{},
-			TLSServerConfig: &tls.TLSServerConfig{},
+			TLSServerConfig: &pkgtls.TLSServerConfig{},
 		}
 	})
 }

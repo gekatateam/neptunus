@@ -8,9 +8,12 @@
   [inputs.httpl]
     address = ":9200"
     max_connections = 10
+    tls_enable = true
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
   [inputs.httpl.parser]
     type = "json"
-  [inputs.httpl.filters.glob]
 
 [[inputs]]
   [inputs.grpc]
