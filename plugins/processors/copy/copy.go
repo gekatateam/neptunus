@@ -39,7 +39,7 @@ func (p *Copy) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (p *Copy) Prepare(
+func (p *Copy) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -49,10 +49,6 @@ func (p *Copy) Prepare(
 
 func (p *Copy) Close() error {
 	return nil
-}
-
-func (p *Copy) Alias() string {
-	return p.alias
 }
 
 func (p *Copy) Run() {

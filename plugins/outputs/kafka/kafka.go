@@ -222,7 +222,7 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 	return writer, nil
 }
 
-func (o *Kafka) Prepare(in <-chan *core.Event) {
+func (o *Kafka) SetChannels(in <-chan *core.Event) {
 	o.in = in
 }
 
@@ -254,10 +254,6 @@ func (o *Kafka) Close() error {
 	o.writersPool.Close()
 	o.ser.Close()
 	return nil
-}
-
-func (o *Kafka) Alias() string {
-	return o.alias
 }
 
 func init() {

@@ -146,6 +146,12 @@ func init() {
 	prometheus.MustRegister(pipes)
 }
 
+type ObserveFunc func(status eventStatus, t time.Duration)
+
+type Observer interface {
+	Observe(status eventStatus, t time.Duration)
+}
+
 func ObserveInputSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
 	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }

@@ -237,7 +237,7 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (i *Kafka) Prepare(out chan<- *core.Event) {
+func (i *Kafka) SetChannels(out chan<- *core.Event) {
 	for _, reader := range i.readersPool {
 		reader.out = out
 	}
@@ -268,10 +268,6 @@ func (i *Kafka) Run() {
 func (i *Kafka) Close() error {
 	i.cancelFunc()
 	return nil
-}
-
-func (i *Kafka) Alias() string {
-	return i.alias
 }
 
 func init() {

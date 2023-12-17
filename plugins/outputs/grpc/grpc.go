@@ -117,7 +117,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (o *Grpc) Prepare(in <-chan *core.Event) {
+func (o *Grpc) SetChannels(in <-chan *core.Event) {
 	o.in = in
 }
 
@@ -131,10 +131,6 @@ func (o *Grpc) Run() {
 
 func (o *Grpc) Close() error {
 	return o.conn.Close()
-}
-
-func (o *Grpc) Alias() string {
-	return o.alias
 }
 
 func (o *Grpc) sendOne(ch <-chan *core.Event) {

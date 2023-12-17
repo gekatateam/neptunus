@@ -23,15 +23,16 @@ import (
 )
 
 type Httpl struct {
-	alias                string
-	pipe                 string
-	EnableMetrics        bool              `mapstructure:"enable_metrics"`
-	Address              string            `mapstructure:"address"`
-	ReadTimeout          time.Duration     `mapstructure:"read_timeout"`
-	WriteTimeout         time.Duration     `mapstructure:"write_timeout"`
-	MaxConnections       int               `mapstructure:"max_connections"`
-	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
-	*ider.Ider           `mapstructure:",squash"`
+	alias          string
+	pipe           string
+	EnableMetrics  bool              `mapstructure:"enable_metrics"`
+	Address        string            `mapstructure:"address"`
+	ReadTimeout    time.Duration     `mapstructure:"read_timeout"`
+	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
+	MaxConnections int               `mapstructure:"max_connections"`
+	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
+
+	*ider.Ider              `mapstructure:",squash"`
 	*pkgtls.TLSServerConfig `mapstructure:",squash"`
 
 	server   *http.Server
@@ -102,7 +103,7 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (i *Httpl) Prepare(out chan<- *core.Event) {
+func (i *Httpl) SetChannels(out chan<- *core.Event) {
 	i.out = out
 }
 
@@ -138,10 +139,6 @@ func (i *Httpl) Close() error {
 	}
 
 	return nil
-}
-
-func (i *Httpl) Alias() string {
-	return i.alias
 }
 
 func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -21,7 +21,7 @@ func New(alias, pipeline string) *Broadcast {
 	}
 }
 
-func (c *Broadcast) Prepare(in <-chan *core.Event, outs []chan<- *core.Event) {
+func (c *Broadcast) SetChannels(in <-chan *core.Event, outs []chan<- *core.Event) {
 	c.in = in
 	c.outs = outs
 }

@@ -47,7 +47,7 @@ func (p *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logg
 	return nil
 }
 
-func (p *Log) Prepare(
+func (p *Log) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -86,10 +86,6 @@ func (p *Log) Run() {
 
 func (p *Log) Close() error {
 	return p.ser.Close()
-}
-
-func (p *Log) Alias() string {
-	return p.alias
 }
 
 func init() {

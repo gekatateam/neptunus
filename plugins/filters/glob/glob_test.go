@@ -138,7 +138,7 @@ func TestGlob(t *testing.T) {
 			}
 
 			wg := &sync.WaitGroup{}
-			filter.Prepare(test.input, test.reject, test.accept)
+			filter.SetChannels(test.input, test.reject, test.accept)
 			wg.Add(1)
 			go func() {
 				filter.Run()

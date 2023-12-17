@@ -43,10 +43,6 @@ func (m *mockParser) Init(config map[string]any, alias, pipeline string, log *sl
 	return nil
 }
 
-func (m *mockParser) Alias() string {
-	return ""
-}
-
 func TestParser(t *testing.T) {
 	tests := map[string]*struct {
 		config         map[string]any
@@ -307,7 +303,7 @@ func TestParser(t *testing.T) {
 				count: test.parseCount,
 				err:   test.parseError,
 			})
-			processor.Prepare(test.input, test.output)
+			processor.SetChannels(test.input, test.output)
 			wg.Add(1)
 			go func() {
 				processor.Run()

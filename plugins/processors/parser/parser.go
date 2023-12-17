@@ -54,7 +54,7 @@ func (p *Parser) Init(config map[string]any, alias, pipeline string, log *slog.L
 	return nil
 }
 
-func (p *Parser) Prepare(
+func (p *Parser) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -64,10 +64,6 @@ func (p *Parser) Prepare(
 
 func (p *Parser) Close() error {
 	return nil
-}
-
-func (p *Parser) Alias() string {
-	return p.alias
 }
 
 func (p *Parser) SetParser(parser core.Parser) {

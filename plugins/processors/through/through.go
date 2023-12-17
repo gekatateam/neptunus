@@ -25,7 +25,7 @@ func (p *Through) Init(_ map[string]any, alias, pipeline string, log *slog.Logge
 	return nil
 }
 
-func (p *Through) Prepare(
+func (p *Through) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -35,10 +35,6 @@ func (p *Through) Prepare(
 
 func (p *Through) Close() error {
 	return nil
-}
-
-func (p *Through) Alias() string {
-	return p.alias
 }
 
 func (p *Through) Run() {

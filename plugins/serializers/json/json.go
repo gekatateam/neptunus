@@ -60,10 +60,6 @@ func (s *Json) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (s *Json) Alias() string {
-	return s.alias
-}
-
 func (s *Json) Close() error {
 	return nil
 }

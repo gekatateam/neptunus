@@ -24,7 +24,7 @@ func (p *Drop) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) 
 	return nil
 }
 
-func (p *Drop) Prepare(
+func (p *Drop) SetChannels(
 	in <-chan *core.Event,
 	_ chan<- *core.Event,
 ) {
@@ -33,10 +33,6 @@ func (p *Drop) Prepare(
 
 func (p *Drop) Close() error {
 	return nil
-}
-
-func (p *Drop) Alias() string {
-	return p.alias
 }
 
 func (p *Drop) Run() {

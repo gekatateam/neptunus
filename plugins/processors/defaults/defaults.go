@@ -34,7 +34,7 @@ func (p *Defaults) Init(config map[string]any, alias, pipeline string, log *slog
 	return nil
 }
 
-func (p *Defaults) Prepare(
+func (p *Defaults) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -44,10 +44,6 @@ func (p *Defaults) Prepare(
 
 func (p *Defaults) Close() error {
 	return nil
-}
-
-func (p *Defaults) Alias() string {
-	return p.alias
 }
 
 func (p *Defaults) Run() {

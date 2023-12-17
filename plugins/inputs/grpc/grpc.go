@@ -67,10 +67,6 @@ type ServerOptions struct {
 	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
 }
 
-func (i *Grpc) Alias() string {
-	return i.alias
-}
-
 func (i *Grpc) Close() error {
 	i.log.Debug("closing plugin")
 	close(i.closeCh)
@@ -139,7 +135,7 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	return nil
 }
 
-func (i *Grpc) Prepare(out chan<- *core.Event) {
+func (i *Grpc) SetChannels(out chan<- *core.Event) {
 	i.out = out
 }
 
