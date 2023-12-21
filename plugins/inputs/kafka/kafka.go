@@ -104,6 +104,9 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	}
 
 	i.Topics = slices.Compact(i.Topics)
+	i.readersPool = make(map[string]*topicReader)
+	i.commitConsPool = make(map[string]*commitController)
+	i.wg = &sync.WaitGroup{}
 
 	for _, topic := range i.Topics {
 		var m sasl.Mechanism
@@ -289,10 +292,6 @@ func init() {
 			SASL: SASL{
 				Mechanism: "none",
 			},
-
-			readersPool:     make(map[string]*topicReader),
-			commitConsPool:  make(map[string]*commitController),
-			wg:              &sync.WaitGroup{},
 			Ider:            &ider.Ider{},
 			TLSServerConfig: &tls.TLSServerConfig{},
 		}

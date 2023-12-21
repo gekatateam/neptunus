@@ -27,6 +27,20 @@ Plugin behavoiur depends on the procedure being called:
     # expected format - "type:path"
     id_from = "filed:path.to.id"
 
+    ## TLS configuration
+    # if true, TLS listener will be used
+    tls_enable = false
+    # service key and certificate
+    tls_key_file = "/etc/neptunus/key.pem"
+    tls_cert_file = "/etc/neptunus/cert.pem"
+    # one or more allowed client CA certificate file names to
+    # enable mutually authenticated TLS connections
+    tls_allowed_cacerts = [ "/etc/neptunus/clientca.pem" ]
+    # minimal and maximum TLS version accepted by the service
+    # not limited by default
+    tls_min_version = "TLS12"
+    tls_max_version = "TLS13"
+
     # gRPC server options
     [inputs.grpc.server_options]
       # max size of input and output messages in bytes

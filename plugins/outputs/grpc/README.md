@@ -37,6 +37,19 @@ Plugin can be configured for using one of three RPCs:
     # events buffer size
     batch_buffer = 100
 
+    ## TLS configuration
+    # if true, TLS client will be used
+    tls_enable = false
+    # trusted root certificates for server
+    tls_ca_file = "/etc/neptunus/ca.pem"
+    # used for TLS client certificate authentication
+    tls_key_file = "/etc/neptunus/key.pem"
+    tls_cert_file = "/etc/neptunus/cert.pem"
+    # send the specified TLS server name via SNI
+    tls_server_name = "exmple.svc.local"
+    # use TLS but skip chain & host verification
+    tls_insecure_skip_verify = false
+
     # connections set up parameters
     [outputs.grpc.dial_options]
       # if set, value will be used as the :authority pseudo-header 
