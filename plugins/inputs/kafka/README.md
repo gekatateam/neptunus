@@ -2,9 +2,11 @@
 
 The `kafka` input plugin reads from Kafka and passes each message to configured parser. This plugin requires parser.
 
-Each reader uses its own commit queue into which each fetched message is placed. Every `commit interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found will be committed.
+Each reader uses its own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
 
-Message is marked as ready to be committed when the event tracker hook is called.
+Message is marked as ready to be committed when an event tracker hook is called.
+
+If commit queue is full, fetching is suspended until at least one message is committed.
 
 > **Note**
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-consumer)

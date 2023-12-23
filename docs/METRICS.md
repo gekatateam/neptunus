@@ -115,7 +115,7 @@ Labels:
  - **method** - incoming request method
  - **status** - request status
 
- ### gRPC Server
+### gRPC Server
 
 #### Summary `plugin_grpc_server_calls_seconds`
 Handled RPCs stats.
@@ -165,7 +165,7 @@ Labels:
  - **procedure** - method full name
  - **type** - RPC type
 
- ### gRPC Client
+### gRPC Client
 
 #### Counter `plugin_grpc_client_called_total`
 Total number of started RPCs.
@@ -474,4 +474,397 @@ Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
  - **topic** - kafka topic name
+ - **client_id** - kafka client ID
+
+### Kafka Consumer
+
+> **Warning**
+> Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, producer metrics updates every 15 sec, not on read
+
+> **Warning**
+> Due to the specifics of the [library](https://github.com/segmentio/kafka-go/blob/v0.4.43/reader.go#L685s) used, value of 'partition' lablel is always '-1'
+
+#### Counter `plugin_kafka_reader_messages_count`
+Number of messages read by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_bytes_count`
+Number of bytes read by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_errors_count`
+Number of errors occurred during reads
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_rebalances_count`
+Number of consumer rebalances
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_timeouts_count`
+Number of fetches that ends with timeout
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_fetches_count`
+Total number of fetches done by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_offset`
+Reader current offset
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_lag`
+Reader current lag
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_commit_queue_capacity`
+Reader internal commit queue capacity
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_commit_queue_length`
+Reader internal commit queue length
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_dial_seconds_count`
+Number of dials performed by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_dial_seconds_sum`
+Total time spent on dials
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_dial_seconds_min`
+Min time spent on dials
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_dial_seconds_avg`
+Average time spent on dials
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_dial_seconds_max`
+Max time spent on dials
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_read_seconds_count`
+Number of reads performed by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_read_seconds_sum`
+Total time spent on reads
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_read_seconds_min`
+Min time spent on reads
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_read_seconds_avg`
+Average time spent on reads
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_read_seconds_max`
+Max time spent on reads
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_wait_seconds_count`
+Number of message waiting cycles
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_wait_seconds_sum`
+Total time spent on waiting for messages
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_wait_seconds_min`
+Min time spent on waiting
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_wait_seconds_avg`
+Average time spent on waiting
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_wait_seconds_max`
+Max time spent on waiting
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_fetch_size_count`
+Number of fetches performed by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_fetch_size_sum`
+Total messages fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_fetch_size_min`
+Min messages fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_fetch_size_avg`
+Average messages fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_fetch_size_max`
+Max messages fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_fetch_bytes_count`
+Number of fetches performed by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_reader_fetch_bytes_sum`
+Total bytes fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_fetch_bytes_min`
+Min bytes fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_fetch_bytes_avg`
+Average bytes fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
+#### Gauge `plugin_kafka_reader_fetch_bytes_max`
+Max bytes fetched by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
  - **client_id** - kafka client ID
