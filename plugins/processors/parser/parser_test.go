@@ -9,6 +9,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	"github.com/gekatateam/neptunus/plugins/processors/parser"
 )
 
@@ -41,10 +42,6 @@ func (m *mockParser) Close() error {
 
 func (m *mockParser) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
 	return nil
-}
-
-func (m *mockParser) Alias() string {
-	return ""
 }
 
 func TestParser(t *testing.T) {
@@ -296,7 +293,9 @@ func TestParser(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			processor := &parser.Parser{}
+			processor := &parser.Parser{
+				Ider: &ider.Ider{},
+			}
 			err := processor.Init(test.config, "", "", logger.Mock())
 			if err != nil {
 				t.Fatalf("processor not initialized: %v", err)
@@ -307,7 +306,7 @@ func TestParser(t *testing.T) {
 				count: test.parseCount,
 				err:   test.parseError,
 			})
-			processor.Prepare(test.input, test.output)
+			processor.SetChannels(test.input, test.output)
 			wg.Add(1)
 			go func() {
 				processor.Run()

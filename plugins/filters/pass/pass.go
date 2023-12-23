@@ -25,7 +25,7 @@ func (f *Pass) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) 
 	return nil
 }
 
-func (f *Pass) Prepare(
+func (f *Pass) SetChannels(
 	in <-chan *core.Event,
 	_ chan<- *core.Event,
 	accepted chan<- *core.Event,
@@ -36,10 +36,6 @@ func (f *Pass) Prepare(
 
 func (f *Pass) Close() error {
 	return nil
-}
-
-func (f *Pass) Alias() string {
-	return f.alias
 }
 
 func (f *Pass) Run() {

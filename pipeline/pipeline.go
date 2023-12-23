@@ -188,7 +188,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
-		p.log.Debug(fmt.Sprintf("input plugin %v out channel: %v", i, outCh))
 		go func(u unit) {
 			u.Run()
 			wg.Done()
@@ -198,8 +197,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting inputs-to-processors fusionner")
 	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::inputs", p.config.Settings.Id), inputsOutChannels, p.config.Settings.Buffer)
 	wg.Add(1)
-	p.log.Debug(fmt.Sprintf("inputs-to-processors fusion plugin in channels: %v", inputsOutChannels))
-	p.log.Debug(fmt.Sprintf("inputs-to-processors fusion plugin out channel: %v", outCh))
 	go func(u unit) {
 		u.Run()
 		wg.Done()
@@ -210,11 +207,9 @@ func (p *Pipeline) Run(ctx context.Context) {
 		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
-			for j, processor := range p.procs[i] {
+			for _, processor := range p.procs[i] {
 				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput, p.config.Settings.Buffer)
 				wg.Add(1)
-				p.log.Debug(fmt.Sprintf("line %v, processor %v plugin in channel: %v", i, j, procInput))
-				p.log.Debug(fmt.Sprintf("line %v, processor %v plugin out channel: %v", i, j, procOut))
 				go func(u unit) {
 					u.Run()
 					wg.Done()
@@ -229,8 +224,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::processors", p.config.Settings.Id), procsOutChannels, p.config.Settings.Buffer)
 		outCh = fusionOutCh
 		wg.Add(1)
-		p.log.Debug(fmt.Sprintf("processors-to-broadcast fusion plugin in channels: %v", procsOutChannels))
-		p.log.Debug(fmt.Sprintf("processors-to-broadcast fusion plugin out channel: %v", outCh))
 		go func(u unit) {
 			u.Run()
 			wg.Done()
@@ -240,8 +233,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting broadcaster")
 	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("broadcast::processors", p.config.Settings.Id), outCh, len(p.outs), p.config.Settings.Buffer)
 	wg.Add(1)
-	p.log.Debug(fmt.Sprintf("broadcast plugin in channel: %v", outCh))
-	p.log.Debug(fmt.Sprintf("broadcast plugin out channels: %v", bcastChs))
 	go func(u unit) {
 		u.Run()
 		wg.Done()
@@ -251,7 +242,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 	for i, output := range p.outs {
 		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
 		wg.Add(1)
-		p.log.Debug(fmt.Sprintf("output plugin %v in channel: %v", i, bcastChs[i]))
 		go func(u unit) {
 			u.Run()
 			wg.Done()
@@ -291,7 +281,7 @@ func (p *Pipeline) configureOutputs() error {
 				alias = outputCfg.Alias()
 			}
 
-			if serializerNeedy, ok := output.(core.SerializerNeedy); ok {
+			if serializerNeedy, ok := output.(core.SetSerializer); ok {
 				cfgSerializer := outputCfg.Serializer()
 				if cfgSerializer == nil {
 					return fmt.Errorf("%v output requires serializer, but no serializer configuration provided", plugin)
@@ -304,7 +294,7 @@ func (p *Pipeline) configureOutputs() error {
 				serializerNeedy.SetSerializer(serializer)
 			}
 
-			if parserNeedy, ok := output.(core.ParserNeedy); ok {
+			if parserNeedy, ok := output.(core.SetParser); ok {
 				cfgParser := outputCfg.Parser()
 				if cfgParser == nil {
 					return fmt.Errorf("%v output requires parser, but no parser configuration provided", plugin)
@@ -317,7 +307,7 @@ func (p *Pipeline) configureOutputs() error {
 				parserNeedy.SetParser(parser)
 			}
 
-			if idNeedy, ok := output.(core.IdNeedy); ok {
+			if idNeedy, ok := output.(core.SetId); ok {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
@@ -361,7 +351,7 @@ func (p *Pipeline) configureProcessors() error {
 					alias = fmt.Sprintf("%v:%v", processorCfg.Alias(), i)
 				}
 
-				if serializerNeedy, ok := processor.(core.SerializerNeedy); ok {
+				if serializerNeedy, ok := processor.(core.SetSerializer); ok {
 					cfgSerializer := processorCfg.Serializer()
 					if cfgSerializer == nil {
 						return fmt.Errorf("%v processor requires serializer, but no serializer configuration provided", plugin)
@@ -374,7 +364,7 @@ func (p *Pipeline) configureProcessors() error {
 					serializerNeedy.SetSerializer(serializer)
 				}
 
-				if parserNeedy, ok := processor.(core.ParserNeedy); ok {
+				if parserNeedy, ok := processor.(core.SetParser); ok {
 					cfgParser := processorCfg.Parser()
 					if cfgParser == nil {
 						return fmt.Errorf("%v processor requires parser, but no parser configuration provided", plugin)
@@ -387,7 +377,7 @@ func (p *Pipeline) configureProcessors() error {
 					parserNeedy.SetParser(parser)
 				}
 
-				if idNeedy, ok := processor.(core.IdNeedy); ok {
+				if idNeedy, ok := processor.(core.SetId); ok {
 					idNeedy.SetId(processorCfg.Id())
 				}
 
@@ -434,7 +424,7 @@ func (p *Pipeline) configureInputs() error {
 				alias = inputCfg.Alias()
 			}
 
-			if serializerNeedy, ok := input.(core.SerializerNeedy); ok {
+			if serializerNeedy, ok := input.(core.SetSerializer); ok {
 				cfgSerializer := inputCfg.Serializer()
 				if cfgSerializer == nil {
 					return fmt.Errorf("%v input requires serializer, but no serializer configuration provided", plugin)
@@ -447,7 +437,7 @@ func (p *Pipeline) configureInputs() error {
 				serializerNeedy.SetSerializer(serializer)
 			}
 
-			if parserNeedy, ok := input.(core.ParserNeedy); ok {
+			if parserNeedy, ok := input.(core.SetParser); ok {
 				cfgParser := inputCfg.Parser()
 				if cfgParser == nil {
 					return fmt.Errorf("%v input requires parser, but no parser configuration provided", plugin)
@@ -460,7 +450,7 @@ func (p *Pipeline) configureInputs() error {
 				parserNeedy.SetParser(parser)
 			}
 
-			if idNeedy, ok := input.(core.IdNeedy); ok {
+			if idNeedy, ok := input.(core.SetId); ok {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
@@ -499,7 +489,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			alias = fmt.Sprintf("%v::%v", filterCfg.Alias(), parentName)
 		}
 
-		if serializerNeedy, ok := filter.(core.SerializerNeedy); ok {
+		if serializerNeedy, ok := filter.(core.SetSerializer); ok {
 			cfgSerializer := filterCfg.Serializer()
 			if cfgSerializer == nil {
 				return nil, fmt.Errorf("%v filter requires serializer, but no serializer configuration provided", plugin)
@@ -512,7 +502,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			serializerNeedy.SetSerializer(serializer)
 		}
 
-		if parserNeedy, ok := filter.(core.ParserNeedy); ok {
+		if parserNeedy, ok := filter.(core.SetParser); ok {
 			cfgParser := filterCfg.Parser()
 			if cfgParser == nil {
 				return nil, fmt.Errorf("%v filter requires parser, but no parser configuration provided", plugin)
@@ -525,7 +515,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			parserNeedy.SetParser(parser)
 		}
 
-		if idNeedy, ok := filter.(core.IdNeedy); ok {
+		if idNeedy, ok := filter.(core.SetId); ok {
 			idNeedy.SetId(filterCfg.Id())
 		}
 
@@ -556,7 +546,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
 	}
 
-	if idNeedy, ok := parser.(core.IdNeedy); ok {
+	if idNeedy, ok := parser.(core.SetId); ok {
 		idNeedy.SetId(parserCfg.Id())
 	}
 
@@ -586,7 +576,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
 	}
 
-	if idNeedy, ok := serializer.(core.IdNeedy); ok {
+	if idNeedy, ok := serializer.(core.SetId); ok {
 		idNeedy.SetId(serCfg.Id())
 	}
 

@@ -56,7 +56,7 @@ func (p *Regex) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (p *Regex) Prepare(
+func (p *Regex) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -66,10 +66,6 @@ func (p *Regex) Prepare(
 
 func (p *Regex) Close() error {
 	return nil
-}
-
-func (p *Regex) Alias() string {
-	return p.alias
 }
 
 func (p *Regex) Run() {

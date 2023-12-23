@@ -9,8 +9,8 @@ Plugin behavoiur depends on the procedure being called:
 
 `SendOne` and `SendBulk` produces events with full procedure name as routing key, `server` label with configured address and `sender` label with peer address, `SendStream` produces events as-is.
 
-> **Note**
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#summary-plugin_grpc_server_calls_seconds)
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#grpc-server)
 
 ## Configuration
 ```toml
@@ -21,6 +21,25 @@ Plugin behavoiur depends on the procedure being called:
 
     # address and port to host HTTP/2 listener on
     address = ":5800"
+
+    # only using in SendOne and SendBulk RPCs
+    # if configured, an event id will be set by data from path
+    # expected format - "type:path"
+    id_from = "filed:path.to.id"
+
+    ## TLS configuration
+    # if true, TLS listener will be used
+    tls_enable = false
+    # service key and certificate
+    tls_key_file = "/etc/neptunus/key.pem"
+    tls_cert_file = "/etc/neptunus/cert.pem"
+    # one or more allowed client CA certificate file names to
+    # enable mutually authenticated TLS connections
+    tls_allowed_cacerts = [ "/etc/neptunus/clientca.pem" ]
+    # minimal and maximum TLS version accepted by the service
+    # not limited by default
+    tls_min_version = "TLS12"
+    tls_max_version = "TLS13"
 
     # gRPC server options
     [inputs.grpc.server_options]

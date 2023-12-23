@@ -2,6 +2,8 @@
 The `starlark` processor uses a [Starlark](https://github.com/google/starlark-go/blob/master/doc/spec.md) script to process events.
 
 The processor defines new builtin type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event API](../../../docs/DATA_MODEL.md):
+ - `getId() String` - get event id
+ - `setId(key String)` - set event id
  - `getRK() String` - get event routing key
  - `setRK(key String)` - set event routing key
  - `addLabel(key String, value String)` - add/overwrite event label
@@ -17,7 +19,7 @@ The processor defines new builtin type - `event` - as Neptunus event representat
  - `clone() event Event` - clone event
  - `done()` - mark event as complete
 
-> **Warning**
+> [!WARNING]  
 > If you create new event using `clone()` or `copy()` method and do not return it from script, you MUST mark that event as completed by calling `done()`
 > However, this methods are experimental and may be removed or changed in future releases -->
 
@@ -57,7 +59,7 @@ def process(event):
  - Golang array or slice -> Starlark List -> Gloang slice
  - Golang map[string]T <-> Starlark Dict
 
-> **Warning**
+> [!WARNING]  
 > Remember that any method returns a **copy** of the data, not a reference. So if you need to update the data, you need to update a routing key, label, field or tag directly.
 
 ```python
@@ -78,7 +80,7 @@ def process(event):
 
 ## Starlark modules
 
-> **Note** 
+> [!TIP]   
 > Modules import is only allowed in the main script, to avoid import loops.
 
 ### Embedded

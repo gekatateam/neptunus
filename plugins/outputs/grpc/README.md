@@ -7,8 +7,8 @@ Plugin can be configured for using one of three RPCs:
  - `bulk` - plugin sends a stream of data after every `interval` or when events `buffer` is full.
  - `stream` - plugin sends an endless stream of events; when server sends **cancellation token** plugin closes stream, waits for a `sleep` and reconnects. This mode designed for streaming between Neptunes.
 
-> **Note**
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#counter-plugin_grpc_client_called_total)
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#grpc-client)
 
 ## Configuration
 ```toml
@@ -32,10 +32,23 @@ Plugin can be configured for using one of three RPCs:
     max_attempts = 0 # zero for endless attempts
 
     ## batching settings, using only in "bulk" mode
-    # interval between sending event batches
-    interval = "5s"
+    # interval between sending event batches if buffer length less than it's capacity
+    batch_interval = "5s"
     # events buffer size
-    buffer = 100
+    batch_buffer = 100
+
+    ## TLS configuration
+    # if true, TLS client will be used
+    tls_enable = false
+    # trusted root certificates for server
+    tls_ca_file = "/etc/neptunus/ca.pem"
+    # used for TLS client certificate authentication
+    tls_key_file = "/etc/neptunus/key.pem"
+    tls_cert_file = "/etc/neptunus/cert.pem"
+    # send the specified TLS server name via SNI
+    tls_server_name = "exmple.svc.local"
+    # use TLS but skip chain & host verification
+    tls_insecure_skip_verify = false
 
     # connections set up parameters
     [outputs.grpc.dial_options]

@@ -29,10 +29,6 @@ func (p *Plain) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (p *Plain) Alias() string {
-	return p.alias
-}
-
 func (p *Plain) Close() error {
 	return nil
 }

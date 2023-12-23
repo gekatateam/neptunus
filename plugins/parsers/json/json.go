@@ -25,10 +25,6 @@ func (p *Json) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) 
 	return nil
 }
 
-func (p *Json) Alias() string {
-	return p.alias
-}
-
 func (p *Json) Close() error {
 	return nil
 }

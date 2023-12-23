@@ -11,6 +11,10 @@ import (
 )
 
 var eventMethods = map[string]*starlark.Builtin{
+	// id methods
+	"getId": starlark.NewBuiltin("getId", getId), // f() id String
+	"setId": starlark.NewBuiltin("setId", setId), // f(id String)
+
 	// routing key methods
 	"getRK": starlark.NewBuiltin("getRK", getRoutingKey), // f() routingKey String
 	"setRK": starlark.NewBuiltin("setRK", setRoutingKey), // f(routingKey String)
@@ -38,6 +42,28 @@ var eventMethods = map[string]*starlark.Builtin{
 }
 
 //type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
+
+func getId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
+	// }
+
+	return starlark.String(b.Receiver().(*_event).event.Id), nil
+}
+
+func setId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(kwargs) > 0 {
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
+	// }
+
+	var id string
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &id); err != nil {
+		return starlark.None, err
+	}
+
+	b.Receiver().(*_event).event.Id = id
+	return starlark.None, nil
+}
 
 func getRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
@@ -200,14 +226,6 @@ func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 	}
 
 	return starlark.Bool(b.Receiver().(*_event).event.HasTag(tag)), nil
-}
-
-func copyEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
-	// }
-
-	return &_event{event: b.Receiver().(*_event).event.Copy()}, nil
 }
 
 func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {

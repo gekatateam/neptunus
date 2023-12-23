@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
@@ -19,6 +20,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Grpc struct {
@@ -34,6 +36,7 @@ type Grpc struct {
 	CallOptions    CallOptions       `mapstructure:"call_options"`
 	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
 
+	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	sendFn   func(ch <-chan *core.Event)
@@ -72,17 +75,30 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 		return errors.New("address required")
 	}
 
+	if o.Batcher.Buffer < 0 {
+		o.Batcher.Buffer = 1
+	}
+
+	tlsConfig, err := o.TLSClientConfig.Config()
+	if err != nil {
+		return err
+	}
+
 	options := dialOptions(o.DialOptions)
 	if o.EnableMetrics {
 		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(pipeline, alias)))
 		options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(pipeline, alias)))
 	}
 
-	var err error
-	o.conn, err = grpc.Dial(o.Address, options...)
+	if tlsConfig != nil {
+		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	}
+
+	conn, err := grpc.Dial(o.Address, options...)
 	if err != nil {
 		return err
 	}
+	o.conn = conn
 	o.client = common.NewInputClient(o.conn)
 	o.callOpts = callOptions(o.CallOptions)
 
@@ -101,7 +117,7 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (o *Grpc) Prepare(in <-chan *core.Event) {
+func (o *Grpc) SetChannels(in <-chan *core.Event) {
 	o.in = in
 }
 
@@ -115,10 +131,6 @@ func (o *Grpc) Run() {
 
 func (o *Grpc) Close() error {
 	return o.conn.Close()
-}
-
-func (o *Grpc) Alias() string {
-	return o.alias
 }
 
 func (o *Grpc) sendOne(ch <-chan *core.Event) {
@@ -340,7 +352,7 @@ MAIN_LOOP:
 					Labels:     e.Labels,
 					Data:       event,
 					Tags:       e.Tags,
-					Id:         e.Id.String(),
+					Id:         e.Id,
 					Errors:     e.Errors.Slice(),
 					Timestamp:  e.Timestamp.Format(time.RFC3339Nano),
 				})
@@ -487,6 +499,7 @@ func init() {
 				Buffer:   100,
 				Interval: 5 * time.Second,
 			},
+			TLSClientConfig: &tls.TLSClientConfig{},
 		}
 	})
 }

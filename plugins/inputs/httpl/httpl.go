@@ -3,6 +3,7 @@ package httpl
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,7 +17,9 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Httpl struct {
@@ -28,6 +31,9 @@ type Httpl struct {
 	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
 	MaxConnections int               `mapstructure:"max_connections"`
 	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
+
+	*ider.Ider              `mapstructure:",squash"`
+	*pkgtls.TLSServerConfig `mapstructure:",squash"`
 
 	server   *http.Server
 	listener net.Listener
@@ -50,9 +56,28 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return errors.New("address required")
 	}
 
-	listener, err := net.Listen("tcp", i.Address)
+	if err := i.Ider.Init(); err != nil {
+		return err
+	}
+
+	tlsConfig, err := i.TLSServerConfig.Config()
 	if err != nil {
-		return fmt.Errorf("error creating listener: %v", err)
+		return err
+	}
+
+	var listener net.Listener
+	if i.TLSServerConfig.Enable {
+		l, err := tls.Listen("tcp", i.Address, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("error creating TLS listener: %v", err)
+		}
+		listener = l
+	} else {
+		l, err := net.Listen("tcp", i.Address)
+		if err != nil {
+			return fmt.Errorf("error creating listener: %v", err)
+		}
+		listener = l
 	}
 
 	if i.MaxConnections > 0 {
@@ -72,12 +97,13 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		ReadTimeout:  i.ReadTimeout,
 		WriteTimeout: i.WriteTimeout,
 		Handler:      mux,
+		TLSConfig:    tlsConfig,
 	}
 
 	return nil
 }
 
-func (i *Httpl) Prepare(out chan<- *core.Event) {
+func (i *Httpl) SetChannels(out chan<- *core.Event) {
 	i.out = out
 }
 
@@ -115,10 +141,6 @@ func (i *Httpl) Close() error {
 	return nil
 }
 
-func (i *Httpl) Alias() string {
-	return i.alias
-}
-
 func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
@@ -146,10 +168,10 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
 		if err != nil {
-			i.log.Error(fmt.Sprintf("parsing error at line %v", cursor),
+			i.log.Error(fmt.Sprintf("parser error at line %v", cursor),
 				"error", err,
 			)
-			http.Error(w, fmt.Sprintf("parsing error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("parser error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
 			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
 			return
 		}
@@ -166,6 +188,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			i.Ider.Apply(event)
 			i.out <- event
 			i.log.Debug("event accepted",
 				slog.Group("event",
@@ -191,10 +214,12 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func init() {
 	plugins.AddInput("httpl", func() core.Input {
 		return &Httpl{
-			Address:        ":9800",
-			ReadTimeout:    10 * time.Second,
-			WriteTimeout:   10 * time.Second,
-			MaxConnections: 0,
+			Address:         ":9800",
+			ReadTimeout:     10 * time.Second,
+			WriteTimeout:    10 * time.Second,
+			MaxConnections:  0,
+			Ider:            &ider.Ider{},
+			TLSServerConfig: &pkgtls.TLSServerConfig{},
 		}
 	})
 }

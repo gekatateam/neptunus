@@ -39,7 +39,7 @@ func (p *Copy) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (p *Copy) Prepare(
+func (p *Copy) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -51,15 +51,11 @@ func (p *Copy) Close() error {
 	return nil
 }
 
-func (p *Copy) Alias() string {
-	return p.alias
-}
-
 func (p *Copy) Run() {
 	for e := range p.in {
 		now := time.Now()
 
-		copy := e.Copy()
+		copy := e.Clone()
 		copy.RoutingKey = p.RoutingKey
 		for k, v := range p.Labels {
 			copy.AddLabel(k, v)

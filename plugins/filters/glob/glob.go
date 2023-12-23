@@ -78,7 +78,7 @@ func (f *Glob) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (f *Glob) Prepare(
+func (f *Glob) SetChannels(
 	in <-chan *core.Event,
 	rejected chan<- *core.Event,
 	accepted chan<- *core.Event,
@@ -90,10 +90,6 @@ func (f *Glob) Prepare(
 
 func (f *Glob) Close() error {
 	return nil
-}
-
-func (f *Glob) Alias() string {
-	return f.alias
 }
 
 func (f *Glob) Run() {

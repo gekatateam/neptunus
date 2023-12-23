@@ -73,7 +73,7 @@ func (p *Stats) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (p *Stats) Prepare(
+func (p *Stats) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -84,10 +84,6 @@ func (p *Stats) Prepare(
 func (p *Stats) Close() error {
 	p.cache.clear()
 	return nil
-}
-
-func (p *Stats) Alias() string {
-	return p.alias
 }
 
 func (p *Stats) SetId(id uint64) {

@@ -8,7 +8,7 @@ The `parser` processor parses string or bytes slice field into (new) event(s). T
   [processors.parser]
     # parser mode, "merge" or "produce"
     # in produce mode, plugin generates new events from parser result
-    # origin labels and tags will be copied into new events
+    # origin labels, tags, id and routing key will be copied into new events
     #
     # in merge mode, plugin merges parser result with input event
     # if parser returns multiple events, plugin produces 
@@ -29,6 +29,11 @@ The `parser` processor parses string or bytes slice field into (new) event(s). T
     # path to field, where result of a parser's work will be placed
     # if empty, fields will be placed in root of event data map
     to = "path.to.field"
+
+    # only using in produce mode
+    # if configured, an event id will be set by data from path
+    # expected format - "type:path"
+    id_from = "filed:path.to.id"
     [processors.parser.parser]
       type = "json"
 ```

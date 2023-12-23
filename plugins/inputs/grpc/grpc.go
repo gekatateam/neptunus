@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -23,16 +23,20 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Grpc struct {
-	alias         string
-	pipe          string
-	EnableMetrics bool              `mapstructure:"enable_metrics"`
-	Address       string            `mapstructure:"address"`
-	ServerOptions ServerOptions     `mapstructure:"server_options"`
-	LabelMetadata map[string]string `mapstructure:"labelmetadata"`
+	alias                string
+	pipe                 string
+	EnableMetrics        bool              `mapstructure:"enable_metrics"`
+	Address              string            `mapstructure:"address"`
+	ServerOptions        ServerOptions     `mapstructure:"server_options"`
+	LabelMetadata        map[string]string `mapstructure:"labelmetadata"`
+	*ider.Ider           `mapstructure:",squash"`
+	*tls.TLSServerConfig `mapstructure:",squash"`
 
 	server   *grpc.Server
 	listener net.Listener
@@ -63,10 +67,6 @@ type ServerOptions struct {
 	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
 }
 
-func (i *Grpc) Alias() string {
-	return i.alias
-}
-
 func (i *Grpc) Close() error {
 	i.log.Debug("closing plugin")
 	close(i.closeCh)
@@ -84,8 +84,17 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	i.log = log
 	i.closeCh = make(chan struct{})
 
+	if err := i.Ider.Init(); err != nil {
+		return err
+	}
+
 	if len(i.Address) == 0 {
 		return errors.New("address required")
+	}
+
+	tlsConfig, err := i.TLSServerConfig.Config()
+	if err != nil {
+		return err
 	}
 
 	listener, err := net.Listen("tcp", i.Address)
@@ -107,9 +116,14 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 			Timeout:               i.ServerOptions.InactiveTransportAge,
 		}),
 	}
+
 	if i.EnableMetrics {
 		options = append(options, grpc.StreamInterceptor(grpcstats.GrpcServerStreamInterceptor(pipeline, alias)))
 		options = append(options, grpc.UnaryInterceptor(grpcstats.GrpcServerUnaryInterceptor(pipeline, alias)))
+	}
+
+	if tlsConfig != nil {
+		options = append(options, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
 
 	i.server = grpc.NewServer(options...)
@@ -121,7 +135,7 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	return nil
 }
 
-func (i *Grpc) Prepare(out chan<- *core.Event) {
+func (i *Grpc) SetChannels(out chan<- *core.Event) {
 	i.out = out
 }
 
@@ -310,6 +324,8 @@ func (i *Grpc) unpackData(ctx context.Context, data *common.Data, defaultkey str
 				e.AddLabel(k, strings.Join(val, ";"))
 			}
 		}
+
+		i.Ider.Apply(e)
 	}
 
 	return events, nil
@@ -322,17 +338,13 @@ func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
 	}
 	e := events[0]
 
-	id, err := uuid.Parse(event.GetId())
-	if err != nil {
-		return nil, fmt.Errorf("id parsing failed: %w", err)
-	}
-	e.Id = id
-
 	timestamp, err := time.Parse(time.RFC3339Nano, event.GetTimestamp())
 	if err != nil {
 		return nil, fmt.Errorf("timestamp parsing failed: %w", err)
 	}
 	e.Timestamp = timestamp
+
+	e.Id = event.GetId()
 
 	for k, v := range event.GetLabels() {
 		e.AddLabel(k, v)
@@ -363,6 +375,8 @@ func init() {
 				InactiveTransportPing: 0,
 				InactiveTransportAge:  0,
 			},
+			Ider:            &ider.Ider{},
+			TLSServerConfig: &tls.TLSServerConfig{},
 		}
 	})
 }

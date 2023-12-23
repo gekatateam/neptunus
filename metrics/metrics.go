@@ -130,7 +130,7 @@ func init() {
 	)
 	pipeLines = prometheus.NewDesc(
 		"pipeline_processors_lines",
-		"Count of configured processors lines.",
+		"Number of configured processors lines.",
 		[]string{"pipeline"},
 		nil,
 	)
@@ -146,32 +146,38 @@ func init() {
 	prometheus.MustRegister(pipes)
 }
 
+type ObserveFunc func(status eventStatus, t time.Duration)
+
+type Observer interface {
+	Observe(status eventStatus, t time.Duration)
+}
+
 func ObserveInputSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
 func ObserveFliterSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	filterSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+	filterSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
 func ObserveProcessorSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	processorSummary.WithLabelValues(plugin, pipeline, name, string(status)).Observe(float64(t) / float64(time.Second))
+	processorSummary.WithLabelValues(plugin, pipeline, name, string(status)).Observe(t.Seconds())
 }
 
 func ObserveOutputSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	outputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+	outputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
 func ObserveParserSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	parserSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+	parserSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
 func ObserveSerializerSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	serializerSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+	serializerSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
 func ObserveCoreSummary(plugin, name, pipeline string, status eventStatus, t time.Duration) {
-	coreSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(float64(t) / float64(time.Second))
+	coreSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
 func CollectChan(statFunc func() ChanStats) {

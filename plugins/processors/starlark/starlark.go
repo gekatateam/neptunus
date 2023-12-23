@@ -124,7 +124,7 @@ SCRIPT_LOADED:
 	return nil
 }
 
-func (p *Starlark) Prepare(
+func (p *Starlark) SetChannels(
 	in <-chan *core.Event,
 	out chan<- *core.Event,
 ) {
@@ -134,10 +134,6 @@ func (p *Starlark) Prepare(
 
 func (p *Starlark) Close() error {
 	return nil
-}
-
-func (p *Starlark) Alias() string {
-	return p.alias
 }
 
 func (p *Starlark) Run() {

@@ -12,8 +12,8 @@ import (
 //
 // batcher clears buffer after each call of flushFn()
 type Batcher[T any] struct {
-	Buffer   int           `mapstructure:"buffer"`
-	Interval time.Duration `mapstructure:"interval"`
+	Buffer   int           `mapstructure:"batch_buffer"`
+	Interval time.Duration `mapstructure:"batch_interval"`
 }
 
 func (b *Batcher[T]) Run(in <-chan T, flushFn func(buf []T)) {

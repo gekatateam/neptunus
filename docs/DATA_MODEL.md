@@ -1,13 +1,15 @@
 # Neptunus data model
 
 The Neptunus engine works with events - single data frames. An event is a structure with seven main fields:
- - **Id** - UUID of an event, which is usually generated when an event is created.
+ - **Id** - unique ID of an event, which is usually generated when an event is created and may be replaced by data from request body, message, etc.
  - **Timestamp** - the time an event was created.
  - **Routing key** - an event key, which should be used for events routing inside a pipeline and in outer world; usually it is a queue/topic name, URL path, etc.
  - **Labels** - an event metadata map, which are used for routing with routing key; think of this as an event headers.
  - **Tags** - list of **unique** event attributes, which also can be used for routing; plugins adds special tags, e.g. `::starlark_processing_failed` when an error occurs.
 - **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
 - **Fields** - an event payload, data map, that is filling by parsers; it is essentially the body of an event.
+
+Also, each event has a **UUID** field that is randomly generated. This field is for internal use only and may be useful as an unique identifier.
 
 ## Event API
 
@@ -23,7 +25,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
  - `DeleteField(key string) (any, error)` - delete field from event; if field does not exist, error returns
  - `AppendFields(data Map)` - append fields to the root of data map
  - `Clone() *Event` - clone event
- - `Copy() *Event` - copy event; new Id and Timestamp will be generated
+<!-- - `Copy() *Event` - copy event; new Id and Timestamp will be generated -->
  - `Done()` - mark event as delivered, deleted from pipeline or finally failed
  - `StackError(err error)` - add error to event
 

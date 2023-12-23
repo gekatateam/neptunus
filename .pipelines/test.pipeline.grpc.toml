@@ -1,0 +1,57 @@
+[settings]
+  id = "test.pipeline.grpc"
+  lines = 5
+#  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.httpl]
+    address = ":9200"
+    max_connections = 10
+    tls_enable = true
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.httpl.parser]
+    type = "json"
+
+[[inputs]]
+  [inputs.grpc]
+    enable_metrics = true
+    address = ":5800"
+    [inputs.grpc.server_options]
+      max_connection_idle = "5s"
+      max_connection_age = "5m"
+      max_connection_grace = "5s"
+      inactive_transport_ping = "10s"
+      inactive_transport_age = "10s"
+  [inputs.grpc.parser]
+    type = "json"
+
+[[processors]]
+  [processors.rk.mapping]
+    "neptunus.grpc.output" = [ "/http.input.test" ]
+    "neptunus.grpc.skip" = [ "/neptunus.plugins.common.grpc/SendBulk" ]
+
+[[outputs]]
+  [outputs.grpc]
+    enable_metrics = true
+    address = "localhost:5800"
+    procedure = "bulk"
+    max_attempts = 1
+    retry_after = "2s"
+    batch_buffer = 100
+  [outputs.grpc.serializer]
+    type = "json"
+    data_only = true
+  [outputs.grpc.filters.glob]
+    routing_key = [ "neptunus.grpc.output" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "debug"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
+  [outputs.log.filters.glob]
+    routing_key = [ "neptunus.grpc.skip" ]

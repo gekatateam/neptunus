@@ -27,7 +27,6 @@ type Json struct {
 	delim byte
 	start []byte
 	end   []byte
-	buf   *bytes.Buffer
 }
 
 func (s *Json) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
@@ -57,13 +56,8 @@ func (s *Json) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	} else {
 		s.serFunc = s.serializeEvent
 	}
-	s.buf = bytes.NewBuffer(make([]byte, 0, 4096))
 
 	return nil
-}
-
-func (s *Json) Alias() string {
-	return s.alias
 }
 
 func (s *Json) Close() error {
@@ -72,9 +66,9 @@ func (s *Json) Close() error {
 
 func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
+	buf := bytes.NewBuffer(make([]byte, 0, 4096))
 	var result []byte
-	s.buf.Write(s.start)
-	defer s.buf.Reset()
+	buf.Write(s.start)
 
 	lastIter := len(events) - 1
 	for i, e := range events {
@@ -95,14 +89,14 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 			}
 			return nil, err
 		}
-		s.buf.Write(rawData)
-		s.buf.WriteByte(s.delim)
+		buf.Write(rawData)
+		buf.WriteByte(s.delim)
 
-		if i == lastIter {
-			s.buf.Truncate(s.buf.Len() - 1) // trim last delimeter
-			s.buf.Write(s.end)
-			result = make([]byte, s.buf.Len())
-			copy(result, s.buf.Bytes())
+		if i == lastIter && buf.Len() > 0 {
+			buf.Truncate(buf.Len() - 1) // trim last delimeter
+			buf.Write(s.end)
+			result = make([]byte, buf.Len())
+			copy(result, buf.Bytes())
 		}
 
 		metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventAccepted, time.Since(now))

@@ -24,7 +24,7 @@ func New(alias, pipeline string) *Fusion {
 	}
 }
 
-func (c *Fusion) Prepare(ins []<-chan *core.Event, out chan<- *core.Event) {
+func (c *Fusion) SetChannels(ins []<-chan *core.Event, out chan<- *core.Event) {
 	c.ins = ins
 	c.out = out
 }

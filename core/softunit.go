@@ -45,12 +45,12 @@ func NewDirectProcessorSoftUnit(p Processor, f []Filter, in <-chan *Event, buffe
 
 	for _, filter := range f {
 		acceptsChan := make(chan *Event, bufferSize)
-		filter.Prepare(in, unit.out, acceptsChan)
+		filter.SetChannels(in, unit.out, acceptsChan)
 		in = acceptsChan // connect current filter success output to next filter/plugin input
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
 
-	p.Prepare(in, unit.out)
+	p.SetChannels(in, unit.out)
 	return unit, out
 }
 
@@ -114,12 +114,12 @@ func NewDirectOutputSoftUnit(o Output, f []Filter, in <-chan *Event, bufferSize 
 
 	for _, filter := range f {
 		acceptsChan := make(chan *Event, bufferSize)
-		filter.Prepare(in, unit.rej, acceptsChan)
+		filter.SetChannels(in, unit.rej, acceptsChan)
 		in = acceptsChan
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
 
-	o.Prepare(in)
+	o.SetChannels(in)
 	return unit
 }
 
@@ -182,11 +182,11 @@ func NewDirectInputSoftUnit(i Input, f []Filter, stop <-chan struct{}, bufferSiz
 		rej:  make(chan *Event, bufferSize),
 		stop: stop,
 	}
-	i.Prepare(out)
+	i.SetChannels(out)
 
 	for _, filter := range f {
 		acceptsChan := make(chan *Event, bufferSize)
-		filter.Prepare(out, unit.rej, acceptsChan)
+		filter.SetChannels(out, unit.rej, acceptsChan)
 		out = acceptsChan
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
@@ -258,7 +258,7 @@ func NewDirectBroadcastSoftUnit(c Broadcast, in <-chan *Event, outsCount, buffer
 		outs = append(outs, outCh)
 		unit.outs = append(unit.outs, outCh)
 	}
-	c.Prepare(in, unit.outs)
+	c.SetChannels(in, unit.outs)
 
 	return unit, outs
 }
@@ -296,7 +296,7 @@ func NewDirectFusionSoftUnit(c Fusion, ins []<-chan *Event, bufferSize int) (uni
 		ins: ins,
 		out: out,
 	}
-	c.Prepare(ins, out)
+	c.SetChannels(ins, out)
 
 	return unit, out
 }
