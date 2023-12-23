@@ -277,6 +277,7 @@ func init() {
 	plugins.AddInput("kafka", func() core.Input {
 		return &Kafka{
 			ClientId:          "neptunus.kafka.input",
+			GroupId:           "neptunus.kafka.input",
 			GroupBalancer:     "range",
 			StartOffset:       "last",
 			GroupTTL:          24 * time.Hour,

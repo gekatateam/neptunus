@@ -39,7 +39,7 @@ func (i *Ider) Init() error {
 	)
 
 	for _, r := range i.IdFrom {
-		if r == ':' {
+		if r == ':' && !next {
 			next = true
 			continue
 		}
