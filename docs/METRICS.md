@@ -221,7 +221,7 @@ Labels:
 
 ### Kafka Producer
 
-> **Warning**
+> [!WARNING]  
 > Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, producer metrics updates every 15 sec, not on read
 
 #### Counter `plugin_kafka_writer_messages_count`
@@ -478,10 +478,10 @@ Labels:
 
 ### Kafka Consumer
 
-> **Warning**
+> [!WARNING]  
 > Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, producer metrics updates every 15 sec, not on read
 
-> **Warning**
+> [!WARNING]  
 > Due to the specifics of the [library](https://github.com/segmentio/kafka-go/blob/v0.4.43/reader.go#L685s) used, value of 'partition' lablel is always '-1'
 
 #### Counter `plugin_kafka_reader_messages_count`

@@ -8,7 +8,7 @@ Message is marked as ready to be committed when an event tracker hook is called.
 
 If commit queue is full, fetching is suspended until at least one message is committed.
 
-> **Note**
+> [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-consumer)
 
 ## Configuration

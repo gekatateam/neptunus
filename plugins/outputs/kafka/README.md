@@ -3,7 +3,7 @@ The `kafka` output plugin produces events to Kafka. This plugin requires seriali
 
 Target topic name takes from an event routing key. Plugin creates one writer per topic.
 
-> **Note**
+> [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-producer)
 
 ## Configuration
