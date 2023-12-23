@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.grpc"
   lines = 5
-  run = true #
+#  run = true
   buffer = 1_000
 
 [[inputs]]

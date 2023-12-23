@@ -386,6 +386,24 @@ Labels:
  - **topic** - kafka topic name
  - **client_id** - kafka client ID
 
+#### Counter `plugin_kafka_writer_batch_size_count`
+Number of batches written by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_writer_batch_size_sum`
+Total size of written batches
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **client_id** - kafka client ID
+
 #### Gauge `plugin_kafka_writer_batch_size_min`
 Min written batch size
 
@@ -406,6 +424,24 @@ Labels:
 
 #### Gauge `plugin_kafka_writer_batch_size_max`
 Max written batch size
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_writer_batch_bytes_count`
+Number of batches written by client
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **client_id** - kafka client ID
+
+#### Counter `plugin_kafka_writer_batch_bytes_sum`
+Total bytes of written batches
 
 Labels:
  - **pipeline** - pipeline Id
