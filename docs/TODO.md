@@ -11,7 +11,7 @@
  - [ ] Path navigation through arrays and slices, e.g. `data.0.field`
 
 ## Inputs
- - [ ] Kafka
+ - [x] Kafka
  - [ ] AMQP
  - [x] gRPC stream
 
