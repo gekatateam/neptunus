@@ -28,7 +28,7 @@ This plugin produce events with routing key as request path, `server` label with
     # maximum duration before timing out write of the response
     write_timeout = "10s"
 
-    # if configured an event id will be set by data from path
+    # if configured, an event id will be set by data from path
     # expected format - "type:path"
     id_from = "filed:path.to.id"
 

@@ -31,7 +31,7 @@ The `parser` processor parses string or bytes slice field into (new) event(s). T
     to = "path.to.field"
 
     # only using in produce mode
-    # if configured an event id will be set by data from path
+    # if configured, an event id will be set by data from path
     # expected format - "type:path"
     id_from = "filed:path.to.id"
     [processors.parser.parser]

@@ -23,7 +23,7 @@ Plugin behavoiur depends on the procedure being called:
     address = ":5800"
 
     # only using in SendOne and SendBulk RPCs
-    # if configured an event id will be set by data from path
+    # if configured, an event id will be set by data from path
     # expected format - "type:path"
     id_from = "filed:path.to.id"
 
