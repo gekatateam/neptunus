@@ -30,13 +30,10 @@ Target topic name takes from an event routing key. Plugin creates one writer per
     # timeout for write operations performed by the writer
     write_timeout = "5s"
 
-    # time limit on how often incomplete message batches will be flushed from kafka client to broker
-    batch_timeout = "10ms"
-
     # interval between events buffer flushes if buffer length less than it's capacity
     batch_interval = "5s"
 
-    # events buffer size, also, messages batch size, see batch_timeout
+    # events buffer size, also, messages batch size
     # if configured value less than 1, it will be set to 1
     batch_buffer = 100
 
