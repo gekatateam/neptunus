@@ -29,7 +29,6 @@ type Kafka struct {
 	IdleTimeout       time.Duration     `mapstructure:"idle_timeout"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	WriteTimeout      time.Duration     `mapstructure:"write_timeout"`
-	BatchTimeout      time.Duration     `mapstructure:"batch_timeout"`
 	MaxMessageSize    int64             `mapstructure:"max_message_size"`
 	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
 	Compression       string            `mapstructure:"compression"`
@@ -125,7 +124,7 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		BatchSize:              o.Batcher.Buffer,
 		AllowAutoTopicCreation: o.TopicsAutocreate,
 		WriteTimeout:           o.WriteTimeout,
-		BatchTimeout:           o.BatchTimeout,
+		BatchTimeout:           time.Millisecond,
 		BatchBytes:             o.MaxMessageSize,
 		MaxAttempts:            1,
 		Logger:                 common.NewLogger(o.log),
@@ -263,7 +262,6 @@ func init() {
 			IdleTimeout:       1 * time.Hour,
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
-			BatchTimeout:      10 * time.Millisecond,
 			MaxMessageSize:    1_048_576, // 1 MiB
 			RetryAfter:        5 * time.Second,
 			RequiredAcks:      "one",
