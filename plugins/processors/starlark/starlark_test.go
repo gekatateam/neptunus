@@ -6,6 +6,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	common "github.com/gekatateam/neptunus/plugins/common/starlark"
 	"github.com/gekatateam/neptunus/plugins/processors/starlark"
 )
 
@@ -108,7 +109,9 @@ def process(event):
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			processor := &starlark.Starlark{}
+			processor := &starlark.Starlark{
+				Starlark: &common.Starlark{},
+			}
 			err := processor.Init(test.config, "", "", logger.Mock())
 			if err != nil {
 				t.Fatalf("processor not initialized: %v", err)

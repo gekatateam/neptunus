@@ -4,29 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
-	"go.starlark.net/lib/json"
-	"go.starlark.net/lib/math"
-	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
-	"go.starlark.net/starlarkstruct"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
+	common "github.com/gekatateam/neptunus/plugins/common/starlark"
 )
 
 type Starlark struct {
-	alias string
-	pipe  string
-	Code  string `mapstructure:"code"`
-	File  string `mapstructure:"file"`
+	alias            string
+	pipe             string
+	*common.Starlark `mapstructure:",squash"`
 
-	thread *starlark.Thread
-	stFunc *starlark.Function
+	stThread *starlark.Thread
+	stFunc   *starlark.Function
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
@@ -42,84 +37,16 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log *slog
 	p.pipe = pipeline
 	p.log = log
 
-	if len(p.Code) == 0 && len(p.File) == 0 {
-		return errors.New("code or file required")
+	if err := p.Starlark.Init(alias, log); err != nil {
+		return err
 	}
 
-	if len(p.Code) > 0 {
-		p.File = p.alias + ".star"
-		goto SCRIPT_LOADED
-	}
-
-	if len(p.File) > 0 {
-		script, err := os.ReadFile(p.File)
-		if err != nil {
-			return fmt.Errorf("failed to load %v script: %v", p.File, err)
-		}
-		p.Code = string(script)
-	}
-SCRIPT_LOADED:
-
-	builtins := starlark.StringDict{
-		"newEvent": starlark.NewBuiltin("newEvent", newEvent),
-		"error":    starlark.NewBuiltin("error", newError),
-		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
-	}
-
-	p.thread = &starlark.Thread{
-		Print: func(_ *starlark.Thread, msg string) {
-			p.log.Debug(fmt.Sprintf("from starlark: %v", msg))
-		},
-		Load: func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
-			switch module {
-			case "math.star":
-				return starlark.StringDict{
-					"math": math.Module,
-				}, nil
-			case "time.star":
-				return starlark.StringDict{
-					"time": startime.Module,
-				}, nil
-			case "json.star":
-				return starlark.StringDict{
-					"json": json.Module,
-				}, nil
-			default:
-				script, err := os.ReadFile(module)
-				if err != nil {
-					return nil, err
-				}
-
-				entries, err := starlark.ExecFile(thread, module, script, builtins)
-				if err != nil {
-					return nil, err
-				}
-
-				return entries, nil
-			}
-		},
-	}
-
-	_, program, err := starlark.SourceProgram(p.File, p.Code, builtins.Has)
+	stFunc, err := p.Starlark.Func("process")
 	if err != nil {
-		return fmt.Errorf("compilation failed: %v", err)
-	}
-
-	globals, err := program.Init(p.thread, builtins)
-	if err != nil {
-		return fmt.Errorf("initialization failed: %v", err)
-	}
-
-	stVal, ok := globals["process"]
-	if !ok {
-		return errors.New("process(event) function not found in starlark script")
-	}
-
-	stFunc, ok := stVal.(*starlark.Function)
-	if !ok {
-		return errors.New("process is not a function")
+		return err
 	}
 	p.stFunc = stFunc
+	p.stThread = p.Starlark.Thread()
 
 	return nil
 }
@@ -139,7 +66,7 @@ func (p *Starlark) Close() error {
 func (p *Starlark) Run() {
 	for e := range p.in {
 		now := time.Now()
-		result, err := starlark.Call(p.thread, p.stFunc, []starlark.Value{&_event{event: e}}, nil)
+		result, err := starlark.Call(p.stThread, p.stFunc, []starlark.Value{common.RWEvent(e)}, nil)
 		if err != nil {
 			p.log.Error("exec failed",
 				"error", err,
@@ -183,9 +110,9 @@ func unpack(starValue starlark.Value) ([]*core.Event, error) {
 	events := []*core.Event{}
 
 	switch v := starValue.(type) {
-	case *_event:
-		return append(events, v.event), nil
-	case _error:
+	case *common.Event:
+		return append(events, v.Event()), nil
+	case common.Error:
 		return nil, errors.New(v.String())
 	case *starlark.List:
 		iter := v.Iterate()
@@ -217,6 +144,8 @@ func markAsDone(e *core.Event, events []*core.Event) {
 
 func init() {
 	plugins.AddProcessor("starlark", func() core.Processor {
-		return &Starlark{}
+		return &Starlark{
+			Starlark: &common.Starlark{},
+		}
 	})
 }

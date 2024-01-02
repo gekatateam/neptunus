@@ -15,7 +15,7 @@ import (
 	"github.com/gekatateam/neptunus/pipeline/model"
 )
 
-var _ pipeline.Service = &restGateway{}
+var _ pipeline.Service = (*restGateway)(nil)
 
 type restGateway struct {
 	addr string
