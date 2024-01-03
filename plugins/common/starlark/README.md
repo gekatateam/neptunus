@@ -42,7 +42,7 @@ Three embedded modules are supported:
  - **[math](https://pkg.go.dev/go.starlark.net/lib/math)** - provides basic constants and mathematical functions
  - **[json](https://pkg.go.dev/go.starlark.net/lib/json)** - utilities for converting Starlark values to/from JSON strings
 
-To import, call the `load()` function, after which the module functions and variables will become available for use via the module struct:
+For import, call the `load()` function, after which a module functions and variables will become available for use via module struct:
 ```python
 load("math.star", "math")
 load("time.star", "time")
