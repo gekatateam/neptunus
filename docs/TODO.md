@@ -25,7 +25,7 @@ With batching and buffering
 
 ## Filters
  - [x] Glob for labels, fields, routing keys
- - [ ] Comparison operators for numbers
+ - [x] ~~Comparison operators for numbers~~ Starlark should be used instead
 
 ## Processors
  - [x] Regular expressions

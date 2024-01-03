@@ -12,7 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/pipeline"
 )
 
-var _ pipeline.Service = &internalService{}
+var _ pipeline.Service = (*internalService)(nil)
 
 type pipeUnit struct {
 	p *pipeline.Pipeline

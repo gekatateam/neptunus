@@ -3,6 +3,7 @@ package starlark
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 
 	"go.starlark.net/starlark"
@@ -10,35 +11,48 @@ import (
 	"github.com/gekatateam/neptunus/core"
 )
 
-var eventMethods = map[string]*starlark.Builtin{
+func init() {
+	maps.Copy(rwEventMethods, roEventMethods)
+	maps.Copy(rwEventMethods, woEventMethods)
+}
+
+var rwEventMethods = map[string]*starlark.Builtin{}
+
+var roEventMethods = map[string]*starlark.Builtin{
 	// id methods
 	"getId": starlark.NewBuiltin("getId", getId), // f() id String
-	"setId": starlark.NewBuiltin("setId", setId), // f(id String)
 
 	// routing key methods
 	"getRK": starlark.NewBuiltin("getRK", getRoutingKey), // f() routingKey String
+
+	// labels methods
+	"getLabel": starlark.NewBuiltin("getLabel", getLabel), // f(key String) value String|None
+
+	// fields methods
+	"getField": starlark.NewBuiltin("getField", getField), // f(path String) value Value|None
+
+	// tags methods
+	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
+}
+
+var woEventMethods = map[string]*starlark.Builtin{
+	// id methods
+	"setId": starlark.NewBuiltin("setId", setId), // f(id String)
+
+	// routing key methods
 	"setRK": starlark.NewBuiltin("setRK", setRoutingKey), // f(routingKey String)
 
 	// labels methods
 	"addLabel": starlark.NewBuiltin("addLabel", addLabel), // f(key, value String)
-	"getLabel": starlark.NewBuiltin("getLabel", getLabel), // f(key String) value String|None
 	"delLabel": starlark.NewBuiltin("delLabel", delLabel), // f(key String)
 
 	// fields methods
-	"getField": starlark.NewBuiltin("getField", getField), // f(path String) value Value|None
 	"setField": starlark.NewBuiltin("setField", setField), // f(path String, value Value) Error|None
 	"delField": starlark.NewBuiltin("delField", delField), //f(path String)
 
 	// tags methods
 	"addTag": starlark.NewBuiltin("addTag", addTag), // f(tag String)
 	"delTag": starlark.NewBuiltin("delTag", delTag), // f(tag String)
-	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
-
-	// object methods
-	// this methods does not exported because it is very hard to control
-	// devivery of cloned or copied events
-	// "copy":  starlark.NewBuiltin("copy", copyEvent),   // f() Event
-	// "clone": starlark.NewBuiltin("clone", cloneEvent), // f() Event
 }
 
 //type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
@@ -48,7 +62,7 @@ func getId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs 
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	return starlark.String(b.Receiver().(*_event).event.Id), nil
+	return starlark.String(b.Receiver().(*Event).event.Id), nil
 }
 
 func setId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -61,7 +75,7 @@ func setId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs 
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.Id = id
+	b.Receiver().(*Event).event.Id = id
 	return starlark.None, nil
 }
 
@@ -70,7 +84,7 @@ func getRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	return starlark.String(b.Receiver().(*_event).event.RoutingKey), nil
+	return starlark.String(b.Receiver().(*Event).event.RoutingKey), nil
 }
 
 func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -83,7 +97,7 @@ func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.RoutingKey = rk
+	b.Receiver().(*Event).event.RoutingKey = rk
 	return starlark.None, nil
 }
 
@@ -97,7 +111,7 @@ func addLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.AddLabel(key, value)
+	b.Receiver().(*Event).event.AddLabel(key, value)
 	return starlark.None, nil
 }
 
@@ -111,7 +125,7 @@ func getLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	label, found := b.Receiver().(*_event).event.GetLabel(key)
+	label, found := b.Receiver().(*Event).event.GetLabel(key)
 	if found {
 		return starlark.String(label), nil
 	}
@@ -128,7 +142,7 @@ func delLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.DeleteLabel(key)
+	b.Receiver().(*Event).event.DeleteLabel(key)
 	return starlark.None, nil
 }
 
@@ -142,7 +156,7 @@ func getField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	value, err := b.Receiver().(*_event).event.GetField(key)
+	value, err := b.Receiver().(*Event).event.GetField(key)
 	if err != nil {
 		return starlark.None, nil
 	}
@@ -166,8 +180,8 @@ func setField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	if err := b.Receiver().(*_event).event.SetField(key, goValue); err != nil {
-		return _error(err.Error()), nil
+	if err := b.Receiver().(*Event).event.SetField(key, goValue); err != nil {
+		return Error(err.Error()), nil
 	}
 
 	return starlark.None, nil
@@ -183,7 +197,7 @@ func delField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.DeleteField(key)
+	b.Receiver().(*Event).event.DeleteField(key)
 	return starlark.None, nil
 }
 
@@ -197,7 +211,7 @@ func addTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.AddTag(tag)
+	b.Receiver().(*Event).event.AddTag(tag)
 	return starlark.None, nil
 }
 
@@ -211,7 +225,7 @@ func delTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 		return starlark.None, err
 	}
 
-	b.Receiver().(*_event).event.DeleteTag(tag)
+	b.Receiver().(*Event).event.DeleteTag(tag)
 	return starlark.None, nil
 }
 
@@ -225,7 +239,7 @@ func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 		return starlark.None, err
 	}
 
-	return starlark.Bool(b.Receiver().(*_event).event.HasTag(tag)), nil
+	return starlark.Bool(b.Receiver().(*Event).event.HasTag(tag)), nil
 }
 
 func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -233,7 +247,7 @@ func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kw
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
 
-	return &_event{event: b.Receiver().(*_event).event.Clone()}, nil
+	return &Event{event: b.Receiver().(*Event).event.Clone()}, nil
 }
 
 // event data types mapping

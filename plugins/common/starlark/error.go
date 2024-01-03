@@ -6,25 +6,25 @@ import (
 	"go.starlark.net/starlark"
 )
 
-var _ starlark.Value = _error("")
+var _ starlark.Value = Error("")
 
-type _error string
+type Error string
 
-func (e _error) String() string {
+func (e Error) String() string {
 	return string(e)
 }
 
-func (e _error) Type() string {
+func (e Error) Type() string {
 	return "error"
 }
 
-func (e _error) Freeze() {}
+func (e Error) Freeze() {}
 
-func (e _error) Truth() starlark.Bool {
+func (e Error) Truth() starlark.Bool {
 	return len(e) > 0
 }
 
-func (e _error) Hash() (uint32, error) {
+func (e Error) Hash() (uint32, error) {
 	return 0, errors.New("error not hashable")
 }
 
@@ -34,5 +34,5 @@ func newError(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	return _error(msg), nil
+	return Error(msg), nil
 }

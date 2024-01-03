@@ -1,0 +1,42 @@
+[settings]
+  id = "test.pipeline.starlark"
+  lines = 5
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.httpl]
+    address = ":9200"
+    max_connections = 10
+    tls_enable = true
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.httpl.parser]
+    type = "json"
+
+[[processors]]
+  [processors.starlark]
+    code = '''
+load(".pipelines\\test.star", "test")
+
+def process(event):
+    test.apply(event)
+    return [event]
+    '''
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
+    [outputs.log.filters.starlark]
+      code = '''
+def filter(event):
+    if event.getField("from_test") < 37:
+        return True
+    else:
+        return False
+      '''
+
