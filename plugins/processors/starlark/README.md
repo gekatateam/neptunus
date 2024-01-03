@@ -1,7 +1,7 @@
 # Starlark Processor Plugin
 The `starlark` processor uses a [Starlark](../../common/starlark/README.md) script to process events.
 
-The processor defines new builtin type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event API](../../../docs/DATA_MODEL.md):
+The processor uses builtin type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event API](../../../docs/DATA_MODEL.md):
  - `getId() String` - get event id
  - `setId(key String)` - set event id
  - `getRK() String` - get event routing key
