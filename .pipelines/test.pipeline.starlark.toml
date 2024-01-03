@@ -18,8 +18,10 @@
 [[processors]]
   [processors.starlark]
     code = '''
+load(".pipelines\\test.star", "test")
+
 def process(event):
-    event.setField("star", 42)
+    test.apply(event)
     return [event]
     '''
 
@@ -29,3 +31,12 @@ def process(event):
     [outputs.log.serializer]
       type = "json"
       data_only = false
+    [outputs.log.filters.starlark]
+      code = '''
+def filter(event):
+    if event.getField("from_test") < 37:
+        return True
+    else:
+        return False
+      '''
+
