@@ -33,7 +33,8 @@ Response:
 #### POST `/api/v1/pipelines/{pipelineId}`
 Update pipeline configuration by id
 
-> **Note:** Only stopped pipeline can be updated
+> [!NOTE]  
+> Only stopped pipeline can be updated
 
 Request body: pipeline in json format.
 
@@ -47,7 +48,8 @@ Response:
 #### DELETE `/api/v1/pipelines/{pipelineId}`
 Delete pipeline by id
 
-> **Note:** Only stopped pipeline can be deleted
+> [!NOTE]  
+> Only stopped pipeline can be deleted
 
 Request body: **No**.
 
@@ -70,7 +72,8 @@ Response:
 #### POST `/api/v1/pipelines/{pipelineId}/start`
 Start pipeline by id
 
-> **Note:** Only stopped pipeline can be started
+> [!NOTE]  
+> Only stopped pipeline can be started
 
 Request body: **No**.
 
@@ -83,7 +86,8 @@ Response:
 #### POST `/api/v1/pipelines/{pipelineId}/stop`
 Stop pipeline by id
 
-> **Note:** Only running pipeline can be stopped
+> [!NOTE]  
+> Only running pipeline can be stopped
 
 Request body: **No**.
 
