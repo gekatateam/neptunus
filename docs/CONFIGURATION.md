@@ -46,15 +46,15 @@ This is a default storage for the engine:
 Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. Here is an abstract scheme:
 
 ```
- ┌───┐     ┌──┐ ┌──┐ ┌──┐     ┌────┐ 
- |>in├─┐ ┌─┤pr├─┤pr├─┤pr├─┐ ┌─┤out>│ 
- └───┘ | │ └──┘ └──┘ └──┘ | │ └────┘ 
- ┌───┐ | │ ┌──┐ ┌──┐ ┌──┐ | │ ┌────┐ 
- |>in├─┼─┼─┤pr├─┤pr├─┤pr├─┼─┼─┤out>│ 
- └───┘ | │ └──┘ └──┘ └──┘ | │ └────┘ 
- ┌───┐ | │ ┌──┐ ┌──┐ ┌──┐ | │ ┌────┐ 
- |>in├─┘ └─┤pr├─┤pr├─┤pr├─┘ └─┤out>│ 
- └───┘     └──┘ └──┘ └──┘     └────┘ 
+ ┌───┐     ┌───┐ ┌───┐ ┌───┐     ┌────┐ 
+ |>in├─┐ ┌─┤pr1├─┤pr2├─┤pr3├─┐ ┌─┤out>│ 
+ └───┘ | │ └───┘ └───┘ └───┘ | │ └────┘ 
+ ┌───┐ | │ ┌───┐ ┌───┐ ┌───┐ | │ ┌────┐ 
+ |>in├─┼─┼─┤pr1├─┤pr2├─┤pr3├─┼─┼─┤out>│ 
+ └───┘ | │ └───┘ └───┘ └───┘ | │ └────┘ 
+ ┌───┐ | │ ┌───┐ ┌───┐ ┌───┐ | │ ┌────┐ 
+ |>in├─┘ └─┤pr1├─┤pr2├─┤pr3├─┘ └─┤out>│ 
+ └───┘     └───┘ └───┘ └───┘     └────┘ 
 ```
 
 ### Settings
@@ -103,12 +103,14 @@ Inputs, processors, outputs and filters may use [Parser plugins](../plugins/pars
 
 First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
+
 <tr>
 <td> Toml </td> <td> Yaml </td> <td> Json </td>
 </tr>
-<tr>
-<td>
 
+<tr>
+
+<td>
 ```toml
 [[inputs]]
   [inputs.httpl]
@@ -137,10 +139,9 @@ First of all, inputs, processors and outputs is a list of plugins map. Here is a
     data_only = true
     mode = "array"
 ```
-
 </td>
-<td>
 
+<td>
 ```yaml
 inputs:
   - httpl:
@@ -170,10 +171,9 @@ outputs:
         mode: array
 
 ```
-
 </td>
-<td>
 
+<td>
 ```json
 {
   "inputs": [
@@ -222,11 +222,11 @@ outputs:
   ]
 }
 ```
-
 </td>
+
 </tr>
 </table>
 
-This also means that the order of the processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
+This also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
 
 An alias can be assigned to each plugin - this will affect logs and metrics. **The uniqueness of aliases is not controlled by engine, repeated aliases may cause collisions**.
