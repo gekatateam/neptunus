@@ -30,6 +30,8 @@ def process(event):
     event.getField("duration")
     event.getField("int64")
 
+    event.setTimestamp(event.getTimestamp() + time.hour)
+
     return [event]
     '''
 

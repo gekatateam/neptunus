@@ -9,6 +9,8 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `setId(key String)` - set event id
  - `getRK() (key String)` - get event routing key
  - `setRK(key String)` - set event routing key
+ - `getTimestamp() (t Time)` - get event timestamp
+ - `setTimestamp(t Time)` - set event timestamp
  - `addLabel(key String, value String)` - add/overwrite event label
  - `getLabel(key String) (value String|None)` - get label value by key; if label does not exist, **None** returns
  - `delLabel(key String)` - delete label by key

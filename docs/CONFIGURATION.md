@@ -112,7 +112,7 @@ Typical pipeline consists of at least one input, at least one output and, not ne
 ### Settings
 
 > [!NOTE]  
-> Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). Configuration storage formats are storage-dependent.
+> Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). A form in which the configuration is stored depends on a storage.
 
 Pipeline settings are not directly related to event processing, these parameters are needed for the engine:
  - **id** - Pipeline identificator. Must be unique within a storage.

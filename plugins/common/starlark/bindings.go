@@ -24,6 +24,9 @@ var roEventMethods = map[string]*starlark.Builtin{
 	// id methods
 	"getId": starlark.NewBuiltin("getId", getId), // f() id String
 
+	// timestamp methods
+	"getTimestamp": starlark.NewBuiltin("getTimestamp", getTimestamp), // f() timestamp Time
+
 	// routing key methods
 	"getRK": starlark.NewBuiltin("getRK", getRoutingKey), // f() routingKey String
 
@@ -40,6 +43,9 @@ var roEventMethods = map[string]*starlark.Builtin{
 var woEventMethods = map[string]*starlark.Builtin{
 	// id methods
 	"setId": starlark.NewBuiltin("setId", setId), // f(id String)
+
+	// timestamp methods
+	"setTimestamp": starlark.NewBuiltin("setTimestamp", setTimestamp), // f(timestamp Time)
 
 	// routing key methods
 	"setRK": starlark.NewBuiltin("setRK", setRoutingKey), // f(routingKey String)
@@ -100,6 +106,33 @@ func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 	}
 
 	b.Receiver().(*Event).event.RoutingKey = rk
+	return starlark.None, nil
+}
+
+func getTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
+	// }
+
+	return startime.Time(b.Receiver().(*Event).event.Timestamp), nil
+}
+
+func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	// if len(kwargs) > 0 {
+	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
+	// }
+
+	var rawTs starlark.Value
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &rawTs); err != nil {
+		return starlark.None, err
+	}
+
+	ts, ok := rawTs.(startime.Time)
+	if !ok {
+		return starlark.None, errors.New("method accepts Time only")
+	}
+
+	b.Receiver().(*Event).event.Timestamp = time.Time(ts)
 	return starlark.None, nil
 }
 
