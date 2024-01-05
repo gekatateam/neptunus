@@ -103,14 +103,12 @@ Inputs, processors, outputs and filters may use [Parser plugins](../plugins/pars
 
 First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
-
 <tr>
 <td> Toml </td> <td> Yaml </td> <td> Json </td>
 </tr>
-
 <tr>
-
 <td>
+
 ```toml
 [[inputs]]
   [inputs.httpl]
@@ -139,9 +137,10 @@ First of all, inputs, processors and outputs is a list of plugins map. Here is a
     data_only = true
     mode = "array"
 ```
-</td>
 
+</td>
 <td>
+
 ```yaml
 inputs:
   - httpl:
@@ -171,9 +170,10 @@ outputs:
         mode: array
 
 ```
-</td>
 
+</td>
 <td>
+
 ```json
 {
   "inputs": [
@@ -222,8 +222,8 @@ outputs:
   ]
 }
 ```
-</td>
 
+</td>
 </tr>
 </table>
 
