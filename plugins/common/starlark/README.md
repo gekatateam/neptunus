@@ -12,8 +12,8 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `addLabel(key String, value String)` - add/overwrite event label
  - `getLabel(key String) (value String|None)` - get label value by key; if label does not exist, **None** returns
  - `delLabel(key String)` - delete label by key
- - `getField(path String) (value String|Bool|Number|Float|Dict|List|None)` - get field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
- - `setField(path String, value String|Bool|Number|Float|Dict|List) (error Error|None)` - set field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
+ - `getField(path String) (value String|Bool|Number|Float|Dict|List|Time|Duration|None)` - get field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
+ - `setField(path String, value String|Bool|Number|Float|Dict|List|Time|Duration) (error Error|None)` - set field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
  - `delField(path String)` - delete field by path
  - `addTag(tag String)` - add tag to event
  - `delTag(tag String)` - delete tag from event
