@@ -43,9 +43,76 @@ This is a default storage for the engine:
 
 ## Pipeline
 
-Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. It also have some personal settings.
+Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. This is how it works:
+
+<table>
+<tr>
+<td> Common </td> <td> Input </td> <td> Processor </td> <td> Output </td>
+</tr>
+<tr>
+<td>
+
+```
+           processors line            
+         ┌─────────────────┐          
+ ┌───┐   │┌───┐ ┌───┐ ┌───┐│   ┌────┐ 
+ |>in├┐ ┌┼┤pr1├─┤pr2├─┤pr3├┼┐ ┌┤out>│ 
+ └───┘| ││└───┘ └───┘ └───┘│| │└────┘ 
+ ┌───┐| │└┬───┬─┬───┬─┬───┬┘| │┌────┐ 
+ |>in├┼─┼─┤pr1├─┤pr2├─┤pr3├─┼─┼┤out>│ 
+ └───┘| │ └───┘ └───┘ └───┘ | │└────┘ 
+ ┌───┐| │ ┌───┐ ┌───┐ ┌───┐ | │┌────┐ 
+ |>in├┘ └─┤pr1├─┤pr2├─┤pr3├─┘ └┤out>│ 
+ └───┘    └───┘ └───┘ └───┘    └────┘ 
+```
+
+</td>
+<td>
+
+```
+ ┌────────────────┐
+ |┌───┐ ┌───┐     |
+ ||>in├─┤ f ├┬──Θ |
+ |└───┘ └─┬┬┴┴─┐  |
+ |        └┤ f ├──┼>
+ |         └───┘  |
+ └────────────────┘
+```
+
+</td>
+<td>
+
+```
+ ┌────────────────┐
+ |┌───┐ rejected  |
+>┼┤ f ├┬─────────┐|
+ |└─┬┬┴┴─┐ ┌────┐||
+ |  └┤ f ├─┤proc├┴┼>
+ |   └───┘ └────┘ |
+ └────────────────┘
+```
+
+</td>
+<td>
+
+```
+ ┌────────────────┐
+ |┌───┐ rejected  |
+>┼┤ f ├┬────────Θ |
+ |└─┬┬┴┴─┐ ┌────┐ |
+ |  └┤ f ├─┤out>| |
+ |   └───┘ └────┘ |
+ └────────────────┘
+```
+
+</td>
+</tr>
+</table>
 
 ### Settings
+
+> [!NOTE]  
+> Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). Configuration storage formats are storage-dependent.
 
 Pipeline settings are not directly related to event processing, these parameters are needed for the engine:
  - **id** - Pipeline identificator. Must be unique within a storage.
@@ -53,8 +120,8 @@ Pipeline settings are not directly related to event processing, these parameters
  - **run** - Should engine starts pipeline at daemon startup.
  - **buffer** - Buffer size of channels connecting a plugins.
 
-> **Important**
-> It has been experimentally found that processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of filling channels buffers). You should test it first before it can be used in production.  
+> [!IMPORTANT]
+> Processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of channels buffers overflow). You should test it first before use it in production.  
 
 Settings example:
 ```toml
@@ -72,17 +139,17 @@ There are three types of first-order plugins:
  - [Processor plugins](plugins/processors/) transform events.
  - [Output plugins](plugins/outputs/) produce events to external systems.
 
-The inputs work independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
+Inputs works independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
 
-In one line, events move sequentially, from processor to processor, according to the order in the configuration. In a multi-line configuration, it can be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
+In one line events move sequentially, from processor to processor, according to an order in configuration. In multi-line configuration, it may be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
 
-After processors, events **are cloned** to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
+After processors, events are cloned to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
 
-Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for event routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
+Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
 
 In inputs and outputs case, if any filter rejects event, the event is removed from pipeline. In processors case, otherwise, rejected event going to a next processor.
 
-Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/). One plugin can have only one parser and one serializer.
+Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
 
 ### About plugins configuration
 
@@ -212,6 +279,6 @@ outputs:
 </tr>
 </table>
 
-This also means that the order of the processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
+This also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
 
-Each plugin can be given an alias - this will affect logs and metrics. **The uniqueness of aliases is not controlled by engine, repeated aliases can cause collisions**.
+An alias can be assigned to each plugin - this will affect logs and metrics. **The uniqueness of aliases is not controlled by engine, repeated aliases may cause collisions**.
