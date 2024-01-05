@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"time"
 
+	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 
 	"github.com/gekatateam/neptunus/core"
@@ -258,6 +260,8 @@ func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kw
 // float(32|64) <-> starlark.Float; starlark.Float(T) <-> float64(starlark.Float)
 // T[], T[N] <-> *starlark.List
 // map[string]T <-> *starlark.Dict
+// time.Time <-> starlark.Time
+// time.Duration <-> starlark.Duration
 
 func toStarlarkValue(goValue any) (starlark.Value, error) {
 	v := reflect.ValueOf(goValue)
@@ -266,7 +270,12 @@ func toStarlarkValue(goValue any) (starlark.Value, error) {
 		return starlark.String(v.String()), nil
 	case reflect.Bool:
 		return starlark.Bool(v.Bool()), nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int64:
+		if dur, ok := v.Interface().(time.Duration); ok {
+			return startime.Duration(dur), nil
+		}
+		return starlark.MakeInt64(v.Int()), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
 		return starlark.MakeInt64(v.Int()), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return starlark.MakeUint64(v.Uint()), nil
@@ -300,9 +309,13 @@ func toStarlarkValue(goValue any) (starlark.Value, error) {
 			}
 		}
 		return dict, nil
-	default:
-		return starlark.None, fmt.Errorf("%v not representable in starlark", v.Kind())
+	case reflect.Struct:
+		if time, ok := v.Interface().(time.Time); ok {
+			return startime.Time(time), nil
+		}
 	}
+
+	return starlark.None, fmt.Errorf("%v not representable in starlark", v.Kind())
 }
 
 func toGoValue(starValue starlark.Value) (any, error) {
@@ -357,7 +370,11 @@ func toGoValue(starValue starlark.Value) (any, error) {
 			}
 		}
 		return datamap, nil
-	default:
-		return nil, fmt.Errorf("%v is not representable as event data value", starValue.Type())
+	case startime.Time:
+		return time.Time(v), nil
+	case startime.Duration:
+		return time.Duration(v), nil
 	}
+
+	return nil, fmt.Errorf("%v is not representable as event data value", starValue.Type())
 }

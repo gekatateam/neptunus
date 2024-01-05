@@ -19,9 +19,17 @@
   [processors.starlark]
     code = '''
 load(".pipelines\\test.star", "test")
+load("time.star", "time")
 
 def process(event):
     test.apply(event)
+
+    event.setField("duration", time.minute)
+    event.setField("int64", 1337)
+
+    event.getField("duration")
+    event.getField("int64")
+
     return [event]
     '''
 

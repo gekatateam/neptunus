@@ -43,7 +43,7 @@ This is a default storage for the engine:
 
 ## Pipeline
 
-Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. Here is a schemas:
+Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. This is how it works:
 
 <table>
 <tr>
