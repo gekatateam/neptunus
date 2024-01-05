@@ -46,15 +46,17 @@ This is a default storage for the engine:
 Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. Here is an abstract scheme:
 
 ```
- ┌───┐     ┌───┐ ┌───┐ ┌───┐     ┌────┐ 
- |>in├─┐ ┌─┤pr1├─┤pr2├─┤pr3├─┐ ┌─┤out>│ 
- └───┘ | │ └───┘ └───┘ └───┘ | │ └────┘ 
- ┌───┐ | │ ┌───┐ ┌───┐ ┌───┐ | │ ┌────┐ 
- |>in├─┼─┼─┤pr1├─┤pr2├─┤pr3├─┼─┼─┤out>│ 
- └───┘ | │ └───┘ └───┘ └───┘ | │ └────┘ 
- ┌───┐ | │ ┌───┐ ┌───┐ ┌───┐ | │ ┌────┐ 
- |>in├─┘ └─┤pr1├─┤pr2├─┤pr3├─┘ └─┤out>│ 
- └───┘     └───┘ └───┘ └───┘     └────┘ 
+           processors line            
+         ┌─────────────────┐          
+ ┌───┐   │┌───┐ ┌───┐ ┌───┐│   ┌────┐ 
+ |>in├┐ ┌┼┤pr1├─┤pr2├─┤pr3├┼┐ ┌┤out>│ 
+ └───┘| ││└───┘ └───┘ └───┘│| │└────┘ 
+ ┌───┐| │└┬───┬─┬───┬─┬───┬┘| │┌────┐ 
+ |>in├┼─┼─┤pr1├─┤pr2├─┤pr3├─┼─┼┤out>│ 
+ └───┘| │ └───┘ └───┘ └───┘ | │└────┘ 
+ ┌───┐| │ ┌───┐ ┌───┐ ┌───┐ | │┌────┐ 
+ |>in├┘ └─┤pr1├─┤pr2├─┤pr3├─┘ └┤out>│ 
+ └───┘    └───┘ └───┘ └───┘    └────┘ 
 ```
 
 ### Settings
@@ -69,7 +71,7 @@ Pipeline settings are not directly related to event processing, these parameters
  - **buffer** - Buffer size of channels connecting a plugins.
 
 > [!IMPORTANT]
-> It has been experimentally found that processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of filling channels buffers). You should test it first before it can be used in production.  
+> Processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of channels buffers overflow). You should test it first before use it in production.  
 
 Settings example:
 ```toml
@@ -87,11 +89,11 @@ There are three types of first-order plugins:
  - [Processor plugins](plugins/processors/) transform events.
  - [Output plugins](plugins/outputs/) produce events to external systems.
 
-Inputs work independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
+Inputs works independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
 
-In one line, events move sequentially, from processor to processor, according to an order in configuration. In multi-line configuration, it may be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
+In one line events move sequentially, from processor to processor, according to an order in configuration. In multi-line configuration, it may be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
 
-After processors, events **are cloned** to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
+After processors, events are cloned to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
 
 Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
 
