@@ -43,7 +43,14 @@ This is a default storage for the engine:
 
 ## Pipeline
 
-Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. Here is an abstract scheme:
+Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. Here is a schemas:
+
+<table>
+<tr>
+<td> Common </td> <td> Input </td> <td> Processor </td> <td> Output </td>
+</tr>
+<tr>
+<td>
 
 ```
            processors line            
@@ -58,6 +65,49 @@ Typical pipeline consists of at least one input, at least one output and, not ne
  |>in├┘ └─┤pr1├─┤pr2├─┤pr3├─┘ └┤out>│ 
  └───┘    └───┘ └───┘ └───┘    └────┘ 
 ```
+
+</td>
+<td>
+
+```
+ ┌────────────────┐
+ |┌───┐ ┌───┐     |
+ ||>in├─┤ f ├┬──Θ |
+ |└───┘ └─┬┬┴┴─┐  |
+ |        └┤ f ├──┼>
+ |         └───┘  |
+ └────────────────┘
+```
+
+</td>
+<td>
+
+```
+ ┌────────────────┐
+ |┌───┐ rejected  |
+>┼┤ f ├┬─────────┐|
+ |└─┬┬┴┴─┐ ┌────┐||
+ |  └┤ f ├─┤proc├┴┼>
+ |   └───┘ └────┘ |
+ └────────────────┘
+```
+
+</td>
+<td>
+
+```
+ ┌────────────────┐
+ |┌───┐ rejected  |
+>┼┤ f ├┬────────Θ |
+ |└─┬┬┴┴─┐ ┌────┐ |
+ |  └┤ f ├─┤out>| |
+ |   └───┘ └────┘ |
+ └────────────────┘
+```
+
+</td>
+</tr>
+</table>
 
 ### Settings
 
