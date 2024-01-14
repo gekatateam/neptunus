@@ -54,19 +54,17 @@ func Build() error {
 
 func Docker() error {
 	fmt.Println("building docker image")
-	if err := sh.Run("docker",
+	return sh.Run("docker",
 		"build",
 		"-t", fmt.Sprintf("ghcr.io/gekatateam/neptunus:%v", version()),
 		".",
-	); err != nil {
-		return err
-	}
-
-	fmt.Println("pushing docker image")
-	return sh.Run("docker",
-		"push",
-		fmt.Sprintf("ghcr.io/gekatateam/neptunus:%v", version()),
 	)
+
+	// fmt.Println("pushing docker image")
+	// return sh.Run("docker",
+	// 	"push",
+	// 	fmt.Sprintf("ghcr.io/gekatateam/neptunus:%v", version()),
+	// )
 }
 
 func Clear() error {
