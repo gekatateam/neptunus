@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/magefile/mage/sh"
 )
@@ -37,8 +38,14 @@ func Build() error {
 		if err := sh.RunWith(map[string]string{
 			"GOOS":   b.goos,
 			"GOARCH": b.goarch,
-		}, "go", "build", "-o", joinPath(path, fmt.Sprintf("neptunus%v", b.extention)), buildFrom); err != nil { // path + s + fmt.Sprintf("neptunus%v", b.extention), "." + s + "cmd" + s + "neptunus" + s)
+		}, "go", "build", "-o", joinPath(path, fmt.Sprintf("neptunus%v", b.extention)), buildFrom); err != nil {
 			return fmt.Errorf("GOOS=%v GOARCH=%v - build failed: %w", b.goos, b.goarch, err)
+		}
+
+		fmt.Printf("GOOS=%v GOARCH=%v - packing\n", b.goos, b.goarch)
+
+		if err := archive(path, b); err != nil {
+			return fmt.Errorf("GOOS=%v GOARCH=%v - packing failed: %w", b.goos, b.goarch, err)
 		}
 	}
 
@@ -70,4 +77,36 @@ func joinPath(elem... string) string {
 	}
 
 	return r
+}
+
+func archive(path string, b buildInfo) error {
+	buildVersion := version()
+	binary := fmt.Sprintf("neptunus%v", b.extention)
+
+	switch b.archive {
+	case "zip":
+		if runtime.GOOS == "windows" {
+			return sh.Run("powershell", 
+				"Compress-Archive", 
+				joinPath(path, binary), 
+				joinPath(".", buildDir, fmt.Sprintf("neptunus-%v-%v-%v.zip", b.goos, b.goarch, buildVersion)),
+			)
+		}
+
+		return sh.Run("zip", 
+			"-vj", 
+			joinPath(".", buildDir, fmt.Sprintf("neptunus-%v-%v-%v.zip", b.goos, b.goarch, buildVersion)), 
+			joinPath(path, binary),
+		)
+	case "tar":
+		return sh.Run("tar", 
+			"-C", 
+			path, 
+			"-cvzf", 
+			joinPath(".", buildDir, fmt.Sprintf("neptunus-%v-%v-%v.tar.gz", b.goos, b.goarch, buildVersion)), 
+			binary,
+		)
+	default:
+		return fmt.Errorf("unexpected archive type - %v", b.archive)
+	}
 }
