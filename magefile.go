@@ -38,7 +38,7 @@ func Build() error {
 		if err := sh.RunWith(map[string]string{
 			"GOOS":   b.goos,
 			"GOARCH": b.goarch,
-		}, "go", "build", "-o", joinPath(path, fmt.Sprintf("neptunus%v", b.extention)), buildFrom); err != nil {
+		}, "go", "build", fmt.Sprintf("-ldflags=-X 'main.Version=%v'", version()), "-o", joinPath(path, fmt.Sprintf("neptunus%v", b.extention)), buildFrom); err != nil {
 			return fmt.Errorf("GOOS=%v GOARCH=%v - build failed: %w", b.goos, b.goarch, err)
 		}
 
@@ -56,6 +56,7 @@ func Docker() error {
 	fmt.Println("building docker image")
 	return sh.Run("docker",
 		"build",
+		"--build-arg", fmt.Sprintf("NEPTUNUS_VERSION=%v", version()),
 		"-t", fmt.Sprintf("ghcr.io/gekatateam/neptunus:%v", version()),
 		".",
 	)
