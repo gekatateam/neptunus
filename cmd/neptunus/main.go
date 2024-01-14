@@ -23,7 +23,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "neptunus",
-		Version: "v0.0.1",
+		Version: "v0.1.0",
 		Commands: []*cli.Command{
 			{
 				Name:  "run",

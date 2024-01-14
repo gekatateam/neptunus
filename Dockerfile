@@ -38,4 +38,4 @@ COPY <<-EOT /etc/neptunus/conf/config.toml
 EOT
 
 ENTRYPOINT [ "/bin/neptunus" ]
-CMD [ "--config", "/etc/neptunus/conf/config.toml" ]
+CMD [ "run", "--config", "/etc/neptunus/conf/config.toml" ]
