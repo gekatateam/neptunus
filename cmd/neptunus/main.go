@@ -10,6 +10,8 @@ import (
 	"github.com/gekatateam/neptunus/logger"
 )
 
+var Version = "v.0.0.0"
+
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -23,7 +25,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "neptunus",
-		Version: "v0.0.1",
+		Version: Version,
 		Commands: []*cli.Command{
 			{
 				Name:  "run",
