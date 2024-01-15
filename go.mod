@@ -41,6 +41,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.3.2
+	github.com/elastic/go-lumber v0.1.1
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-json v0.10.2
