@@ -313,7 +313,7 @@ func TestParser(t *testing.T) {
 				wg.Done()
 			}()
 
-			test.event.SetHook(func(payload any) {}, nil)
+			test.event.SetHook(func() {})
 			test.input <- test.event
 			close(test.input)
 			processor.Close()

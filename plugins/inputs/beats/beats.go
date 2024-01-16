@@ -2,17 +2,19 @@ package beats
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"runtime"
+	"sync"
 	"time"
 
-	lumberlog "github.com/elastic/go-lumber/log"
 	lumber "github.com/elastic/go-lumber/server/v2"
+	"github.com/goccy/go-json"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
@@ -20,21 +22,25 @@ import (
 )
 
 type Beats struct {
-	alias          string
-	pipe           string
-	Address        string            `mapstructure:"address"`
-	KeepaliveTimeout      time.Duration `mapstructure:"keepalive_timeout"`
-	NetworkTimeout        time.Duration `mapstructure:"network_timeout"`
+	alias            string
+	pipe             string
+	Address          string        `mapstructure:"address"`
+	KeepaliveTimeout time.Duration `mapstructure:"keepalive_timeout"`
+	NetworkTimeout   time.Duration `mapstructure:"network_timeout"`
+	NumWorkers       int           `mapstructure:"num_workers"`
+	AckOnDelivery    bool          `mapstructure:"ack_on_delivery"`
+	KeepTimestamp    bool          `mapstructure:"keep_timestamp"`
+	LabelMetadata    map[string]string `mapstructure:"labelmetadata"`
 
 	*ider.Ider              `mapstructure:",squash"`
 	*pkgtls.TLSServerConfig `mapstructure:",squash"`
 
-	server   *lumber.Server
-	listener net.Listener
+	server    *lumber.Server
+	listener  net.Listener
+	tlsConfig *tls.Config
 
-	log    *slog.Logger
-	out    chan<- *core.Event
-//	parser core.Parser
+	log *slog.Logger
+	out chan<- *core.Event
 }
 
 func (i *Beats) Init(config map[string]any, alias string, pipeline string, log *slog.Logger) error {
@@ -58,6 +64,7 @@ func (i *Beats) Init(config map[string]any, alias string, pipeline string, log *
 	if err != nil {
 		return err
 	}
+	i.tlsConfig = tlsConfig
 
 	var listener net.Listener
 	if i.TLSServerConfig.Enable {
@@ -75,18 +82,6 @@ func (i *Beats) Init(config map[string]any, alias string, pipeline string, log *
 	}
 	i.listener = listener
 
-	server, err := lumber.NewWithListener(listener,
-		lumber.Keepalive(i.KeepaliveTimeout),
-		lumber.Timeout(i.NetworkTimeout),
-		lumber.TLS(tlsConfig),
-	)
-	if err != nil {
-		return err
-	}
-
-	lumberlog.Logger = &lumberLogger{log: log}
-	i.server = server
-
 	return nil
 }
 
@@ -94,31 +89,104 @@ func (i *Beats) SetChannels(out chan<- *core.Event) {
 	i.out = out
 }
 
-//func (i *Beats) SetParser(p core.Parser)
-
 func (i *Beats) Close() error {
-	defer i.listener.Close()
 	return i.server.Close()
 }
 
 func (i *Beats) Run() {
-	for ljEvent := range i.server.ReceiveChan() {
-		for _, v := range ljEvent.Events {
-			m, _ := json.Marshal(core.Map(v.(map[string]any)))
-			fmt.Println(string(m))
-		}
-		ljEvent.ACK()
+	i.log.Info(fmt.Sprintf("starting lumberjack server on %v", i.Address))
+	if server, err := lumber.NewWithListener(i.listener,
+		lumber.Keepalive(i.KeepaliveTimeout),
+		lumber.Timeout(i.NetworkTimeout),
+		lumber.TLS(i.tlsConfig),
+		lumber.JSONDecoder(json.Unmarshal),
+	); err != nil {
+		i.log.Error("lumberjack server startup failed",
+			"error", err.Error(),
+		)
+		return
+	} else {
+		i.log.Info("lumberjack server started")
+		i.server = server
 	}
+
+	wg := &sync.WaitGroup{}
+	for j := 0; j < i.NumWorkers; j++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			batchWg := &sync.WaitGroup{}
+			for ljBatch := range i.server.ReceiveChan() {
+				for _, v := range ljBatch.Events {
+					now := time.Now()
+					event, err := i.toEvent(v)
+					if err != nil {
+						i.log.Error("beat event reading error",
+							"error", err,
+						)
+						metrics.ObserveInputSummary("beats", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+						continue
+					}
+
+					if i.AckOnDelivery {
+						batchWg.Add(1)
+						event.SetHook(batchWg.Done)
+					}
+
+					if i.KeepTimestamp {
+						if rawTimestamp, err := event.GetField("@timestamp"); err == nil {
+							if timestamp, err := time.Parse(time.RFC3339Nano, rawTimestamp.(string)); err == nil {
+								event.Timestamp = timestamp
+							}
+						}
+					}
+
+					for label, metadata := range i.LabelMetadata {
+						if m, err := event.GetField("@metadata."+metadata); err == nil {
+							event.AddLabel(label, m.(string))
+						}
+					}
+
+					i.Ider.Apply(event)
+
+					i.out <- event
+					metrics.ObserveInputSummary("beats", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+				}
+
+				batchWg.Wait()
+				ljBatch.ACK()
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+func (i *Beats) toEvent(beatEvent any) (*core.Event, error) {
+	rawData, ok := beatEvent.(map[string]any)
+	if !ok {
+		return nil, errors.New("received event is not representable as core.Event")
+	}
+
+	beat, err := core.Map(rawData).GetValue("@metadata.beat")
+	if err != nil {
+		return nil, errors.New("received event has no @metadata.beat field")
+	}
+
+	return core.NewEventWithData("beats."+beat.(string), rawData), nil
 }
 
 func init() {
 	plugins.AddInput("beats", func() core.Input {
 		return &Beats{
-			Address:         ":8800",
+			Address:          ":8800",
 			KeepaliveTimeout: 3 * time.Second,
 			NetworkTimeout:   30 * time.Second,
-			Ider:            &ider.Ider{},
-			TLSServerConfig: &pkgtls.TLSServerConfig{},
+			NumWorkers:       runtime.NumCPU(),
+			AckOnDelivery:    true,
+			Ider:             &ider.Ider{},
+			TLSServerConfig:  &pkgtls.TLSServerConfig{},
 		}
 	})
 }

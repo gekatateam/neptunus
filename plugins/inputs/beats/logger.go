@@ -22,3 +22,15 @@ func (l *lumberLogger) Println(a ...any) {
 func (l *lumberLogger) Print(a ...any) {
 	l.log.Debug(fmt.Sprint(a...))
 }
+
+type lumberSilentLogger struct{}
+
+func (l *lumberSilentLogger) Printf(format string, a ...any) {}
+
+func (l *lumberSilentLogger) Println(a ...any) {}
+
+func (l *lumberSilentLogger) Print(a ...any) {}
+
+func init() {
+	lumberlog.Logger = &lumberSilentLogger{}
+}

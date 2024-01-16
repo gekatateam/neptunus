@@ -6,6 +6,7 @@
 
 [[inputs]]
   [inputs.beats]
+    ack_on_delivery = true
 
 [[outputs]]
   [outputs.log]
@@ -13,12 +14,3 @@
     [outputs.log.serializer]
       type = "json"
       data_only = false
-    [outputs.log.filters.starlark]
-      code = '''
-def filter(event):
-    if event.getField("from_test") < 37:
-        return True
-    else:
-        return False
-      '''
-

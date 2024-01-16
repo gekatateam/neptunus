@@ -46,9 +46,9 @@ func NewEventWithData(routingKey string, data Map) *Event {
 	}
 }
 
-func (e *Event) SetHook(hook hookFunc, payload any) {
+func (e *Event) SetHook(hook hookFunc) {
 	if e.tracker == nil {
-		e.tracker = newTracker(hook, payload)
+		e.tracker = newTracker(hook)
 	}
 }
 
