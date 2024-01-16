@@ -2,6 +2,8 @@
 
 The `beats` input plugin enables Neptunus to receive events from the [Elastic Beats](https://www.elastic.co/beats). Configure beat Logstash output to send data to this plugin.
 
+Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `beats.hearbeat` or `beats.filebeat`.
+
 ## Configuration
 ```toml
 [[inputs]]
@@ -25,7 +27,7 @@ The `beats` input plugin enables Neptunus to receive events from the [Elastic Be
     ack_on_delivery = true
 
     # if true, incoming event "@timestamp" field will be used as event timestamp
-    keep_timestamp
+    keep_timestamp = true
 
     # if configured, an event id will be set by data from path
     # expected format - "type:path"
