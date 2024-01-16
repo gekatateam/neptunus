@@ -151,6 +151,12 @@ func (i *Beats) Run() {
 					i.Ider.Apply(event)
 
 					i.out <- event
+					i.log.Debug("event accepted",
+						slog.Group("event",
+							"id", event.Id,
+							"key", event.RoutingKey,
+						),
+					)
 					metrics.ObserveInputSummary("beats", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
 				}
 
