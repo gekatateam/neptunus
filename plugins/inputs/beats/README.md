@@ -15,7 +15,7 @@ Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `b
     # notifying clients the batch being still active
     keepalive_timeout = "3s"
 
-    # server read and write operation timeout
+    # server read and write operations timeout
     network_timeout = "30s"
 
     # number of workers to be used to process incoming Beats requests
