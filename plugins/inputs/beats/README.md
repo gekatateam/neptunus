@@ -2,7 +2,7 @@
 
 The `beats` input plugin enables Neptunus to receive events from the [Elastic Beats](https://www.elastic.co/beats). Configure beat Logstash output to send data to this plugin.
 
-Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `beats.hearbeat` or `beats.filebeat`.
+Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `beats.heartbeat` or `beats.filebeat`.
 
 ## Configuration
 ```toml
