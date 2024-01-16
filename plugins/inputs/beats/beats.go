@@ -24,12 +24,12 @@ import (
 type Beats struct {
 	alias            string
 	pipe             string
-	Address          string        `mapstructure:"address"`
-	KeepaliveTimeout time.Duration `mapstructure:"keepalive_timeout"`
-	NetworkTimeout   time.Duration `mapstructure:"network_timeout"`
-	NumWorkers       int           `mapstructure:"num_workers"`
-	AckOnDelivery    bool          `mapstructure:"ack_on_delivery"`
-	KeepTimestamp    bool          `mapstructure:"keep_timestamp"`
+	Address          string            `mapstructure:"address"`
+	KeepaliveTimeout time.Duration     `mapstructure:"keepalive_timeout"`
+	NetworkTimeout   time.Duration     `mapstructure:"network_timeout"`
+	NumWorkers       int               `mapstructure:"num_workers"`
+	AckOnDelivery    bool              `mapstructure:"ack_on_delivery"`
+	KeepTimestamp    bool              `mapstructure:"keep_timestamp"`
 	LabelMetadata    map[string]string `mapstructure:"labelmetadata"`
 
 	*ider.Ider              `mapstructure:",squash"`
@@ -143,7 +143,7 @@ func (i *Beats) Run() {
 					}
 
 					for label, metadata := range i.LabelMetadata {
-						if m, err := event.GetField("@metadata."+metadata); err == nil {
+						if m, err := event.GetField("@metadata." + metadata); err == nil {
 							event.AddLabel(label, m.(string))
 						}
 					}
@@ -180,11 +180,12 @@ func (i *Beats) toEvent(beatEvent any) (*core.Event, error) {
 func init() {
 	plugins.AddInput("beats", func() core.Input {
 		return &Beats{
-			Address:          ":8800",
+			Address:          ":5044",
 			KeepaliveTimeout: 3 * time.Second,
 			NetworkTimeout:   30 * time.Second,
 			NumWorkers:       runtime.NumCPU(),
 			AckOnDelivery:    true,
+			KeepTimestamp:    true,
 			Ider:             &ider.Ider{},
 			TLSServerConfig:  &pkgtls.TLSServerConfig{},
 		}

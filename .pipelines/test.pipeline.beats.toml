@@ -6,6 +6,7 @@
 
 [[inputs]]
   [inputs.beats]
+    address = ":8800"
     ack_on_delivery = true
 
 [[outputs]]
