@@ -14,7 +14,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
-	common "github.com/gekatateam/neptunus/plugins/common/elasticsearch"
+	// common "github.com/gekatateam/neptunus/plugins/common/elasticsearch"
 )
 
 type Elasticsearch struct {
