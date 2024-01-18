@@ -47,7 +47,7 @@ type Kafka struct {
 	SASL                 SASL              `mapstructure:"sasl"`
 	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider           `mapstructure:",squash"`
-	*tls.TLSServerConfig `mapstructure:",squash"`
+	*tls.TLSClientConfig `mapstructure:",squash"`
 
 	readersPool    map[string]*topicReader
 	commitConsPool map[string]*commitController
@@ -159,7 +159,7 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
 		}
 
-		tlsConfig, err := i.TLSServerConfig.Config()
+		tlsConfig, err := i.TLSClientConfig.Config()
 		if err != nil {
 			return err
 		}
@@ -294,7 +294,7 @@ func init() {
 				Mechanism: "none",
 			},
 			Ider:            &ider.Ider{},
-			TLSServerConfig: &tls.TLSServerConfig{},
+			TLSClientConfig: &tls.TLSClientConfig{},
 		}
 	})
 }
