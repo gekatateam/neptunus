@@ -15,7 +15,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 	common "github.com/gekatateam/neptunus/plugins/common/elasticsearch"
-	serializer "github.com/gekatateam/neptunus/plugins/serializers/json"
 )
 
 type Elasticsearch struct {
@@ -31,8 +30,7 @@ type Elasticsearch struct {
 	EnableCompression bool `mapstructure:"enable_compression"`
 	DiscoverInterval time.Duration `mapstructure:"discover_interval"`
 	PipelineLabel string `mapstructure:"pipeline_label"`
-	
-	Serializer *serializer.Json `mapstructure:"serializer"`
+	DataOnly bool `mapstructure:"data_only"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
@@ -114,9 +112,6 @@ func init() {
 	plugins.AddOutput("elasticsearch", func() core.Output {
 		return &Elasticsearch{
 
-			Serializer: &serializer.Json{
-				Mode: "jsonl",
-			},
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,

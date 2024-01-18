@@ -46,7 +46,6 @@ type Kafka struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	writersPool *writersPool
-	clearTicker *time.Ticker
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -107,11 +106,6 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 				ser:               o.ser,
 			}
 		},
-	}
-
-	o.clearTicker = time.NewTicker(time.Minute)
-	if o.IdleTimeout == 0 {
-		o.clearTicker.Stop()
 	}
 
 	return nil
@@ -230,16 +224,21 @@ func (o *Kafka) SetSerializer(s core.Serializer) {
 }
 
 func (o *Kafka) Run() {
+	clearTicker := time.NewTicker(time.Minute)
+	if o.IdleTimeout == 0 {
+		clearTicker.Stop()
+	}
+
 MAIN_LOOP:
 	for {
 		select {
 		case e, ok := <-o.in:
 			if !ok {
-				o.clearTicker.Stop()
+				clearTicker.Stop()
 				break MAIN_LOOP
 			}
 			o.writersPool.Get(e.RoutingKey).input <- e
-		case <-o.clearTicker.C:
+		case <-clearTicker.C:
 			for _, topic := range o.writersPool.Topics() {
 				if time.Since(o.writersPool.Get(topic).lastWrite) > o.IdleTimeout {
 					o.writersPool.Remove(topic)
