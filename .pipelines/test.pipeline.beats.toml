@@ -10,8 +10,6 @@
     ack_on_delivery = true
 
 [[outputs]]
-  [outputs.log]
-    level = "info"
-    [outputs.log.serializer]
-      type = "json"
-      data_only = false
+  [outputs.elasticsearch]
+    servers = [ "http://localhost:9200" ]
+    batch_buffer = 1_000

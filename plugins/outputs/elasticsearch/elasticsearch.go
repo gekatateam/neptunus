@@ -2,40 +2,48 @@ package elasticsearch
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/operationtype"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
-	// common "github.com/gekatateam/neptunus/plugins/common/elasticsearch"
 )
 
 type Elasticsearch struct {
-	alias string
-	pipe  string
-	Servers []string `mapstructure:"servers"`
-	Username  string `mapstructure:"username"`
-    Password  string `mapstructure:"password"`
-	ServiceToken           string `mapstructure:"service_token"` // Service token for authorization; if set, overrides username/password.
-    APIKey                 string `mapstructure:"api_key"`// Base64-encoded token for authorization; if set, overrides username/password and service token.
-    CloudID                string `mapstructure:"cloud_id"`
-    CertificateFingerprint string `mapstructure:"cert_fingerprint"` // SHA256 hex fingerprint given by Elasticsearch on first launch.
-	EnableCompression bool `mapstructure:"enable_compression"`
-	DiscoverInterval time.Duration `mapstructure:"discover_interval"`
-	PipelineLabel string `mapstructure:"pipeline_label"`
-	DataOnly bool `mapstructure:"data_only"`
+	alias                  string
+	pipe                   string
+	Servers                []string      `mapstructure:"servers"`
+	Username               string        `mapstructure:"username"`
+	Password               string        `mapstructure:"password"`
+	ServiceToken           string        `mapstructure:"service_token"` // Service token for authorization; if set, overrides username/password.
+	APIKey                 string        `mapstructure:"api_key"`       // Base64-encoded token for authorization; if set, overrides username/password and service token.
+	CloudID                string        `mapstructure:"cloud_id"`
+	CertificateFingerprint string        `mapstructure:"cert_fingerprint"` // SHA256 hex fingerprint given by Elasticsearch on first launch.
+	EnableCompression      bool          `mapstructure:"enable_compression"`
+	DiscoverInterval       time.Duration `mapstructure:"discover_interval"`
+	RequestTimeout         time.Duration `mapstructure:"request_timeout"`
+	IdleTimeout            time.Duration `mapstructure:"idle_timeout"`
+	PipelineLabel          string        `mapstructure:"pipeline_label"`
+	RoutingLabel           string        `mapstructure:"routing_label"`
+	DataOnly               bool          `mapstructure:"data_only"`
+	Operation              string        `mapstructure:"operation"`
+	MaxAttempts            int           `mapstructure:"max_attempts"`
+	RetryAfter             time.Duration `mapstructure:"retry_after"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
-	client *elasticsearch.Client
+	client       *elasticsearch.TypedClient
+	indexersPool *indexersPool
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -54,25 +62,36 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 		return errors.New("at least one server url required")
 	}
 
+	switch o.Operation {
+	case "create", "index":
+	default:
+		return fmt.Errorf("unknown operation: %v; expected one of: create, index", o.Operation)
+	}
+
 	tlsConfig, err := o.TLSClientConfig.Config()
 	if err != nil {
 		return err
 	}
 
-	client, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: o.Servers,
-		Username: o.Username,
-		Password: o.Password,
-		ServiceToken: o.ServiceToken,
-		APIKey: o.APIKey,
-		CloudID: o.CloudID,
-		CertificateFingerprint: o.CertificateFingerprint,
-		CompressRequestBody: o.EnableCompression,
-		DiscoverNodesInterval: o.DiscoverInterval,
-		DisableRetry: true,
+	client, err := elasticsearch.NewTypedClient(elasticsearch.Config{
+		Addresses:               o.Servers,
+		Username:                o.Username,
+		Password:                o.Password,
+		ServiceToken:            o.ServiceToken,
+		APIKey:                  o.APIKey,
+		CloudID:                 o.CloudID,
+		CertificateFingerprint:  o.CertificateFingerprint,
+		CompressRequestBody:     o.EnableCompression,
+		DiscoverNodesInterval:   o.DiscoverInterval,
+		DiscoverNodesOnStart:    false,
+		EnableDebugLogger:       false, // <-
+		DisableRetry:            true,
 		EnableCompatibilityMode: true,
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
+		},
+		Logger: &TransportLogger{
+			log: log,
 		},
 	})
 	if err != nil {
@@ -80,6 +99,12 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 	}
 
 	o.client = client
+
+	o.indexersPool = &indexersPool{
+		indexers: make(map[string]*indexer),
+		new:      o.newIndexer,
+		wg:       &sync.WaitGroup{},
+	}
 
 	return nil
 }
@@ -89,17 +114,27 @@ func (o *Elasticsearch) SetChannels(in <-chan *core.Event) {
 }
 
 func (o *Elasticsearch) Run() {
-	for e := range o.in {
-		now := time.Now()
-		o.log.Error("serialization failed",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
-		)
+	clearTicker := time.NewTicker(time.Minute)
+	if o.IdleTimeout == 0 {
+		clearTicker.Stop()
+	}
 
-		e.Done()
-		metrics.ObserveOutputSummary("elasticsearch", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+MAIN_LOOP:
+	for {
+		select {
+		case e, ok := <-o.in:
+			if !ok {
+				clearTicker.Stop()
+				break MAIN_LOOP
+			}
+			o.indexersPool.Get(o.pipeline(e)).input <- e
+		case <-clearTicker.C:
+			for _, pipeline := range o.indexersPool.Pipelines() {
+				if time.Since(o.indexersPool.Get(pipeline).lastWrite) > o.IdleTimeout {
+					o.indexersPool.Remove(pipeline)
+				}
+			}
+		}
 	}
 }
 
@@ -108,10 +143,42 @@ func (o *Elasticsearch) Close() error {
 	return nil
 }
 
+func (o *Elasticsearch) newIndexer(pipeline string) *indexer {
+	return &indexer{
+		alias:        o.alias,
+		pipe:         o.pipe,
+		lastWrite:    time.Now(),
+		pipeline:     pipeline,
+		dataOnly:     o.DataOnly,
+		operation:    operationtype.OperationType{Name: o.Operation},
+		routingLabel: o.RoutingLabel,
+		timeout:      o.RequestTimeout,
+		maxAttempts:  o.MaxAttempts,
+		retryAfter:   o.RetryAfter,
+		client:       o.client,
+		log:          o.log,
+		Batcher:      o.Batcher,
+		input:        make(chan *core.Event),
+	}
+}
+
+func (o *Elasticsearch) pipeline(e *core.Event) string {
+	if len(o.PipelineLabel) > 0 {
+		pipe, _ := e.GetLabel(o.PipelineLabel)
+		return pipe
+	}
+	return ""
+}
+
 func init() {
 	plugins.AddOutput("elasticsearch", func() core.Output {
 		return &Elasticsearch{
-
+			EnableCompression: true,
+			RequestTimeout:    10 * time.Second,
+			IdleTimeout:       1 * time.Hour,
+			DataOnly:          true,
+			Operation:         "create",
+			RetryAfter:        5 * time.Second,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,

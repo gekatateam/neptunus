@@ -90,7 +90,11 @@ func (i *Beats) SetChannels(out chan<- *core.Event) {
 }
 
 func (i *Beats) Close() error {
-	return i.server.Close()
+	if i.server != nil {
+		return i.server.Close()
+	}
+
+	return nil
 }
 
 func (i *Beats) Run() {
