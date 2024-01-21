@@ -13,3 +13,4 @@
   [outputs.elasticsearch]
     servers = [ "http://localhost:9200" ]
     batch_buffer = 1_000
+    idle_timeout = "10s"

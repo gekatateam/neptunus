@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -17,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
+	"github.com/gekatateam/neptunus/plugins/common/pool"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -45,7 +45,7 @@ type Kafka struct {
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
-	writersPool *writersPool
+	writersPool *pool.Pool[*core.Event]
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -83,30 +83,26 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return err
 	}
 
-	o.writersPool = &writersPool{
-		writers: make(map[string]*topicWriter),
-		wg:      &sync.WaitGroup{},
-		new: func(topic string) *topicWriter {
-			return &topicWriter{
-				alias:             o.alias,
-				pipe:              o.pipe,
-				clientId:          o.ClientId,
-				enableMetrics:     o.EnableMetrics,
-				keepTimestamp:     o.KeepTimestamp,
-				partitionBalancer: o.PartitionBalancer,
-				partitionLabel:    o.PartitionLabel,
-				keyLabel:          o.KeyLabel,
-				headerLabels:      o.HeaderLabels,
-				maxAttempts:       o.MaxAttempts,
-				retryAfter:        o.RetryAfter,
-				input:             make(chan *core.Event),
-				writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
-				batcher:           o.Batcher,
-				log:               o.log,
-				ser:               o.ser,
-			}
-		},
-	}
+	o.writersPool = pool.New(func(topic string) pool.Runner[*core.Event] {
+		return &topicWriter{
+			alias:             o.alias,
+			pipe:              o.pipe,
+			clientId:          o.ClientId,
+			enableMetrics:     o.EnableMetrics,
+			keepTimestamp:     o.KeepTimestamp,
+			partitionBalancer: o.PartitionBalancer,
+			partitionLabel:    o.PartitionLabel,
+			keyLabel:          o.KeyLabel,
+			headerLabels:      o.HeaderLabels,
+			maxAttempts:       o.MaxAttempts,
+			retryAfter:        o.RetryAfter,
+			input:             make(chan *core.Event),
+			writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
+			batcher:           o.Batcher,
+			log:               o.log,
+			ser:               o.ser,
+		}
+	})
 
 	return nil
 }
@@ -237,10 +233,10 @@ MAIN_LOOP:
 				clearTicker.Stop()
 				break MAIN_LOOP
 			}
-			o.writersPool.Get(e.RoutingKey).input <- e
+			o.writersPool.Get(e.RoutingKey).Push(e)
 		case <-clearTicker.C:
-			for _, topic := range o.writersPool.Topics() {
-				if time.Since(o.writersPool.Get(topic).lastWrite) > o.IdleTimeout {
+			for _, topic := range o.writersPool.Keys() {
+				if time.Since(o.writersPool.Get(topic).LastWrite()) > o.IdleTimeout {
 					o.writersPool.Remove(topic)
 				}
 			}

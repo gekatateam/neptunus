@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -15,6 +14,7 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/pool"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -29,7 +29,7 @@ type Elasticsearch struct {
 	CloudID                string        `mapstructure:"cloud_id"`
 	CertificateFingerprint string        `mapstructure:"cert_fingerprint"` // SHA256 hex fingerprint given by Elasticsearch on first launch.
 	EnableCompression      bool          `mapstructure:"enable_compression"`
-	DiscoverInterval       time.Duration `mapstructure:"discover_interval"`
+	DiscoverInterval       time.Duration `mapstructure:"-"`
 	RequestTimeout         time.Duration `mapstructure:"request_timeout"`
 	IdleTimeout            time.Duration `mapstructure:"idle_timeout"`
 	PipelineLabel          string        `mapstructure:"pipeline_label"`
@@ -43,7 +43,7 @@ type Elasticsearch struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
 	client       *elasticsearch.TypedClient
-	indexersPool *indexersPool
+	indexersPool *pool.Pool[*core.Event]
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -99,12 +99,7 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 	}
 
 	o.client = client
-
-	o.indexersPool = &indexersPool{
-		indexers: make(map[string]*indexer),
-		new:      o.newIndexer,
-		wg:       &sync.WaitGroup{},
-	}
+	o.indexersPool = pool.New(o.newIndexer)
 
 	return nil
 }
@@ -127,10 +122,10 @@ MAIN_LOOP:
 				clearTicker.Stop()
 				break MAIN_LOOP
 			}
-			o.indexersPool.Get(o.pipeline(e)).input <- e
+			o.indexersPool.Get(o.pipeline(e)).Push(e)
 		case <-clearTicker.C:
-			for _, pipeline := range o.indexersPool.Pipelines() {
-				if time.Since(o.indexersPool.Get(pipeline).lastWrite) > o.IdleTimeout {
+			for _, pipeline := range o.indexersPool.Keys() {
+				if time.Since(o.indexersPool.Get(pipeline).LastWrite()) > o.IdleTimeout {
 					o.indexersPool.Remove(pipeline)
 				}
 			}
@@ -143,7 +138,7 @@ func (o *Elasticsearch) Close() error {
 	return nil
 }
 
-func (o *Elasticsearch) newIndexer(pipeline string) *indexer {
+func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 	return &indexer{
 		alias:        o.alias,
 		pipe:         o.pipe,

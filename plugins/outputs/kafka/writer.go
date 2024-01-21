@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,54 +17,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
-
-type writersPool struct {
-	writers map[string]*topicWriter
-	new     func(topic string) *topicWriter
-	wg      *sync.WaitGroup
-}
-
-func (w *writersPool) Get(topic string) *topicWriter {
-	if writer, ok := w.writers[topic]; ok {
-		return writer
-	}
-
-	writer := w.new(topic)
-	w.writers[topic] = writer
-
-	w.wg.Add(1)
-	go func() {
-		defer w.wg.Done()
-		writer.Run()
-	}()
-
-	return writer
-}
-
-func (w *writersPool) Topics() []string {
-	var keys []string
-	for k := range w.writers {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (w *writersPool) Remove(topic string) {
-	if writer, ok := w.writers[topic]; ok {
-		close(writer.input)
-		delete(w.writers, topic)
-	}
-}
-
-func (w *writersPool) Close() error {
-	for _, writer := range w.writers {
-		close(writer.input)
-		delete(w.writers, writer.writer.Topic)
-	}
-
-	w.wg.Wait()
-	return nil
-}
 
 type topicWriter struct {
 	alias    string
@@ -89,6 +40,19 @@ type topicWriter struct {
 	batcher *batcher.Batcher[*core.Event]
 	log     *slog.Logger
 	ser     core.Serializer
+}
+
+func (w *topicWriter) Close() error {
+	close(w.input)
+	return nil
+}
+
+func (w *topicWriter) LastWrite() time.Time {
+	return w.lastWrite
+}
+
+func (w *topicWriter) Push(e *core.Event) {
+	w.input <- e
 }
 
 func (w *topicWriter) Run() {

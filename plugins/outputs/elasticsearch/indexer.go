@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -18,55 +17,6 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 )
-
-// TODO: same pool used in kafka output, generic version needed
-type indexersPool struct {
-	indexers map[string]*indexer
-	new      func(pipeline string) *indexer
-	wg       *sync.WaitGroup
-}
-
-func (p *indexersPool) Get(pipeline string) *indexer {
-	if indexer, ok := p.indexers[pipeline]; ok {
-		return indexer
-	}
-
-	indexer := p.new(pipeline)
-	p.indexers[pipeline] = indexer
-
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		indexer.Run()
-	}()
-
-	return indexer
-}
-
-func (p *indexersPool) Pipelines() []string {
-	var keys []string
-	for k := range p.indexers {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (p *indexersPool) Remove(pipeline string) {
-	if indexer, ok := p.indexers[pipeline]; ok {
-		close(indexer.input)
-		delete(p.indexers, pipeline)
-	}
-}
-
-func (p *indexersPool) Close() error {
-	for _, indexer := range p.indexers {
-		close(indexer.input)
-		delete(p.indexers, indexer.pipeline)
-	}
-
-	p.wg.Wait()
-	return nil
-}
 
 type indexer struct {
 	alias string
@@ -92,6 +42,19 @@ type indexer struct {
 type measurableEvent struct {
 	*core.Event
 	spentTime time.Duration
+}
+
+func (i *indexer) Close() error {
+	close(i.input)
+	return nil
+}
+
+func (i *indexer) LastWrite() time.Time {
+	return i.lastWrite
+}
+
+func (i *indexer) Push(e *core.Event) {
+	i.input <- e
 }
 
 func (i *indexer) Run() {
