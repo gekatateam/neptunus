@@ -3,13 +3,11 @@ package pool
 import (
 	"sync"
 	"time"
-
-	"github.com/gekatateam/neptunus/core"
 )
 
 type Runner[T any] interface {
 	Run()
-	Push(T *core.Event)
+	Push(t T)
 	LastWrite() time.Time
 	Close() error
 }

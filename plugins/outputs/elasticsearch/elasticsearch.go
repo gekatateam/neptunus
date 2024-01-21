@@ -21,7 +21,7 @@ import (
 type Elasticsearch struct {
 	alias                  string
 	pipe                   string
-	Servers                []string      `mapstructure:"servers"`
+	URLs                   []string      `mapstructure:"servers"`
 	Username               string        `mapstructure:"username"`
 	Password               string        `mapstructure:"password"`
 	ServiceToken           string        `mapstructure:"service_token"` // Service token for authorization; if set, overrides username/password.
@@ -58,7 +58,7 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 	o.pipe = pipeline
 	o.log = log
 
-	if len(o.Servers) == 0 {
+	if len(o.URLs) == 0 {
 		return errors.New("at least one server url required")
 	}
 
@@ -74,7 +74,7 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 	}
 
 	client, err := elasticsearch.NewTypedClient(elasticsearch.Config{
-		Addresses:               o.Servers,
+		Addresses:               o.URLs,
 		Username:                o.Username,
 		Password:                o.Password,
 		ServiceToken:            o.ServiceToken,
