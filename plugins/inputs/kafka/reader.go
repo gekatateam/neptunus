@@ -93,7 +93,7 @@ FETCH_LOOP:
 		for _, e := range events {
 			for label, header := range r.labelHeaders {
 				if h, ok := headers[header]; ok {
-					e.AddLabel(label, h)
+					e.SetLabel(label, h)
 				}
 			}
 

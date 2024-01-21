@@ -14,7 +14,7 @@ Also, each event has a **UUID** field that is randomly generated. This field is 
 ## Event API
 
 As a developer, you can use Event fields directly, however, in most cases it may be more convenient to use an [API](../core/event.go):
- - `AddLabel(key string, value string)` - add label to event; if label exist, it will be overwritten
+ - `SetLabel(key string, value string)` - add label to event; if label exist, it will be overwritten
  - `GetLabel(key string) (string, bool)` - get label value by key; if label does not exist, method returns false
  - `DeleteLabel(key string)` - delete label by key
  - `AddTag(tag string)` - add tag to event

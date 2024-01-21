@@ -146,7 +146,7 @@ func (e *Event) GetLabel(key string) (string, bool) {
 	return value, ok
 }
 
-func (e *Event) AddLabel(key, value string) {
+func (e *Event) SetLabel(key, value string) {
 	e.Labels[key] = value
 }
 

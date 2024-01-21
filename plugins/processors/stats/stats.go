@@ -123,11 +123,11 @@ func (p *Stats) Flush() {
 		e := core.NewEvent(p.RoutingKey)
 		e.Timestamp = now
 
-		e.AddLabel("::type", "metric")
-		e.AddLabel("::name", m.Descr.Name)
+		e.SetLabel("::type", "metric")
+		e.SetLabel("::name", m.Descr.Name)
 
 		for _, label := range m.Descr.Labels {
-			e.AddLabel(label.Key, label.Value)
+			e.SetLabel(label.Key, label.Value)
 		}
 
 		if m.Stats.Count {

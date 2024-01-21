@@ -11,7 +11,7 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `setRK(key String)` - set event routing key
  - `getTimestamp() (t Time)` - get event timestamp
  - `setTimestamp(t Time)` - set event timestamp
- - `addLabel(key String, value String)` - add/overwrite event label
+ - `setLabel(key String, value String)` - add/overwrite event label
  - `getLabel(key String) (value String|None)` - get label value by key; if label does not exist, **None** returns
  - `delLabel(key String)` - delete label by key
  - `getField(path String) (value String|Bool|Number|Float|Dict|List|Time|Duration|None)` - get field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)

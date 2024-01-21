@@ -50,7 +50,7 @@ func (p *Line) Close() error {
 func (p *Line) Run() {
 	for e := range p.in {
 		now := time.Now()
-		e.AddLabel(p.Label, p.line)
+		e.SetLabel(p.Label, p.line)
 		p.out <- e
 		metrics.ObserveProcessorSummary("line", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
 	}

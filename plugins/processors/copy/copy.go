@@ -58,7 +58,7 @@ func (p *Copy) Run() {
 		copy := e.Clone()
 		copy.RoutingKey = p.RoutingKey
 		for k, v := range p.Labels {
-			copy.AddLabel(k, v)
+			copy.SetLabel(k, v)
 		}
 
 		if p.SaveTimestamp {

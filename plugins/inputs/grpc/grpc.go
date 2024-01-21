@@ -314,14 +314,14 @@ func (i *Grpc) unpackData(ctx context.Context, data *common.Data, defaultkey str
 
 	for _, e := range events {
 		p, _ := peer.FromContext(ctx)
-		e.AddLabel("input", "grpc")
-		e.AddLabel("server", i.Address)
-		e.AddLabel("sender", p.Addr.String())
+		e.SetLabel("input", "grpc")
+		e.SetLabel("server", i.Address)
+		e.SetLabel("sender", p.Addr.String())
 
 		md, _ := metadata.FromIncomingContext(ctx)
 		for k, v := range i.LabelMetadata {
 			if val, ok := md[v]; ok {
-				e.AddLabel(k, strings.Join(val, ";"))
+				e.SetLabel(k, strings.Join(val, ";"))
 			}
 		}
 
@@ -347,7 +347,7 @@ func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
 	e.Id = event.GetId()
 
 	for k, v := range event.GetLabels() {
-		e.AddLabel(k, v)
+		e.SetLabel(k, v)
 	}
 
 	for _, v := range event.GetTags() {

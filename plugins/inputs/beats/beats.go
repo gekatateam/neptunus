@@ -148,7 +148,7 @@ func (i *Beats) Run() {
 
 					for label, metadata := range i.LabelMetadata {
 						if m, err := event.GetField("@metadata." + metadata); err == nil {
-							event.AddLabel(label, m.(string))
+							event.SetLabel(label, m.(string))
 						}
 					}
 

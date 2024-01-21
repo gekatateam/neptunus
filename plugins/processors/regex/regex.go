@@ -106,7 +106,7 @@ func (p *Regex) process(e *core.Event) {
 
 		for i, name := range rex.SubexpNames() {
 			if i != 0 && name != "" {
-				e.AddLabel(name, match[i])
+				e.SetLabel(name, match[i])
 			}
 		}
 	}

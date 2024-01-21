@@ -53,7 +53,7 @@ func (p *Defaults) Run() {
 
 		for k, v := range p.Labels {
 			if _, ok := e.GetLabel(k); !ok {
-				e.AddLabel(k, v)
+				e.SetLabel(k, v)
 			}
 		}
 
