@@ -68,6 +68,14 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 		return fmt.Errorf("unknown operation: %v; expected one of: create, index", o.Operation)
 	}
 
+	if o.IdleTimeout > 0 && o.IdleTimeout < time.Minute {
+		o.IdleTimeout = time.Minute
+	}
+
+	if o.Batcher.Buffer < 0 {
+		o.Batcher.Buffer = 1
+	}
+
 	tlsConfig, err := o.TLSClientConfig.Config()
 	if err != nil {
 		return err

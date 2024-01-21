@@ -17,7 +17,9 @@ type TransportLogger struct {
 
 func (l *TransportLogger) LogRoundTrip(_ *http.Request, _ *http.Response, e error, _ time.Time, d time.Duration) error {
 	if e != nil {
-		l.log.Debug(e.Error())
+		l.log.Debug("request failed",
+			"error", e,
+		)
 	}
 	l.log.Debug(fmt.Sprintf("request took %v microseconds", d.Microseconds()))
 	return nil

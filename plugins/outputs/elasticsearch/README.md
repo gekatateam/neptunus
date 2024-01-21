@@ -6,36 +6,45 @@ The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.
 ```toml
 [[outputs]]
   [outputs.elasticsearch]
-    #
+    # list of Elasticsearch nodes to use
     urls = [ "http://localhost:9200" ]
 
-    #
+    # username and password for HTTP Basic Authentication
     username = ""
     password = ""
 
-    #
+    # service token for authorization
+    # if set, overrides username/password
     service_token = ""
 
-    #
+    # base64-encoded token for authorization
+    # if set, overrides username/password and service token
     api_key = ""
 
-    #
+    # endpoint for the Elastic Service (https://elastic.co/cloud)
     cloud_id = ""
 
-    #
+    # SHA256 hex fingerprint given by Elasticsearch on first launch
     cert_fingerprint = ""
 
-    #
+    # bulk operation, "create" or "index"
+    # data streams supports only "create" operation
     operation = "create"
 
-    #
+    # if false, all event will be used as a document
     data_only = true
 
-    #
+    # label with ingest pipeline name
+    # plugin creates one indexer per unique label value
     pipeline_label = ""
 
-    #
+    # label which value will be used to route operations to a specific shard
     routing_label = ""
+
+    # time after which inactive indexers will be closed
+    # if configured value a zero, idle producers will never be closed
+    # if configured value less than 1m but not zero, it will be set to 1m
+    idle_timeout = "1h"
 
     # interval between events buffer flushes if buffer length less than it's capacity
     batch_interval = "5s"
@@ -43,14 +52,11 @@ The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.
     # events buffer size
     batch_buffer = 100    
 
-    #
+    # gzip compression usage flag
     enable_compression = true
 
-    #
-    request_interval = "10s"
-
-    #
-    idle_timeout = "1h"
+    # timeout for HTTP requests
+    request_timeout = "10s"
 
     ## TLS configuration
     # if true, TLS client will be used
