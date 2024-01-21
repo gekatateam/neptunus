@@ -1,13 +1,19 @@
 # Elasticsearch Output Plugin
 
-The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) via HTTP.
+The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) via HTTP using [Bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/docs-bulk.html).
 
 # Configuration
 ```toml
 [[outputs]]
   [outputs.elasticsearch]
     # list of Elasticsearch nodes to use
+    # only one will be used on each write
     urls = [ "http://localhost:9200" ]
+
+    # discover nodes periodically
+    # with this option it is not necessary to list all nodes in config
+    # zero for disable
+    discover_interval = "0s"
 
     # username and password for HTTP Basic Authentication
     username = ""

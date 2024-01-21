@@ -29,7 +29,7 @@ type Elasticsearch struct {
 	CloudID                string        `mapstructure:"cloud_id"`
 	CertificateFingerprint string        `mapstructure:"cert_fingerprint"` // SHA256 hex fingerprint given by Elasticsearch on first launch.
 	EnableCompression      bool          `mapstructure:"enable_compression"`
-	DiscoverInterval       time.Duration `mapstructure:"-"`
+	DiscoverInterval       time.Duration `mapstructure:"discover_interval"`
 	RequestTimeout         time.Duration `mapstructure:"request_timeout"`
 	IdleTimeout            time.Duration `mapstructure:"idle_timeout"`
 	PipelineLabel          string        `mapstructure:"pipeline_label"`
