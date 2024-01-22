@@ -11,5 +11,6 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/rk"
 	_ "github.com/gekatateam/neptunus/plugins/processors/starlark"
 	_ "github.com/gekatateam/neptunus/plugins/processors/stats"
+	_ "github.com/gekatateam/neptunus/plugins/processors/template"
 	_ "github.com/gekatateam/neptunus/plugins/processors/through"
 )

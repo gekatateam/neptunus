@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.beats"
-  lines = 5
+  lines = 1
   run = true
   buffer = 1_000
 
@@ -8,6 +8,10 @@
   [inputs.beats]
     address = ":8800"
     ack_on_delivery = true
+
+[[processors]]
+  [processors.template]
+    routing_key = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
 
 [[outputs]]
   [outputs.elasticsearch]

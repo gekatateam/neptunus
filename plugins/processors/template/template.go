@@ -76,7 +76,7 @@ func (p *Template) Init(config map[string]any, alias, pipeline string, log *slog
 		p.fields[f] = ft
 	}
 
-	p.buf = bytes.NewBuffer(make([]byte, 0, 256))
+	p.buf = bytes.NewBuffer(make([]byte, 0, 1024))
 
 	return nil
 }

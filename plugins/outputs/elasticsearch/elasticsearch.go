@@ -21,7 +21,7 @@ import (
 type Elasticsearch struct {
 	alias                  string
 	pipe                   string
-	URLs                   []string      `mapstructure:"servers"`
+	URLs                   []string      `mapstructure:"urls"`
 	Username               string        `mapstructure:"username"`
 	Password               string        `mapstructure:"password"`
 	ServiceToken           string        `mapstructure:"service_token"` // Service token for authorization; if set, overrides username/password.
