@@ -98,7 +98,7 @@ func (p *Template) Run() {
 		var (
 			now      time.Time      = time.Now()
 			hasError bool           = false
-			te       templatedEvent = templatedEvent{e: e}
+			te       *templatedEvent = &templatedEvent{e: e}
 		)
 
 		if len(p.Id) > 0 {

@@ -62,7 +62,7 @@ These types can be used as field values: strings, integers (signed and unsigned)
 ## Delivery Control
 
 You can set a tracker for each event using `SetHook(hook func())` method, but only once. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
- - it increases when an event is copied or cloned using corresponding method; copied or cloned events shares tracker.
+ - it increases when an event is cloned using corresponding method; cloned events shares tracker.
  - it decreases when an event `Done()` method calls.
 
 When tracker duty counter decreases to zero, tracker will call hook function.
