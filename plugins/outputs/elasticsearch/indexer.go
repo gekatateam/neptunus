@@ -228,7 +228,3 @@ func (i *indexer) perform2(r *bulk.Bulk) (*bulk.Response, error) {
 	defer cancel()
 	return r.Do(ctx)
 }
-
-func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
-	return time.Duration(int64(totalTime) / int64(batchSize))
-}
