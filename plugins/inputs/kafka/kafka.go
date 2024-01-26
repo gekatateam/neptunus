@@ -172,7 +172,7 @@ func (i *Kafka) Init() (err error) {
 				TLS:           tlsConfig,
 			},
 			MaxBytes:              i.MaxBatchSize,
-			QueueCapacity:         1,
+			QueueCapacity:         100, // <-
 			MaxAttempts:           1,
 			WatchPartitionChanges: true,
 			StartOffset:           offset,

@@ -207,6 +207,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 			"plugin", "fusion",
 			"name", "fusion::inputs",
 		)),
+		Obs: metrics.ObserveCoreSummary,
 	}), inputsOutChannels, p.config.Settings.Buffer)
 	wg.Add(1)
 	go func(u unit) {
@@ -241,6 +242,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 				"plugin", "fusion",
 				"name", "fusion::processors",
 			)),
+			Obs: metrics.ObserveCoreSummary,
 		}), procsOutChannels, p.config.Settings.Buffer)
 		outCh = fusionOutCh
 		wg.Add(1)
@@ -259,6 +261,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 			"plugin", "fusion",
 			"name", "broadcast::processors",
 		)),
+		Obs: metrics.ObserveCoreSummary,
 	}), outCh, len(p.outs), p.config.Settings.Buffer)
 	wg.Add(1)
 	go func(u unit) {

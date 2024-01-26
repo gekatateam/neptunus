@@ -37,7 +37,7 @@ def process(event):
 
 [[outputs]]
   [outputs.log]
-    level = "debug"
+    level = "info"
     [outputs.log.serializer]
       type = "json"
       data_only = false
