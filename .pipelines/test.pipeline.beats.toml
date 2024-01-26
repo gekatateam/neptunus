@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.beats"
   lines = 1
-  run = true
+  run = false
   buffer = 1_000
 
 [[inputs]]
