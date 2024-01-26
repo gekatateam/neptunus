@@ -8,7 +8,7 @@
   [inputs.httpl]
     address = ":9200"
     max_connections = 10
-    tls_enable = true
+    tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
@@ -37,7 +37,7 @@ def process(event):
 
 [[outputs]]
   [outputs.log]
-    level = "info"
+    level = "debug"
     [outputs.log.serializer]
       type = "json"
       data_only = false
