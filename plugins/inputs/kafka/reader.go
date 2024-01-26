@@ -19,8 +19,8 @@ import (
 type readersPool map[string]*topicReader
 
 type topicReader struct {
-	alias    string
-	pipe     string
+	*core.BaseInput
+
 	topic    string
 	groupId  string
 	clientId string
@@ -37,14 +37,13 @@ type topicReader struct {
 	doneCh   chan struct{}
 
 	out    chan<- *core.Event
-	log    *slog.Logger
 	parser core.Parser
 	ider   *ider.Ider
 }
 
 func (r *topicReader) Run(rCtx context.Context) {
 	if r.enableMetrics {
-		kafkastats.RegisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId, func() kafkastats.ReaderStats {
+		kafkastats.RegisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.groupId, r.clientId, func() kafkastats.ReaderStats {
 			return kafkastats.ReaderStats{
 				ReaderStats:         r.reader.Stats(),
 				CommitQueueLenght:   len(r.commitSemaphore),
@@ -53,7 +52,7 @@ func (r *topicReader) Run(rCtx context.Context) {
 		})
 	}
 
-	r.log.Info(fmt.Sprintf("consumer for topic %v spawned", r.topic))
+	r.Log.Info(fmt.Sprintf("consumer for topic %v spawned", r.topic))
 
 FETCH_LOOP:
 	for {
@@ -61,26 +60,26 @@ FETCH_LOOP:
 		now := time.Now()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				r.log.Debug(fmt.Sprintf("consumer for topic %v context canceled", r.topic))
+				r.Log.Debug(fmt.Sprintf("consumer for topic %v context canceled", r.topic))
 				break FETCH_LOOP
 			}
 
-			r.log.Error("fetch error",
+			r.Log.Error("fetch error",
 				"error", err,
 			)
-			metrics.ObserveInputSummary("kafka", r.alias, r.pipe, metrics.EventFailed, time.Since(now))
+			r.Observe(metrics.EventFailed, time.Since(now))
 			continue FETCH_LOOP
 		}
 
-		r.log.Debug("message fetched")
+		r.Log.Debug("message fetched")
 
 		events, err := r.parser.Parse(msg.Value, r.topic)
 		if err != nil {
-			r.log.Error("parser error",
+			r.Log.Error("parser error",
 				"error", err,
 			)
 
-			metrics.ObserveInputSummary("kafka", r.alias, r.pipe, metrics.EventFailed, time.Since(now))
+			r.Observe(metrics.EventFailed, time.Since(now))
 			continue FETCH_LOOP
 		}
 
@@ -105,32 +104,32 @@ FETCH_LOOP:
 
 			r.ider.Apply(e)
 			r.out <- e
-			r.log.Debug("event accepted",
+			r.Log.Debug("event accepted",
 				slog.Group("event",
 					"id", e.Id,
 					"key", e.RoutingKey,
 				),
 			)
-			metrics.ObserveInputSummary("kafka", r.alias, r.pipe, metrics.EventAccepted, time.Since(now))
+			r.Observe(metrics.EventAccepted, time.Since(now))
 			now = time.Now()
 		}
 	}
 
-	r.log.Info(fmt.Sprintf("consumer for topic %v done, waiting for events delivery", r.topic))
+	r.Log.Info(fmt.Sprintf("consumer for topic %v done, waiting for events delivery", r.topic))
 	r.exitCh <- struct{}{}
 	<-r.doneCh
 
-	r.log.Info("commit queue is empty now, closing consumer")
+	r.Log.Info("commit queue is empty now, closing consumer")
 	if err := r.reader.Close(); err != nil {
-		r.log.Warn(fmt.Sprintf("consumer for topic %v closed with error", r.topic),
+		r.Log.Warn(fmt.Sprintf("consumer for topic %v closed with error", r.topic),
 			"error", err,
 		)
 	} else {
-		r.log.Info(fmt.Sprintf("consumer for topic %v closed", r.topic))
+		r.Log.Info(fmt.Sprintf("consumer for topic %v closed", r.topic))
 	}
 
 	if r.enableMetrics {
-		kafkastats.UnregisterKafkaReader(r.pipe, r.alias, r.topic, r.groupId, r.clientId)
+		kafkastats.UnregisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.groupId, r.clientId)
 	}
 }
 

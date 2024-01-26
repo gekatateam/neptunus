@@ -1,46 +1,29 @@
 package line
 
 import (
-	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Line struct {
-	alias string
-	pipe  string
-	line  string
-	Label string `mapstructure:"label"`
+	*core.BaseProcessor `mapstructure:"-"`
+	Line                int    `mapstructure:"::line"`
+	Label               string `mapstructure:"label"`
 
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
+	line string
 }
 
-func (p *Line) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-	p.line = strconv.Itoa(config["::line"].(int))
-
+func (p *Line) Init() error {
+	p.line = strconv.Itoa(p.Line)
 	return nil
 }
 
-func (p *Line) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Line) Self() any {
+	return p
 }
 
 func (p *Line) Close() error {
@@ -48,11 +31,11 @@ func (p *Line) Close() error {
 }
 
 func (p *Line) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		now := time.Now()
 		e.SetLabel(p.Label, p.line)
-		p.out <- e
-		metrics.ObserveProcessorSummary("line", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+		p.Out <- e
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

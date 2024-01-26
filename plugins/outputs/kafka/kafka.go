@@ -12,7 +12,6 @@ import (
 	"github.com/segmentio/kafka-go/sasl/scram"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
@@ -21,8 +20,7 @@ import (
 )
 
 type Kafka struct {
-	alias             string
-	pipe              string
+	*core.BaseOutput  `mapstructure:"-"`
 	EnableMetrics     bool              `mapstructure:"enable_metrics"`
 	Brokers           []string          `mapstructure:"brokers"`
 	ClientId          string            `mapstructure:"client_id"`
@@ -58,15 +56,7 @@ type SASL struct {
 	Password  string `mapstructure:"password"`
 }
 
-func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, o); err != nil {
-		return err
-	}
-
-	o.alias = alias
-	o.pipe = pipeline
-	o.log = log
-
+func (o *Kafka) Init() error {
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
 	}
@@ -85,8 +75,7 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	o.writersPool = pool.New(func(topic string) pool.Runner[*core.Event] {
 		return &topicWriter{
-			alias:             o.alias,
-			pipe:              o.pipe,
+			BaseOutput:        o.BaseOutput,
 			clientId:          o.ClientId,
 			enableMetrics:     o.EnableMetrics,
 			keepTimestamp:     o.KeepTimestamp,
@@ -96,10 +85,10 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			headerLabels:      o.HeaderLabels,
 			maxAttempts:       o.MaxAttempts,
 			retryAfter:        o.RetryAfter,
+			lastWrite:         time.Now(),
 			input:             make(chan *core.Event),
 			writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
 			batcher:           o.Batcher,
-			log:               o.log,
 			ser:               o.ser,
 		}
 	})
@@ -211,8 +200,8 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 	return writer, nil
 }
 
-func (o *Kafka) SetChannels(in <-chan *core.Event) {
-	o.in = in
+func (o *Kafka) Self() any {
+	return o
 }
 
 func (o *Kafka) SetSerializer(s core.Serializer) {

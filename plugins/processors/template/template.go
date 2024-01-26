@@ -8,17 +8,15 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Template struct {
-	alias      string
-	pipe       string
-	Id         string            `mapstructure:"id"`
-	RoutingKey string            `mapstructure:"routing_key"`
-	Labels     map[string]string `mapstructure:"labels"`
-	Fields     map[string]string `mapstructure:"fields"`
+	*core.BaseProcessor `mapstructure:"-"`
+	Id                  string            `mapstructure:"id"`
+	RoutingKey          string            `mapstructure:"routing_key"`
+	Labels              map[string]string `mapstructure:"labels"`
+	Fields              map[string]string `mapstructure:"fields"`
 
 	id         *template.Template
 	routingKey *template.Template
@@ -26,21 +24,9 @@ type Template struct {
 	fields     map[string]*template.Template
 
 	buf *bytes.Buffer
-
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
 }
 
-func (p *Template) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-
+func (p *Template) Init() error {
 	if len(p.Id) > 0 {
 		id, err := template.New("id").Parse(p.Id)
 		if err != nil {
@@ -81,12 +67,8 @@ func (p *Template) Init(config map[string]any, alias, pipeline string, log *slog
 	return nil
 }
 
-func (p *Template) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Template) Self() any {
+	return p
 }
 
 func (p *Template) Close() error {
@@ -94,16 +76,16 @@ func (p *Template) Close() error {
 }
 
 func (p *Template) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		var (
-			now      time.Time      = time.Now()
-			hasError bool           = false
+			now      time.Time       = time.Now()
+			hasError bool            = false
 			te       *templatedEvent = &templatedEvent{e: e}
 		)
 
 		if len(p.Id) > 0 {
 			if err := p.id.Execute(p.buf, te); err != nil {
-				p.log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -121,7 +103,7 @@ func (p *Template) Run() {
 
 		if len(p.RoutingKey) > 0 {
 			if err := p.routingKey.Execute(p.buf, te); err != nil {
-				p.log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -139,7 +121,7 @@ func (p *Template) Run() {
 
 		for label, lt := range p.labels {
 			if err := lt.Execute(p.buf, te); err != nil {
-				p.log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -157,7 +139,7 @@ func (p *Template) Run() {
 
 		for field, ft := range p.fields {
 			if err := ft.Execute(p.buf, te); err != nil {
-				p.log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -169,7 +151,7 @@ func (p *Template) Run() {
 				hasError = true
 			} else {
 				if err := e.SetField(field, p.buf.String()); err != nil {
-					p.log.Error("template executed successfully, but field set failed",
+					p.Log.Error("template executed successfully, but field set failed",
 						"error", err,
 						slog.Group("event",
 							"id", e.Id,
@@ -185,11 +167,11 @@ func (p *Template) Run() {
 			p.buf.Reset()
 		}
 
-		p.out <- e
+		p.Out <- e
 		if hasError {
-			metrics.ObserveProcessorSummary("template", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			p.Observe(metrics.EventFailed, time.Since(now))
 		} else {
-			metrics.ObserveProcessorSummary("template", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+			p.Observe(metrics.EventAccepted, time.Since(now))
 		}
 	}
 }

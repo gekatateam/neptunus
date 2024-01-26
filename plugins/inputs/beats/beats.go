@@ -15,15 +15,13 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Beats struct {
-	alias            string
-	pipe             string
+	*core.BaseInput  `mapstructure:"-"`
 	Address          string            `mapstructure:"address"`
 	KeepaliveTimeout time.Duration     `mapstructure:"keepalive_timeout"`
 	NetworkTimeout   time.Duration     `mapstructure:"network_timeout"`
@@ -38,20 +36,9 @@ type Beats struct {
 	server    *lumber.Server
 	listener  net.Listener
 	tlsConfig *tls.Config
-
-	log *slog.Logger
-	out chan<- *core.Event
 }
 
-func (i *Beats) Init(config map[string]any, alias string, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, i); err != nil {
-		return err
-	}
-
-	i.alias = alias
-	i.pipe = pipeline
-	i.log = log
-
+func (i *Beats) Init() error {
 	if len(i.Address) == 0 {
 		return errors.New("address required")
 	}
@@ -85,8 +72,8 @@ func (i *Beats) Init(config map[string]any, alias string, pipeline string, log *
 	return nil
 }
 
-func (i *Beats) SetChannels(out chan<- *core.Event) {
-	i.out = out
+func (i *Beats) Self() any {
+	return i
 }
 
 func (i *Beats) Close() error {
@@ -98,19 +85,19 @@ func (i *Beats) Close() error {
 }
 
 func (i *Beats) Run() {
-	i.log.Info(fmt.Sprintf("starting lumberjack server on %v", i.Address))
+	i.Log.Info(fmt.Sprintf("starting lumberjack server on %v", i.Address))
 	if server, err := lumber.NewWithListener(i.listener,
 		lumber.Keepalive(i.KeepaliveTimeout),
 		lumber.Timeout(i.NetworkTimeout),
 		lumber.TLS(i.tlsConfig),
 		lumber.JSONDecoder(json.Unmarshal),
 	); err != nil {
-		i.log.Error("lumberjack server startup failed",
+		i.Log.Error("lumberjack server startup failed",
 			"error", err.Error(),
 		)
 		return
 	} else {
-		i.log.Info("lumberjack server started")
+		i.Log.Info("lumberjack server started")
 		i.server = server
 	}
 
@@ -122,14 +109,15 @@ func (i *Beats) Run() {
 
 			batchWg := &sync.WaitGroup{}
 			for ljBatch := range i.server.ReceiveChan() {
+				println("__ BATCH RECEIVED")
 				for _, v := range ljBatch.Events {
 					now := time.Now()
 					event, err := i.toEvent(v)
 					if err != nil {
-						i.log.Error("beat event reading error",
+						i.Log.Error("beat event reading error",
 							"error", err,
 						)
-						metrics.ObserveInputSummary("beats", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+						i.Observe(metrics.EventFailed, time.Since(now))
 						continue
 					}
 
@@ -154,14 +142,14 @@ func (i *Beats) Run() {
 
 					i.Ider.Apply(event)
 
-					i.out <- event
-					i.log.Debug("event accepted",
+					i.Out <- event
+					i.Log.Debug("event accepted",
 						slog.Group("event",
 							"id", event.Id,
 							"key", event.RoutingKey,
 						),
 					)
-					metrics.ObserveInputSummary("beats", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+					i.Observe(metrics.EventAccepted, time.Since(now))
 				}
 
 				batchWg.Wait()

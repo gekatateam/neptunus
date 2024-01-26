@@ -15,7 +15,6 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
@@ -24,17 +23,15 @@ import (
 )
 
 type Grpc struct {
-	alias string
-	pipe  string
-
-	EnableMetrics  bool              `mapstructure:"enable_metrics"`
-	Address        string            `mapstructure:"address"`
-	Procedure      string            `mapstructure:"procedure"`
-	RetryAfter     time.Duration     `mapstructure:"retry_after"`
-	MaxAttempts    int               `mapstructure:"max_attempts"`
-	DialOptions    DialOptions       `mapstructure:"dial_options"`
-	CallOptions    CallOptions       `mapstructure:"call_options"`
-	MetadataLabels map[string]string `mapstructure:"metadatalabels"`
+	*core.BaseOutput `mapstructure:"-"`
+	EnableMetrics    bool              `mapstructure:"enable_metrics"`
+	Address          string            `mapstructure:"address"`
+	Procedure        string            `mapstructure:"procedure"`
+	RetryAfter       time.Duration     `mapstructure:"retry_after"`
+	MaxAttempts      int               `mapstructure:"max_attempts"`
+	DialOptions      DialOptions       `mapstructure:"dial_options"`
+	CallOptions      CallOptions       `mapstructure:"call_options"`
+	MetadataLabels   map[string]string `mapstructure:"metadatalabels"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
@@ -44,8 +41,6 @@ type Grpc struct {
 	conn     *grpc.ClientConn
 	callOpts []grpc.CallOption
 
-	in  <-chan *core.Event
-	log *slog.Logger
 	ser core.Serializer
 }
 
@@ -62,15 +57,7 @@ type CallOptions struct {
 	WaitForReady   bool   `mapstructure:"wait_for_ready"`  // https://pkg.go.dev/google.golang.org/grpc#WaitForReady
 }
 
-func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, o); err != nil {
-		return err
-	}
-
-	o.alias = alias
-	o.pipe = pipeline
-	o.log = log
-
+func (o *Grpc) Init() error {
 	if len(o.Address) == 0 {
 		return errors.New("address required")
 	}
@@ -86,8 +73,8 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 
 	options := dialOptions(o.DialOptions)
 	if o.EnableMetrics {
-		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(pipeline, alias)))
-		options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(pipeline, alias)))
+		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(o.Pipeline, o.Alias)))
+		options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(o.Pipeline, o.Alias)))
 	}
 
 	if tlsConfig != nil {
@@ -112,13 +99,13 @@ func (o *Grpc) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	default:
 		return fmt.Errorf("unknown procedure: %v; expected one of: unary, bulk, stream", o.Procedure)
 	}
-	o.log.Info(fmt.Sprintf("gRPC client works in %v mode", o.Procedure))
+	o.Log.Info(fmt.Sprintf("gRPC client works in %v mode", o.Procedure))
 
 	return nil
 }
 
-func (o *Grpc) SetChannels(in <-chan *core.Event) {
-	o.in = in
+func (o *Grpc) Self() any {
+	return o
 }
 
 func (o *Grpc) SetSerializer(s core.Serializer) {
@@ -126,7 +113,7 @@ func (o *Grpc) SetSerializer(s core.Serializer) {
 }
 
 func (o *Grpc) Run() {
-	o.sendFn(o.in)
+	o.sendFn(o.In)
 }
 
 func (o *Grpc) Close() error {
@@ -139,7 +126,7 @@ MAIN_LOOP:
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
 		if err != nil {
-			o.log.Error("serialization failed",
+			o.Log.Error("serialization failed",
 				"error", err.Error(),
 				slog.Group("event",
 					"id", e.Id,
@@ -147,7 +134,7 @@ MAIN_LOOP:
 				),
 			)
 			e.Done()
-			metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+			o.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
@@ -167,24 +154,24 @@ MAIN_LOOP:
 			)
 
 			if err == nil {
-				o.log.Debug("event sent",
+				o.Log.Debug("event sent",
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+				o.Observe(metrics.EventAccepted, time.Since(now))
 				continue MAIN_LOOP
 			}
 
 			switch {
 			case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-				o.log.Warn(fmt.Sprintf("unary call attempt %v of %v failed", attempts, o.MaxAttempts))
+				o.Log.Warn(fmt.Sprintf("unary call attempt %v of %v failed", attempts, o.MaxAttempts))
 				attempts++
 				time.Sleep(o.RetryAfter)
 			case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
-				o.log.Error(fmt.Sprintf("unary call failed after %v attemtps", attempts),
+				o.Log.Error(fmt.Sprintf("unary call failed after %v attemtps", attempts),
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -192,10 +179,10 @@ MAIN_LOOP:
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+				o.Observe(metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			default:
-				o.log.Error("unary call failed",
+				o.Log.Error("unary call failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -221,7 +208,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 			now := time.Now()
 			event, err := o.ser.Serialize(e)
 			if err != nil {
-				o.log.Error("serialization failed",
+				o.Log.Error("serialization failed",
 					"error", err.Error(),
 					slog.Group("event",
 						"id", e.Id,
@@ -229,7 +216,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+				o.Observe(metrics.EventFailed, time.Since(now))
 				continue
 			}
 
@@ -237,7 +224,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 				if stream == nil {
 					stream, err = o.newBulkStream()
 					if err != nil {
-						o.log.Error("event sending failed",
+						o.Log.Error("event sending failed",
 							"error", err,
 							slog.Group("event",
 								"id", e.Id,
@@ -245,7 +232,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 							),
 						)
 						e.Done()
-						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+						o.Observe(metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
 				}
@@ -255,19 +242,19 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 				})
 
 				if err == nil {
-					o.log.Debug("event sent",
+					o.Log.Debug("event sent",
 						slog.Group("event",
 							"id", e.Id,
 							"key", e.RoutingKey,
 						),
 					)
 					e.Done()
-					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+					o.Observe(metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}
 
 				stream = nil // if error occured, stream is already aborted, so we need to reopen it
-				o.log.Error("sending to bulk stream failed",
+				o.Log.Error("sending to bulk stream failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -279,19 +266,19 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 		}
 
 		if stream == nil { // stream may be dead after failed attempts
-			o.log.Warn("summary receiving failed beacuse the stream is already dead")
+			o.Log.Warn("summary receiving failed beacuse the stream is already dead")
 			return
 		}
 
 		sum, err := stream.CloseAndRecv()
 		if err != nil {
-			o.log.Warn("all events has been sent, but summary receiving failed",
+			o.Log.Warn("all events has been sent, but summary receiving failed",
 				"error", err,
 			)
 			return
 		}
 
-		o.log.Debug(fmt.Sprintf("accepted: %v, failed: %v", sum.Accepted, sum.Failed))
+		o.Log.Debug(fmt.Sprintf("accepted: %v, failed: %v", sum.Accepted, sum.Failed))
 	})
 }
 
@@ -303,7 +290,7 @@ MAIN_LOOP:
 	for {
 		select {
 		case <-doneCh:
-			o.log.Info("cancel signal received, closing stream")
+			o.Log.Info("cancel signal received, closing stream")
 			stream.CloseSend()
 			stream = nil
 			time.Sleep(o.RetryAfter)
@@ -318,7 +305,7 @@ MAIN_LOOP:
 			now := time.Now()
 			event, err := o.ser.Serialize(e)
 			if err != nil {
-				o.log.Error("serialization failed",
+				o.Log.Error("serialization failed",
 					"error", err.Error(),
 					slog.Group("event",
 						"id", e.Id,
@@ -326,7 +313,7 @@ MAIN_LOOP:
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+				o.Observe(metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			}
 
@@ -334,7 +321,7 @@ MAIN_LOOP:
 				if stream == nil {
 					stream, err = o.newInternalStream(doneCh)
 					if err != nil {
-						o.log.Error("event sending failed",
+						o.Log.Error("event sending failed",
 							"error", err,
 							slog.Group("event",
 								"id", e.Id,
@@ -342,7 +329,7 @@ MAIN_LOOP:
 							),
 						)
 						e.Done()
-						metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+						o.Observe(metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
 				}
@@ -358,19 +345,19 @@ MAIN_LOOP:
 				})
 
 				if err == nil {
-					o.log.Debug("event sent",
+					o.Log.Debug("event sent",
 						slog.Group("event",
 							"id", e.Id,
 							"key", e.RoutingKey,
 						),
 					)
 					e.Done()
-					metrics.ObserveOutputSummary("grpc", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+					o.Observe(metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}
 
 				stream = nil // if error occured, stream is already aborted, so we need to reopen it
-				o.log.Error("sending to internal stream failed",
+				o.Log.Error("sending to internal stream failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -390,7 +377,7 @@ func (o *Grpc) newInternalStream(cancelCh chan<- struct{}) (common.Input_SendStr
 	for {
 		stream, err = o.client.SendStream(context.Background(), o.callOpts...)
 		if err == nil {
-			o.log.Info("internal stream opened")
+			o.Log.Info("internal stream opened")
 
 			go func() {
 				// handle cancel signal from server and close the stream
@@ -402,7 +389,7 @@ func (o *Grpc) newInternalStream(cancelCh chan<- struct{}) (common.Input_SendStr
 					cancelCh <- struct{}{}
 				}
 
-				o.log.Debug("receiving goroutine returns")
+				o.Log.Debug("receiving goroutine returns")
 			}()
 
 			return stream, nil
@@ -410,16 +397,16 @@ func (o *Grpc) newInternalStream(cancelCh chan<- struct{}) (common.Input_SendStr
 
 		switch {
 		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-			o.log.Warn(fmt.Sprintf("internal stream open attempt %v of %v failed", attempts, o.MaxAttempts))
+			o.Log.Warn(fmt.Sprintf("internal stream open attempt %v of %v failed", attempts, o.MaxAttempts))
 			attempts++
 			time.Sleep(o.RetryAfter)
 		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
-			o.log.Error(fmt.Sprintf("internal stream open failed after %v attemtps", attempts),
+			o.Log.Error(fmt.Sprintf("internal stream open failed after %v attemtps", attempts),
 				"error", err,
 			)
 			return nil, err
 		default:
-			o.log.Error("internal stream open failed",
+			o.Log.Error("internal stream open failed",
 				"error", err,
 			)
 			time.Sleep(o.RetryAfter)
@@ -434,22 +421,22 @@ func (o *Grpc) newBulkStream() (common.Input_SendBulkClient, error) {
 	for {
 		stream, err = o.client.SendBulk(context.Background(), o.callOpts...)
 		if err == nil {
-			o.log.Debug("bulk stream opened")
+			o.Log.Debug("bulk stream opened")
 			return stream, nil
 		}
 
 		switch {
 		case o.MaxAttempts > 0 && attempts < o.MaxAttempts:
-			o.log.Warn(fmt.Sprintf("bulk stream open attempt %v of %v failed", attempts, o.MaxAttempts))
+			o.Log.Warn(fmt.Sprintf("bulk stream open attempt %v of %v failed", attempts, o.MaxAttempts))
 			attempts++
 			time.Sleep(o.RetryAfter)
 		case o.MaxAttempts > 0 && attempts >= o.MaxAttempts:
-			o.log.Error(fmt.Sprintf("bulk stream open failed after %v attemtps", attempts),
+			o.Log.Error(fmt.Sprintf("bulk stream open failed after %v attemtps", attempts),
 				"error", err,
 			)
 			return nil, err
 		default:
-			o.log.Error("bulk stream open failed",
+			o.Log.Error("bulk stream open failed",
 				"error", err,
 			)
 			time.Sleep(o.RetryAfter)

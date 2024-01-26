@@ -7,38 +7,26 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Log struct {
-	alias string
-	pipe  string
-	Level string `mapstructure:"level"`
+	*core.BaseOutput `mapstructure:"-"`
+	Level            string `mapstructure:"level"`
 
 	logFunc func(msg string, args ...any)
 
-	in  <-chan *core.Event
-	log *slog.Logger
 	ser core.Serializer
 }
 
-func (o *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, o); err != nil {
-		return err
-	}
-
-	o.alias = alias
-	o.pipe = pipeline
-	o.log = log
-
+func (o *Log) Init() error {
 	switch o.Level {
 	case "debug":
-		o.logFunc = o.log.Debug
+		o.logFunc = o.Log.Debug
 	case "info":
-		o.logFunc = o.log.Info
+		o.logFunc = o.Log.Info
 	case "warn":
-		o.logFunc = o.log.Warn
+		o.logFunc = o.Log.Warn
 	default:
 		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn", o.Level)
 	}
@@ -46,8 +34,8 @@ func (o *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logg
 	return nil
 }
 
-func (o *Log) SetChannels(in <-chan *core.Event) {
-	o.in = in
+func (o *Log) Self() any {
+	return o
 }
 
 func (o *Log) SetSerializer(s core.Serializer) {
@@ -55,11 +43,11 @@ func (o *Log) SetSerializer(s core.Serializer) {
 }
 
 func (o *Log) Run() {
-	for e := range o.in {
+	for e := range o.In {
 		now := time.Now()
 		event, err := o.ser.Serialize(e)
 		if err != nil {
-			o.log.Error("serialization failed",
+			o.Log.Error("serialization failed",
 				"error", err,
 				slog.Group("event",
 					"id", e.Id,
@@ -67,13 +55,13 @@ func (o *Log) Run() {
 				),
 			)
 			e.Done()
-			metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventFailed, time.Since(now))
+			o.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
 		o.logFunc(string(event))
 		e.Done()
-		metrics.ObserveOutputSummary("log", o.alias, o.pipe, metrics.EventAccepted, time.Since(now))
+		o.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

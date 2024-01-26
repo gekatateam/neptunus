@@ -7,39 +7,21 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Defaults struct {
-	alias  string
-	pipe   string
-	Labels map[string]string `mapstructure:"labels"`
-	Fields map[string]any    `mapstructure:"fields"`
-
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
+	*core.BaseProcessor `mapstructure:"-"`
+	Labels              map[string]string `mapstructure:"labels"`
+	Fields              map[string]any    `mapstructure:"fields"`
 }
 
-func (p *Defaults) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-
+func (p *Defaults) Init() error {
 	return nil
 }
 
-func (p *Defaults) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Defaults) Self() any {
+	return p
 }
 
 func (p *Defaults) Close() error {
@@ -47,7 +29,7 @@ func (p *Defaults) Close() error {
 }
 
 func (p *Defaults) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		now := time.Now()
 		hasError := false
 
@@ -60,7 +42,7 @@ func (p *Defaults) Run() {
 		for k, v := range p.Fields {
 			if _, err := e.GetField(k); err != nil {
 				if err := e.SetField(k, v); err != nil {
-					p.log.Error("error set field",
+					p.Log.Error("error set field",
 						"error", err,
 						slog.Group("event",
 							"id", e.Id,
@@ -75,11 +57,11 @@ func (p *Defaults) Run() {
 			}
 		}
 
-		p.out <- e
+		p.Out <- e
 		if hasError {
-			metrics.ObserveProcessorSummary("defaults", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			p.Observe(metrics.EventFailed, time.Since(now))
 		} else {
-			metrics.ObserveProcessorSummary("defaults", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+			p.Observe(metrics.EventAccepted, time.Since(now))
 		}
 	}
 }

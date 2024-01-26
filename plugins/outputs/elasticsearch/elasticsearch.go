@@ -3,7 +3,6 @@ package elasticsearch
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/operationtype"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
@@ -19,8 +17,7 @@ import (
 )
 
 type Elasticsearch struct {
-	alias                  string
-	pipe                   string
+	*core.BaseOutput       `mapstructure:"-"`
 	URLs                   []string      `mapstructure:"urls"`
 	Username               string        `mapstructure:"username"`
 	Password               string        `mapstructure:"password"`
@@ -44,20 +41,9 @@ type Elasticsearch struct {
 
 	client       *elasticsearch.TypedClient
 	indexersPool *pool.Pool[*core.Event]
-
-	in  <-chan *core.Event
-	log *slog.Logger
 }
 
-func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, o); err != nil {
-		return err
-	}
-
-	o.alias = alias
-	o.pipe = pipeline
-	o.log = log
-
+func (o *Elasticsearch) Init() error {
 	if len(o.URLs) == 0 {
 		return errors.New("at least one server url required")
 	}
@@ -99,7 +85,7 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 			TLSClientConfig: tlsConfig,
 		},
 		Logger: &TransportLogger{
-			log: log,
+			log: o.Log,
 		},
 	})
 	if err != nil {
@@ -112,8 +98,8 @@ func (o *Elasticsearch) Init(config map[string]any, alias, pipeline string, log 
 	return nil
 }
 
-func (o *Elasticsearch) SetChannels(in <-chan *core.Event) {
-	o.in = in
+func (o *Elasticsearch) Self() any {
+	return o
 }
 
 func (o *Elasticsearch) Run() {
@@ -125,7 +111,7 @@ func (o *Elasticsearch) Run() {
 MAIN_LOOP:
 	for {
 		select {
-		case e, ok := <-o.in:
+		case e, ok := <-o.In:
 			if !ok {
 				clearTicker.Stop()
 				break MAIN_LOOP
@@ -148,8 +134,7 @@ func (o *Elasticsearch) Close() error {
 
 func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 	return &indexer{
-		alias:        o.alias,
-		pipe:         o.pipe,
+		BaseOutput:   o.BaseOutput,
 		lastWrite:    time.Now(),
 		pipeline:     pipeline,
 		dataOnly:     o.DataOnly,
@@ -159,7 +144,6 @@ func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 		maxAttempts:  o.MaxAttempts,
 		retryAfter:   o.RetryAfter,
 		client:       o.client,
-		log:          o.log,
 		Batcher:      o.Batcher,
 		input:        make(chan *core.Event),
 	}

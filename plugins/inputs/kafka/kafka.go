@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -16,7 +15,6 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
@@ -24,8 +22,7 @@ import (
 )
 
 type Kafka struct {
-	alias                string
-	pipe                 string
+	*core.BaseInput      `mapstructure:"-"`
 	EnableMetrics        bool              `mapstructure:"enable_metrics"`
 	Brokers              []string          `mapstructure:"brokers"`
 	ClientId             string            `mapstructure:"client_id"`
@@ -55,7 +52,6 @@ type Kafka struct {
 	cancelFunc     context.CancelFunc
 	wg             *sync.WaitGroup
 
-	log    *slog.Logger
 	parser core.Parser
 }
 
@@ -65,15 +61,7 @@ type SASL struct {
 	Password  string `mapstructure:"password"`
 }
 
-func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Logger) (err error) {
-	if err = mapstructure.Decode(config, i); err != nil {
-		return err
-	}
-
-	i.alias = alias
-	i.pipe = pipeline
-	i.log = log
-
+func (i *Kafka) Init() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -195,13 +183,12 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			MaxWait:               i.WaitBatchTimeout,
 			RetentionTime:         i.GroupTTL,
 			GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
-			Logger:                common.NewLogger(log),
-			ErrorLogger:           common.NewErrorLogger(log),
+			Logger:                common.NewLogger(i.Log),
+			ErrorLogger:           common.NewErrorLogger(i.Log),
 		})
 
 		i.readersPool[topic] = &topicReader{
-			alias:         i.alias,
-			pipe:          i.pipe,
+			BaseInput:     i.BaseInput,
 			topic:         topic,
 			groupId:       i.GroupId,
 			clientId:      i.ClientId,
@@ -216,7 +203,6 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			commitCh:        commitCh,
 			exitCh:          exitCh,
 			doneCh:          doneCh,
-			log:             log,
 		}
 
 		i.commitConsPool[topic] = &commitController{
@@ -231,13 +217,17 @@ func (i *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 			commitCh: commitCh,
 			exitCh:   exitCh,
 			doneCh:   doneCh,
-			log:      log,
+			log:      i.Log,
 		}
 	}
 
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
 
 	return nil
+}
+
+func (i *Kafka) Self() any {
+	return i
 }
 
 func (i *Kafka) SetChannels(out chan<- *core.Event) {

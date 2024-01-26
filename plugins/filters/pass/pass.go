@@ -1,7 +1,6 @@
 package pass
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -10,28 +9,15 @@ import (
 )
 
 type Pass struct {
-	alias    string
-	pipe     string
-	in       <-chan *core.Event
-	accepted chan<- *core.Event
-	log      *slog.Logger
+	*core.BaseFilter `mapstructure:"-"`
 }
 
-func (f *Pass) Init(_ map[string]any, alias, pipeline string, log *slog.Logger) error {
-	f.alias = alias
-	f.pipe = pipeline
-	f.log = log
-
+func (f *Pass) Init() error {
 	return nil
 }
 
-func (f *Pass) SetChannels(
-	in <-chan *core.Event,
-	_ chan<- *core.Event,
-	accepted chan<- *core.Event,
-) {
-	f.in = in
-	f.accepted = accepted
+func (f *Pass) Self() any {
+	return f
 }
 
 func (f *Pass) Close() error {
@@ -39,10 +25,10 @@ func (f *Pass) Close() error {
 }
 
 func (f *Pass) Run() {
-	for e := range f.in {
+	for e := range f.In {
 		now := time.Now()
-		f.accepted <- e
-		metrics.ObserveFliterSummary("pass", f.alias, f.pipe, metrics.EventAccepted, time.Since(now))
+		f.Acc <- e
+		f.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

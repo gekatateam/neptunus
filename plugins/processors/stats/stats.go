@@ -2,43 +2,29 @@ package stats
 
 import (
 	"fmt"
-	"log/slog"
 	"slices"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Stats struct {
-	alias      string
-	pipe       string
-	id         uint64
-	Period     time.Duration       `mapstructure:"period"`
-	Mode       string              `mapstructure:"mode"`
-	RoutingKey string              `mapstructure:"routing_key"`
-	Labels     []string            `mapstructure:"labels"`
-	DropOrigin bool                `mapstructure:"drop_origin"`
-	Fields     map[string][]string `mapstructure:"fields"`
+	id                  uint64
+	*core.BaseProcessor `mapstructure:"-"`
+	Period              time.Duration       `mapstructure:"period"`
+	Mode                string              `mapstructure:"mode"`
+	RoutingKey          string              `mapstructure:"routing_key"`
+	Labels              []string            `mapstructure:"labels"`
+	DropOrigin          bool                `mapstructure:"drop_origin"`
+	Fields              map[string][]string `mapstructure:"fields"`
 
 	cache  cache
 	fields map[string]metricStats
-
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
 }
 
-func (p *Stats) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
+func (p *Stats) Init() error {
 	p.fields = make(map[string]metricStats)
 	p.Labels = slices.Compact(p.Labels)
 
@@ -73,12 +59,8 @@ func (p *Stats) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (p *Stats) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Stats) Self() any {
+	return p
 }
 
 func (p *Stats) Close() error {
@@ -97,7 +79,7 @@ func (p *Stats) Run() {
 		select {
 		case <-ticker.C:
 			p.Flush()
-		case e, ok := <-p.in:
+		case e, ok := <-p.In:
 			if !ok {
 				ticker.Stop()
 				p.Flush()
@@ -107,11 +89,11 @@ func (p *Stats) Run() {
 			now := time.Now()
 			p.Observe(e)
 			if !p.DropOrigin {
-				p.out <- e
+				p.Out <- e
 			} else {
 				e.Done()
 			}
-			metrics.ObserveProcessorSummary("stats", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+			p.BaseProcessor.Observe(metrics.EventAccepted, time.Since(now))
 		}
 	}
 }
@@ -119,7 +101,7 @@ func (p *Stats) Run() {
 func (p *Stats) Flush() {
 	now := time.Now()
 
-	p.cache.flush(p.out, func(m *metric, ch chan<- *core.Event) {
+	p.cache.flush(p.Out, func(m *metric, ch chan<- *core.Event) {
 		e := core.NewEvent(p.RoutingKey)
 		e.Timestamp = now
 
@@ -233,7 +215,7 @@ func init() {
 		return &Stats{
 			Period:     time.Minute,
 			RoutingKey: "neptunus.generated.metric",
-			Mode:       "individual",
+			Mode:       "shared",
 		}
 	})
 }

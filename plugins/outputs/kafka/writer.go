@@ -19,8 +19,7 @@ import (
 )
 
 type topicWriter struct {
-	alias    string
-	pipe     string
+	*core.BaseOutput
 	clientId string
 
 	enableMetrics     bool
@@ -38,7 +37,6 @@ type topicWriter struct {
 	input   chan *core.Event
 	writer  *kafka.Writer
 	batcher *batcher.Batcher[*core.Event]
-	log     *slog.Logger
 	ser     core.Serializer
 }
 
@@ -57,9 +55,9 @@ func (w *topicWriter) Push(e *core.Event) {
 
 func (w *topicWriter) Run() {
 	if w.enableMetrics {
-		kafkastats.RegisterKafkaWriter(w.pipe, w.alias, w.writer.Topic, w.clientId, w.writer.Stats)
+		kafkastats.RegisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId, w.writer.Stats)
 	}
-	w.log.Info(fmt.Sprintf("producer for topic %v spawned", w.writer.Topic))
+	w.Log.Info(fmt.Sprintf("producer for topic %v spawned", w.writer.Topic))
 	w.lastWrite = time.Now()
 
 	w.batcher.Run(w.input, func(buf []*core.Event) {
@@ -75,7 +73,7 @@ func (w *topicWriter) Run() {
 			now := time.Now()
 			event, err := w.ser.Serialize(e)
 			if err != nil {
-				w.log.Error("serialization failed, event skipped",
+				w.Log.Error("serialization failed, event skipped",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -83,7 +81,7 @@ func (w *topicWriter) Run() {
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("kafka", w.alias, w.pipe, metrics.EventFailed, time.Since(now))
+				w.Observe(metrics.EventFailed, time.Since(now))
 				continue
 			}
 
@@ -135,36 +133,36 @@ func (w *topicWriter) Run() {
 		for _, e := range eventsStat {
 			e.event.Done()
 			if e.error != nil {
-				w.log.Error("event produce failed",
+				w.Log.Error("event produce failed",
 					"error", e.error,
 					slog.Group("event",
 						"id", e.event.Id,
 						"key", e.event.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("kafka", w.alias, w.pipe, metrics.EventFailed, e.spentTime)
+				w.Observe(metrics.EventFailed, e.spentTime)
 			} else {
-				w.log.Debug("event produced",
+				w.Log.Debug("event produced",
 					slog.Group("event",
 						"id", e.event.Id,
 						"key", e.event.RoutingKey,
 					),
 				)
-				metrics.ObserveOutputSummary("kafka", w.alias, w.pipe, metrics.EventAccepted, e.spentTime)
+				w.Observe(metrics.EventAccepted, e.spentTime)
 			}
 		}
 	})
 
 	if err := w.writer.Close(); err != nil {
-		w.log.Warn(fmt.Sprintf("producer for topic %v closed with error", w.writer.Topic),
+		w.Log.Warn(fmt.Sprintf("producer for topic %v closed with error", w.writer.Topic),
 			"error", err,
 		)
 	} else {
-		w.log.Info(fmt.Sprintf("producer for topic %v closed", w.writer.Topic))
+		w.Log.Info(fmt.Sprintf("producer for topic %v closed", w.writer.Topic))
 	}
 
 	if w.enableMetrics {
-		kafkastats.RegisterKafkaWriter(w.pipe, w.alias, w.writer.Topic, w.clientId, w.writer.Stats)
+		kafkastats.RegisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId, w.writer.Stats)
 	}
 }
 
@@ -259,19 +257,19 @@ SEND_LOOP:
 
 		switch {
 		case w.maxAttempts > 0 && attempts < w.maxAttempts:
-			w.log.Warn(fmt.Sprintf("write %v of %v failed", attempts, w.maxAttempts),
+			w.Log.Warn(fmt.Sprintf("write %v of %v failed", attempts, w.maxAttempts),
 				"topic", w.writer.Topic,
 			)
 			attempts++
 			time.Sleep(w.retryAfter)
 		case w.maxAttempts > 0 && attempts >= w.maxAttempts:
-			w.log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
+			w.Log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
 				"error", err,
 				"topic", w.writer.Topic,
 			)
 			break SEND_LOOP
 		default:
-			w.log.Error("write failed",
+			w.Log.Error("write failed",
 				"error", err,
 				"topic", w.writer.Topic,
 			)

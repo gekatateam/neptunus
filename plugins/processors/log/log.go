@@ -7,39 +7,26 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Log struct {
-	alias string
-	pipe  string
-	Level string `mapstructure:"level"`
+	*core.BaseProcessor `mapstructure:"-"`
+	Level               string `mapstructure:"level"`
 
 	logFunc func(msg string, args ...any)
 
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
 	ser core.Serializer
 }
 
-func (p *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-
+func (p *Log) Init() error {
 	switch p.Level {
 	case "debug":
-		p.logFunc = p.log.Debug
+		p.logFunc = p.Log.Debug
 	case "info":
-		p.logFunc = p.log.Info
+		p.logFunc = p.Log.Info
 	case "warn":
-		p.logFunc = p.log.Warn
+		p.logFunc = p.Log.Warn
 	default:
 		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn", p.Level)
 	}
@@ -47,12 +34,8 @@ func (p *Log) Init(config map[string]any, alias, pipeline string, log *slog.Logg
 	return nil
 }
 
-func (p *Log) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Log) Self() any {
+	return p
 }
 
 func (p *Log) SetSerializer(s core.Serializer) {
@@ -60,11 +43,11 @@ func (p *Log) SetSerializer(s core.Serializer) {
 }
 
 func (p *Log) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		now := time.Now()
 		event, err := p.ser.Serialize(e)
 		if err != nil {
-			p.log.Error("event serialization failed",
+			p.Log.Error("event serialization failed",
 				"error", err.Error(),
 				slog.Group("event",
 					"id", e.Id,
@@ -73,14 +56,14 @@ func (p *Log) Run() {
 			)
 			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
 			e.AddTag("::log_processing_failed")
-			p.out <- e
-			metrics.ObserveProcessorSummary("log", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
 		p.logFunc(string(event))
-		p.out <- e
-		metrics.ObserveProcessorSummary("log", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+		p.Out <- e
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

@@ -10,34 +10,20 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/starlark"
 )
 
 type Starlark struct {
-	alias            string
-	pipe             string
-	*common.Starlark `mapstructure:",squash"`
+	*core.BaseProcessor `mapstructure:"-"`
+	*common.Starlark    `mapstructure:",squash"`
 
 	stThread *starlark.Thread
 	stFunc   *starlark.Function
-
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
 }
 
-func (p *Starlark) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-
-	if err := p.Starlark.Init(alias, log); err != nil {
+func (p *Starlark) Init() error {
+	if err := p.Starlark.Init(p.Alias, p.Log); err != nil {
 		return err
 	}
 
@@ -51,12 +37,8 @@ func (p *Starlark) Init(config map[string]any, alias, pipeline string, log *slog
 	return nil
 }
 
-func (p *Starlark) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Starlark) Self() any {
+	return p
 }
 
 func (p *Starlark) Close() error {
@@ -64,11 +46,11 @@ func (p *Starlark) Close() error {
 }
 
 func (p *Starlark) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		now := time.Now()
 		result, err := starlark.Call(p.stThread, p.stFunc, []starlark.Value{common.RWEvent(e)}, nil)
 		if err != nil {
-			p.log.Error("exec failed",
+			p.Log.Error("exec failed",
 				"error", err,
 				slog.Group("event",
 					"id", e.Id,
@@ -77,14 +59,14 @@ func (p *Starlark) Run() {
 			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
 			e.AddTag("::starlark_processing_failed")
-			p.out <- e
-			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
 		events, err := unpack(result)
 		if err != nil {
-			p.log.Error("exec failed",
+			p.Log.Error("exec failed",
 				"error", err,
 				slog.Group("event",
 					"id", e.Id,
@@ -93,16 +75,16 @@ func (p *Starlark) Run() {
 			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
 			e.AddTag("::starlark_processing_failed")
-			p.out <- e
-			metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
 		markAsDone(e, events)
 		for _, event := range events {
-			p.out <- event
+			p.Out <- event
 		}
-		metrics.ObserveProcessorSummary("starlark", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

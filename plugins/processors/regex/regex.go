@@ -2,38 +2,24 @@ package regex
 
 import (
 	"fmt"
-	"log/slog"
 	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Regex struct {
-	alias  string
-	pipe   string
-	Labels map[string]string `mapstructure:"labels"`
-	Fields map[string]string `mapstructure:"fields"`
-
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
+	*core.BaseProcessor `mapstructure:"-"`
+	Labels              map[string]string `mapstructure:"labels"`
+	Fields              map[string]string `mapstructure:"fields"`
 
 	fields map[string]*regexp.Regexp
 	labels map[string]*regexp.Regexp
 }
 
-func (p *Regex) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
+func (p *Regex) Init() error {
 	p.labels = make(map[string]*regexp.Regexp)
 	p.fields = make(map[string]*regexp.Regexp)
 
@@ -56,12 +42,8 @@ func (p *Regex) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (p *Regex) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
+func (p *Regex) Self() any {
+	return p
 }
 
 func (p *Regex) Close() error {
@@ -69,28 +51,13 @@ func (p *Regex) Close() error {
 }
 
 func (p *Regex) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		now := time.Now()
 		p.process(e)
-		p.out <- e
-		metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+		p.Out <- e
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
-
-// saved for example
-// func (p *Regex) Run() {
-// 	for e := range p.in {
-// 		now := time.Now()
-// 		if err := p.match(e); err != nil {
-// 			e.StackError(err)
-// 			metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventFailed, time.Since(now))
-// 			goto SEND_OUT
-// 		}
-// 		metrics.ObserveProcessorSummary("regex", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
-// 	SEND_OUT:
-// 		p.out <- e
-// 	}
-// }
 
 func (p *Regex) process(e *core.Event) {
 	for name, rex := range p.labels {
