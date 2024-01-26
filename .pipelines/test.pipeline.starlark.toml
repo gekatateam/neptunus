@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.starlark"
-  lines = 5
+  lines = 1
   run = true
   buffer = 1_000
 
@@ -49,4 +49,3 @@ def filter(event):
     else:
         return False
       '''
-
