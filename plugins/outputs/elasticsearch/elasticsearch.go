@@ -17,7 +17,7 @@ import (
 )
 
 type Elasticsearch struct {
-	*core.BaseOutput        `mapstructure:"-"`
+	*core.BaseOutput       `mapstructure:"-"`
 	URLs                   []string      `mapstructure:"urls"`
 	Username               string        `mapstructure:"username"`
 	Password               string        `mapstructure:"password"`
@@ -85,7 +85,7 @@ func (o *Elasticsearch) Init() error {
 			TLSClientConfig: tlsConfig,
 		},
 		Logger: &TransportLogger{
-			log: o.BaseOutput.Log,
+			log: o.Log,
 		},
 	})
 	if err != nil {
@@ -111,7 +111,7 @@ func (o *Elasticsearch) Run() {
 MAIN_LOOP:
 	for {
 		select {
-		case e, ok := <-o.BaseOutput.In:
+		case e, ok := <-o.In:
 			if !ok {
 				clearTicker.Stop()
 				break MAIN_LOOP

@@ -156,7 +156,7 @@ func ObserveInputSummary(plugin, name, pipeline string, status EventStatus, t ti
 	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 
-func ObserveFliterSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
+func ObserveFilterSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
 	filterSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
 

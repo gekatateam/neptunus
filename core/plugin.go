@@ -150,3 +150,64 @@ func (b *BaseOutput) SetChannels(in <-chan *Event) {
 func (b *BaseOutput) Observe(status metrics.EventStatus, dur time.Duration) {
 	metrics.ObserveOutputSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
+
+type BaseFilter struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+	In  <-chan *Event
+	Rej chan<- *Event
+	Acc chan<- *Event
+}
+
+func (b *BaseFilter) SetChannels(in <-chan *Event, rejected chan<- *Event, accepted chan<- *Event) {
+	b.In = in
+	b.Rej = rejected
+	b.Acc = accepted
+}
+
+func (b *BaseFilter) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveFilterSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}
+
+type BaseParser struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+}
+
+func (b *BaseParser) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveParserSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}
+
+type BaseSerializer struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+}
+
+func (b *BaseSerializer) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveSerializerSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}
+
+type BaseCore struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+}
+
+func (b *BaseCore) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveCoreSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}

@@ -17,13 +17,12 @@ import (
 	"github.com/gekatateam/neptunus/plugins/core/broadcast"
 	"github.com/gekatateam/neptunus/plugins/core/fusion"
 
-	//	_ "github.com/gekatateam/neptunus/plugins/filters"
+	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
-
-	//	_ "github.com/gekatateam/neptunus/plugins/parsers"
+	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
-	//	_ "github.com/gekatateam/neptunus/plugins/serializers"
+	_ "github.com/gekatateam/neptunus/plugins/serializers"
 )
 
 type state string
@@ -200,7 +199,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
-	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::inputs", p.config.Settings.Id), inputsOutChannels, p.config.Settings.Buffer)
+	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New(&core.BaseCore{
+		Alias:    "fusion::inputs",
+		Plugin:   "fusion",
+		Pipeline: p.config.Settings.Id,
+		Log: p.log.With(slog.Group("output",
+			"plugin", "fusion",
+			"name", "fusion::inputs",
+		)),
+	}), inputsOutChannels, p.config.Settings.Buffer)
 	wg.Add(1)
 	go func(u unit) {
 		u.Run()
@@ -226,7 +233,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New("fusion::processors", p.config.Settings.Id), procsOutChannels, p.config.Settings.Buffer)
+		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New(&core.BaseCore{
+			Alias:    "fusion::processors",
+			Plugin:   "fusion",
+			Pipeline: p.config.Settings.Id,
+			Log: p.log.With(slog.Group("output",
+				"plugin", "fusion",
+				"name", "fusion::processors",
+			)),
+		}), procsOutChannels, p.config.Settings.Buffer)
 		outCh = fusionOutCh
 		wg.Add(1)
 		go func(u unit) {
@@ -236,7 +251,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New("broadcast::processors", p.config.Settings.Id), outCh, len(p.outs), p.config.Settings.Buffer)
+	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New(&core.BaseCore{
+		Alias:    "broadcast::processors",
+		Plugin:   "fusion",
+		Pipeline: p.config.Settings.Id,
+		Log: p.log.With(slog.Group("output",
+			"plugin", "fusion",
+			"name", "broadcast::processors",
+		)),
+	}), outCh, len(p.outs), p.config.Settings.Buffer)
 	wg.Add(1)
 	go func(u unit) {
 		u.Run()
@@ -316,20 +339,18 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
-			base := &core.BaseOutput{
-				Alias: alias,
-				Plugin: plugin,
-				Pipeline: p.config.Settings.Id,
-				Log: p.log.With(slog.Group("output",
-					"plugin", plugin,
-					"name", alias,
-				)),
-				Obs: metrics.ObserveOutputSummary,
-			}
-
 			baseField := reflect.ValueOf(output.Self()).Elem().FieldByName("BaseOutput")
 			if baseField.IsValid() && baseField.CanSet() {
-				baseField.Set(reflect.ValueOf(base))
+				baseField.Set(reflect.ValueOf(&core.BaseOutput{
+					Alias:    alias,
+					Plugin:   plugin,
+					Pipeline: p.config.Settings.Id,
+					Log: p.log.With(slog.Group("output",
+						"plugin", plugin,
+						"name", alias,
+					)),
+					Obs: metrics.ObserveOutputSummary,
+				}))
 			} else {
 				return fmt.Errorf("%v output plugin does not contains BaseOutput", plugin)
 			}
@@ -404,33 +425,29 @@ func (p *Pipeline) configureProcessors() error {
 
 				processorCfg["::line"] = i
 
-				base := &core.BaseProcessor{
-					Alias: alias,
-					Plugin: plugin,
-					Pipeline: p.config.Settings.Id,
-					Log: p.log.With(slog.Group("processor",
-						"plugin", plugin,
-						"name", alias,
-					)),
-					Obs: metrics.ObserveProcessorSummary,
-				}
-	
 				baseField := reflect.ValueOf(processor.Self()).Elem().FieldByName("BaseProcessor")
 				if baseField.IsValid() && baseField.CanSet() {
-					baseField.Set(reflect.ValueOf(base))
+					baseField.Set(reflect.ValueOf(&core.BaseProcessor{
+						Alias:    alias,
+						Plugin:   plugin,
+						Pipeline: p.config.Settings.Id,
+						Log: p.log.With(slog.Group("processor",
+							"plugin", plugin,
+							"name", alias,
+						)),
+						Obs: metrics.ObserveProcessorSummary,
+					}))
 				} else {
 					return fmt.Errorf("%v processor plugin does not contains BaseProcessor", plugin)
 				}
-	
+
 				if err := mapstructure.Decode(processorCfg, processor.Self()); err != nil {
 					return fmt.Errorf("%v processor configuration mapping error: %v", plugin, err.Error())
 				}
-	
+
 				if err := processor.Init(); err != nil {
 					return fmt.Errorf("%v processor initialization error: %v", plugin, err.Error())
 				}
-
-				delete(processorCfg, "::line")
 
 				filters, err := p.configureFilters(processorCfg.Filters(), alias)
 				if err != nil {
@@ -493,20 +510,18 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
-			base := &core.BaseInput{
-				Alias: alias,
-				Plugin: plugin,
-				Pipeline: p.config.Settings.Id,
-				Log: p.log.With(slog.Group("input",
-					"plugin", plugin,
-					"name", alias,
-				)),
-				Obs: metrics.ObserveInputSummary,
-			}
-
 			baseField := reflect.ValueOf(input.Self()).Elem().FieldByName("BaseInput")
 			if baseField.IsValid() && baseField.CanSet() {
-				baseField.Set(reflect.ValueOf(base))
+				baseField.Set(reflect.ValueOf(&core.BaseInput{
+					Alias:    alias,
+					Plugin:   plugin,
+					Pipeline: p.config.Settings.Id,
+					Log: p.log.With(slog.Group("input",
+						"plugin", plugin,
+						"name", alias,
+					)),
+					Obs: metrics.ObserveInputSummary,
+				}))
 			} else {
 				return fmt.Errorf("%v input plugin does not contains BaseInput", plugin)
 			}
@@ -574,15 +589,30 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
-		// err := filter.Init(filterCfg, alias, p.config.Settings.Id, p.log.With(
-		// 	slog.Group("filter",
-		// 		"plugin", plugin,
-		// 		"name", alias,
-		// 	),
-		// ))
-		// if err != nil {
-		// 	return nil, fmt.Errorf("%v filter configuration error: %v", plugin, err.Error())
-		// }
+		baseField := reflect.ValueOf(filter.Self()).Elem().FieldByName("BaseFilter")
+		if baseField.IsValid() && baseField.CanSet() {
+			baseField.Set(reflect.ValueOf(&core.BaseFilter{
+				Alias:    alias,
+				Plugin:   plugin,
+				Pipeline: p.config.Settings.Id,
+				Log: p.log.With(slog.Group("filter",
+					"plugin", plugin,
+					"name", alias,
+				)),
+				Obs: metrics.ObserveFilterSummary,
+			}))
+		} else {
+			return nil, fmt.Errorf("%v filter plugin does not contains BaseInput", plugin)
+		}
+
+		if err := mapstructure.Decode(filterCfg, filter.Self()); err != nil {
+			return nil, fmt.Errorf("%v filter configuration mapping error: %v", plugin, err.Error())
+		}
+
+		if err := filter.Init(); err != nil {
+			return nil, fmt.Errorf("%v filter initialization error: %v", plugin, err.Error())
+		}
+
 		filters = append(filters, filter)
 	}
 	return filters, nil
@@ -596,24 +626,38 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 	}
 	parser := parserFunc()
 
-	// var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
-	// if len(parserCfg.Alias()) > 0 {
-	// 	alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
-	// }
+	var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
+	if len(parserCfg.Alias()) > 0 {
+		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
+	}
 
 	if idNeedy, ok := parser.(core.SetId); ok {
 		idNeedy.SetId(parserCfg.Id())
 	}
 
-	// err := parser.Init(parserCfg, alias, p.config.Settings.Id, p.log.With(
-	// 	slog.Group("parser",
-	// 		"plugin", plugin,
-	// 		"name", alias,
-	// 	),
-	// ))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("%v parser configuration error: %v", plugin, err.Error())
-	// }
+	baseField := reflect.ValueOf(parser.Self()).Elem().FieldByName("BaseParser")
+	if baseField.IsValid() && baseField.CanSet() {
+		baseField.Set(reflect.ValueOf(&core.BaseParser{
+			Alias:    alias,
+			Plugin:   plugin,
+			Pipeline: p.config.Settings.Id,
+			Log: p.log.With(slog.Group("parser",
+				"plugin", plugin,
+				"name", alias,
+			)),
+			Obs: metrics.ObserveParserSummary,
+		}))
+	} else {
+		return nil, fmt.Errorf("%v parser plugin does not contains BaseParser", plugin)
+	}
+
+	if err := mapstructure.Decode(parserCfg, parser.Self()); err != nil {
+		return nil, fmt.Errorf("%v parser configuration mapping error: %v", plugin, err.Error())
+	}
+
+	if err := parser.Init(); err != nil {
+		return nil, fmt.Errorf("%v parser initialization error: %v", plugin, err.Error())
+	}
 
 	return parser, nil
 }
@@ -626,24 +670,38 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 	}
 	serializer := serFunc()
 
-	// var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
-	// if len(serCfg.Alias()) > 0 {
-	// 	alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
-	// }
+	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
+	if len(serCfg.Alias()) > 0 {
+		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
+	}
 
 	if idNeedy, ok := serializer.(core.SetId); ok {
 		idNeedy.SetId(serCfg.Id())
 	}
 
-	// err := serializer.Init(serCfg, alias, p.config.Settings.Id, p.log.With(
-	// 	slog.Group("serializer",
-	// 		"plugin", plugin,
-	// 		"name", alias,
-	// 	),
-	// ))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("%v serializer configuration error: %v", plugin, err.Error())
-	// }
+	baseField := reflect.ValueOf(serializer.Self()).Elem().FieldByName("BaseSerializer")
+	if baseField.IsValid() && baseField.CanSet() {
+		baseField.Set(reflect.ValueOf(&core.BaseSerializer{
+			Alias:    alias,
+			Plugin:   plugin,
+			Pipeline: p.config.Settings.Id,
+			Log: p.log.With(slog.Group("serializer",
+				"plugin", plugin,
+				"name", alias,
+			)),
+			Obs: metrics.ObserveSerializerSummary,
+		}))
+	} else {
+		return nil, fmt.Errorf("%v serializer plugin does not contains BaseSerializer", plugin)
+	}
+
+	if err := mapstructure.Decode(serCfg, serializer.Self()); err != nil {
+		return nil, fmt.Errorf("%v serializer configuration mapping error: %v", plugin, err.Error())
+	}
+
+	if err := serializer.Init(); err != nil {
+		return nil, fmt.Errorf("%v serializer initialization error: %v", plugin, err.Error())
+	}
 
 	return serializer, nil
 }

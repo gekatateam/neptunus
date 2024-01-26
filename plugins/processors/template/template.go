@@ -13,10 +13,10 @@ import (
 
 type Template struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	Id         string            `mapstructure:"id"`
-	RoutingKey string            `mapstructure:"routing_key"`
-	Labels     map[string]string `mapstructure:"labels"`
-	Fields     map[string]string `mapstructure:"fields"`
+	Id                  string            `mapstructure:"id"`
+	RoutingKey          string            `mapstructure:"routing_key"`
+	Labels              map[string]string `mapstructure:"labels"`
+	Fields              map[string]string `mapstructure:"fields"`
 
 	id         *template.Template
 	routingKey *template.Template
@@ -76,16 +76,16 @@ func (p *Template) Close() error {
 }
 
 func (p *Template) Run() {
-	for e := range p.BaseProcessor.In {
+	for e := range p.In {
 		var (
-			now      time.Time      = time.Now()
-			hasError bool           = false
+			now      time.Time       = time.Now()
+			hasError bool            = false
 			te       *templatedEvent = &templatedEvent{e: e}
 		)
 
 		if len(p.Id) > 0 {
 			if err := p.id.Execute(p.buf, te); err != nil {
-				p.BaseProcessor.Log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -103,7 +103,7 @@ func (p *Template) Run() {
 
 		if len(p.RoutingKey) > 0 {
 			if err := p.routingKey.Execute(p.buf, te); err != nil {
-				p.BaseProcessor.Log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -121,7 +121,7 @@ func (p *Template) Run() {
 
 		for label, lt := range p.labels {
 			if err := lt.Execute(p.buf, te); err != nil {
-				p.BaseProcessor.Log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -139,7 +139,7 @@ func (p *Template) Run() {
 
 		for field, ft := range p.fields {
 			if err := ft.Execute(p.buf, te); err != nil {
-				p.BaseProcessor.Log.Error("template exec failed",
+				p.Log.Error("template exec failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -151,7 +151,7 @@ func (p *Template) Run() {
 				hasError = true
 			} else {
 				if err := e.SetField(field, p.buf.String()); err != nil {
-					p.BaseProcessor.Log.Error("template executed successfully, but field set failed",
+					p.Log.Error("template executed successfully, but field set failed",
 						"error", err,
 						slog.Group("event",
 							"id", e.Id,
@@ -167,11 +167,11 @@ func (p *Template) Run() {
 			p.buf.Reset()
 		}
 
-		p.BaseProcessor.Out <- e
+		p.Out <- e
 		if hasError {
-			p.BaseProcessor.Observe(metrics.EventFailed, time.Since(now))
+			p.Observe(metrics.EventFailed, time.Since(now))
 		} else {
-			p.BaseProcessor.Observe(metrics.EventAccepted, time.Since(now))
+			p.Observe(metrics.EventAccepted, time.Since(now))
 		}
 	}
 }

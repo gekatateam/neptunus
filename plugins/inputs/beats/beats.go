@@ -21,7 +21,7 @@ import (
 )
 
 type Beats struct {
-	*core.BaseInput   `mapstructure:"-"`
+	*core.BaseInput  `mapstructure:"-"`
 	Address          string            `mapstructure:"address"`
 	KeepaliveTimeout time.Duration     `mapstructure:"keepalive_timeout"`
 	NetworkTimeout   time.Duration     `mapstructure:"network_timeout"`
@@ -85,19 +85,19 @@ func (i *Beats) Close() error {
 }
 
 func (i *Beats) Run() {
-	i.BaseInput.Log.Info(fmt.Sprintf("starting lumberjack server on %v", i.Address))
+	i.Log.Info(fmt.Sprintf("starting lumberjack server on %v", i.Address))
 	if server, err := lumber.NewWithListener(i.listener,
 		lumber.Keepalive(i.KeepaliveTimeout),
 		lumber.Timeout(i.NetworkTimeout),
 		lumber.TLS(i.tlsConfig),
 		lumber.JSONDecoder(json.Unmarshal),
 	); err != nil {
-		i.BaseInput.Log.Error("lumberjack server startup failed",
+		i.Log.Error("lumberjack server startup failed",
 			"error", err.Error(),
 		)
 		return
 	} else {
-		i.BaseInput.Log.Info("lumberjack server started")
+		i.Log.Info("lumberjack server started")
 		i.server = server
 	}
 
@@ -114,10 +114,10 @@ func (i *Beats) Run() {
 					now := time.Now()
 					event, err := i.toEvent(v)
 					if err != nil {
-						i.BaseInput.Log.Error("beat event reading error",
+						i.Log.Error("beat event reading error",
 							"error", err,
 						)
-						i.BaseInput.Observe(metrics.EventFailed, time.Since(now))
+						i.Observe(metrics.EventFailed, time.Since(now))
 						continue
 					}
 
@@ -142,14 +142,14 @@ func (i *Beats) Run() {
 
 					i.Ider.Apply(event)
 
-					i.BaseInput.Out <- event
-					i.BaseInput.Log.Debug("event accepted",
+					i.Out <- event
+					i.Log.Debug("event accepted",
 						slog.Group("event",
 							"id", event.Id,
 							"key", event.RoutingKey,
 						),
 					)
-					i.BaseInput.Observe(metrics.EventAccepted, time.Since(now))
+					i.Observe(metrics.EventAccepted, time.Since(now))
 				}
 
 				batchWg.Wait()

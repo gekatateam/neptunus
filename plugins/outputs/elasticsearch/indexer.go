@@ -56,7 +56,7 @@ func (i *indexer) Push(e *core.Event) {
 }
 
 func (i *indexer) Run() {
-	i.BaseOutput.Log.Info(fmt.Sprintf("indexer for pipeline %v spawned", i.pipeline))
+	i.Log.Info(fmt.Sprintf("indexer for pipeline %v spawned", i.pipeline))
 
 	i.Batcher.Run(i.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
@@ -86,7 +86,7 @@ func (i *indexer) Run() {
 			}
 
 			if err != nil {
-				i.BaseOutput.Log.Error("event serialization failed, event skipped",
+				i.Log.Error("event serialization failed, event skipped",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -94,7 +94,7 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				i.BaseOutput.Observe(metrics.EventFailed, time.Since(now))
+				i.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
 				continue
 			}
@@ -123,7 +123,7 @@ func (i *indexer) Run() {
 			}
 
 			if opErr != nil {
-				i.BaseOutput.Log.Error("operation serialization failed, event skipped",
+				i.Log.Error("operation serialization failed, event skipped",
 					"error", opErr,
 					slog.Group("event",
 						"id", e.Id,
@@ -131,7 +131,7 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				i.BaseOutput.Observe(metrics.EventFailed, time.Since(now))
+				i.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
 				continue
 			}
@@ -153,7 +153,7 @@ func (i *indexer) Run() {
 		sentEvents[len(sentEvents)-1].spentTime += time.Since(now)
 		if err != nil {
 			for _, e := range sentEvents {
-				i.BaseOutput.Log.Error("event send failed",
+				i.Log.Error("event send failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -161,7 +161,7 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				i.BaseOutput.Observe(metrics.EventFailed, e.spentTime)
+				i.Observe(metrics.EventFailed, e.spentTime)
 			}
 			return
 		}
@@ -169,7 +169,7 @@ func (i *indexer) Run() {
 		for j, v := range res.Items {
 			e := sentEvents[j]
 			if errCause := v[i.operation].Error; errCause != nil {
-				i.BaseOutput.Log.Error("event send failed",
+				i.Log.Error("event send failed",
 					"error", errCause.Type+": "+*errCause.Reason,
 					slog.Group("event",
 						"id", e.Id,
@@ -177,21 +177,21 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				i.BaseOutput.Observe(metrics.EventFailed, e.spentTime)
+				i.Observe(metrics.EventFailed, e.spentTime)
 			} else {
-				i.BaseOutput.Log.Debug("event sent",
+				i.Log.Debug("event sent",
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
 					),
 				)
 				e.Done()
-				i.BaseOutput.Observe(metrics.EventAccepted, e.spentTime)
+				i.Observe(metrics.EventAccepted, e.spentTime)
 			}
 		}
 	})
 
-	i.BaseOutput.Log.Info(fmt.Sprintf("indexer for pipeline %v closed", i.pipeline))
+	i.Log.Info(fmt.Sprintf("indexer for pipeline %v closed", i.pipeline))
 }
 
 func (i *indexer) perform(r *bulk.Bulk) (*bulk.Response, error) {
@@ -204,16 +204,16 @@ func (i *indexer) perform(r *bulk.Bulk) (*bulk.Response, error) {
 
 		switch {
 		case i.maxAttempts > 0 && attempts < i.maxAttempts:
-			i.BaseOutput.Log.Warn(fmt.Sprintf("bulk request attempt %v of %v failed", attempts, i.maxAttempts))
+			i.Log.Warn(fmt.Sprintf("bulk request attempt %v of %v failed", attempts, i.maxAttempts))
 			attempts++
 			time.Sleep(i.retryAfter)
 		case i.maxAttempts > 0 && attempts >= i.maxAttempts:
-			i.BaseOutput.Log.Error(fmt.Sprintf("bulk request failed after %v attemtps", attempts),
+			i.Log.Error(fmt.Sprintf("bulk request failed after %v attemtps", attempts),
 				"error", err,
 			)
 			return response, err
 		default:
-			i.BaseOutput.Log.Error("bulk request failed",
+			i.Log.Error("bulk request failed",
 				"error", err,
 			)
 			time.Sleep(i.retryAfter)

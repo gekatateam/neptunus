@@ -13,9 +13,6 @@
   [processors.template]
     routing_key = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
 
-[[processors]]
-  [processors.drop]
-
 [[outputs]]
   [outputs.elasticsearch]
     urls = [ "http://localhost:9200" ]

@@ -26,16 +26,16 @@ func (p *Drop) Close() error {
 }
 
 func (p *Drop) Run() {
-	for e := range p.BaseProcessor.In {
+	for e := range p.In {
 		now := time.Now()
 		e.Done()
-		p.BaseProcessor.Log.Debug("event dropped",
+		p.Log.Debug("event dropped",
 			slog.Group("event",
 				"id", e.Id,
 				"key", e.RoutingKey,
 			),
 		)
-		p.BaseProcessor.Observe(metrics.EventAccepted, time.Since(now))
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 
