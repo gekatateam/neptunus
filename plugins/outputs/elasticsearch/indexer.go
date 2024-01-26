@@ -19,8 +19,7 @@ import (
 )
 
 type indexer struct {
-	alias string
-	pipe  string
+	*core.BaseOutput
 
 	lastWrite    time.Time
 	pipeline     string
@@ -35,7 +34,6 @@ type indexer struct {
 	client *elasticsearch.TypedClient
 	*batcher.Batcher[*core.Event]
 
-	log   *slog.Logger
 	input chan *core.Event
 }
 
@@ -58,7 +56,7 @@ func (i *indexer) Push(e *core.Event) {
 }
 
 func (i *indexer) Run() {
-	i.log.Info(fmt.Sprintf("indexer for pipeline %v spawned", i.pipeline))
+	i.BaseOutput.Log.Info(fmt.Sprintf("indexer for pipeline %v spawned", i.pipeline))
 
 	i.Batcher.Run(i.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
@@ -88,7 +86,7 @@ func (i *indexer) Run() {
 			}
 
 			if err != nil {
-				i.log.Error("event serialization failed, event skipped",
+				i.BaseOutput.Log.Error("event serialization failed, event skipped",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -96,7 +94,7 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("elasticsearch", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+				i.BaseOutput.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
 				continue
 			}
@@ -125,7 +123,7 @@ func (i *indexer) Run() {
 			}
 
 			if opErr != nil {
-				i.log.Error("operation serialization failed, event skipped",
+				i.BaseOutput.Log.Error("operation serialization failed, event skipped",
 					"error", opErr,
 					slog.Group("event",
 						"id", e.Id,
@@ -133,7 +131,7 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("elasticsearch", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+				i.BaseOutput.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
 				continue
 			}
@@ -155,7 +153,7 @@ func (i *indexer) Run() {
 		sentEvents[len(sentEvents)-1].spentTime += time.Since(now)
 		if err != nil {
 			for _, e := range sentEvents {
-				i.log.Error("event send failed",
+				i.BaseOutput.Log.Error("event send failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,
@@ -163,7 +161,7 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("elasticsearch", i.alias, i.pipe, metrics.EventFailed, e.spentTime)
+				i.BaseOutput.Observe(metrics.EventFailed, e.spentTime)
 			}
 			return
 		}
@@ -171,7 +169,7 @@ func (i *indexer) Run() {
 		for j, v := range res.Items {
 			e := sentEvents[j]
 			if errCause := v[i.operation].Error; errCause != nil {
-				i.log.Error("event send failed",
+				i.BaseOutput.Log.Error("event send failed",
 					"error", errCause.Type+": "+*errCause.Reason,
 					slog.Group("event",
 						"id", e.Id,
@@ -179,21 +177,21 @@ func (i *indexer) Run() {
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("elasticsearch", i.alias, i.pipe, metrics.EventFailed, e.spentTime)
+				i.BaseOutput.Observe(metrics.EventFailed, e.spentTime)
 			} else {
-				i.log.Debug("event sent",
+				i.BaseOutput.Log.Debug("event sent",
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
 					),
 				)
 				e.Done()
-				metrics.ObserveOutputSummary("elasticsearch", i.alias, i.pipe, metrics.EventAccepted, e.spentTime)
+				i.BaseOutput.Observe(metrics.EventAccepted, e.spentTime)
 			}
 		}
 	})
 
-	i.log.Info(fmt.Sprintf("indexer for pipeline %v closed", i.pipeline))
+	i.BaseOutput.Log.Info(fmt.Sprintf("indexer for pipeline %v closed", i.pipeline))
 }
 
 func (i *indexer) perform(r *bulk.Bulk) (*bulk.Response, error) {
@@ -206,16 +204,16 @@ func (i *indexer) perform(r *bulk.Bulk) (*bulk.Response, error) {
 
 		switch {
 		case i.maxAttempts > 0 && attempts < i.maxAttempts:
-			i.log.Warn(fmt.Sprintf("bulk request attempt %v of %v failed", attempts, i.maxAttempts))
+			i.BaseOutput.Log.Warn(fmt.Sprintf("bulk request attempt %v of %v failed", attempts, i.maxAttempts))
 			attempts++
 			time.Sleep(i.retryAfter)
 		case i.maxAttempts > 0 && attempts >= i.maxAttempts:
-			i.log.Error(fmt.Sprintf("bulk request failed after %v attemtps", attempts),
+			i.BaseOutput.Log.Error(fmt.Sprintf("bulk request failed after %v attemtps", attempts),
 				"error", err,
 			)
 			return response, err
 		default:
-			i.log.Error("bulk request failed",
+			i.BaseOutput.Log.Error("bulk request failed",
 				"error", err,
 			)
 			time.Sleep(i.retryAfter)

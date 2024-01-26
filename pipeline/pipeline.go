@@ -5,20 +5,25 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sync"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 
 	"github.com/gekatateam/neptunus/plugins/core/broadcast"
 	"github.com/gekatateam/neptunus/plugins/core/fusion"
-	_ "github.com/gekatateam/neptunus/plugins/filters"
+
+	//	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
-	_ "github.com/gekatateam/neptunus/plugins/parsers"
+
+	//	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
-	_ "github.com/gekatateam/neptunus/plugins/serializers"
+	//	_ "github.com/gekatateam/neptunus/plugins/serializers"
 )
 
 type state string
@@ -311,14 +316,30 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
-			err := output.Init(outputCfg, alias, p.config.Settings.Id, p.log.With(
-				slog.Group("output",
+			base := &core.BaseOutput{
+				Alias: alias,
+				Plugin: plugin,
+				Pipeline: p.config.Settings.Id,
+				Log: p.log.With(slog.Group("output",
 					"plugin", plugin,
 					"name", alias,
-				),
-			))
-			if err != nil {
-				return fmt.Errorf("%v output configuration error: %v", plugin, err.Error())
+				)),
+				Obs: metrics.ObserveOutputSummary,
+			}
+
+			baseField := reflect.ValueOf(output.Self()).Elem().FieldByName("BaseOutput")
+			if baseField.IsValid() && baseField.CanSet() {
+				baseField.Set(reflect.ValueOf(base))
+			} else {
+				return fmt.Errorf("%v output plugin does not contains BaseOutput", plugin)
+			}
+
+			if err := mapstructure.Decode(outputCfg, output.Self()); err != nil {
+				return fmt.Errorf("%v output configuration mapping error: %v", plugin, err.Error())
+			}
+
+			if err := output.Init(); err != nil {
+				return fmt.Errorf("%v output initialization error: %v", plugin, err.Error())
 			}
 
 			filters, err := p.configureFilters(outputCfg.Filters(), alias)
@@ -382,20 +403,38 @@ func (p *Pipeline) configureProcessors() error {
 				}
 
 				processorCfg["::line"] = i
-				err := processor.Init(processorCfg, alias, p.config.Settings.Id, p.log.With(
-					slog.Group("processor",
+
+				base := &core.BaseProcessor{
+					Alias: alias,
+					Plugin: plugin,
+					Pipeline: p.config.Settings.Id,
+					Log: p.log.With(slog.Group("processor",
 						"plugin", plugin,
 						"name", alias,
-					),
-				))
-				delete(processorCfg, "::line")
-				if err != nil {
-					return fmt.Errorf("%v processor configuration error: %v", plugin, err.Error())
+					)),
+					Obs: metrics.ObserveProcessorSummary,
 				}
+	
+				baseField := reflect.ValueOf(processor.Self()).Elem().FieldByName("BaseProcessor")
+				if baseField.IsValid() && baseField.CanSet() {
+					baseField.Set(reflect.ValueOf(base))
+				} else {
+					return fmt.Errorf("%v processor plugin does not contains BaseProcessor", plugin)
+				}
+	
+				if err := mapstructure.Decode(processorCfg, processor.Self()); err != nil {
+					return fmt.Errorf("%v processor configuration mapping error: %v", plugin, err.Error())
+				}
+	
+				if err := processor.Init(); err != nil {
+					return fmt.Errorf("%v processor initialization error: %v", plugin, err.Error())
+				}
+
+				delete(processorCfg, "::line")
 
 				filters, err := p.configureFilters(processorCfg.Filters(), alias)
 				if err != nil {
-					return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
+					return fmt.Errorf("%v processor filters configuration error: %v", plugin, err.Error())
 				}
 
 				sets = append(sets, procSet{processor, filters})
@@ -454,14 +493,30 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
-			err := input.Init(inputCfg, alias, p.config.Settings.Id, p.log.With(
-				slog.Group("input",
+			base := &core.BaseInput{
+				Alias: alias,
+				Plugin: plugin,
+				Pipeline: p.config.Settings.Id,
+				Log: p.log.With(slog.Group("input",
 					"plugin", plugin,
 					"name", alias,
-				),
-			))
-			if err != nil {
-				return fmt.Errorf("%v input configuration error: %v", plugin, err.Error())
+				)),
+				Obs: metrics.ObserveInputSummary,
+			}
+
+			baseField := reflect.ValueOf(input.Self()).Elem().FieldByName("BaseInput")
+			if baseField.IsValid() && baseField.CanSet() {
+				baseField.Set(reflect.ValueOf(base))
+			} else {
+				return fmt.Errorf("%v input plugin does not contains BaseInput", plugin)
+			}
+
+			if err := mapstructure.Decode(inputCfg, input.Self()); err != nil {
+				return fmt.Errorf("%v input configuration mapping error: %v", plugin, err.Error())
+			}
+
+			if err := input.Init(); err != nil {
+				return fmt.Errorf("%v input initialization error: %v", plugin, err.Error())
 			}
 
 			filters, err := p.configureFilters(inputCfg.Filters(), alias)
@@ -519,15 +574,15 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
-		err := filter.Init(filterCfg, alias, p.config.Settings.Id, p.log.With(
-			slog.Group("filter",
-				"plugin", plugin,
-				"name", alias,
-			),
-		))
-		if err != nil {
-			return nil, fmt.Errorf("%v filter configuration error: %v", plugin, err.Error())
-		}
+		// err := filter.Init(filterCfg, alias, p.config.Settings.Id, p.log.With(
+		// 	slog.Group("filter",
+		// 		"plugin", plugin,
+		// 		"name", alias,
+		// 	),
+		// ))
+		// if err != nil {
+		// 	return nil, fmt.Errorf("%v filter configuration error: %v", plugin, err.Error())
+		// }
 		filters = append(filters, filter)
 	}
 	return filters, nil
@@ -541,24 +596,24 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 	}
 	parser := parserFunc()
 
-	var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
-	if len(parserCfg.Alias()) > 0 {
-		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
-	}
+	// var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
+	// if len(parserCfg.Alias()) > 0 {
+	// 	alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
+	// }
 
 	if idNeedy, ok := parser.(core.SetId); ok {
 		idNeedy.SetId(parserCfg.Id())
 	}
 
-	err := parser.Init(parserCfg, alias, p.config.Settings.Id, p.log.With(
-		slog.Group("parser",
-			"plugin", plugin,
-			"name", alias,
-		),
-	))
-	if err != nil {
-		return nil, fmt.Errorf("%v parser configuration error: %v", plugin, err.Error())
-	}
+	// err := parser.Init(parserCfg, alias, p.config.Settings.Id, p.log.With(
+	// 	slog.Group("parser",
+	// 		"plugin", plugin,
+	// 		"name", alias,
+	// 	),
+	// ))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("%v parser configuration error: %v", plugin, err.Error())
+	// }
 
 	return parser, nil
 }
@@ -571,24 +626,24 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 	}
 	serializer := serFunc()
 
-	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
-	if len(serCfg.Alias()) > 0 {
-		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
-	}
+	// var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
+	// if len(serCfg.Alias()) > 0 {
+	// 	alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
+	// }
 
 	if idNeedy, ok := serializer.(core.SetId); ok {
 		idNeedy.SetId(serCfg.Id())
 	}
 
-	err := serializer.Init(serCfg, alias, p.config.Settings.Id, p.log.With(
-		slog.Group("serializer",
-			"plugin", plugin,
-			"name", alias,
-		),
-	))
-	if err != nil {
-		return nil, fmt.Errorf("%v serializer configuration error: %v", plugin, err.Error())
-	}
+	// err := serializer.Init(serCfg, alias, p.config.Settings.Id, p.log.With(
+	// 	slog.Group("serializer",
+	// 		"plugin", plugin,
+	// 		"name", alias,
+	// 	),
+	// ))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("%v serializer configuration error: %v", plugin, err.Error())
+	// }
 
 	return serializer, nil
 }

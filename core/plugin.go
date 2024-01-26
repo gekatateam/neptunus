@@ -3,10 +3,15 @@ package core
 import (
 	"io"
 	"log/slog"
+	"time"
+
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 type Initer interface {
-	Init(config map[string]any, alias, pipeline string, log *slog.Logger) error
+	// Init(config map[string]any, alias, pipeline string, log *slog.Logger) error
+	Init() error
+	Self() any
 }
 
 type Runner interface {
@@ -87,4 +92,61 @@ type Fusion interface {
 type Broadcast interface {
 	SetChannels(in <-chan *Event, outs []chan<- *Event)
 	Runner
+}
+
+
+type BaseInput struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+	Out chan<- *Event
+}
+
+func (b *BaseInput) SetChannels(out chan<- *Event) {
+	b.Out = out
+}
+
+func (b *BaseInput) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveInputSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}
+
+type BaseProcessor struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+	In  <-chan *Event
+	Out chan<- *Event
+}
+
+func (b *BaseProcessor) SetChannels(in <-chan *Event, out chan<- *Event) {
+	b.In  = in
+	b.Out = out
+}
+
+func (b *BaseProcessor) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveProcessorSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}
+
+type BaseOutput struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+	In  <-chan *Event
+}
+
+func (b *BaseOutput) SetChannels(in <-chan *Event) {
+	b.In = in
+}
+
+func (b *BaseOutput) Observe(status metrics.EventStatus, dur time.Duration) {
+	metrics.ObserveOutputSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
