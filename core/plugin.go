@@ -108,7 +108,7 @@ func (b *BaseInput) SetChannels(out chan<- *Event) {
 }
 
 func (b *BaseInput) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveInputSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type BaseProcessor struct {
@@ -128,7 +128,7 @@ func (b *BaseProcessor) SetChannels(in <-chan *Event, out chan<- *Event) {
 }
 
 func (b *BaseProcessor) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveProcessorSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type BaseOutput struct {
@@ -146,7 +146,7 @@ func (b *BaseOutput) SetChannels(in <-chan *Event) {
 }
 
 func (b *BaseOutput) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveOutputSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type BaseFilter struct {
@@ -168,7 +168,7 @@ func (b *BaseFilter) SetChannels(in <-chan *Event, rejected chan<- *Event, accep
 }
 
 func (b *BaseFilter) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveFilterSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type BaseParser struct {
@@ -181,7 +181,7 @@ type BaseParser struct {
 }
 
 func (b *BaseParser) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveParserSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type BaseSerializer struct {
@@ -194,7 +194,7 @@ type BaseSerializer struct {
 }
 
 func (b *BaseSerializer) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveSerializerSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type BaseCore struct {
@@ -207,5 +207,5 @@ type BaseCore struct {
 }
 
 func (b *BaseCore) Observe(status metrics.EventStatus, dur time.Duration) {
-	metrics.ObserveCoreSummary(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
