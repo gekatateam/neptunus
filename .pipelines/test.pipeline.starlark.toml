@@ -8,7 +8,7 @@
   [inputs.httpl]
     address = ":9100"
     max_connections = 10
-    tls_enable = false
+    tls_enable = true
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
@@ -41,7 +41,7 @@ def process(event):
 
 [[outputs]]
   [outputs.log]
-    level = "info"
+    level = "debug"
     [outputs.log.serializer]
       type = "json"
       data_only = false
@@ -54,12 +54,12 @@ def filter(event):
         return False
       '''
 
-[[outputs]]
-  [outputs.opensearch]
-    urls = [ "https://localhost:9200" ]
-    username = "admin"
-    password = "admin"
-    batch_buffer = 1_000
-    idle_timeout = "10s"
-    tls_enable = true
-    tls_insecure_skip_verify = true
+# [[outputs]]
+#   [outputs.opensearch]
+#     urls = [ "https://localhost:9200" ]
+#     username = "admin"
+#     password = "admin"
+#     batch_buffer = 1_000
+#     idle_timeout = "10s"
+#     tls_enable = true
+#     tls_insecure_skip_verify = true
