@@ -51,7 +51,7 @@ var woEventMethods = map[string]*starlark.Builtin{
 	"setRK": starlark.NewBuiltin("setRK", setRoutingKey), // f(routingKey String)
 
 	// labels methods
-	"addLabel": starlark.NewBuiltin("addLabel", addLabel), // f(key, value String)
+	"setLabel": starlark.NewBuiltin("setLabel", setLabel), // f(key, value String)
 	"delLabel": starlark.NewBuiltin("delLabel", delLabel), // f(key String)
 
 	// fields methods
@@ -136,7 +136,7 @@ func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, 
 	return starlark.None, nil
 }
 
-func addLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+func setLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	// if len(kwargs) > 0 {
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
 	// }
@@ -146,7 +146,7 @@ func addLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	b.Receiver().(*Event).event.AddLabel(key, value)
+	b.Receiver().(*Event).event.SetLabel(key, value)
 	return starlark.None, nil
 }
 

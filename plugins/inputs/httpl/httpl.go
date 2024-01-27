@@ -15,7 +15,6 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
@@ -23,14 +22,13 @@ import (
 )
 
 type Httpl struct {
-	alias          string
-	pipe           string
-	EnableMetrics  bool              `mapstructure:"enable_metrics"`
-	Address        string            `mapstructure:"address"`
-	ReadTimeout    time.Duration     `mapstructure:"read_timeout"`
-	WriteTimeout   time.Duration     `mapstructure:"write_timeout"`
-	MaxConnections int               `mapstructure:"max_connections"`
-	LabelHeaders   map[string]string `mapstructure:"labelheaders"`
+	*core.BaseInput `mapstructure:"-"`
+	EnableMetrics   bool              `mapstructure:"enable_metrics"`
+	Address         string            `mapstructure:"address"`
+	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
+	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
+	MaxConnections  int               `mapstructure:"max_connections"`
+	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 
 	*ider.Ider              `mapstructure:",squash"`
 	*pkgtls.TLSServerConfig `mapstructure:",squash"`
@@ -38,20 +36,10 @@ type Httpl struct {
 	server   *http.Server
 	listener net.Listener
 
-	log    *slog.Logger
-	out    chan<- *core.Event
 	parser core.Parser
 }
 
-func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, i); err != nil {
-		return err
-	}
-
-	i.alias = alias
-	i.pipe = pipeline
-	i.log = log
-
+func (i *Httpl) Init() error {
 	if len(i.Address) == 0 {
 		return errors.New("address required")
 	}
@@ -82,13 +70,13 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 
 	if i.MaxConnections > 0 {
 		listener = netutil.LimitListener(listener, i.MaxConnections)
-		i.log.Debug(fmt.Sprintf("listener is limited to %v simultaneous connections", i.MaxConnections))
+		i.Log.Debug(fmt.Sprintf("listener is limited to %v simultaneous connections", i.MaxConnections))
 	}
 
 	i.listener = listener
 	mux := http.NewServeMux()
 	if i.EnableMetrics {
-		mux.Handle("/", httpstats.HttpServerMiddleware(pipeline, alias, i))
+		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, i))
 	} else {
 		mux.Handle("/", i)
 	}
@@ -103,22 +91,18 @@ func (i *Httpl) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 	return nil
 }
 
-func (i *Httpl) SetChannels(out chan<- *core.Event) {
-	i.out = out
-}
-
 func (i *Httpl) SetParser(p core.Parser) {
 	i.parser = p
 }
 
 func (i *Httpl) Run() {
-	i.log.Info(fmt.Sprintf("starting http server on %v", i.Address))
+	i.Log.Info(fmt.Sprintf("starting http server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
-		i.log.Error("http server startup failed",
+		i.Log.Error("http server startup failed",
 			"error", err.Error(),
 		)
 	} else {
-		i.log.Info("http server stopped")
+		i.Log.Info("http server stopped")
 	}
 }
 
@@ -127,13 +111,13 @@ func (i *Httpl) Close() error {
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
 	if err := i.server.Shutdown(ctx); err != nil {
-		i.log.Error("http server graceful shutdown ended with error",
+		i.Log.Error("http server graceful shutdown ended with error",
 			"error", err.Error(),
 		)
 	}
 
 	if err := i.parser.Close(); err != nil {
-		i.log.Error("parser closed with error",
+		i.Log.Error("parser closed with error",
 			"error", err.Error(),
 		)
 	}
@@ -147,7 +131,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-	i.log.Debug("request received",
+	i.Log.Debug("request received",
 		"sender", r.RemoteAddr,
 	)
 
@@ -158,46 +142,46 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cursor++
 
 		if err := scanner.Err(); err != nil {
-			i.log.Error(fmt.Sprintf("reading error at line %v", cursor),
+			i.Log.Error(fmt.Sprintf("reading error at line %v", cursor),
 				"error", err,
 			)
 			http.Error(w, fmt.Sprintf("reading error at line %v: %v", cursor, err.Error()), http.StatusInternalServerError)
-			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			i.Observe(metrics.EventFailed, time.Since(now))
 			return
 		}
 
 		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
 		if err != nil {
-			i.log.Error(fmt.Sprintf("parser error at line %v", cursor),
+			i.Log.Error(fmt.Sprintf("parser error at line %v", cursor),
 				"error", err,
 			)
 			http.Error(w, fmt.Sprintf("parser error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
-			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			i.Observe(metrics.EventFailed, time.Since(now))
 			return
 		}
 
 		for _, event := range e {
-			event.AddLabel("input", "httpl")
-			event.AddLabel("server", i.Address)
-			event.AddLabel("sender", r.RemoteAddr)
+			event.SetLabel("input", "httpl")
+			event.SetLabel("server", i.Address)
+			event.SetLabel("sender", r.RemoteAddr)
 
 			for k, v := range i.LabelHeaders {
 				h := r.Header.Get(v)
 				if len(h) > 0 {
-					event.AddLabel(k, h)
+					event.SetLabel(k, h)
 				}
 			}
 
 			i.Ider.Apply(event)
-			i.out <- event
-			i.log.Debug("event accepted",
+			i.Out <- event
+			i.Log.Debug("event accepted",
 				slog.Group("event",
 					"id", event.Id,
 					"key", event.RoutingKey,
 				),
 			)
 			events++
-			metrics.ObserveInputSummary("httpl", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+			i.Observe(metrics.EventAccepted, time.Since(now))
 			now = time.Now()
 		}
 	}
@@ -205,7 +189,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))
 	if err != nil {
-		i.log.Warn("all events accepted, but sending response to client failed",
+		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,
 		)
 	}

@@ -2,28 +2,20 @@ package glob
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/gobwas/glob"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Glob struct {
-	alias  string
-	pipe   string
-	RK     []string            `mapstructure:"routing_key"`
-	Fields map[string][]string `mapstructure:"fields"`
-	Labels map[string][]string `mapstructure:"labels"`
-
-	in       <-chan *core.Event
-	accepted chan<- *core.Event
-	rejected chan<- *core.Event
-	log      *slog.Logger
+	*core.BaseFilter `mapstructure:"-"`
+	RK               []string            `mapstructure:"routing_key"`
+	Fields           map[string][]string `mapstructure:"fields"`
+	Labels           map[string][]string `mapstructure:"labels"`
 
 	noGlobs bool
 	rk      []glob.Glob
@@ -31,17 +23,9 @@ type Glob struct {
 	labels  map[string][]glob.Glob
 }
 
-func (f *Glob) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, f); err != nil {
-		return err
-	}
-
-	f.alias = alias
-	f.pipe = pipeline
-	f.log = log
-
+func (f *Glob) Init() error {
 	if len(f.Fields) == 0 && len(f.Labels) == 0 && len(f.RK) == 0 {
-		f.log.Warn("no globs for routing key, fields and labels found")
+		f.Log.Warn("no globs for routing key, fields and labels found")
 		f.noGlobs = true
 	}
 	f.fields = make(map[string][]glob.Glob, len(f.Fields))
@@ -78,29 +62,19 @@ func (f *Glob) Init(config map[string]any, alias, pipeline string, log *slog.Log
 	return nil
 }
 
-func (f *Glob) SetChannels(
-	in <-chan *core.Event,
-	rejected chan<- *core.Event,
-	accepted chan<- *core.Event,
-) {
-	f.in = in
-	f.rejected = rejected
-	f.accepted = accepted
-}
-
 func (f *Glob) Close() error {
 	return nil
 }
 
 func (f *Glob) Run() {
-	for e := range f.in {
+	for e := range f.In {
 		now := time.Now()
 		if f.match(e) {
-			f.accepted <- e
-			metrics.ObserveFliterSummary("glob", f.alias, f.pipe, metrics.EventAccepted, time.Since(now))
+			f.Acc <- e
+			f.Observe(metrics.EventAccepted, time.Since(now))
 		} else {
-			f.rejected <- e
-			metrics.ObserveFliterSummary("glob", f.alias, f.pipe, metrics.EventRejected, time.Since(now))
+			f.Rej <- e
+			f.Observe(metrics.EventRejected, time.Since(now))
 		}
 	}
 }

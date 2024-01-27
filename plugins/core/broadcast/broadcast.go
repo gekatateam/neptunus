@@ -8,16 +8,14 @@ import (
 )
 
 type Broadcast struct {
-	alias string
-	pipe  string
-	in    <-chan *core.Event
-	outs  []chan<- *core.Event
+	*core.BaseCore
+	in   <-chan *core.Event
+	outs []chan<- *core.Event
 }
 
-func New(alias, pipeline string) *Broadcast {
+func New(c *core.BaseCore) *Broadcast {
 	return &Broadcast{
-		alias: alias,
-		pipe:  pipeline,
+		BaseCore: c,
 	}
 }
 
@@ -36,6 +34,6 @@ func (c *Broadcast) Run() {
 				out <- e.Clone()
 			}
 		}
-		metrics.ObserveCoreSummary("broadcast", c.alias, c.pipe, metrics.EventAccepted, time.Since(now))
+		c.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }

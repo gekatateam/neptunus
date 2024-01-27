@@ -14,6 +14,7 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.3.0
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
@@ -41,6 +42,8 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.3.2
+	github.com/elastic/go-elasticsearch/v8 v8.11.1
+	github.com/elastic/go-lumber v0.1.1
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-json v0.10.2
@@ -48,6 +51,7 @@ require (
 	github.com/magefile/mage v1.15.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/naoina/toml v0.1.1
+	github.com/opensearch-project/opensearch-go/v3 v3.0.0
 	github.com/prometheus/client_golang v1.18.0
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/urfave/cli/v2 v2.27.1

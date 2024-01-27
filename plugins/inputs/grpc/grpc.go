@@ -20,7 +20,6 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
@@ -29,8 +28,7 @@ import (
 )
 
 type Grpc struct {
-	alias                string
-	pipe                 string
+	*core.BaseInput      `mapstructure:"-"`
 	EnableMetrics        bool              `mapstructure:"enable_metrics"`
 	Address              string            `mapstructure:"address"`
 	ServerOptions        ServerOptions     `mapstructure:"server_options"`
@@ -42,8 +40,6 @@ type Grpc struct {
 	listener net.Listener
 	closeCh  chan struct{}
 
-	log    *slog.Logger
-	out    chan<- *core.Event
 	parser core.Parser
 
 	sendOneDesc  string
@@ -68,20 +64,13 @@ type ServerOptions struct {
 }
 
 func (i *Grpc) Close() error {
-	i.log.Debug("closing plugin")
+	i.Log.Debug("closing plugin")
 	close(i.closeCh)
 	i.server.GracefulStop()
 	return nil
 }
 
-func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, i); err != nil {
-		return err
-	}
-
-	i.alias = alias
-	i.pipe = pipeline
-	i.log = log
+func (i *Grpc) Init() error {
 	i.closeCh = make(chan struct{})
 
 	if err := i.Ider.Init(); err != nil {
@@ -118,8 +107,8 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	}
 
 	if i.EnableMetrics {
-		options = append(options, grpc.StreamInterceptor(grpcstats.GrpcServerStreamInterceptor(pipeline, alias)))
-		options = append(options, grpc.UnaryInterceptor(grpcstats.GrpcServerUnaryInterceptor(pipeline, alias)))
+		options = append(options, grpc.StreamInterceptor(grpcstats.GrpcServerStreamInterceptor(i.Pipeline, i.Alias)))
+		options = append(options, grpc.UnaryInterceptor(grpcstats.GrpcServerUnaryInterceptor(i.Pipeline, i.Alias)))
 	}
 
 	if tlsConfig != nil {
@@ -135,18 +124,14 @@ func (i *Grpc) Init(config map[string]any, alias string, pipeline string, log *s
 	return nil
 }
 
-func (i *Grpc) SetChannels(out chan<- *core.Event) {
-	i.out = out
-}
-
 func (i *Grpc) Run() {
-	i.log.Info(fmt.Sprintf("starting grpc server on %v", i.Address))
+	i.Log.Info(fmt.Sprintf("starting grpc server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil {
-		i.log.Error("grpc server startup failed",
+		i.Log.Error("grpc server startup failed",
 			"error", err.Error(),
 		)
 	} else {
-		i.log.Info("grpc server stopped")
+		i.Log.Info("grpc server stopped")
 	}
 }
 
@@ -157,28 +142,28 @@ func (i *Grpc) SetParser(p core.Parser) {
 func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, error) {
 	now := time.Now()
 	p, _ := peer.FromContext(ctx)
-	i.log.Debug("request received",
+	i.Log.Debug("request received",
 		"sender", p.Addr.String(),
 	)
 
 	events, err := i.unpackData(ctx, data, i.sendOneDesc)
 	if err != nil {
-		i.log.Error("data unpack failed",
+		i.Log.Error("data unpack failed",
 			"error", err,
 		)
-		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+		i.Observe(metrics.EventFailed, time.Since(now))
 		return &common.Nil{}, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	for _, e := range events {
-		i.out <- e
-		i.log.Debug("event accepted",
+		i.Out <- e
+		i.Log.Debug("event accepted",
 			slog.Group("event",
 				"id", e.Id,
 				"key", e.RoutingKey,
 			),
 		)
-		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		i.Observe(metrics.EventAccepted, time.Since(now))
 		now = time.Now()
 	}
 
@@ -187,7 +172,7 @@ func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, err
 
 func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 	p, _ := peer.FromContext(stream.Context())
-	i.log.Debug("bulk stream accepted",
+	i.Log.Debug("bulk stream accepted",
 		"sender", p.Addr.String(),
 	)
 
@@ -206,10 +191,10 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		now := time.Now()
 
 		if err != nil {
-			i.log.Error("receiving from stream failed",
+			i.Log.Error("receiving from stream failed",
 				"error", err,
 			)
-			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			i.Observe(metrics.EventFailed, time.Since(now))
 			return err
 		}
 
@@ -217,7 +202,7 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		if err != nil {
 			sum.Errors[sum.Failed+sum.Accepted] = err.Error()
 			sum.Failed++
-			i.log.Warn("data unpack failed",
+			i.Log.Warn("data unpack failed",
 				"error", err,
 			)
 			continue
@@ -225,25 +210,25 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 
 		sum.Accepted++
 		for _, e := range events {
-			i.out <- e
-			i.log.Debug("event accepted",
+			i.Out <- e
+			i.Log.Debug("event accepted",
 				slog.Group("event",
 					"id", e.Id,
 					"key", e.RoutingKey,
 				),
 			)
-			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+			i.Observe(metrics.EventAccepted, time.Since(now))
 			now = time.Now()
 		}
 	}
 
-	i.log.Debug("stream ended")
+	i.Log.Debug("stream ended")
 	return nil
 }
 
 func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 	p, _ := peer.FromContext(stream.Context())
-	i.log.Debug("internal stream accepted",
+	i.Log.Debug("internal stream accepted",
 		"sender", p.Addr.String(),
 	)
 
@@ -256,13 +241,13 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 			// send close signal to client
 			// there is no need to handle an error because
 			// the stream may be already aborted
-			i.log.Debug("plugin closing, sending cancellation token")
+			i.Log.Debug("plugin closing, sending cancellation token")
 			stream.Send(&common.Cancel{})
 		case <-stopCh:
-			i.log.Debug("internal stream done")
+			i.Log.Debug("internal stream done")
 		}
 		close(doneCh)
-		i.log.Debug("internal stream sending goroutine returns")
+		i.Log.Debug("internal stream sending goroutine returns")
 	}()
 
 	for {
@@ -274,35 +259,35 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 		now := time.Now()
 
 		if err != nil {
-			i.log.Error("receiving from stream failed",
+			i.Log.Error("receiving from stream failed",
 				"error", err,
 			)
-			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			i.Observe(metrics.EventFailed, time.Since(now))
 			close(stopCh)
 			return err
 		}
 
 		e, err := i.unpackEvent(event)
 		if err != nil {
-			i.log.Warn("event unpack failed",
+			i.Log.Warn("event unpack failed",
 				"error", err,
 			)
-			metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventFailed, time.Since(now))
+			i.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
-		i.out <- e
-		i.log.Debug("event accepted",
+		i.Out <- e
+		i.Log.Debug("event accepted",
 			slog.Group("event",
 				"id", e.Id,
 				"key", e.RoutingKey,
 			),
 		)
-		metrics.ObserveInputSummary("grpc", i.alias, i.pipe, metrics.EventAccepted, time.Since(now))
+		i.Observe(metrics.EventAccepted, time.Since(now))
 	}
 
 	<-doneCh
-	i.log.Debug("internal stream closed")
+	i.Log.Debug("internal stream closed")
 	return nil
 }
 
@@ -314,14 +299,14 @@ func (i *Grpc) unpackData(ctx context.Context, data *common.Data, defaultkey str
 
 	for _, e := range events {
 		p, _ := peer.FromContext(ctx)
-		e.AddLabel("input", "grpc")
-		e.AddLabel("server", i.Address)
-		e.AddLabel("sender", p.Addr.String())
+		e.SetLabel("input", "grpc")
+		e.SetLabel("server", i.Address)
+		e.SetLabel("sender", p.Addr.String())
 
 		md, _ := metadata.FromIncomingContext(ctx)
 		for k, v := range i.LabelMetadata {
 			if val, ok := md[v]; ok {
-				e.AddLabel(k, strings.Join(val, ";"))
+				e.SetLabel(k, strings.Join(val, ";"))
 			}
 		}
 
@@ -347,7 +332,7 @@ func (i *Grpc) unpackEvent(event *common.Event) (*core.Event, error) {
 	e.Id = event.GetId()
 
 	for k, v := range event.GetLabels() {
-		e.AddLabel(k, v)
+		e.SetLabel(k, v)
 	}
 
 	for _, v := range event.GetTags() {

@@ -4,25 +4,22 @@ import (
 	"sync/atomic"
 )
 
-type hookFunc func(payload any)
+type hookFunc func()
 
 type tracker struct {
 	duty    int32
 	hook    hookFunc
-	payload any
 }
 
-func newTracker(hook hookFunc, payload any) *tracker {
+func newTracker(hook hookFunc) *tracker {
 	return &tracker{
 		duty:    1,
 		hook:    hook,
-		payload: payload,
 	}
 }
 
-func (d *tracker) SetHook(hook hookFunc, payload any) {
+func (d *tracker) SetHook(hook hookFunc) {
 	d.hook = hook
-	d.payload = payload
 }
 
 func (d *tracker) Copy() *tracker {
@@ -42,6 +39,6 @@ func (d *tracker) Decreace() {
 	}
 
 	if n == 0 {
-		d.hook(d.payload)
+		d.hook()
 	}
 }

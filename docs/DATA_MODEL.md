@@ -14,7 +14,7 @@ Also, each event has a **UUID** field that is randomly generated. This field is 
 ## Event API
 
 As a developer, you can use Event fields directly, however, in most cases it may be more convenient to use an [API](../core/event.go):
- - `AddLabel(key string, value string)` - add label to event; if label exist, it will be overwritten
+ - `SetLabel(key string, value string)` - add label to event; if label exist, it will be overwritten
  - `GetLabel(key string) (string, bool)` - get label value by key; if label does not exist, method returns false
  - `DeleteLabel(key string)` - delete label by key
  - `AddTag(tag string)` - add tag to event
@@ -61,12 +61,12 @@ These types can be used as field values: strings, integers (signed and unsigned)
 
 ## Delivery Control
 
-You can set a tracker for each event using `SetHook(hook func(payload any), payload any)` method, but only once. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
- - it increases when an event is copied or cloned using corresponding method; copied or cloned events shares tracker.
+You can set a tracker for each event using `SetHook(hook func())` method, but only once. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
+ - it increases when an event is cloned using corresponding method; cloned events shares tracker.
  - it decreases when an event `Done()` method calls.
 
-When tracker duty counter decreases to zero, tracker will call hook function with passed payload as an argument.
+When tracker duty counter decreases to zero, tracker will call hook function.
 
-This can typically be used by input plugins that want to monitor event processing and delivery, such as `rabbitmq` or `kafka`, before responding to a client/broker that the message has been accepted.
+Tracker can be used by input plugins that wants to know when event processing done, such as `beats` or `kafka`, before responding to a client/broker that message has been accepted.
 
-It also means than processors and outputs must call `Done()` method when an event no more needed, delivered or failed after configured attemts.
+This also means than processors and outputs must call `Done()` method when an event no more needed, delivered or failed after configured attempts.

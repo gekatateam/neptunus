@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -13,16 +12,15 @@ import (
 	"github.com/segmentio/kafka-go/sasl/scram"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
+	"github.com/gekatateam/neptunus/plugins/common/pool"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Kafka struct {
-	alias             string
-	pipe              string
+	*core.BaseOutput  `mapstructure:"-"`
 	EnableMetrics     bool              `mapstructure:"enable_metrics"`
 	Brokers           []string          `mapstructure:"brokers"`
 	ClientId          string            `mapstructure:"client_id"`
@@ -45,8 +43,7 @@ type Kafka struct {
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
-	writersPool *writersPool
-	clearTicker *time.Ticker
+	writersPool *pool.Pool[*core.Event]
 
 	in  <-chan *core.Event
 	log *slog.Logger
@@ -59,15 +56,7 @@ type SASL struct {
 	Password  string `mapstructure:"password"`
 }
 
-func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, o); err != nil {
-		return err
-	}
-
-	o.alias = alias
-	o.pipe = pipeline
-	o.log = log
-
+func (o *Kafka) Init() error {
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
 	}
@@ -84,35 +73,25 @@ func (o *Kafka) Init(config map[string]any, alias, pipeline string, log *slog.Lo
 		return err
 	}
 
-	o.writersPool = &writersPool{
-		writers: make(map[string]*topicWriter),
-		wg:      &sync.WaitGroup{},
-		new: func(topic string) *topicWriter {
-			return &topicWriter{
-				alias:             o.alias,
-				pipe:              o.pipe,
-				clientId:          o.ClientId,
-				enableMetrics:     o.EnableMetrics,
-				keepTimestamp:     o.KeepTimestamp,
-				partitionBalancer: o.PartitionBalancer,
-				partitionLabel:    o.PartitionLabel,
-				keyLabel:          o.KeyLabel,
-				headerLabels:      o.HeaderLabels,
-				maxAttempts:       o.MaxAttempts,
-				retryAfter:        o.RetryAfter,
-				input:             make(chan *core.Event),
-				writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
-				batcher:           o.Batcher,
-				log:               o.log,
-				ser:               o.ser,
-			}
-		},
-	}
-
-	o.clearTicker = time.NewTicker(time.Minute)
-	if o.IdleTimeout == 0 {
-		o.clearTicker.Stop()
-	}
+	o.writersPool = pool.New(func(topic string) pool.Runner[*core.Event] {
+		return &topicWriter{
+			BaseOutput:        o.BaseOutput,
+			clientId:          o.ClientId,
+			enableMetrics:     o.EnableMetrics,
+			keepTimestamp:     o.KeepTimestamp,
+			partitionBalancer: o.PartitionBalancer,
+			partitionLabel:    o.PartitionLabel,
+			keyLabel:          o.KeyLabel,
+			headerLabels:      o.HeaderLabels,
+			maxAttempts:       o.MaxAttempts,
+			retryAfter:        o.RetryAfter,
+			lastWrite:         time.Now(),
+			input:             make(chan *core.Event),
+			writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
+			batcher:           o.Batcher,
+			ser:               o.ser,
+		}
+	})
 
 	return nil
 }
@@ -221,27 +200,28 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 	return writer, nil
 }
 
-func (o *Kafka) SetChannels(in <-chan *core.Event) {
-	o.in = in
-}
-
 func (o *Kafka) SetSerializer(s core.Serializer) {
 	o.ser = s
 }
 
 func (o *Kafka) Run() {
+	clearTicker := time.NewTicker(time.Minute)
+	if o.IdleTimeout == 0 {
+		clearTicker.Stop()
+	}
+
 MAIN_LOOP:
 	for {
 		select {
 		case e, ok := <-o.in:
 			if !ok {
-				o.clearTicker.Stop()
+				clearTicker.Stop()
 				break MAIN_LOOP
 			}
-			o.writersPool.Get(e.RoutingKey).input <- e
-		case <-o.clearTicker.C:
-			for _, topic := range o.writersPool.Topics() {
-				if time.Since(o.writersPool.Get(topic).lastWrite) > o.IdleTimeout {
+			o.writersPool.Get(e.RoutingKey).Push(e)
+		case <-clearTicker.C:
+			for _, topic := range o.writersPool.Keys() {
+				if time.Since(o.writersPool.Get(topic).LastWrite()) > o.IdleTimeout {
 					o.writersPool.Remove(topic)
 				}
 			}

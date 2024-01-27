@@ -7,30 +7,20 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Rk struct {
-	alias   string
-	pipe    string
-	Mapping map[string][]string `mapstructure:"mapping"`
-	index   map[string]string
+	*core.BaseProcessor `mapstructure:"-"`
+	Mapping             map[string][]string `mapstructure:"mapping"`
+	index               map[string]string
 
 	in  <-chan *core.Event
 	out chan<- *core.Event
 	log *slog.Logger
 }
 
-func (p *Rk) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-
+func (p *Rk) Init() error {
 	p.index = make(map[string]string)
 	for newKey, oldKeys := range p.Mapping {
 		for _, oldKey := range oldKeys {
@@ -45,28 +35,20 @@ func (p *Rk) Init(config map[string]any, alias, pipeline string, log *slog.Logge
 	return nil
 }
 
-func (p *Rk) SetChannels(
-	in <-chan *core.Event,
-	out chan<- *core.Event,
-) {
-	p.in = in
-	p.out = out
-}
-
 func (p *Rk) Close() error {
 	return nil
 }
 
 func (p *Rk) Run() {
-	for e := range p.in {
+	for e := range p.In {
 		now := time.Now()
 
 		if newKey, ok := p.index[e.RoutingKey]; ok {
 			e.RoutingKey = newKey
 		}
 
-		p.out <- e
-		metrics.ObserveProcessorSummary("rk", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+		p.Out <- e
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

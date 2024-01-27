@@ -6,26 +6,16 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Plain struct {
-	alias string
-	pipe  string
-	Field string `mapstructure:"field"`
-	log   *slog.Logger
+	*core.BaseParser `mapstructure:"-"`
+	Field            string `mapstructure:"field"`
+	log              *slog.Logger
 }
 
-func (p *Plain) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, p); err != nil {
-		return err
-	}
-
-	p.alias = alias
-	p.pipe = pipeline
-	p.log = log
-
+func (p *Plain) Init() error {
 	return nil
 }
 
@@ -39,7 +29,7 @@ func (p *Plain) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	event := core.NewEventWithData(routingKey, core.Map{
 		p.Field: string(data),
 	})
-	metrics.ObserveParserSummary("plain", p.alias, p.pipe, metrics.EventAccepted, time.Since(now))
+	p.Observe(metrics.EventAccepted, time.Since(now))
 
 	return []*core.Event{event}, nil
 }

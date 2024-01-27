@@ -9,18 +9,16 @@ import (
 )
 
 type Fusion struct {
-	alias string
-	pipe  string
-	wg    *sync.WaitGroup
-	ins   []<-chan *core.Event
-	out   chan<- *core.Event
+	*core.BaseCore
+	wg  *sync.WaitGroup
+	ins []<-chan *core.Event
+	out chan<- *core.Event
 }
 
-func New(alias, pipeline string) *Fusion {
+func New(c *core.BaseCore) *Fusion {
 	return &Fusion{
-		alias: alias,
-		pipe:  pipeline,
-		wg:    &sync.WaitGroup{},
+		BaseCore: c,
+		wg:       &sync.WaitGroup{},
 	}
 }
 
@@ -36,7 +34,7 @@ func (c *Fusion) Run() {
 			for e := range ch {
 				now := time.Now()
 				c.out <- e
-				metrics.ObserveCoreSummary("fusion", c.alias, c.pipe, metrics.EventAccepted, time.Since(now))
+				c.Observe(metrics.EventAccepted, time.Since(now))
 			}
 			c.wg.Done()
 		}(inputCh)

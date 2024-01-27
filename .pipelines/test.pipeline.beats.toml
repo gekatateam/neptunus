@@ -1,0 +1,20 @@
+[settings]
+  id = "test.pipeline.beats"
+  lines = 1
+  run = false
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.beats]
+    address = ":8800"
+    ack_on_delivery = true
+
+[[processors]]
+  [processors.template]
+    routing_key = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
+
+[[outputs]]
+  [outputs.elasticsearch]
+    urls = [ "http://localhost:9200" ]
+    batch_buffer = 1_000
+    idle_timeout = "10s"

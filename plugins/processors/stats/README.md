@@ -39,7 +39,7 @@ This is the format of stats event:
     # in shared mode with multiple processors lines
     # each plugin set uses a shared stats cache
     # and sends stats events to plugins channels using ROUND ROBIN algorithm
-    mode = "individual"
+    mode = "shared"
 
     # stats collection, producing and reset interval
     # count, sum and gauge are not reset, other stats are set to zero

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins/filters/glob"
 )
 
@@ -131,9 +132,13 @@ func TestGlob(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			filter := &glob.Glob{}
-			err := filter.Init(test.config, "", "", logger.Mock())
-			if err != nil {
+			filter := &glob.Glob{
+				BaseFilter: &core.BaseFilter{Log: logger.Mock()},
+			}
+			if err := mapstructure.Decode(test.config, filter); err != nil {
+				t.Fatalf("filter config not applied: %v", err)
+			}
+			if err := filter.Init(); err != nil {
 				t.Fatalf("filter not initialized: %v", err)
 			}
 

@@ -46,9 +46,9 @@ func NewEventWithData(routingKey string, data Map) *Event {
 	}
 }
 
-func (e *Event) SetHook(hook hookFunc, payload any) {
+func (e *Event) SetHook(hook hookFunc) {
 	if e.tracker == nil {
-		e.tracker = newTracker(hook, payload)
+		e.tracker = newTracker(hook)
 	}
 }
 
@@ -146,7 +146,7 @@ func (e *Event) GetLabel(key string) (string, bool) {
 	return value, ok
 }
 
-func (e *Event) AddLabel(key, value string) {
+func (e *Event) SetLabel(key, value string) {
 	e.Labels[key] = value
 }
 

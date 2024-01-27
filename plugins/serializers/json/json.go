@@ -10,18 +10,15 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Json struct {
-	alias      string
-	pipe       string
-	DataOnly   bool   `mapstructure:"data_only"`
-	OmitFailed bool   `mapstructure:"omit_failed"`
-	Mode       string `mapstructure:"mode"`
+	*core.BaseSerializer `mapstructure:"-"`
+	DataOnly             bool   `mapstructure:"data_only"`
+	OmitFailed           bool   `mapstructure:"omit_failed"`
+	Mode                 string `mapstructure:"mode"`
 
-	log     *slog.Logger
 	serFunc func(event *core.Event) ([]byte, error)
 
 	delim byte
@@ -29,15 +26,7 @@ type Json struct {
 	end   []byte
 }
 
-func (s *Json) Init(config map[string]any, alias, pipeline string, log *slog.Logger) error {
-	if err := mapstructure.Decode(config, s); err != nil {
-		return err
-	}
-
-	s.alias = alias
-	s.pipe = pipeline
-	s.log = log
-
+func (s *Json) Init() error {
 	switch s.Mode {
 	case "jsonl":
 		s.delim = '\n'
@@ -74,8 +63,8 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 	for i, e := range events {
 		rawData, err := s.serFunc(e)
 		if err != nil {
-			metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventFailed, time.Since(now))
-			s.log.Error("serialization failed",
+			s.Observe(metrics.EventFailed, time.Since(now))
+			s.Log.Error("serialization failed",
 				"error", err,
 				slog.Group("event",
 					"id", e.Id,
@@ -99,7 +88,7 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 			copy(result, buf.Bytes())
 		}
 
-		metrics.ObserveSerializerSummary("json", s.alias, s.pipe, metrics.EventAccepted, time.Since(now))
+		s.Observe(metrics.EventAccepted, time.Since(now))
 		now = time.Now()
 	}
 
