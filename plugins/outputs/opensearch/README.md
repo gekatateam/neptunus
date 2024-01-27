@@ -6,7 +6,7 @@ The `opensearch` output plugin writes to [Opensearch](https://opensearch.org/doc
 ```toml
 [[outputs]]
   [outputs.opensearch]
-    # list of Elasticsearch nodes to use
+    # list of Opensearch nodes to use
     # only one will be used on each write
     urls = [ "http://localhost:9200" ]
 
