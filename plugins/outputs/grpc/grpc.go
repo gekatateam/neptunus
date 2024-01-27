@@ -104,10 +104,6 @@ func (o *Grpc) Init() error {
 	return nil
 }
 
-func (o *Grpc) Self() any {
-	return o
-}
-
 func (o *Grpc) SetSerializer(s core.Serializer) {
 	o.ser = s
 }

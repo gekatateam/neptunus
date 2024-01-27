@@ -34,10 +34,6 @@ func (o *Log) Init() error {
 	return nil
 }
 
-func (o *Log) Self() any {
-	return o
-}
-
 func (o *Log) SetSerializer(s core.Serializer) {
 	o.ser = s
 }

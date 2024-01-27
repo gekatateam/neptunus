@@ -20,10 +20,6 @@ func (p *Defaults) Init() error {
 	return nil
 }
 
-func (p *Defaults) Self() any {
-	return p
-}
-
 func (p *Defaults) Close() error {
 	return nil
 }

@@ -16,10 +16,6 @@ func (f *NoErrors) Init() error {
 	return nil
 }
 
-func (f *NoErrors) Self() any {
-	return f
-}
-
 func (f *NoErrors) Close() error {
 	return nil
 }

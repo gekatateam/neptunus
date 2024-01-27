@@ -67,10 +67,6 @@ func (p *Template) Init() error {
 	return nil
 }
 
-func (p *Template) Self() any {
-	return p
-}
-
 func (p *Template) Close() error {
 	return nil
 }

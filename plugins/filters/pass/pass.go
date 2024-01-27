@@ -16,10 +16,6 @@ func (f *Pass) Init() error {
 	return nil
 }
 
-func (f *Pass) Self() any {
-	return f
-}
-
 func (f *Pass) Close() error {
 	return nil
 }

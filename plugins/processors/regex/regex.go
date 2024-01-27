@@ -42,10 +42,6 @@ func (p *Regex) Init() error {
 	return nil
 }
 
-func (p *Regex) Self() any {
-	return p
-}
-
 func (p *Regex) Close() error {
 	return nil
 }

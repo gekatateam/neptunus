@@ -59,10 +59,6 @@ func (p *Stats) Init() error {
 	return nil
 }
 
-func (p *Stats) Self() any {
-	return p
-}
-
 func (p *Stats) Close() error {
 	p.cache.clear()
 	return nil

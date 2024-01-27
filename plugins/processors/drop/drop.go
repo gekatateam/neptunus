@@ -17,10 +17,6 @@ func (p *Drop) Init() error {
 	return nil
 }
 
-func (p *Drop) Self() any {
-	return p
-}
-
 func (p *Drop) Close() error {
 	return nil
 }

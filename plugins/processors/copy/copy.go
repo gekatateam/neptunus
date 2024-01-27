@@ -24,10 +24,6 @@ func (p *Copy) Init() error {
 	return nil
 }
 
-func (p *Copy) Self() any {
-	return p
-}
-
 func (p *Copy) Close() error {
 	return nil
 }

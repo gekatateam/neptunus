@@ -9,9 +9,7 @@ import (
 )
 
 type Initer interface {
-	// Init(config map[string]any, alias, pipeline string, log *slog.Logger) error
 	Init() error
-	Self() any
 }
 
 type Runner interface {

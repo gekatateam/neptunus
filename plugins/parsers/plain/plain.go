@@ -15,10 +15,6 @@ type Plain struct {
 	log              *slog.Logger
 }
 
-func (p *Plain) Self() any {
-	return p
-}
-
 func (p *Plain) Init() error {
 	return nil
 }

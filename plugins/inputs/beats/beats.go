@@ -72,10 +72,6 @@ func (i *Beats) Init() error {
 	return nil
 }
 
-func (i *Beats) Self() any {
-	return i
-}
-
 func (i *Beats) Close() error {
 	if i.server != nil {
 		return i.server.Close()

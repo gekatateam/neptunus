@@ -200,10 +200,6 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 	return writer, nil
 }
 
-func (o *Kafka) Self() any {
-	return o
-}
-
 func (o *Kafka) SetSerializer(s core.Serializer) {
 	o.ser = s
 }

@@ -37,10 +37,6 @@ func (f *Starlark) Init() error {
 	return nil
 }
 
-func (f *Starlark) Self() any {
-	return f
-}
-
 func (f *Starlark) Close() error {
 	return nil
 }

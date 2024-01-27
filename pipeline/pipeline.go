@@ -342,7 +342,7 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
-			baseField := reflect.ValueOf(output.Self()).Elem().FieldByName("BaseOutput")
+			baseField := reflect.ValueOf(output).Elem().FieldByName("BaseOutput")
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseOutput{
 					Alias:    alias,
@@ -358,7 +358,7 @@ func (p *Pipeline) configureOutputs() error {
 				return fmt.Errorf("%v output plugin does not contains BaseOutput", plugin)
 			}
 
-			if err := mapstructure.Decode(outputCfg, output.Self()); err != nil {
+			if err := mapstructure.Decode(outputCfg, output); err != nil {
 				return fmt.Errorf("%v output configuration mapping error: %v", plugin, err.Error())
 			}
 
@@ -428,7 +428,7 @@ func (p *Pipeline) configureProcessors() error {
 
 				processorCfg["::line"] = i
 
-				baseField := reflect.ValueOf(processor.Self()).Elem().FieldByName("BaseProcessor")
+				baseField := reflect.ValueOf(processor).Elem().FieldByName("BaseProcessor")
 				if baseField.IsValid() && baseField.CanSet() {
 					baseField.Set(reflect.ValueOf(&core.BaseProcessor{
 						Alias:    alias,
@@ -444,7 +444,7 @@ func (p *Pipeline) configureProcessors() error {
 					return fmt.Errorf("%v processor plugin does not contains BaseProcessor", plugin)
 				}
 
-				if err := mapstructure.Decode(processorCfg, processor.Self()); err != nil {
+				if err := mapstructure.Decode(processorCfg, processor); err != nil {
 					return fmt.Errorf("%v processor configuration mapping error: %v", plugin, err.Error())
 				}
 
@@ -513,7 +513,7 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
-			baseField := reflect.ValueOf(input.Self()).Elem().FieldByName("BaseInput")
+			baseField := reflect.ValueOf(input).Elem().FieldByName("BaseInput")
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseInput{
 					Alias:    alias,
@@ -529,7 +529,7 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("%v input plugin does not contains BaseInput", plugin)
 			}
 
-			if err := mapstructure.Decode(inputCfg, input.Self()); err != nil {
+			if err := mapstructure.Decode(inputCfg, input); err != nil {
 				return fmt.Errorf("%v input configuration mapping error: %v", plugin, err.Error())
 			}
 
@@ -592,7 +592,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
-		baseField := reflect.ValueOf(filter.Self()).Elem().FieldByName("BaseFilter")
+		baseField := reflect.ValueOf(filter).Elem().FieldByName("BaseFilter")
 		if baseField.IsValid() && baseField.CanSet() {
 			baseField.Set(reflect.ValueOf(&core.BaseFilter{
 				Alias:    alias,
@@ -608,7 +608,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			return nil, fmt.Errorf("%v filter plugin does not contains BaseInput", plugin)
 		}
 
-		if err := mapstructure.Decode(filterCfg, filter.Self()); err != nil {
+		if err := mapstructure.Decode(filterCfg, filter); err != nil {
 			return nil, fmt.Errorf("%v filter configuration mapping error: %v", plugin, err.Error())
 		}
 
@@ -638,7 +638,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		idNeedy.SetId(parserCfg.Id())
 	}
 
-	baseField := reflect.ValueOf(parser.Self()).Elem().FieldByName("BaseParser")
+	baseField := reflect.ValueOf(parser).Elem().FieldByName("BaseParser")
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseParser{
 			Alias:    alias,
@@ -654,7 +654,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		return nil, fmt.Errorf("%v parser plugin does not contains BaseParser", plugin)
 	}
 
-	if err := mapstructure.Decode(parserCfg, parser.Self()); err != nil {
+	if err := mapstructure.Decode(parserCfg, parser); err != nil {
 		return nil, fmt.Errorf("%v parser configuration mapping error: %v", plugin, err.Error())
 	}
 
@@ -682,7 +682,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		idNeedy.SetId(serCfg.Id())
 	}
 
-	baseField := reflect.ValueOf(serializer.Self()).Elem().FieldByName("BaseSerializer")
+	baseField := reflect.ValueOf(serializer).Elem().FieldByName("BaseSerializer")
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseSerializer{
 			Alias:    alias,
@@ -698,7 +698,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("%v serializer plugin does not contains BaseSerializer", plugin)
 	}
 
-	if err := mapstructure.Decode(serCfg, serializer.Self()); err != nil {
+	if err := mapstructure.Decode(serCfg, serializer); err != nil {
 		return nil, fmt.Errorf("%v serializer configuration mapping error: %v", plugin, err.Error())
 	}
 

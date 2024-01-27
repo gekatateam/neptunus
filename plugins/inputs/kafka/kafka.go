@@ -226,10 +226,6 @@ func (i *Kafka) Init() (err error) {
 	return nil
 }
 
-func (i *Kafka) Self() any {
-	return i
-}
-
 func (i *Kafka) SetChannels(out chan<- *core.Event) {
 	for _, reader := range i.readersPool {
 		reader.out = out

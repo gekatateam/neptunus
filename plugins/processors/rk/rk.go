@@ -35,10 +35,6 @@ func (p *Rk) Init() error {
 	return nil
 }
 
-func (p *Rk) Self() any {
-	return p
-}
-
 func (p *Rk) Close() error {
 	return nil
 }

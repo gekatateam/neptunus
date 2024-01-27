@@ -62,10 +62,6 @@ func (f *Glob) Init() error {
 	return nil
 }
 
-func (f *Glob) Self() any {
-	return f
-}
-
 func (f *Glob) Close() error {
 	return nil
 }

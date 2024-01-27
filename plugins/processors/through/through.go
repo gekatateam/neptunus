@@ -16,10 +16,6 @@ func (p *Through) Init() error {
 	return nil
 }
 
-func (p *Through) Self() any {
-	return p
-}
-
 func (p *Through) Close() error {
 	return nil
 }

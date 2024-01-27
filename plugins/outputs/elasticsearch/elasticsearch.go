@@ -98,10 +98,6 @@ func (o *Elasticsearch) Init() error {
 	return nil
 }
 
-func (o *Elasticsearch) Self() any {
-	return o
-}
-
 func (o *Elasticsearch) Run() {
 	clearTicker := time.NewTicker(time.Minute)
 	if o.IdleTimeout == 0 {

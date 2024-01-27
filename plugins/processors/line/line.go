@@ -22,10 +22,6 @@ func (p *Line) Init() error {
 	return nil
 }
 
-func (p *Line) Self() any {
-	return p
-}
-
 func (p *Line) Close() error {
 	return nil
 }

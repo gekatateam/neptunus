@@ -49,10 +49,6 @@ func (s *Json) Init() error {
 	return nil
 }
 
-func (s *Json) Self() any {
-	return s
-}
-
 func (s *Json) Close() error {
 	return nil
 }

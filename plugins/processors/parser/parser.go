@@ -41,10 +41,6 @@ func (p *Parser) Init() error {
 	return nil
 }
 
-func (p *Parser) Self() any {
-	return p
-}
-
 func (p *Parser) Close() error {
 	return nil
 }

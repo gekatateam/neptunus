@@ -91,10 +91,6 @@ func (i *Httpl) Init() error {
 	return nil
 }
 
-func (i *Httpl) Self() any {
-	return i
-}
-
 func (i *Httpl) SetParser(p core.Parser) {
 	i.parser = p
 }

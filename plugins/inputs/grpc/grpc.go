@@ -124,10 +124,6 @@ func (i *Grpc) Init() error {
 	return nil
 }
 
-func (i *Grpc) Self() any {
-	return i
-}
-
 func (i *Grpc) Run() {
 	i.Log.Info(fmt.Sprintf("starting grpc server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil {

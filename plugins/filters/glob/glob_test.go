@@ -131,8 +131,10 @@ func TestGlob(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			filter := &glob.Glob{}
-			err := filter.Init(test.config, "", "", logger.Mock())
+			filter := &glob.Glob{
+				BaseFilter: &core.BaseFilter{Log: logger.Mock()},
+			}
+			err := filter.Init()
 			if err != nil {
 				t.Fatalf("filter not initialized: %v", err)
 			}
