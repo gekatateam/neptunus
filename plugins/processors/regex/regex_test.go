@@ -6,6 +6,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins/processors/regex"
 )
 
@@ -190,9 +191,15 @@ func TestRegex(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			processor := &regex.Regex{}
-			err := processor.Init(test.config, "", "", logger.Mock())
-			if err != nil {
+			processor := &regex.Regex{
+				BaseProcessor: &core.BaseProcessor{
+					Log: logger.Mock(),
+				},
+			}
+			if err := mapstructure.Decode(test.config, processor); err != nil {
+				t.Fatalf("processor config not applied: %v", err)
+			}
+			if err := processor.Init(); err != nil {
 				t.Fatalf("processor not initialized: %v", err)
 			}
 

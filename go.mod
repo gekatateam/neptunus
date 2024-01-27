@@ -51,6 +51,7 @@ require (
 	github.com/magefile/mage v1.15.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/naoina/toml v0.1.1
+	github.com/opensearch-project/opensearch-go/v3 v3.0.0
 	github.com/prometheus/client_golang v1.18.0
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/urfave/cli/v2 v2.27.1

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/operationtype"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
@@ -39,7 +38,7 @@ type Elasticsearch struct {
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 
-	client       *elasticsearch.TypedClient
+	client       *elasticsearch.Client
 	indexersPool *pool.Pool[*core.Event]
 }
 
@@ -67,7 +66,7 @@ func (o *Elasticsearch) Init() error {
 		return err
 	}
 
-	client, err := elasticsearch.NewTypedClient(elasticsearch.Config{
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses:               o.URLs,
 		Username:                o.Username,
 		Password:                o.Password,
@@ -134,7 +133,7 @@ func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 		lastWrite:    time.Now(),
 		pipeline:     pipeline,
 		dataOnly:     o.DataOnly,
-		operation:    operationtype.OperationType{Name: o.Operation},
+		operation:    o.Operation,
 		routingLabel: o.RoutingLabel,
 		timeout:      o.RequestTimeout,
 		maxAttempts:  o.MaxAttempts,

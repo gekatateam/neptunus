@@ -1,4 +1,4 @@
-package opensearch
+package esopensearch
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 )
 
 type BulkBody struct {
-	buf *bytes.Buffer
+	*bytes.Buffer
 }
 
 type CreateOp struct {
@@ -26,27 +26,23 @@ type BulkOp struct {
 }
 
 func (b *BulkBody) CreateOp(doc []byte, params BulkOp) error {
-	if err := json.NewEncoder(b.buf).Encode(CreateOp{Create: params}); err != nil {
+	if err := json.NewEncoder(b.Buffer).Encode(CreateOp{Create: params}); err != nil {
 		return fmt.Errorf("bulk.CreateOp: %w", err)
 	}
 
-	b.buf.WriteByte('\n')
-	b.buf.Write(doc)
-	b.buf.WriteByte('\n')
+	//b.WriteByte('\n')
+	b.Write(doc)
+	b.WriteByte('\n')
 	return nil
 }
 
 func (b *BulkBody) IndexOp(doc []byte, params BulkOp) error {
-	if err := json.NewEncoder(b.buf).Encode(IndexOp{Index: params}); err != nil {
+	if err := json.NewEncoder(b.Buffer).Encode(IndexOp{Index: params}); err != nil {
 		return fmt.Errorf("bulk.IndexOp: %w", err)
 	}
 
-	b.buf.WriteByte('\n')
-	b.buf.Write(doc)
-	b.buf.WriteByte('\n')
+	//b.WriteByte('\n')
+	b.Write(doc)
+	b.WriteByte('\n')
 	return nil
-}
-
-func (b *BulkBody) Read(p []byte) (n int, err error) {
-	return b.Read(p)
 }

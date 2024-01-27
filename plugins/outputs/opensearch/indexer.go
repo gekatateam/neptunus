@@ -1,19 +1,14 @@
-package elasticsearch
+package opensearch
 
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/goccy/go-json"
-
-	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/core/bulk"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/operationtype"
+	"github.com/opensearch-project/opensearch-go/v3/opensearchapi"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -36,7 +31,7 @@ type indexer struct {
 	maxAttempts int
 	retryAfter  time.Duration
 
-	client *elasticsearch.Client
+	client *opensearchapi.Client
 	*batcher.Batcher[*core.Event]
 
 	input chan *core.Event
@@ -71,7 +66,7 @@ func (i *indexer) Run() {
 			now        time.Time              = time.Now()
 			sentEvents []measurableEvent      = make([]measurableEvent, 0, len(buf))
 			body       *esopensearch.BulkBody = &esopensearch.BulkBody{Buffer: bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
-			req        *esapi.BulkRequest     = &esapi.BulkRequest{Pipeline: i.pipeline}
+			req        *opensearchapi.BulkReq = &opensearchapi.BulkReq{Params: opensearchapi.BulkParams{Pipeline: i.pipeline}}
 		)
 		i.lastWrite = now
 
@@ -170,9 +165,9 @@ func (i *indexer) Run() {
 
 		for j, v := range res.Items {
 			e := sentEvents[j]
-			if errCause := v[operationtype.OperationType{Name: i.operation}].Error; errCause != nil {
+			if errCause := v[i.operation].Error; errCause != nil {
 				i.Log.Error("event send failed",
-					"error", errCause.Type+": "+*errCause.Reason,
+					"error", errCause.Type+": "+errCause.Reason,
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
@@ -196,31 +191,19 @@ func (i *indexer) Run() {
 	i.Log.Info(fmt.Sprintf("indexer for pipeline %v closed", i.pipeline))
 }
 
-func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk.Response, error) {
+func (i *indexer) perform(r *opensearchapi.BulkReq, b *esopensearch.BulkBody) (*opensearchapi.BulkResp, error) {
 	var staticBody = b.Bytes() // cache body for retries
 	var attempts int = 1
 	for {
 		r.Body = bytes.NewReader(bytes.Clone(staticBody))
 
 		ctx, cancel := context.WithTimeout(context.Background(), i.timeout)
-		response, err := r.Do(ctx, i.client)
-		if err == nil {
-			if response.IsError() {
-				err = errors.New(response.Status())
-				goto REQUEST_FAILED
-			}
-
-			bulkResponse, unmarshalErr := i.unmarshalBody(response)
-			if unmarshalErr != nil {
-				err = unmarshalErr
-				goto REQUEST_FAILED
-			}
-
+		response, err := i.client.Bulk(ctx, *r)
+		if err == nil { // http error already checked by client here - https://github.com/opensearch-project/opensearch-go/blob/v3.0.0/opensearchapi/opensearchapi.go#L110
 			cancel()
-			return bulkResponse, nil
+			return response, nil
 		}
 
-	REQUEST_FAILED:
 		cancel()
 
 		switch {
@@ -242,20 +225,4 @@ func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk
 			time.Sleep(i.retryAfter)
 		}
 	}
-}
-
-func (i *indexer) unmarshalBody(b *esapi.Response) (*bulk.Response, error) {
-	defer b.Body.Close()
-
-	buf := bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
-	if _, err := buf.ReadFrom(b.Body); err != nil {
-		return nil, fmt.Errorf("response body read failed: %w", err)
-	}
-
-	bulkResponse := &bulk.Response{}
-	if err := json.Unmarshal(buf.Bytes(), bulkResponse); err != nil {
-		return nil, fmt.Errorf("response body unmarshal failed: %w", err)
-	}
-
-	return bulkResponse, nil
 }

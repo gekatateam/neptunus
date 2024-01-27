@@ -14,7 +14,6 @@ type Json struct {
 	*core.BaseParser `mapstructure:"-"`
 }
 
-
 func (p *Json) Init() error {
 	return nil
 }

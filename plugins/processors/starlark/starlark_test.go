@@ -6,6 +6,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	common "github.com/gekatateam/neptunus/plugins/common/starlark"
 	"github.com/gekatateam/neptunus/plugins/processors/starlark"
 )
@@ -111,9 +112,14 @@ def process(event):
 		t.Run(name, func(t *testing.T) {
 			processor := &starlark.Starlark{
 				Starlark: &common.Starlark{},
+				BaseProcessor: &core.BaseProcessor{
+					Log: logger.Mock(),
+				},
 			}
-			err := processor.Init(test.config, "", "", logger.Mock())
-			if err != nil {
+			if err := mapstructure.Decode(test.config, processor); err != nil {
+				t.Fatalf("processor config not applied: %v", err)
+			}
+			if err := processor.Init(); err != nil {
 				t.Fatalf("processor not initialized: %v", err)
 			}
 
