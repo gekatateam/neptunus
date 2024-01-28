@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.kafka"
   lines = 5
-#  run = true
+  run = true
   buffer = 1_000
 
 [[inputs]]
@@ -13,20 +13,20 @@
   [inputs.httpl.filters.glob]
     alias = "t4"
 
-[[inputs]]
-  [inputs.kafka]
-    enable_metrics = true
-    client_id = "kafka-one"
-    group_id = "neptunus.kafka.input6"
-    start_offset = "last"
-    brokers = ["localhost:9092"]
-    topics = [ "neptunus.kafka.output" ]
-    commit_interval = "1s"
-    max_uncommitted = 1_000
-  [inputs.kafka.sasl]
-    mechanism = "none"
-  [inputs.kafka.parser]
-    type = "json"
+# [[inputs]]
+#   [inputs.kafka]
+#     enable_metrics = true
+#     client_id = "kafka-one"
+#     group_id = "neptunus.kafka.input6"
+#     start_offset = "last"
+#     brokers = ["localhost:9092"]
+#     topics = [ "neptunus.kafka.output" ]
+#     commit_interval = "1s"
+#     max_uncommitted = 1_000
+#   [inputs.kafka.sasl]
+#     mechanism = "none"
+#   [inputs.kafka.parser]
+#     type = "json"
 
 [[processors]]
   [processors.log]
@@ -58,11 +58,11 @@
   [outputs.kafka.filters.glob]
     routing_key = [ "neptunus.kafka.output" ] 
 
-[[outputs]]
-  [outputs.log]
-    level = "debug"
-    [outputs.log.serializer]
-      type = "json"
-      data_only = false
-  [outputs.log.filters.glob]
-    routing_key = [ "/http.input.test" ]
+# [[outputs]]
+#   [outputs.log]
+#     level = "debug"
+#     [outputs.log.serializer]
+#       type = "json"
+#       data_only = false
+#   [outputs.log.filters.glob]
+#     routing_key = [ "/http.input.test" ]

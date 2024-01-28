@@ -64,6 +64,18 @@ The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.
     # timeout for HTTP requests
     request_timeout = "10s"
 
+    # maximum number of attempts to execute bulk request
+    # before events will be marked as failed
+    # 
+    # only requests that ended with:
+    # - network timeout error 
+    # - HTTP 4xx, 5xx codes
+    # will be retried
+    retry_attempts = 0 # zero for endless attempts
+
+    # interval between retries to execute bulk request
+    retry_after = "5s"
+
     ## TLS configuration
     # if true, TLS client will be used
     tls_enable = false

@@ -33,8 +33,6 @@ type Elasticsearch struct {
 	RoutingLabel           string        `mapstructure:"routing_label"`
 	DataOnly               bool          `mapstructure:"data_only"`
 	Operation              string        `mapstructure:"operation"`
-	// MaxAttempts            int           `mapstructure:"max_attempts"`
-	// RetryAfter             time.Duration `mapstructure:"retry_after"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`

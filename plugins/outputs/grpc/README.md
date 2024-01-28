@@ -29,7 +29,7 @@ Plugin can be configured for using one of three RPCs:
 
     # maximum number of attempts of unary calls/to reopen streams
     # before the event will be marked as failed
-    max_attempts = 0 # zero for endless attempts
+    retry_attempts = 0 # zero for endless attempts
 
     ## batching settings, using only in "bulk" mode
     # interval between sending event batches if buffer length less than it's capacity

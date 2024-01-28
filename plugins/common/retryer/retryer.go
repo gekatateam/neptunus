@@ -17,7 +17,7 @@ func (r *Retryer) Do(action string, log *slog.Logger, tryFunc func() error) erro
 	for {
 		var err error
 		if err = tryFunc(); err == nil {
-			log.Debug(fmt.Sprintf("%v succeded on %v of %v attempt", action, attempts, r.RetryAttempts))
+			log.Info(fmt.Sprintf("%v succeded on %v of %v attempt", action, attempts, r.RetryAttempts))
 			return nil
 		}
 

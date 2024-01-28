@@ -3,7 +3,6 @@ package kafka
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -45,8 +44,6 @@ type Kafka struct {
 
 	writersPool *pool.Pool[*core.Event]
 
-	in  <-chan *core.Event
-	log *slog.Logger
 	ser core.Serializer
 }
 
@@ -105,8 +102,8 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		BatchTimeout:           time.Millisecond,
 		BatchBytes:             o.MaxMessageSize,
 		MaxAttempts:            1,
-		Logger:                 common.NewLogger(o.log),
-		ErrorLogger:            common.NewErrorLogger(o.log),
+		Logger:                 common.NewLogger(o.Log),
+		ErrorLogger:            common.NewErrorLogger(o.Log),
 	}
 
 	transport := &kafka.Transport{
@@ -174,7 +171,7 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		if len(o.PartitionLabel) == 0 {
 			return nil, errors.New("PartitionLabel requires for label balancer")
 		}
-		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.log}
+		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.Log}
 	case "round-robin":
 		writer.Balancer = &kafka.RoundRobin{}
 	case "least-bytes":
@@ -212,7 +209,7 @@ func (o *Kafka) Run() {
 MAIN_LOOP:
 	for {
 		select {
-		case e, ok := <-o.in:
+		case e, ok := <-o.In:
 			if !ok {
 				clearTicker.Stop()
 				break MAIN_LOOP

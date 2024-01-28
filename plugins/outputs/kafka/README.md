@@ -84,7 +84,7 @@ Target topic name takes from an event routing key. Plugin creates one writer per
     # - network timeout error 
     # - retriable error - https://kafka.apache.org/protocol#protocol_error_codes
     # will be used in next attempt
-    max_attempts = 0 # zero for endless attempts
+    retry_attempts = 0 # zero for endless attempts
 
     # interval between retries to (re-)send a batch of messages
     retry_after = "5s"
