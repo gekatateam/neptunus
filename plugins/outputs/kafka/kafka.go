@@ -16,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -35,13 +36,12 @@ type Kafka struct {
 	PartitionBalancer string            `mapstructure:"partition_balancer"`
 	PartitionLabel    string            `mapstructure:"partition_label"`
 	KeyLabel          string            `mapstructure:"key_label"`
-	MaxAttempts       int               `mapstructure:"max_attempts"`
-	RetryAfter        time.Duration     `mapstructure:"retry_after"`
 	SASL              SASL              `mapstructure:"sasl"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	*retryer.Retryer              `mapstructure:",squash"`
 
 	writersPool *pool.Pool[*core.Event]
 
@@ -83,12 +83,11 @@ func (o *Kafka) Init() error {
 			partitionLabel:    o.PartitionLabel,
 			keyLabel:          o.KeyLabel,
 			headerLabels:      o.HeaderLabels,
-			maxAttempts:       o.MaxAttempts,
-			retryAfter:        o.RetryAfter,
 			lastWrite:         time.Now(),
 			input:             make(chan *core.Event),
 			writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
-			batcher:           o.Batcher,
+			Batcher:           o.Batcher,
+			Retryer:           o.Retryer,
 			ser:               o.ser,
 		}
 	})
@@ -243,7 +242,6 @@ func init() {
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
 			MaxMessageSize:    1_048_576, // 1 MiB
-			RetryAfter:        5 * time.Second,
 			RequiredAcks:      "one",
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",
@@ -255,6 +253,10 @@ func init() {
 				Interval: 5 * time.Second,
 			},
 			TLSClientConfig: &tls.TLSClientConfig{},
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
+			},
 		}
 	})
 }

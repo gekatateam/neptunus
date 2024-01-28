@@ -19,6 +19,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/esopensearch"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
 const defaultBufferSize = 4096
@@ -33,11 +34,12 @@ type indexer struct {
 	routingLabel string
 	timeout      time.Duration
 
-	maxAttempts int
-	retryAfter  time.Duration
+	// maxAttempts int
+	// retryAfter  time.Duration
 
 	client *elasticsearch.Client
 	*batcher.Batcher[*core.Event]
+	*retryer.Retryer
 
 	input chan *core.Event
 }
@@ -198,8 +200,9 @@ func (i *indexer) Run() {
 
 func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk.Response, error) {
 	var staticBody = b.Bytes() // cache body for retries
-	var attempts int = 1
-	for {
+	var bulkResponse *bulk.Response
+
+	return bulkResponse, i.Retryer.Do("bulk request", i.Log, func() error {
 		r.Body = bytes.NewReader(bytes.Clone(staticBody))
 
 		ctx, cancel := context.WithTimeout(context.Background(), i.timeout)
@@ -210,38 +213,21 @@ func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk
 				goto REQUEST_FAILED
 			}
 
-			bulkResponse, unmarshalErr := i.unmarshalBody(response)
+			br, unmarshalErr := i.unmarshalBody(response)
 			if unmarshalErr != nil {
 				err = unmarshalErr
 				goto REQUEST_FAILED
 			}
 
 			cancel()
-			return bulkResponse, nil
+			bulkResponse = br
+			return nil
 		}
 
 	REQUEST_FAILED:
 		cancel()
-
-		switch {
-		case i.maxAttempts > 0 && attempts < i.maxAttempts:
-			i.Log.Warn(fmt.Sprintf("bulk request attempt %v of %v failed", attempts, i.maxAttempts),
-				"error", err,
-			)
-			attempts++
-			time.Sleep(i.retryAfter)
-		case i.maxAttempts > 0 && attempts >= i.maxAttempts:
-			i.Log.Error(fmt.Sprintf("bulk request failed after %v attemtps", attempts),
-				"error", err,
-			)
-			return nil, err
-		default:
-			i.Log.Error("bulk request failed",
-				"error", err,
-			)
-			time.Sleep(i.retryAfter)
-		}
-	}
+		return err
+	})
 }
 
 func (i *indexer) unmarshalBody(b *esapi.Response) (*bulk.Response, error) {

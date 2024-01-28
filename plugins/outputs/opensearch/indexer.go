@@ -14,6 +14,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/esopensearch"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
 const defaultBufferSize = 4096
@@ -28,11 +29,12 @@ type indexer struct {
 	routingLabel string
 	timeout      time.Duration
 
-	maxAttempts int
-	retryAfter  time.Duration
+	// maxAttempts int
+	// retryAfter  time.Duration
 
 	client *opensearchapi.Client
 	*batcher.Batcher[*core.Event]
+	*retryer.Retryer
 
 	input chan *core.Event
 }
@@ -193,36 +195,20 @@ func (i *indexer) Run() {
 
 func (i *indexer) perform(r *opensearchapi.BulkReq, b *esopensearch.BulkBody) (*opensearchapi.BulkResp, error) {
 	var staticBody = b.Bytes() // cache body for retries
-	var attempts int = 1
-	for {
+	var bulkResponse *opensearchapi.BulkResp
+
+	return bulkResponse, i.Retryer.Do("bulk request", i.Log, func() error {
 		r.Body = bytes.NewReader(bytes.Clone(staticBody))
 
 		ctx, cancel := context.WithTimeout(context.Background(), i.timeout)
 		response, err := i.client.Bulk(ctx, *r)
 		if err == nil { // http error already checked by client here - https://github.com/opensearch-project/opensearch-go/blob/v3.0.0/opensearchapi/opensearchapi.go#L110
 			cancel()
-			return response, nil
+			bulkResponse = response
+			return nil
 		}
 
 		cancel()
-
-		switch {
-		case i.maxAttempts > 0 && attempts < i.maxAttempts:
-			i.Log.Warn(fmt.Sprintf("bulk request attempt %v of %v failed", attempts, i.maxAttempts),
-				"error", err,
-			)
-			attempts++
-			time.Sleep(i.retryAfter)
-		case i.maxAttempts > 0 && attempts >= i.maxAttempts:
-			i.Log.Error(fmt.Sprintf("bulk request failed after %v attemtps", attempts),
-				"error", err,
-			)
-			return nil, err
-		default:
-			i.Log.Error("bulk request failed",
-				"error", err,
-			)
-			time.Sleep(i.retryAfter)
-		}
-	}
+		return err
+	})
 }

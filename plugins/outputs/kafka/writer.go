@@ -16,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
 type topicWriter struct {
@@ -29,15 +30,14 @@ type topicWriter struct {
 	keyLabel          string
 	headerLabels      map[string]string
 
-	maxAttempts int
-	retryAfter  time.Duration
-
 	lastWrite time.Time
 
 	input   chan *core.Event
 	writer  *kafka.Writer
-	batcher *batcher.Batcher[*core.Event]
 	ser     core.Serializer
+
+	*batcher.Batcher[*core.Event]
+	*retryer.Retryer
 }
 
 func (w *topicWriter) Close() error {
@@ -60,7 +60,7 @@ func (w *topicWriter) Run() {
 	w.Log.Info(fmt.Sprintf("producer for topic %v spawned", w.writer.Topic))
 	w.lastWrite = time.Now()
 
-	w.batcher.Run(w.input, func(buf []*core.Event) {
+	w.Batcher.Run(w.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
 		}
@@ -248,9 +248,123 @@ SEND_LOOP:
 			}
 		default: // any other errors are unretriable
 			for _, m := range messages {
-				tooLargeMsg := eventsStatus[m.WriterData.(uuid.UUID)]
-				tooLargeMsg.spentTime += timePerEvent
-				tooLargeMsg.error = writeErr
+				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				failedMsg.spentTime += timePerEvent
+				failedMsg.error = writeErr
+			}
+			break SEND_LOOP
+		}
+
+		switch {
+		case w.maxAttempts > 0 && attempts < w.maxAttempts:
+			w.Log.Warn(fmt.Sprintf("write %v of %v failed", attempts, w.maxAttempts),
+				"topic", w.writer.Topic,
+			)
+			attempts++
+			time.Sleep(w.retryAfter)
+		case w.maxAttempts > 0 && attempts >= w.maxAttempts:
+			w.Log.Error(fmt.Sprintf("write failed after %v attemtps", attempts),
+				"error", err,
+				"topic", w.writer.Topic,
+			)
+			break SEND_LOOP
+		default:
+			w.Log.Error("write failed",
+				"error", err,
+				"topic", w.writer.Topic,
+			)
+			time.Sleep(w.retryAfter)
+		}
+	}
+
+	return eventsStatus
+}
+
+func (w *topicWriter) write2(messages []kafka.Message, eventsStatus map[uuid.UUID]*eventMsgStatus) map[uuid.UUID]*eventMsgStatus {
+	var attempts int = 1
+
+SEND_LOOP:
+	for {
+		if len(messages) == 0 {
+			return eventsStatus
+		}
+
+		now := time.Now()
+		err := w.writer.WriteMessages(context.Background(), messages...)
+		timePerEvent := durationPerEvent(time.Since(now), len(messages))
+
+		switch writeErr := err.(type) {
+		case nil: // all messages delivered successfully
+			for _, m := range messages {
+				successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				successMsg.spentTime += timePerEvent
+				successMsg.error = nil
+			}
+			break SEND_LOOP
+		case kafka.WriteErrors:
+			var retriable []kafka.Message = nil
+			for i, m := range messages {
+				msgErr := writeErr[i]
+				if msgErr == nil { // this message delivred successfully
+					successMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					successMsg.spentTime += timePerEvent
+					successMsg.error = nil
+					continue
+				}
+
+				if kafkaErr, ok := msgErr.(kafka.Error); ok {
+					if kafkaErr.Temporary() { // timeout and temporary errors are retriable
+						retriable = append(retriable, m)
+						retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+						retriableMsg.spentTime += timePerEvent
+						retriableMsg.error = kafkaErr
+						continue
+					}
+				}
+
+				var timeoutError interface{ Timeout() bool }
+				if errors.As(msgErr, &timeoutError) && timeoutError.Timeout() { // typically it is a network io timeout
+					retriable = append(retriable, m)
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					retriableMsg.spentTime += timePerEvent
+					retriableMsg.error = msgErr
+					continue
+				}
+
+				if errors.Is(msgErr, io.ErrUnexpectedEOF) { // this error means that broker is down
+					retriable = append(retriable, m)
+					retriableMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+					retriableMsg.spentTime += timePerEvent
+					retriableMsg.error = msgErr
+					continue
+				}
+
+				// any other errors means than message cannot be produced
+				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				failedMsg.spentTime += timePerEvent
+				failedMsg.error = msgErr
+			}
+			messages = retriable
+		case kafka.MessageTooLargeError: // exclude too large message and send others
+			tooLargeMsg := eventsStatus[writeErr.Message.WriterData.(uuid.UUID)]
+			tooLargeMsg.spentTime += timePerEvent
+			tooLargeMsg.error = writeErr
+			messages = writeErr.Remaining
+		case kafka.Error:
+			for _, m := range messages {
+				kafkaMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				kafkaMsg.spentTime += timePerEvent
+				kafkaMsg.error = writeErr
+			}
+
+			if !writeErr.Temporary() { // temporary errors are retriable
+				break SEND_LOOP
+			}
+		default: // any other errors are unretriable
+			for _, m := range messages {
+				failedMsg := eventsStatus[m.WriterData.(uuid.UUID)]
+				failedMsg.spentTime += timePerEvent
+				failedMsg.error = writeErr
 			}
 			break SEND_LOOP
 		}
