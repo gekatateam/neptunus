@@ -31,14 +31,13 @@
 [[processors]]
   [processors.rk.mapping]
     "neptunus.grpc.output" = [ "/http.input.test" ]
-    "neptunus.grpc.skip" = [ "/neptunus.plugins.common.grpc.Input/SendOne" ]
+    "neptunus.grpc.skip" = [ "/neptunus.plugins.common.grpc.Input/SendBulk" , "neptunus.grpc.output" ]
 
 [[outputs]]
   [outputs.grpc]
     enable_metrics = true
     address = "localhost:5800"
-    procedure = "one"
-    max_attempts = 1
+    procedure = "stream"
     retry_after = "2s"
     batch_buffer = 100
   [outputs.grpc.serializer]

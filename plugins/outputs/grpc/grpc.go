@@ -275,7 +275,7 @@ MAIN_LOOP:
 				if stream != nil { // stream may be dead after failed attempts
 					stream.CloseSend()
 				}
-				return
+				break MAIN_LOOP
 			}
 
 			now := time.Now()
