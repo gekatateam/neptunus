@@ -90,7 +90,7 @@ func (o *Grpc) Init() error {
 	o.callOpts = callOptions(o.CallOptions)
 
 	switch o.Procedure {
-	case "unary":
+	case "one":
 		o.sendFn = o.sendOne
 	case "bulk":
 		o.sendFn = o.sendBulk
@@ -422,6 +422,7 @@ func callOptions(opts CallOptions) []grpc.CallOption {
 func init() {
 	plugins.AddOutput("grpc", func() core.Output {
 		return &Grpc{
+			Procedure: "bulk",
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,

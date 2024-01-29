@@ -136,8 +136,6 @@ func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 		operation:    o.Operation,
 		routingLabel: o.RoutingLabel,
 		timeout:      o.RequestTimeout,
-		// maxAttempts:  o.MaxAttempts,
-		// retryAfter:   o.RetryAfter,
 		client:  o.client,
 		Batcher: o.Batcher,
 		Retryer: o.Retryer,
@@ -161,7 +159,6 @@ func init() {
 			IdleTimeout:       1 * time.Hour,
 			DataOnly:          true,
 			Operation:         "create",
-			//			RetryAfter:        5 * time.Second,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,

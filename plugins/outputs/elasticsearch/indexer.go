@@ -34,9 +34,6 @@ type indexer struct {
 	routingLabel string
 	timeout      time.Duration
 
-	// maxAttempts int
-	// retryAfter  time.Duration
-
 	client *elasticsearch.Client
 	*batcher.Batcher[*core.Event]
 	*retryer.Retryer

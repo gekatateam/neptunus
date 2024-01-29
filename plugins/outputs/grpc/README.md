@@ -21,7 +21,7 @@ Plugin can be configured for using one of three RPCs:
     # https://grpc.github.io/grpc/core/md_doc_naming.html
     address = "localhost:5800"
 
-    # procedure to be used by plugin, "unary", "bulk", or "stream"
+    # procedure to be used by plugin, "one", "bulk", or "stream"
     procedure = "bulk"
 
     # interval between retries to (re-)establish a connection

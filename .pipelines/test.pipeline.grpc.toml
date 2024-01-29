@@ -1,14 +1,14 @@
 [settings]
   id = "test.pipeline.grpc"
-  lines = 5
-  run = false
+  lines = 1
+  run = true
   buffer = 1_000
 
 [[inputs]]
   [inputs.httpl]
     address = ":9200"
     max_connections = 10
-    tls_enable = true
+    tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
@@ -31,13 +31,13 @@
 [[processors]]
   [processors.rk.mapping]
     "neptunus.grpc.output" = [ "/http.input.test" ]
-    "neptunus.grpc.skip" = [ "/neptunus.plugins.common.grpc/SendBulk" ]
+    "neptunus.grpc.skip" = [ "/neptunus.plugins.common.grpc.Input/SendOne" ]
 
 [[outputs]]
   [outputs.grpc]
     enable_metrics = true
     address = "localhost:5800"
-    procedure = "bulk"
+    procedure = "one"
     max_attempts = 1
     retry_after = "2s"
     batch_buffer = 100
