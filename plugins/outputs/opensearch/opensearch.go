@@ -13,18 +13,15 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 type Opensearch struct {
-	*core.BaseOutput `mapstructure:"-"`
-	URLs             []string `mapstructure:"urls"`
-	Username         string   `mapstructure:"username"`
-	Password         string   `mapstructure:"password"`
-	// ServiceToken           string        `mapstructure:"service_token"` // Service token for authorization; if set, overrides username/password.
-	// APIKey                 string        `mapstructure:"api_key"`       // Base64-encoded token for authorization; if set, overrides username/password and service token.
-	// CloudID                string        `mapstructure:"cloud_id"`
-	// CertificateFingerprint string        `mapstructure:"cert_fingerprint"` // SHA256 hex fingerprint given by Elasticsearch on first launch.
+	*core.BaseOutput  `mapstructure:"-"`
+	URLs              []string      `mapstructure:"urls"`
+	Username          string        `mapstructure:"username"`
+	Password          string        `mapstructure:"password"`
 	EnableCompression bool          `mapstructure:"enable_compression"`
 	DiscoverInterval  time.Duration `mapstructure:"discover_interval"`
 	RequestTimeout    time.Duration `mapstructure:"request_timeout"`
@@ -33,11 +30,10 @@ type Opensearch struct {
 	RoutingLabel      string        `mapstructure:"routing_label"`
 	DataOnly          bool          `mapstructure:"data_only"`
 	Operation         string        `mapstructure:"operation"`
-	MaxAttempts       int           `mapstructure:"max_attempts"`
-	RetryAfter        time.Duration `mapstructure:"retry_after"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	*retryer.Retryer              `mapstructure:",squash"`
 
 	client       *opensearchapi.Client
 	indexersPool *pool.Pool[*core.Event]
@@ -134,10 +130,9 @@ func (o *Opensearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 		operation:    o.Operation,
 		routingLabel: o.RoutingLabel,
 		timeout:      o.RequestTimeout,
-		maxAttempts:  o.MaxAttempts,
-		retryAfter:   o.RetryAfter,
 		client:       o.client,
 		Batcher:      o.Batcher,
+		Retryer:      o.Retryer,
 		input:        make(chan *core.Event),
 	}
 }
@@ -158,12 +153,15 @@ func init() {
 			IdleTimeout:       1 * time.Hour,
 			DataOnly:          true,
 			Operation:         "create",
-			RetryAfter:        5 * time.Second,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
 			},
 			TLSClientConfig: &tls.TLSClientConfig{},
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
+			},
 		}
 	})
 }

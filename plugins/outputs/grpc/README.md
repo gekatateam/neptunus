@@ -21,7 +21,7 @@ Plugin can be configured for using one of three RPCs:
     # https://grpc.github.io/grpc/core/md_doc_naming.html
     address = "localhost:5800"
 
-    # procedure to be used by plugin, "unary", "bulk", or "stream"
+    # procedure to be used by plugin, "one", "bulk", or "stream"
     procedure = "bulk"
 
     # interval between retries to (re-)establish a connection
@@ -29,7 +29,7 @@ Plugin can be configured for using one of three RPCs:
 
     # maximum number of attempts of unary calls/to reopen streams
     # before the event will be marked as failed
-    max_attempts = 0 # zero for endless attempts
+    retry_attempts = 0 # zero for endless attempts
 
     ## batching settings, using only in "bulk" mode
     # interval between sending event batches if buffer length less than it's capacity

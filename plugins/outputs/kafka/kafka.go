@@ -3,7 +3,6 @@ package kafka
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -16,6 +15,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -35,18 +35,15 @@ type Kafka struct {
 	PartitionBalancer string            `mapstructure:"partition_balancer"`
 	PartitionLabel    string            `mapstructure:"partition_label"`
 	KeyLabel          string            `mapstructure:"key_label"`
-	MaxAttempts       int               `mapstructure:"max_attempts"`
-	RetryAfter        time.Duration     `mapstructure:"retry_after"`
 	SASL              SASL              `mapstructure:"sasl"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	*retryer.Retryer              `mapstructure:",squash"`
 
 	writersPool *pool.Pool[*core.Event]
 
-	in  <-chan *core.Event
-	log *slog.Logger
 	ser core.Serializer
 }
 
@@ -83,12 +80,11 @@ func (o *Kafka) Init() error {
 			partitionLabel:    o.PartitionLabel,
 			keyLabel:          o.KeyLabel,
 			headerLabels:      o.HeaderLabels,
-			maxAttempts:       o.MaxAttempts,
-			retryAfter:        o.RetryAfter,
 			lastWrite:         time.Now(),
 			input:             make(chan *core.Event),
 			writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
-			batcher:           o.Batcher,
+			Batcher:           o.Batcher,
+			Retryer:           o.Retryer,
 			ser:               o.ser,
 		}
 	})
@@ -106,8 +102,8 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		BatchTimeout:           time.Millisecond,
 		BatchBytes:             o.MaxMessageSize,
 		MaxAttempts:            1,
-		Logger:                 common.NewLogger(o.log),
-		ErrorLogger:            common.NewErrorLogger(o.log),
+		Logger:                 common.NewLogger(o.Log),
+		ErrorLogger:            common.NewErrorLogger(o.Log),
 	}
 
 	transport := &kafka.Transport{
@@ -175,7 +171,7 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		if len(o.PartitionLabel) == 0 {
 			return nil, errors.New("PartitionLabel requires for label balancer")
 		}
-		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.log}
+		writer.Balancer = &labelBalancer{label: o.PartitionLabel, log: o.Log}
 	case "round-robin":
 		writer.Balancer = &kafka.RoundRobin{}
 	case "least-bytes":
@@ -213,7 +209,7 @@ func (o *Kafka) Run() {
 MAIN_LOOP:
 	for {
 		select {
-		case e, ok := <-o.in:
+		case e, ok := <-o.In:
 			if !ok {
 				clearTicker.Stop()
 				break MAIN_LOOP
@@ -243,7 +239,6 @@ func init() {
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
 			MaxMessageSize:    1_048_576, // 1 MiB
-			RetryAfter:        5 * time.Second,
 			RequiredAcks:      "one",
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",
@@ -255,6 +250,10 @@ func init() {
 				Interval: 5 * time.Second,
 			},
 			TLSClientConfig: &tls.TLSClientConfig{},
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
+			},
 		}
 	})
 }

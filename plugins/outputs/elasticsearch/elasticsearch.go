@@ -12,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -32,11 +33,10 @@ type Elasticsearch struct {
 	RoutingLabel           string        `mapstructure:"routing_label"`
 	DataOnly               bool          `mapstructure:"data_only"`
 	Operation              string        `mapstructure:"operation"`
-	MaxAttempts            int           `mapstructure:"max_attempts"`
-	RetryAfter             time.Duration `mapstructure:"retry_after"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	*retryer.Retryer              `mapstructure:",squash"`
 
 	client       *elasticsearch.Client
 	indexersPool *pool.Pool[*core.Event]
@@ -136,11 +136,10 @@ func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 		operation:    o.Operation,
 		routingLabel: o.RoutingLabel,
 		timeout:      o.RequestTimeout,
-		maxAttempts:  o.MaxAttempts,
-		retryAfter:   o.RetryAfter,
-		client:       o.client,
-		Batcher:      o.Batcher,
-		input:        make(chan *core.Event),
+		client:  o.client,
+		Batcher: o.Batcher,
+		Retryer: o.Retryer,
+		input:   make(chan *core.Event),
 	}
 }
 
@@ -160,12 +159,15 @@ func init() {
 			IdleTimeout:       1 * time.Hour,
 			DataOnly:          true,
 			Operation:         "create",
-			RetryAfter:        5 * time.Second,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
 			},
 			TLSClientConfig: &tls.TLSClientConfig{},
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
+			},
 		}
 	})
 }
