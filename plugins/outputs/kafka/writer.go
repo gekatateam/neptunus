@@ -32,9 +32,9 @@ type topicWriter struct {
 
 	lastWrite time.Time
 
-	input   chan *core.Event
-	writer  *kafka.Writer
-	ser     core.Serializer
+	input  chan *core.Event
+	writer *kafka.Writer
+	ser    core.Serializer
 
 	*batcher.Batcher[*core.Event]
 	*retryer.Retryer

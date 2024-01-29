@@ -18,10 +18,10 @@ import (
 )
 
 type Opensearch struct {
-	*core.BaseOutput `mapstructure:"-"`
-	URLs             []string `mapstructure:"urls"`
-	Username         string   `mapstructure:"username"`
-	Password         string   `mapstructure:"password"`
+	*core.BaseOutput  `mapstructure:"-"`
+	URLs              []string      `mapstructure:"urls"`
+	Username          string        `mapstructure:"username"`
+	Password          string        `mapstructure:"password"`
 	EnableCompression bool          `mapstructure:"enable_compression"`
 	DiscoverInterval  time.Duration `mapstructure:"discover_interval"`
 	RequestTimeout    time.Duration `mapstructure:"request_timeout"`

@@ -29,9 +29,6 @@ type indexer struct {
 	routingLabel string
 	timeout      time.Duration
 
-	// maxAttempts int
-	// retryAfter  time.Duration
-
 	client *opensearchapi.Client
 	*batcher.Batcher[*core.Event]
 	*retryer.Retryer
