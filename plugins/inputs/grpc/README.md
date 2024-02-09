@@ -44,7 +44,7 @@ Plugin behavoiur depends on the procedure being called:
     # gRPC server options
     [inputs.grpc.server_options]
       # max size of input and output messages in bytes
-      max_message_size = 4_194_304
+      max_message_size = "4MiB"
 
       # number of worker goroutines that should be used to process incoming streams
       num_stream_workers = 5

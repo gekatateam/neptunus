@@ -70,7 +70,7 @@ If commit queue is full, fetching is suspended until at least one message is com
     wait_batch_timeout = "3s"
 
     # maximum batch size that the consumer will accept
-    max_batch_size = 1_048_576 # 1 MiB
+    max_batch_size = "1MiB"
 
     # maximum length of internal uncommitted messages queue
     max_uncommitted = 100

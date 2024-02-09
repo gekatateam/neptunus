@@ -136,10 +136,10 @@ func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 		operation:    o.Operation,
 		routingLabel: o.RoutingLabel,
 		timeout:      o.RequestTimeout,
-		client:  o.client,
-		Batcher: o.Batcher,
-		Retryer: o.Retryer,
-		input:   make(chan *core.Event),
+		client:       o.client,
+		Batcher:      o.Batcher,
+		Retryer:      o.Retryer,
+		input:        make(chan *core.Event),
 	}
 }
 

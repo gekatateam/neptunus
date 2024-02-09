@@ -10,6 +10,8 @@ import (
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
 
+	"kythe.io/kythe/go/util/datasize"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
@@ -27,7 +29,7 @@ type Kafka struct {
 	IdleTimeout       time.Duration     `mapstructure:"idle_timeout"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	WriteTimeout      time.Duration     `mapstructure:"write_timeout"`
-	MaxMessageSize    int64             `mapstructure:"max_message_size"`
+	MaxMessageSize    datasize.Size     `mapstructure:"max_message_size"`
 	TopicsAutocreate  bool              `mapstructure:"topics_autocreate"`
 	Compression       string            `mapstructure:"compression"`
 	RequiredAcks      string            `mapstructure:"required_acks"`
@@ -100,7 +102,7 @@ func (o *Kafka) newWriter(topic string) (*kafka.Writer, error) {
 		AllowAutoTopicCreation: o.TopicsAutocreate,
 		WriteTimeout:           o.WriteTimeout,
 		BatchTimeout:           time.Millisecond,
-		BatchBytes:             o.MaxMessageSize,
+		BatchBytes:             int64(o.MaxMessageSize.Bytes()),
 		MaxAttempts:            1,
 		Logger:                 common.NewLogger(o.Log),
 		ErrorLogger:            common.NewErrorLogger(o.Log),
@@ -238,7 +240,7 @@ func init() {
 			IdleTimeout:       1 * time.Hour,
 			DialTimeout:       5 * time.Second,
 			WriteTimeout:      5 * time.Second,
-			MaxMessageSize:    1_048_576, // 1 MiB
+			MaxMessageSize:    datasize.Mebibyte,
 			RequiredAcks:      "one",
 			Compression:       "none",
 			PartitionBalancer: "least-bytes",

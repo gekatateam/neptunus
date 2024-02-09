@@ -39,7 +39,7 @@ Target topic name takes from an event routing key. Plugin creates one writer per
 
     # kafka message maximum size in bytes
     # too large messages will be dropped
-    max_message_size = 1_048_576 # 1 MiB
+    max_message_size = "1MiB"
 
     # when true, client create topics if they are not exists
     topics_autocreate = false
