@@ -13,6 +13,7 @@ import (
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
+	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
@@ -38,7 +39,7 @@ type Kafka struct {
 	ReadBatchTimeout     time.Duration     `mapstructure:"read_batch_timeout"`
 	WaitBatchTimeout     time.Duration     `mapstructure:"wait_batch_timeout"`
 	StartOffset          string            `mapstructure:"start_offset"`
-	MaxBatchSize         int               `mapstructure:"max_batch_size"`
+	MaxBatchSize         datasize.Size     `mapstructure:"max_batch_size"`
 	MaxUncommitted       int               `mapstructure:"max_uncommitted"`
 	CommitInterval       time.Duration     `mapstructure:"commit_interval"`
 	SASL                 SASL              `mapstructure:"sasl"`
@@ -70,6 +71,8 @@ func (i *Kafka) Init() (err error) {
 			}
 		}
 	}()
+
+	println(i.MaxBatchSize.Bytes())
 
 	if len(i.Brokers) == 0 {
 		return errors.New("at least one broker address required")
@@ -171,7 +174,7 @@ func (i *Kafka) Init() (err error) {
 				SASLMechanism: m,
 				TLS:           tlsConfig,
 			},
-			MaxBytes:              i.MaxBatchSize,
+			MaxBytes:              int(i.MaxBatchSize.Bytes()),
 			QueueCapacity:         100, // <-
 			MaxAttempts:           1,
 			WatchPartitionChanges: true,
@@ -275,7 +278,7 @@ func init() {
 			WaitBatchTimeout:  3 * time.Second,
 			MaxUncommitted:    100,
 			CommitInterval:    300 * time.Millisecond,
-			MaxBatchSize:      1_048_576, // 1 MiB,
+			MaxBatchSize:      datasize.Mebibyte, // 1 MiB,
 			SASL: SASL{
 				Mechanism: "none",
 			},

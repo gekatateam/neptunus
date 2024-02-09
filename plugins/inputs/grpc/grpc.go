@@ -18,6 +18,8 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
+	"kythe.io/kythe/go/util/datasize"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
@@ -51,9 +53,9 @@ type Grpc struct {
 type ServerOptions struct {
 	// main server options
 	// TODO: add r/w buffers ortions
-	MaxMessageSize       int    `mapstructure:"max_message_size"`
-	NumStreamWorkers     uint32 `mapstructure:"num_stream_workers"`
-	MaxConcurrentStreams uint32 `mapstructure:"max_concurrent_streams"`
+	MaxMessageSize       datasize.Size `mapstructure:"max_message_size"`
+	NumStreamWorkers     uint32        `mapstructure:"num_stream_workers"`
+	MaxConcurrentStreams uint32        `mapstructure:"max_concurrent_streams"`
 
 	// keepalive server options
 	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`     // ServerParameters.MaxConnectionIdle
@@ -93,8 +95,8 @@ func (i *Grpc) Init() error {
 	i.listener = listener
 
 	options := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(i.ServerOptions.MaxMessageSize),
-		grpc.MaxSendMsgSize(i.ServerOptions.MaxMessageSize),
+		grpc.MaxRecvMsgSize(int(i.ServerOptions.MaxMessageSize.Bytes())),
+		grpc.MaxSendMsgSize(int(i.ServerOptions.MaxMessageSize.Bytes())),
 		grpc.NumStreamWorkers(i.ServerOptions.NumStreamWorkers),
 		grpc.MaxConcurrentStreams(i.ServerOptions.MaxConcurrentStreams),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
@@ -351,7 +353,7 @@ func init() {
 		return &Grpc{
 			Address: ":5800",
 			ServerOptions: ServerOptions{
-				MaxMessageSize:        4 * 1024 * 1024, // 4 MiB
+				MaxMessageSize:        4 * datasize.Mebibyte, // 4 MiB
 				NumStreamWorkers:      5,
 				MaxConcurrentStreams:  5,
 				MaxConnectionIdle:     0,

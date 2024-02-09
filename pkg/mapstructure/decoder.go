@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"time"
 
+	"kythe.io/kythe/go/util/datasize"
+
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -13,6 +15,7 @@ func Decode(input any, output any) error {
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			ToTimeHookFunc(),
 			ToTimeDurationHookFunc(),
+			ToByteSizeHookFunc(),
 		),
 		Result: output,
 	})
@@ -30,7 +33,7 @@ func ToTimeHookFunc() mapstructure.DecodeHookFunc {
 	return func(
 		f reflect.Type,
 		t reflect.Type,
-		data interface{}) (interface{}, error) {
+		data any) (any, error) {
 		if t != reflect.TypeOf(time.Time{}) {
 			return data, nil
 		}
@@ -53,7 +56,7 @@ func ToTimeDurationHookFunc() mapstructure.DecodeHookFunc {
 	return func(
 		f reflect.Type,
 		t reflect.Type,
-		data interface{}) (interface{}, error) {
+		data any) (any, error) {
 		if t != reflect.TypeOf(time.Duration(5)) {
 			return data, nil
 		}
@@ -63,6 +66,26 @@ func ToTimeDurationHookFunc() mapstructure.DecodeHookFunc {
 			return time.ParseDuration(data.(string))
 		case reflect.Int64:
 			return time.Duration(data.(int64)), nil
+		default:
+			return data, nil
+		}
+	}
+}
+
+func ToByteSizeHookFunc() mapstructure.DecodeHookFunc {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data any) (any, error) {
+		if t != reflect.TypeOf(datasize.Size(5)) {
+			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			return datasize.Parse(data.(string))
+		case reflect.Uint64:
+			return datasize.Size(data.(uint64)), nil
 		default:
 			return data, nil
 		}

@@ -59,4 +59,5 @@ require (
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09
 	golang.org/x/net v0.19.0
 	golang.org/x/sys v0.16.0 // indirect
+	kythe.io v0.0.64
 )
