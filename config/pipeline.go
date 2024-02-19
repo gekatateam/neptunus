@@ -16,6 +16,7 @@ type Pipeline struct {
 	Inputs     []PluginSet  `toml:"inputs"     yaml:"inputs"     json:"inputs"`
 	Processors []PluginSet  `toml:"processors" yaml:"processors" json:"processors"`
 	Outputs    []PluginSet  `toml:"outputs"    yaml:"outputs"    json:"outputs"`
+	Keykeepers []PluginSet  `toml:"keykeepers" yaml:"keykeepers" json:"keykeepers"`
 }
 
 type PipeSettings struct {

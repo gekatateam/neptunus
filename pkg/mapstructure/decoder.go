@@ -9,15 +9,20 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func Decode(input any, output any) error {
+func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
+	hooks = append(hooks,
+		ToTimeHookFunc(),
+		ToTimeDurationHookFunc(),
+		ToByteSizeHookFunc(),
+	)
+
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Metadata: nil,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			ToTimeHookFunc(),
-			ToTimeDurationHookFunc(),
-			ToByteSizeHookFunc(),
+			hooks...,
 		),
-		Result: output,
+		Result:           output,
+		WeaklyTypedInput: true,
 	})
 	if err != nil {
 		return err

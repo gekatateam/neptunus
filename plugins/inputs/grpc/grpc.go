@@ -123,6 +123,8 @@ func (i *Grpc) Init() error {
 	i.sendOneDesc = "/" + common.Input_ServiceDesc.ServiceName + "/" + common.Input_ServiceDesc.Methods[0].MethodName
 	i.sendBulkDesc = "/" + common.Input_ServiceDesc.ServiceName + "/" + common.Input_ServiceDesc.Streams[0].StreamName
 
+	println(i.ServerOptions.MaxConnectionIdle.String())
+
 	return nil
 }
 

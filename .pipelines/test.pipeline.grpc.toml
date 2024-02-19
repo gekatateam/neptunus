@@ -4,6 +4,10 @@
   run = true
   buffer = 1_000
 
+[[keykeepers]]
+  [keykeepers.env]
+    alias = "envs"
+
 [[inputs]]
   [inputs.httpl]
     address = ":9200"

@@ -3,6 +3,7 @@ package ider
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/gekatateam/neptunus/core"
@@ -19,6 +20,8 @@ var sources = map[string]struct{}{
 	"field": {},
 }
 
+var idConfigPattern = regexp.MustCompile(`^([a-z]+):([\w-\.]+)$`)
+
 // Ider is a helper to keep origin event Id.
 type Ider struct {
 	IdFrom string `mapstructure:"id_from"`
@@ -32,35 +35,17 @@ func (i *Ider) Init() error {
 		return nil
 	}
 
-	var (
-		source []rune
-		path   []rune
-		next   bool
-	)
-
-	for _, r := range i.IdFrom {
-		if r == ':' && !next {
-			next = true
-			continue
-		}
-
-		if next {
-			path = append(path, r)
-		} else {
-			source = append(source, r)
-		}
+	match := idConfigPattern.FindStringSubmatch(i.IdFrom)
+	if len(match) != 3 {
+		return errors.New("id_from: bad format, expected 'source:path'")
 	}
 
-	if len(source) == 0 || len(path) == 0 {
-		return errors.New("id_from: bad format, expected 'type:path'")
-	}
+	i.source = match[1]
+	i.path = match[2]
 
-	if _, ok := sources[string(source)]; !ok {
-		return fmt.Errorf("id_from: unknown type: %v; expected one of: label, field", string(source))
+	if _, ok := sources[i.source]; !ok {
+		return fmt.Errorf("id_from: unknown type: %v; expected one of: label, field", i.source)
 	}
-
-	i.path = string(path)
-	i.source = string(source)
 
 	return nil
 }
@@ -93,6 +78,8 @@ func (i *Ider) Apply(e *core.Event) {
 				e.Id = strconv.FormatFloat(float64(value), 'f', -1, 64)
 			case string:
 				e.Id = value
+			case []byte:
+				e.Id = string(value)
 			}
 		}
 	}

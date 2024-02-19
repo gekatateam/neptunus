@@ -113,3 +113,21 @@ func GetSerializer(key string) (serializerFunc, bool) {
 	p, ok := serializers[key]
 	return p, ok
 }
+
+// keykeepers
+type keykeeperFunc func() core.Keykeeper
+
+var keykeepers = make(map[string]keykeeperFunc)
+
+func AddKeykeeper(key string, p keykeeperFunc) {
+	if _, exists := keykeepers[key]; exists {
+		panic(fmt.Errorf("duplicate keykeeper func added: %v", key))
+	}
+
+	keykeepers[key] = p
+}
+
+func GetKeykeeper(key string) (keykeeperFunc, bool) {
+	p, ok := keykeepers[key]
+	return p, ok
+}

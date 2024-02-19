@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"regexp"
 	"sync"
 
 	"github.com/gekatateam/neptunus/config"
@@ -19,6 +20,7 @@ import (
 
 	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
+	_ "github.com/gekatateam/neptunus/plugins/keykeepers"
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
 	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
@@ -34,6 +36,8 @@ const (
 	StateRunning  state = "running"
 	StateStopped  state = "stopped"
 )
+
+var keyConfigPattern = regexp.MustCompile(`^@{(.+):(.+)}$`)
 
 // at this moment it is not possible to combine sets into a generic type
 // like:
@@ -70,6 +74,8 @@ type Pipeline struct {
 
 	state   state
 	lastErr error
+
+	keepers map[string]core.Keykeeper
 	outs    []outputSet
 	procs   [][]procSet
 	ins     []inputSet
@@ -77,12 +83,13 @@ type Pipeline struct {
 
 func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 	return &Pipeline{
-		config: config,
-		log:    log,
-		state:  StateCreated,
-		outs:   make([]outputSet, 0, len(config.Outputs)),
-		procs:  make([][]procSet, 0, config.Settings.Lines),
-		ins:    make([]inputSet, 0, len(config.Inputs)),
+		config:  config,
+		log:     log,
+		state:   StateCreated,
+		keepers: make(map[string]core.Keykeeper),
+		outs:    make([]outputSet, 0, len(config.Outputs)),
+		procs:   make([][]procSet, 0, config.Settings.Lines),
+		ins:     make([]inputSet, 0, len(config.Inputs)),
 	}
 }
 
@@ -99,6 +106,10 @@ func (p *Pipeline) Config() *config.Pipeline {
 }
 
 func (p *Pipeline) Close() error {
+	for _, k := range p.keepers {
+		k.Close()
+	}
+
 	for _, set := range p.ins {
 		set.i.Close()
 		for _, f := range set.f {
@@ -126,6 +137,14 @@ func (p *Pipeline) Close() error {
 
 func (p *Pipeline) Test() error {
 	var err error
+	if err = p.configureKeykeepers(); err != nil {
+		p.log.Error("keykeepers confiruration test failed",
+			"error", err.Error(),
+		)
+		goto PIPELINE_TEST_FAILED
+	}
+	p.log.Info("keykeepers confiruration has no errors")
+
 	if err = p.configureInputs(); err != nil {
 		p.log.Error("inputs confiruration test failed",
 			"error", err.Error(),
@@ -157,6 +176,12 @@ PIPELINE_TEST_FAILED:
 }
 
 func (p *Pipeline) Build() error {
+	if err := p.configureKeykeepers(); err != nil {
+		p.lastErr = err
+		return err
+	}
+	p.log.Debug("keykeepers confiruration has no errors")
+
 	if err := p.configureInputs(); err != nil {
 		p.lastErr = err
 		return err
@@ -294,6 +319,49 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.state = StateStopped
 }
 
+func (p *Pipeline) configureKeykeepers() error {
+	for index, keykeepers := range p.config.Keykeepers {
+		for plugin, keeperCfg := range keykeepers {
+			keeperFunc, ok := plugins.GetKeykeeper(plugin)
+			if !ok {
+				return fmt.Errorf("unknown keykeeper plugin in pipeline configuration: %v", plugin)
+			}
+			keykeeper := keeperFunc()
+
+			var alias = fmt.Sprintf("keykeeper:%v:%v", plugin, index)
+			if len(keeperCfg.Alias()) > 0 {
+				alias = keeperCfg.Alias()
+			}
+
+			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName("BaseKeykeeper")
+			if baseField.IsValid() && baseField.CanSet() {
+				baseField.Set(reflect.ValueOf(&core.BaseKeykeeper{
+					Alias:    alias,
+					Plugin:   plugin,
+					Pipeline: p.config.Settings.Id,
+					Log: p.log.With(slog.Group("keykeeper",
+						"plugin", plugin,
+						"name", alias,
+					)),
+				}))
+			} else {
+				return fmt.Errorf("%v keykeeper plugin does not contains BaseKeykeeper", plugin)
+			}
+
+			if err := mapstructure.Decode(keeperCfg, keykeeper, p.decodeHook()); err != nil {
+				return fmt.Errorf("%v keykeeper configuration mapping error: %v", plugin, err.Error())
+			}
+
+			if err := keykeeper.Init(); err != nil {
+				return fmt.Errorf("%v keykeeper initialization error: %v", plugin, err.Error())
+			}
+
+			p.keepers[alias] = keykeeper
+		}
+	}
+	return nil
+}
+
 func (p *Pipeline) configureOutputs() error {
 	if len(p.config.Outputs) == 0 {
 		return errors.New("at least one output required")
@@ -358,7 +426,7 @@ func (p *Pipeline) configureOutputs() error {
 				return fmt.Errorf("%v output plugin does not contains BaseOutput", plugin)
 			}
 
-			if err := mapstructure.Decode(outputCfg, output); err != nil {
+			if err := mapstructure.Decode(outputCfg, output, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v output configuration mapping error: %v", plugin, err.Error())
 			}
 
@@ -444,7 +512,7 @@ func (p *Pipeline) configureProcessors() error {
 					return fmt.Errorf("%v processor plugin does not contains BaseProcessor", plugin)
 				}
 
-				if err := mapstructure.Decode(processorCfg, processor); err != nil {
+				if err := mapstructure.Decode(processorCfg, processor, p.decodeHook()); err != nil {
 					return fmt.Errorf("%v processor configuration mapping error: %v", plugin, err.Error())
 				}
 
@@ -529,7 +597,7 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("%v input plugin does not contains BaseInput", plugin)
 			}
 
-			if err := mapstructure.Decode(inputCfg, input); err != nil {
+			if err := mapstructure.Decode(inputCfg, input, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v input configuration mapping error: %v", plugin, err.Error())
 			}
 
@@ -608,7 +676,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			return nil, fmt.Errorf("%v filter plugin does not contains BaseInput", plugin)
 		}
 
-		if err := mapstructure.Decode(filterCfg, filter); err != nil {
+		if err := mapstructure.Decode(filterCfg, filter, p.decodeHook()); err != nil {
 			return nil, fmt.Errorf("%v filter configuration mapping error: %v", plugin, err.Error())
 		}
 
@@ -654,7 +722,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		return nil, fmt.Errorf("%v parser plugin does not contains BaseParser", plugin)
 	}
 
-	if err := mapstructure.Decode(parserCfg, parser); err != nil {
+	if err := mapstructure.Decode(parserCfg, parser, p.decodeHook()); err != nil {
 		return nil, fmt.Errorf("%v parser configuration mapping error: %v", plugin, err.Error())
 	}
 
@@ -698,7 +766,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("%v serializer plugin does not contains BaseSerializer", plugin)
 	}
 
-	if err := mapstructure.Decode(serCfg, serializer); err != nil {
+	if err := mapstructure.Decode(serCfg, serializer, p.decodeHook()); err != nil {
 		return nil, fmt.Errorf("%v serializer configuration mapping error: %v", plugin, err.Error())
 	}
 
@@ -707,4 +775,26 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 	}
 
 	return serializer, nil
+}
+
+func (p *Pipeline) decodeHook() func(f reflect.Type, _ reflect.Type, data any) (any, error) {
+	return func(
+		f reflect.Type,
+		_ reflect.Type,
+		data any) (any, error) {
+		if f.Kind() != reflect.String {
+			return data, nil
+		}
+
+		if match := keyConfigPattern.FindStringSubmatch(data.(string)); len(match) == 3 {
+			k, ok := p.keepers[match[1]]
+			if !ok {
+				return nil, fmt.Errorf("keykeeper not specified in configuration or still not initialized: %v", match[1])
+			}
+
+			return k.Get(match[2])
+		}
+
+		return data, nil
+	}
 }
