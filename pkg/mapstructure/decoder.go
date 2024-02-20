@@ -17,10 +17,8 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 	)
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Metadata: nil,
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			hooks...,
-		),
+		Metadata:         nil,
+		DecodeHook:       mapstructure.ComposeDecodeHookFunc(hooks...),
 		Result:           output,
 		WeaklyTypedInput: true,
 	})
@@ -28,10 +26,7 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 		return err
 	}
 
-	if err := decoder.Decode(input); err != nil {
-		return err
-	}
-	return err
+	return decoder.Decode(input)
 }
 
 func ToTimeHookFunc() mapstructure.DecodeHookFunc {
