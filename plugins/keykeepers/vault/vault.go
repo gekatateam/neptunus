@@ -16,7 +16,7 @@ import (
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-var secretKeyPattern = regexp.MustCompile(`([a-zA-Z_-/]+)#([a-zA-Z_-\.]+)`)
+var secretKeyPattern = regexp.MustCompile(`([a-zA-Z_\-/]+)#([a-zA-Z_\-\.]+)`)
 
 type Vault struct {
 	*core.BaseKeykeeper `mapstructure:"-"`
@@ -34,11 +34,13 @@ type Vault struct {
 }
 
 type Approle struct {
-	RoleId   string `mapstructure:"role_id"`
-	SecretId string `mapstructure:"secret_id"`
+	MountPath string `mapstructure:"mount_path"`
+	RoleId    string `mapstructure:"role_id"`
+	SecretId  string `mapstructure:"secret_id"`
 }
 
 type K8s struct {
+	MountPath string `mapstructure:"mount_path"`
 	Role      string `mapstructure:"role"`
 	TokenPath string `mapstructure:"token_path"`
 }
@@ -68,8 +70,8 @@ func (k *Vault) Init() error {
 	httpTransport.TLSClientConfig = tlscfg
 
 	client, err := vault.New(
-		vault.WithAddress(k.Address),
 		vault.WithConfiguration(cfg),
+		vault.WithAddress(k.Address),
 	)
 	if err != nil {
 		return err
@@ -81,7 +83,7 @@ func (k *Vault) Init() error {
 		resp, err := k.client.Auth.AppRoleLogin(context.Background(), schema.AppRoleLoginRequest{
 			RoleId:   k.Approle.RoleId,
 			SecretId: k.Approle.SecretId,
-		}, vault.WithMountPath(k.MountPath))
+		}, vault.WithMountPath(k.Approle.MountPath))
 		if err != nil {
 			return fmt.Errorf("approle authentication failed: %w", err)
 		}
@@ -100,9 +102,9 @@ func (k *Vault) Init() error {
 		}
 
 		resp, err := k.client.Auth.KubernetesLogin(context.Background(), schema.KubernetesLoginRequest{
-			Jwt: string(jwt),
+			Jwt:  string(jwt),
 			Role: k.K8s.Role,
-		})
+		}, vault.WithMountPath(k.K8s.MountPath))
 		if err != nil {
 			return fmt.Errorf("kubernetes authentication failed: %w", err)
 		}
@@ -122,7 +124,56 @@ CLIENT_AUTH_SUCCESS:
 }
 
 func (k *Vault) Get(key string) (any, error) {
-	return nil, nil
+	match := secretKeyPattern.FindStringSubmatch(key)
+	if len(match) != 3 {
+		return nil, errors.New("key request does not match the pattern")
+	}
+
+	path, secret := match[1], match[2]
+	if len(k.PathPrefix) > 0 {
+		path = k.PathPrefix + "/" + path
+	}
+
+	switch k.KvVersion {
+	case "v1":
+		return k.readV1(path, secret)
+	case "v2":
+		return k.readV2(path, secret)
+	default:
+		panic("unexpected KvVersion")
+	}
+}
+
+func (k *Vault) readV2(path, secret string) (any, error) {
+	response, err := k.client.Secrets.KvV2Read(context.Background(), path, 
+		vault.WithMountPath(k.MountPath),
+		vault.WithNamespace(k.Namespace),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := response.Data.Data[secret]; !ok {
+		return nil, fmt.Errorf("secret not found: %v#%v", path, secret)
+	}
+
+	return response.Data.Data[secret], nil
+}
+
+func (k *Vault) readV1(path, secret string) (any, error) {
+	response, err := k.client.Secrets.KvV1Read(context.Background(), path, 
+		vault.WithMountPath(k.MountPath),
+		vault.WithNamespace(k.Namespace),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := response.Data[secret]; !ok {
+		return nil, fmt.Errorf("secret not found: %v#%v", path, secret)
+	}
+
+	return response.Data[secret], nil
 }
 
 func (k *Vault) Close() error {
@@ -133,7 +184,11 @@ func init() {
 	plugins.AddKeykeeper("vault", func() core.Keykeeper {
 		return &Vault{
 			KvVersion: "v2",
+			Approle: Approle{
+				MountPath: "approle",
+			},
 			K8s: K8s{
+				MountPath: "kubernetes",
 				TokenPath: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 			},
 			TLSClientConfig: &pkgtls.TLSClientConfig{},

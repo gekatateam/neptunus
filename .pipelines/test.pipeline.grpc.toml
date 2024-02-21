@@ -5,13 +5,20 @@
   buffer = 1_000
 
 [[keykeepers]]
-  [keykeepers.env]
-    alias = "envs"
+  [keykeepers.vault]
+    alias = "vault"
+    address = "http://localhost:8200"
+    mount_path = "neptunus/kv"
+    path_prefix = "test"
+    tls_enable = false
+    [keykeepers.vault.approle]
+      role_id   = "0a72eb67-b194-ab03-d5bc-1ec92f2447e9"
+      secret_id = "e58e2b0d-a39d-fb07-daf8-532f0fe4d5c1"
 
 [[inputs]]
   [inputs.httpl]
     address = ":9200"
-    max_connections = 10
+    max_connections = "@{vault:inputs#http_max_connections}"
     tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
