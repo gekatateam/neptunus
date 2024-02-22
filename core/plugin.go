@@ -62,6 +62,12 @@ type Serializer interface {
 	Initer
 }
 
+type Keykeeper interface {
+	Get(key string) (any, error)
+	io.Closer
+	Initer
+}
+
 // plugins that need parsers must implement this interface
 type SetParser interface {
 	SetParser(p Parser)
@@ -111,6 +117,7 @@ func (b *BaseInput) Observe(status metrics.EventStatus, dur time.Duration) {
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
+
 type BaseProcessor struct {
 	Alias    string
 	Plugin   string
@@ -131,6 +138,7 @@ func (b *BaseProcessor) Observe(status metrics.EventStatus, dur time.Duration) {
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
+
 type BaseOutput struct {
 	Alias    string
 	Plugin   string
@@ -148,6 +156,7 @@ func (b *BaseOutput) SetChannels(in <-chan *Event) {
 func (b *BaseOutput) Observe(status metrics.EventStatus, dur time.Duration) {
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
+
 
 type BaseFilter struct {
 	Alias    string
@@ -171,6 +180,7 @@ func (b *BaseFilter) Observe(status metrics.EventStatus, dur time.Duration) {
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
+
 type BaseParser struct {
 	Alias    string
 	Plugin   string
@@ -183,6 +193,7 @@ type BaseParser struct {
 func (b *BaseParser) Observe(status metrics.EventStatus, dur time.Duration) {
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
+
 
 type BaseSerializer struct {
 	Alias    string
@@ -197,6 +208,7 @@ func (b *BaseSerializer) Observe(status metrics.EventStatus, dur time.Duration) 
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
+
 type BaseCore struct {
 	Alias    string
 	Plugin   string
@@ -208,4 +220,13 @@ type BaseCore struct {
 
 func (b *BaseCore) Observe(status metrics.EventStatus, dur time.Duration) {
 	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+}
+
+
+type BaseKeykeeper struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+	
+	Log *slog.Logger
 }

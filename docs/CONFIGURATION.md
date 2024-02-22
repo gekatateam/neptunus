@@ -151,9 +151,37 @@ In inputs and outputs case, if any filter rejects event, the event is removed fr
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
 
+A special plugins, [Keykeeper plugins](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
+```toml
+[[keykeepers]]
+  [keykeepers.env]
+    alias = "envs"
+
+[[inputs]]
+  [inputs.kafka]
+    group_id = "@{envs:NEPTUNUS_KAFKA_INPUT_CONSUMER_GROUP}"
+```
+
+Key request format depends on concrete keykeeper used.
+
+Keykeepers are initialized before other plugins. Also, you can use key substitutions in other keykeepers configuration if they are declared after:
+```toml
+[[keykeepers]]
+  [keykeepers.env]
+    alias = "envs"
+
+[[keykeepers]]
+  [keykeepers.vault]
+    alias = "vault"
+    address = "http://vault.local:443"
+    [keykeepers.vault.approle]
+      role_id = "@{envs:HASHICORP_VAULT_ROLE_ID}"
+      secret_id = "@{envs:HASHICORP_VAULT_SECRET_ID}"
+```
+
 ### About plugins configuration
 
-First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
+First of all, keykeepers, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
 <tr>
 <td> Toml </td> <td> Yaml </td> <td> Json </td>
