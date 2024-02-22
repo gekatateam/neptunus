@@ -151,7 +151,7 @@ In inputs and outputs case, if any filter rejects event, the event is removed fr
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
 
-A special plugins, [Keykeeper plugins](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
+A special plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
 ```toml
 [[keykeepers]]
   [keykeepers.env]
