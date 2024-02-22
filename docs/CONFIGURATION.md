@@ -7,7 +7,7 @@ Neptunus configuration files is written using `json`, `yaml` or `toml`.
 The daemon part configures Neptunus app and pipelines engine.
 
 **Common** section used for low-level settings:
- - **log_level**: Logging level, global setting for all application, accepts `trace`, `debug`, `info`, `warn`, `error` and `fatal`.
+ - **log_level**: Logging level, global setting for all application, accepts `debug`, `info`, `warn` and `error`.
  - **log_format**: Logging format, supports `pretty`, `logfmt` and `json` formats.
  - **http_port**: Address for HTTP api server. See more in [api documentation](API.md).
  - **log_fields**: A map of fields, that will be added to each log entry.
@@ -151,7 +151,7 @@ In inputs and outputs case, if any filter rejects event, the event is removed fr
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
 
-A special plugins, [Keykeeper plugins](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
+A special plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
 ```toml
 [[keykeepers]]
   [keykeepers.env]
