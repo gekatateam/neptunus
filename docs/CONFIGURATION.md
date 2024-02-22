@@ -181,7 +181,7 @@ Keykeepers are initialized before other plugins. Also, you can use key substitut
 
 ### About plugins configuration
 
-First of all, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
+First of all, keykeepers, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
 <tr>
 <td> Toml </td> <td> Yaml </td> <td> Json </td>
