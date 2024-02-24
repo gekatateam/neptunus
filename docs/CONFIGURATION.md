@@ -173,7 +173,7 @@ Keykeepers are initialized before other plugins. Also, you can use key substitut
 [[keykeepers]]
   [keykeepers.vault]
     alias = "vault"
-    address = "http://vault.local:443"
+    address = "https://vault.local:443"
     [keykeepers.vault.approle]
       role_id = "@{envs:HASHICORP_VAULT_ROLE_ID}"
       secret_id = "@{envs:HASHICORP_VAULT_SECRET_ID}"
