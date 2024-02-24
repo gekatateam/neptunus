@@ -792,7 +792,12 @@ func (p *Pipeline) decodeHook() func(f reflect.Type, _ reflect.Type, data any) (
 				return nil, fmt.Errorf("keykeeper not specified in configuration or still not initialized: %v", match[1])
 			}
 
-			return k.Get(match[2])
+			val, err := k.Get(match[2])
+			if err != nil {
+				return nil, fmt.Errorf("error reading key %v using %v keykeeper: %w", match[2], match[1], err)
+			}
+
+			return val, nil
 		}
 
 		return data, nil

@@ -30,7 +30,8 @@ type Vault struct {
 
 	*pkgtls.TLSClientConfig `mapstructure:",squash"`
 
-	client *vault.Client
+	client     *vault.Client
+	secretFunc func(path, secret string) (any, error)
 }
 
 type Approle struct {
@@ -41,7 +42,7 @@ type Approle struct {
 
 type K8s struct {
 	MountPath string `mapstructure:"mount_path"`
-	Role      string `mapstructure:"role"`
+	RoleName  string `mapstructure:"role_name"`
 	TokenPath string `mapstructure:"token_path"`
 }
 
@@ -55,7 +56,10 @@ func (k *Vault) Init() error {
 	}
 
 	switch k.KvVersion {
-	case "v1", "v2":
+	case "v1":
+		k.secretFunc = k.readV1
+	case "v2":
+		k.secretFunc = k.readV2
 	default:
 		return fmt.Errorf("unknown kv engine version: %v", k.KvVersion)
 	}
@@ -95,7 +99,7 @@ func (k *Vault) Init() error {
 		goto CLIENT_AUTH_SUCCESS
 	}
 
-	if len(k.K8s.Role) > 0 && len(k.K8s.TokenPath) > 0 {
+	if len(k.K8s.RoleName) > 0 && len(k.K8s.TokenPath) > 0 {
 		jwt, err := os.ReadFile(k.K8s.TokenPath)
 		if err != nil {
 			return fmt.Errorf("unable to read file containing service account token: %w", err)
@@ -103,7 +107,7 @@ func (k *Vault) Init() error {
 
 		resp, err := k.client.Auth.KubernetesLogin(context.Background(), schema.KubernetesLoginRequest{
 			Jwt:  string(jwt),
-			Role: k.K8s.Role,
+			Role: k.K8s.RoleName,
 		}, vault.WithMountPath(k.K8s.MountPath))
 		if err != nil {
 			return fmt.Errorf("kubernetes authentication failed: %w", err)
@@ -134,14 +138,7 @@ func (k *Vault) Get(key string) (any, error) {
 		path = k.PathPrefix + "/" + path
 	}
 
-	switch k.KvVersion {
-	case "v1":
-		return k.readV1(path, secret)
-	case "v2":
-		return k.readV2(path, secret)
-	default:
-		panic("unexpected KvVersion")
-	}
+	return k.secretFunc(path, secret)
 }
 
 func (k *Vault) readV2(path, secret string) (any, error) {

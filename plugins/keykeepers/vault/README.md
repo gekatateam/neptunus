@@ -61,6 +61,6 @@ For example, with `neptunus/kv` engine, secret path `staging/inputs` and `kafka_
     # https://developer.hashicorp.com/vault/docs/auth/kubernetes
     [keykeepers.vault.k8s]
       mount_path = "kubernetes"
-      role = "neptunus-role"
+      role_name = "neptunus-role"
       token_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 ```
