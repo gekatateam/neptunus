@@ -5,6 +5,10 @@
   buffer = 1_000
 
 [[keykeepers]]
+  [keykeepers.fs]
+    alias = "fs"
+
+[[keykeepers]]
   [keykeepers.vault]
     alias = "vault"
     address = "http://localhost:8200"
@@ -18,7 +22,7 @@
 [[inputs]]
   [inputs.httpl]
     address = ":9200"
-    max_connections = "@{vault:inputs#http_max_connections}"
+    max_connections = 25
     tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
