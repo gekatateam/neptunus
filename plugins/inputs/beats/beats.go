@@ -105,7 +105,6 @@ func (i *Beats) Run() {
 
 			batchWg := &sync.WaitGroup{}
 			for ljBatch := range i.server.ReceiveChan() {
-				println("__ BATCH RECEIVED")
 				for _, v := range ljBatch.Events {
 					now := time.Now()
 					event, err := i.toEvent(v)

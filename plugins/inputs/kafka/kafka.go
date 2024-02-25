@@ -72,8 +72,6 @@ func (i *Kafka) Init() (err error) {
 		}
 	}()
 
-	println(i.MaxBatchSize.Bytes())
-
 	if len(i.Brokers) == 0 {
 		return errors.New("at least one broker address required")
 	}
