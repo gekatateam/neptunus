@@ -73,6 +73,7 @@ require (
 	github.com/goccy/go-yaml v1.11.2
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jackc/pgx/v4 v4.18.2
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/magefile/mage v1.15.0
 	github.com/microsoft/go-mssqldb v1.7.0
 	github.com/mitchellh/mapstructure v1.5.0
