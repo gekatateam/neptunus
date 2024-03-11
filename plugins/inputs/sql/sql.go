@@ -42,10 +42,21 @@ type Sql struct {
 }
 
 type QueryInfo struct {
-	Query      string   `mapstructure:"query"`
-	File       string   `mapstructure:"file"`
+	Query string `mapstructure:"query"`
+	File  string `mapstructure:"file"`
 }
 
+func (q *QueryInfo) Init() error {
+	if len(q.File) > 0 {
+		rawQuery, err := os.ReadFile(q.File)
+		if err != nil {
+			return fmt.Errorf("file reading failed: %w", err)
+		}
+		q.Query = string(rawQuery)
+	}
+	return nil
+}
+ 
 type KeepValues struct {
 	Last  []string `mapstructure:"last"`
 	First []string `mapstructure:"first"`
@@ -92,6 +103,18 @@ func (i *Sql) Init() error {
 		i.keepIndex[v] = keepAll
 	}
 
+	if err := i.OnPoll.Init(); err != nil {
+		return fmt.Errorf("onPoll: %w", err)
+	}
+
+	if err := i.OnDelivery.Init(); err != nil {
+		return fmt.Errorf("onDelivery: %w", err)
+	}
+
+	if err := i.OnInit.Init(); err != nil {
+		return fmt.Errorf("onInit: %w", err)
+	}
+
 	db, err := sqlx.Connect(i.Driver, i.Dsn)
 	if err != nil {
 		return err
@@ -102,34 +125,7 @@ func (i *Sql) Init() error {
 	db.DB.SetMaxIdleConns(i.ConnsMaxIdle)
 	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
 
-	if len(i.OnPoll.File) > 0 {
-		rawQuery, err := os.ReadFile(i.OnPoll.File)
-		if err != nil {
-			return fmt.Errorf("onPoll.file reading failed: %w", err)
-		}
-
-		i.OnPoll.Query = string(rawQuery)
-	}
-
-	if len(i.OnDelivery.File) > 0 {
-		rawQuery, err := os.ReadFile(i.OnDelivery.File)
-		if err != nil {
-			return fmt.Errorf("onDelivery.file reading failed: %w", err)
-		}
-
-		i.OnDelivery.Query = string(rawQuery)
-	}
-
-	if len(i.OnInit.File) > 0 || len(i.OnInit.Query) > 0 {
-		if len(i.OnInit.File) > 0 {
-			rawQuery, err := os.ReadFile(i.OnInit.File)
-			if err != nil {
-				return fmt.Errorf("onInit.file reading failed: %w", err)
-			}
-	
-			i.OnInit.Query = string(rawQuery)
-		}
-
+	if len(i.OnInit.Query) > 0 {
 		if err := i.performInitQuery(); err != nil {
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
@@ -139,11 +135,15 @@ func (i *Sql) Init() error {
 }
 
 func (i *Sql) Close() error {
+
+
+
+
 	return i.db.Close()
 }
 
 func (i *Sql) Run() {
-	
+
 }
 
 func (i *Sql) performInitQuery() error {
