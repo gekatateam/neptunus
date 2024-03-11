@@ -13,6 +13,12 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 )
 
+const (
+	keepFirst = iota + 1
+	keepLast
+	keepAll
+)
+
 type Sql struct {
 	*core.BaseInput  `mapstructure:"-"`
 	Dsn              string        `mapstructure:"dsn"`
@@ -24,26 +30,26 @@ type Sql struct {
 	Transactional    bool          `mapstructure:"transactional"`
 	Timeout          time.Duration `mapstructure:"timeout"`
 
-	OnInit struct {
-		Query      string   `mapstructure:"query"`
-		File       string   `mapstructure:"file"`
-		KeepValues []string `mapstructure:"keep_values"`
-		keepedValues map[string]any
-	} `mapstructure:"on_init"`
+	OnInit     QueryInfo  `mapstructure:"on_init"`
+	OnPoll     QueryInfo  `mapstructure:"on_poll"`
+	OnDelivery QueryInfo  `mapstructure:"on_delivery"`
+	KeepValues KeepValues `mapstructure:"keep_values"`
 
-	OnPoll struct {
-		Query      string         `mapstructure:"query"`
-		File       string         `mapstructure:"file"`
-		KeepValues []string `mapstructure:"keep_values"`
-		keepedValues map[string]any
-	} `mapstructure:"on_poll"`
-
-	OnDelivery struct {
-		Query string `mapstructure:"query"`
-		File  string `mapstructure:"file"`
-	} `mapstructure:"on_delivery"`
+	keepIndex  map[string]int
+	keepValues map[string]any
 
 	db *sqlx.DB
+}
+
+type QueryInfo struct {
+	Query      string   `mapstructure:"query"`
+	File       string   `mapstructure:"file"`
+}
+
+type KeepValues struct {
+	Last  []string `mapstructure:"last"`
+	First []string `mapstructure:"first"`
+	All   []string `mapstructure:"all"`
 }
 
 func (i *Sql) Init() error {
@@ -59,8 +65,32 @@ func (i *Sql) Init() error {
 		return errors.New("onPoll.query or onPoll.file requred")
 	}
 
-	i.OnInit.keepedValues = make(map[string]any, len(i.OnInit.KeepValues))
-	i.OnPoll.keepedValues = make(map[string]any, len(i.OnPoll.KeepValues))
+	i.keepValues = make(map[string]any)
+	i.keepIndex = make(map[string]int)
+	keepCheck := make(map[string]bool)
+	for _, v := range i.KeepValues.First {
+		if ok := keepCheck[v]; ok {
+			return fmt.Errorf("duplicate column in keepValues.first: %v", v)
+		}
+		keepCheck[v] = true
+		i.keepIndex[v] = keepFirst
+	}
+
+	for _, v := range i.KeepValues.Last {
+		if ok := keepCheck[v]; ok {
+			return fmt.Errorf("duplicate column in keepValues.last: %v", v)
+		}
+		keepCheck[v] = true
+		i.keepIndex[v] = keepLast
+	}
+
+	for _, v := range i.KeepValues.All {
+		if ok := keepCheck[v]; ok {
+			return fmt.Errorf("duplicate column in keepValues.all: %v", v)
+		}
+		keepCheck[v] = true
+		i.keepIndex[v] = keepAll
+	}
 
 	db, err := sqlx.Connect(i.Driver, i.Dsn)
 	if err != nil {
@@ -81,6 +111,15 @@ func (i *Sql) Init() error {
 		i.OnPoll.Query = string(rawQuery)
 	}
 
+	if len(i.OnDelivery.File) > 0 {
+		rawQuery, err := os.ReadFile(i.OnDelivery.File)
+		if err != nil {
+			return fmt.Errorf("onDelivery.file reading failed: %w", err)
+		}
+
+		i.OnDelivery.Query = string(rawQuery)
+	}
+
 	if len(i.OnInit.File) > 0 || len(i.OnInit.Query) > 0 {
 		if len(i.OnInit.File) > 0 {
 			rawQuery, err := os.ReadFile(i.OnInit.File)
@@ -99,12 +138,13 @@ func (i *Sql) Init() error {
 	return nil
 }
 
-
-
 func (i *Sql) Close() error {
 	return i.db.Close()
 }
-func (i *Sql) Run()
+
+func (i *Sql) Run() {
+	
+}
 
 func (i *Sql) performInitQuery() error {
 	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
@@ -116,47 +156,37 @@ func (i *Sql) performInitQuery() error {
 	}
 	defer rows.Close()
 
-	fetchedRows := make([]map[string]any, 0)
-	for rows.Next() {
+	first := true
+	hasRows := rows.Next()
+	for hasRows {
 		fetchedRow := make(map[string]any)
 		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
 			return err
 		}
-		fetchedRows = append(fetchedRows, fetchedRow)
-	}
+		hasRows = rows.Next()
 
-	if len(fetchedRows) == 0 {
-		return errors.New("init request returns no data")
-	}
-
-	i.Log.Debug(fmt.Sprintf("init request fetched %v rows", len(fetchedRows)))
-
-	if len(fetchedRows) == 1 {
-		for _, v := range i.OnInit.KeepValues {
-			val, ok := fetchedRows[0][v]
+		for k, v := range i.keepIndex {
+			col, ok := fetchedRow[k]
 			if !ok {
-				return fmt.Errorf("init request not returns column %v", v)
+				continue
 			}
-	
-			i.OnInit.keepedValues[v] = val
-		}
-		return nil
-	}
 
-	rawKeepedRows := make(map[string][]any)
-	for _, row := range fetchedRows {
-		for k, v := range row {
-			rawKeepedRows[k] = append(rawKeepedRows[k], v)
-		}
-	}
-
-	for _, v := range i.OnInit.KeepValues {
-		val, ok := rawKeepedRows[v]
-		if !ok {
-			return fmt.Errorf("init request not returns column %v", v)
+			switch {
+			case v == keepFirst && first:
+				i.keepValues[k] = col
+			case v == keepLast && !hasRows:
+				i.keepValues[k] = col
+			case v == keepAll:
+				val, ok := i.keepValues[k]
+				if !ok {
+					i.keepValues[k] = []any{col}
+				} else {
+					i.keepValues[k] = append(val.([]any), col)
+				}
+			}
 		}
 
-		i.OnInit.keepedValues[v] = val
+		first = false
 	}
 
 	return nil
