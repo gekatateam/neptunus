@@ -126,7 +126,7 @@ func (i *Sql) Init() error {
 	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
 
 	if len(i.OnInit.Query) > 0 {
-		if err := i.performInitQuery(); err != nil {
+		if err := i.performOnInitQuery(); err != nil {
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
 	}
@@ -146,7 +146,7 @@ func (i *Sql) Run() {
 
 }
 
-func (i *Sql) performInitQuery() error {
+func (i *Sql) performOnInitQuery() error {
 	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
 	defer cancel()
 
@@ -190,6 +190,19 @@ func (i *Sql) performInitQuery() error {
 	}
 
 	return nil
+}
+
+// NOT LIKE THIS
+func (i *Sql) performOnDeliveryQuery(tx *sqlx.Tx) error {
+	var err error
+
+	if tx != nil {
+		_, err = tx.NamedExec(i.OnDelivery.Query, i.keepValues)
+	} else {
+		_, err = i.db.NamedExec(i.OnDelivery.Query, i.keepValues)
+	}
+
+	return err
 }
 
 func init() {
