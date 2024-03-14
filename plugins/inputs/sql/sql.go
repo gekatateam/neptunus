@@ -2,6 +2,7 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 )
 
@@ -27,16 +29,23 @@ type Sql struct {
 	ConnsMaxLifetime time.Duration `mapstructure:"conns_max_life_time"`
 	ConnsMaxOpen     int           `mapstructure:"conns_max_open"`
 	ConnsMaxIdle     int           `mapstructure:"conns_max_idle"`
-	Transactional    bool          `mapstructure:"transactional"`
 	Timeout          time.Duration `mapstructure:"timeout"`
+	Interval         time.Duration `mapstructure:"interval"`
 
-	OnInit     QueryInfo  `mapstructure:"on_init"`
-	OnPoll     QueryInfo  `mapstructure:"on_poll"`
-	OnDelivery QueryInfo  `mapstructure:"on_delivery"`
-	KeepValues KeepValues `mapstructure:"keep_values"`
+	Transactional  bool   `mapstructure:"transactional"`
+	IsolationLevel string `mapstructure:"isolation_level"`
+	ReadOnly       bool   `mapstructure:"read_only"`
+
+	OnInit       QueryInfo         `mapstructure:"on_init"`
+	OnPoll       QueryInfo         `mapstructure:"on_poll"`
+	OnDelivery   QueryInfo         `mapstructure:"on_delivery"`
+	KeepValues   KeepValues        `mapstructure:"keep_values"`
+	LabelColumns map[string]string `mapstructure:"labelcolumns"`
 
 	keepIndex  map[string]int
 	keepValues map[string]any
+
+	txLevel sql.IsolationLevel
 
 	db *sqlx.DB
 }
@@ -74,6 +83,29 @@ func (i *Sql) Init() error {
 
 	if len(i.OnPoll.File) == 0 && len(i.OnPoll.Query) == 0 {
 		return errors.New("onPoll.query or onPoll.file requred")
+	}
+
+	if i.Transactional {
+		switch i.IsolationLevel {
+		case "Default":
+			i.txLevel = sql.LevelDefault
+		case "ReadUncommitted":
+			i.txLevel = sql.LevelReadUncommitted
+		case "ReadCommitted":
+			i.txLevel = sql.LevelReadCommitted
+		case "WriteCommitted":
+			i.txLevel = sql.LevelWriteCommitted
+		case "RepeatableRead":
+			i.txLevel = sql.LevelRepeatableRead
+		case "Snapshot":
+			i.txLevel = sql.LevelSnapshot
+		case "Serializable":
+			i.txLevel = sql.LevelSerializable
+		case "Linearizable":
+			i.txLevel = sql.LevelLinearizable
+		default:
+			return fmt.Errorf("unknown tx isolation level: %v", i.IsolationLevel)
+		}
 	}
 
 	i.keepValues = make(map[string]any)
@@ -143,7 +175,27 @@ func (i *Sql) Close() error {
 }
 
 func (i *Sql) Run() {
+	for {
+		now := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
 
+		var querier sqlx.ExtContext = i.db
+		if i.Transactional {
+			tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.txLevel, ReadOnly: i.ReadOnly})
+			if err != nil {
+				i.Log.Error("tx begin error", 
+					"error", err,
+				)
+				i.Observe(metrics.EventFailed, time.Since(now))
+
+				cancel()
+				continue
+			}
+
+			querier = tx
+		}
+
+	}
 }
 
 func (i *Sql) performOnInitQuery() error {
@@ -167,7 +219,7 @@ func (i *Sql) performOnInitQuery() error {
 
 		for k, v := range i.keepIndex {
 			col, ok := fetchedRow[k]
-			if !ok {
+			if !ok { // it is okay if query does not returns some values
 				continue
 			}
 
@@ -192,14 +244,72 @@ func (i *Sql) performOnInitQuery() error {
 	return nil
 }
 
+func (i *Sql) performOnPollQuery(ctx context.Context, querier sqlx.ExtContext) error {
+	rows, err := sqlx.NamedQueryContext(ctx, querier, i.OnDelivery.Query, i.keepValues)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	keepValues := make(map[string]any)
+	first := true
+	hasRows := rows.Next()
+	for hasRows {
+		fetchedRow := make(map[string]any)
+		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
+			return err
+		}
+		hasRows = rows.Next()
+
+		for k, v := range i.keepIndex {
+			col, ok := fetchedRow[k]
+			if !ok {
+				continue
+			}
+
+			switch {
+			case v == keepFirst && first:
+				keepValues[k] = col
+			case v == keepLast && !hasRows:
+				keepValues[k] = col
+			case v == keepAll:
+				val, ok := keepValues[k]
+				if !ok {
+					keepValues[k] = []any{col}
+				} else {
+					keepValues[k] = append(val.([]any), col)
+				}
+			}
+		}
+		first = false
+
+		e := core.NewEventWithData("sql."+i.Driver, fetchedRow)
+		for k, v := range i.LabelColumns {
+			if valRaw, ok := fetchedRow[v]; ok {
+				if val, ok := valRaw.(string); ok {
+					e.SetLabel(k, val)
+				}
+			}
+		}
+
+		i.Out <- e
+	}
+
+	for k, v := range keepValues {
+		i.keepValues[k] = v
+	}
+
+	return nil
+}
+
 // NOT LIKE THIS
-func (i *Sql) performOnDeliveryQuery(tx *sqlx.Tx) error {
+func (i *Sql) performOnDeliveryQuery(ctx context.Context, tx *sqlx.Tx) error {
 	var err error
 
 	if tx != nil {
-		_, err = tx.NamedExec(i.OnDelivery.Query, i.keepValues)
+		_, err = sqlx.NamedQueryContext(ctx, tx, i.OnDelivery.Query, i.keepValues)
 	} else {
-		_, err = i.db.NamedExec(i.OnDelivery.Query, i.keepValues)
+		_, err = sqlx.NamedQueryContext(ctx, i.db, i.OnDelivery.Query, i.keepValues)
 	}
 
 	return err
