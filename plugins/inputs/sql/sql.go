@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -13,6 +15,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 )
 
 const (
@@ -31,6 +34,7 @@ type Sql struct {
 	ConnsMaxIdle     int           `mapstructure:"conns_max_idle"`
 	Timeout          time.Duration `mapstructure:"timeout"`
 	Interval         time.Duration `mapstructure:"interval"`
+	WaitForDelivery  bool          `mapstructure:"wait_for_delivery"`
 
 	Transactional  bool   `mapstructure:"transactional"`
 	IsolationLevel string `mapstructure:"isolation_level"`
@@ -38,9 +42,11 @@ type Sql struct {
 
 	OnInit       QueryInfo         `mapstructure:"on_init"`
 	OnPoll       QueryInfo         `mapstructure:"on_poll"`
-	OnDelivery   QueryInfo         `mapstructure:"on_delivery"`
+	OnDone       QueryInfo         `mapstructure:"on_done"`
 	KeepValues   KeepValues        `mapstructure:"keep_values"`
 	LabelColumns map[string]string `mapstructure:"labelcolumns"`
+
+	Ider *ider.Ider `mapstructure:",squash"`
 
 	keepIndex  map[string]int
 	keepValues map[string]any
@@ -139,8 +145,8 @@ func (i *Sql) Init() error {
 		return fmt.Errorf("onPoll: %w", err)
 	}
 
-	if err := i.OnDelivery.Init(); err != nil {
-		return fmt.Errorf("onDelivery: %w", err)
+	if err := i.OnDone.Init(); err != nil {
+		return fmt.Errorf("onDone: %w", err)
 	}
 
 	if err := i.OnInit.Init(); err != nil {
@@ -175,27 +181,7 @@ func (i *Sql) Close() error {
 }
 
 func (i *Sql) Run() {
-	for {
-		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
 
-		var querier sqlx.ExtContext = i.db
-		if i.Transactional {
-			tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.txLevel, ReadOnly: i.ReadOnly})
-			if err != nil {
-				i.Log.Error("tx begin error", 
-					"error", err,
-				)
-				i.Observe(metrics.EventFailed, time.Since(now))
-
-				cancel()
-				continue
-			}
-
-			querier = tx
-		}
-
-	}
 }
 
 func (i *Sql) performOnInitQuery() error {
@@ -203,49 +189,6 @@ func (i *Sql) performOnInitQuery() error {
 	defer cancel()
 
 	rows, err := i.db.QueryContext(ctx, i.OnInit.Query)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	first := true
-	hasRows := rows.Next()
-	for hasRows {
-		fetchedRow := make(map[string]any)
-		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
-			return err
-		}
-		hasRows = rows.Next()
-
-		for k, v := range i.keepIndex {
-			col, ok := fetchedRow[k]
-			if !ok { // it is okay if query does not returns some values
-				continue
-			}
-
-			switch {
-			case v == keepFirst && first:
-				i.keepValues[k] = col
-			case v == keepLast && !hasRows:
-				i.keepValues[k] = col
-			case v == keepAll:
-				val, ok := i.keepValues[k]
-				if !ok {
-					i.keepValues[k] = []any{col}
-				} else {
-					i.keepValues[k] = append(val.([]any), col)
-				}
-			}
-		}
-
-		first = false
-	}
-
-	return nil
-}
-
-func (i *Sql) performOnPollQuery(ctx context.Context, querier sqlx.ExtContext) error {
-	rows, err := sqlx.NamedQueryContext(ctx, querier, i.OnDelivery.Query, i.keepValues)
 	if err != nil {
 		return err
 	}
@@ -259,28 +202,61 @@ func (i *Sql) performOnPollQuery(ctx context.Context, querier sqlx.ExtContext) e
 		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
 			return err
 		}
+
 		hasRows = rows.Next()
+		i.keepColumns(fetchedRow, keepValues, first, !hasRows)
+		first = false
+	}
 
-		for k, v := range i.keepIndex {
-			col, ok := fetchedRow[k]
-			if !ok {
-				continue
-			}
+	i.keepValues = keepValues
+	return nil
+}
 
-			switch {
-			case v == keepFirst && first:
-				keepValues[k] = col
-			case v == keepLast && !hasRows:
-				keepValues[k] = col
-			case v == keepAll:
-				val, ok := keepValues[k]
-				if !ok {
-					keepValues[k] = []any{col}
-				} else {
-					keepValues[k] = append(val.([]any), col)
-				}
-			}
+func (i *Sql) performOnPollQuery() {
+	now := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
+	defer cancel()
+
+	var querier sqlx.ExtContext = i.db
+	if i.Transactional {
+		tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.txLevel, ReadOnly: i.ReadOnly})
+		if err != nil {
+			i.Log.Error("tx begin failed", 
+				"error", err,
+			)
+			i.Observe(metrics.EventFailed, time.Since(now))
+			return
 		}
+		defer tx.Rollback()
+		querier = tx
+	}
+
+	rows, err := sqlx.NamedQueryContext(ctx, querier, i.OnDone.Query, i.keepValues)
+	if err != nil {
+		i.Log.Error("query exec failed", 
+			"error", err,
+		)
+		i.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
+	defer rows.Close()
+
+	batchWg := &sync.WaitGroup{}
+	keepValues := make(map[string]any)
+	first := true
+	hasRows := rows.Next()
+	for hasRows {
+		fetchedRow := make(map[string]any)
+		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
+			i.Log.Error("row scan failed", 
+				"error", err,
+			)
+			i.Observe(metrics.EventFailed, time.Since(now))
+			return
+		}
+
+		hasRows = rows.Next()
+		i.keepColumns(fetchedRow, keepValues, first, !hasRows)
 		first = false
 
 		e := core.NewEventWithData("sql."+i.Driver, fetchedRow)
@@ -292,27 +268,70 @@ func (i *Sql) performOnPollQuery(ctx context.Context, querier sqlx.ExtContext) e
 			}
 		}
 
+		if i.WaitForDelivery {
+			batchWg.Add(1)
+			e.SetHook(batchWg.Done)
+		}
+
+		i.Ider.Apply(e)
 		i.Out <- e
+		i.Log.Debug("event accepted",
+			slog.Group("event",
+				"id", e.Id,
+				"key", e.RoutingKey,
+			),
+		)
+		i.Observe(metrics.EventAccepted, time.Since(now))
+		now = time.Now()
 	}
 
 	for k, v := range keepValues {
 		i.keepValues[k] = v
 	}
 
-	return nil
-}
+	batchWg.Wait()
 
-// NOT LIKE THIS
-func (i *Sql) performOnDeliveryQuery(ctx context.Context, tx *sqlx.Tx) error {
-	var err error
-
-	if tx != nil {
-		_, err = sqlx.NamedQueryContext(ctx, tx, i.OnDelivery.Query, i.keepValues)
-	} else {
-		_, err = sqlx.NamedQueryContext(ctx, i.db, i.OnDelivery.Query, i.keepValues)
+	if len(i.OnDone.Query) > 0 {
+		_, err := sqlx.NamedExecContext(ctx, querier, i.OnDone.Query, i.keepValues)
+		if err != nil {
+			i.Log.Error("onDone query exec failed", 
+				"error", err,
+			)
+			return
+		}
 	}
 
-	return err
+	if tx, ok := querier.(*sqlx.Tx); ok {
+		if tx.Commit() != nil {
+			i.Log.Error("tx commit failed", 
+				"error", err,
+			)
+			return
+		}
+	}
+}
+
+func (i *Sql) keepColumns(from, to map [string]any, first, last bool) {
+	for k, v := range i.keepIndex {
+		col, ok := from[k]
+		if !ok {
+			continue
+		}
+
+		switch {
+		case v == keepFirst && first:
+			to[k] = col
+		case v == keepLast && last:
+			to[k] = col
+		case v == keepAll:
+			val, ok := to[k]
+			if !ok {
+				to[k] = []any{col}
+			} else {
+				to[k] = append(val.([]any), col)
+			}
+		}
+	}
 }
 
 func init() {
@@ -324,6 +343,7 @@ func init() {
 			ConnsMaxIdle:     2,
 			Transactional:    false,
 			Timeout:          30 * time.Second,
+			Ider: &ider.Ider{},
 		}
 	})
 }
