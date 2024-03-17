@@ -52,8 +52,7 @@ type Sql struct {
 	keepValues map[string]any
 
 	txLevel sql.IsolationLevel
-
-	db *sqlx.DB
+	db      *sqlx.DB
 }
 
 type QueryInfo struct {
@@ -91,6 +90,10 @@ func (i *Sql) Init() error {
 		return errors.New("onPoll.query or onPoll.file requred")
 	}
 
+	if err := i.Ider.Init(); err != nil {
+		return err
+	}
+
 	if i.Transactional {
 		switch i.IsolationLevel {
 		case "Default":
@@ -116,29 +119,29 @@ func (i *Sql) Init() error {
 
 	i.keepValues = make(map[string]any)
 	i.keepIndex = make(map[string]int)
-	keepCheck := make(map[string]bool)
 	for _, v := range i.KeepValues.First {
-		if ok := keepCheck[v]; ok {
+		if _, ok := i.keepIndex[v]; ok {
 			return fmt.Errorf("duplicate column in keepValues.first: %v", v)
 		}
-		keepCheck[v] = true
 		i.keepIndex[v] = keepFirst
 	}
 
 	for _, v := range i.KeepValues.Last {
-		if ok := keepCheck[v]; ok {
+		if _, ok := i.keepIndex[v]; ok {
 			return fmt.Errorf("duplicate column in keepValues.last: %v", v)
 		}
-		keepCheck[v] = true
 		i.keepIndex[v] = keepLast
 	}
 
 	for _, v := range i.KeepValues.All {
-		if ok := keepCheck[v]; ok {
+		if _, ok := i.keepIndex[v]; ok {
 			return fmt.Errorf("duplicate column in keepValues.all: %v", v)
 		}
-		keepCheck[v] = true
 		i.keepIndex[v] = keepAll
+	}
+
+	if err := i.OnInit.Init(); err != nil {
+		return fmt.Errorf("onInit: %w", err)
 	}
 
 	if err := i.OnPoll.Init(); err != nil {
@@ -149,14 +152,11 @@ func (i *Sql) Init() error {
 		return fmt.Errorf("onDone: %w", err)
 	}
 
-	if err := i.OnInit.Init(); err != nil {
-		return fmt.Errorf("onInit: %w", err)
-	}
-
 	db, err := sqlx.Connect(i.Driver, i.Dsn)
 	if err != nil {
 		return err
 	}
+	i.db = db
 
 	db.DB.SetConnMaxIdleTime(i.ConnsMaxIdleTime)
 	db.DB.SetConnMaxLifetime(i.ConnsMaxLifetime)
@@ -164,7 +164,7 @@ func (i *Sql) Init() error {
 	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
 
 	if len(i.OnInit.Query) > 0 {
-		if err := i.performOnInitQuery(); err != nil {
+		if err := i.init(); err != nil {
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
 	}
@@ -184,7 +184,7 @@ func (i *Sql) Run() {
 
 }
 
-func (i *Sql) performOnInitQuery() error {
+func (i *Sql) init() error {
 	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
 	defer cancel()
 
@@ -212,7 +212,7 @@ func (i *Sql) performOnInitQuery() error {
 	return nil
 }
 
-func (i *Sql) performOnPollQuery() {
+func (i *Sql) poll() {
 	now := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
 	defer cancel()
@@ -342,7 +342,10 @@ func init() {
 			ConnsMaxOpen:     5,
 			ConnsMaxIdle:     2,
 			Transactional:    false,
+			IsolationLevel:   "Default",
 			Timeout:          30 * time.Second,
+			WaitForDelivery:  true,
+
 			Ider: &ider.Ider{},
 		}
 	})
