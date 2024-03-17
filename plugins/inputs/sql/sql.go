@@ -285,14 +285,17 @@ func (i *Sql) poll() {
 		now = time.Now()
 	}
 
-	for k, v := range keepValues {
-		i.keepValues[k] = v
+	// copy keys from init/previous query for usage in done stage
+	for k, v := range i.keepValues {
+		if _, ok := keepValues[k]; !ok {
+			keepValues[k] = v
+		}
 	}
 
 	batchWg.Wait()
 
 	if len(i.OnDone.Query) > 0 {
-		_, err := sqlx.NamedExecContext(ctx, querier, i.OnDone.Query, i.keepValues)
+		_, err := sqlx.NamedExecContext(ctx, querier, i.OnDone.Query, keepValues)
 		if err != nil {
 			i.Log.Error("onDone query exec failed", 
 				"error", err,
@@ -302,13 +305,17 @@ func (i *Sql) poll() {
 	}
 
 	if tx, ok := querier.(*sqlx.Tx); ok {
-		if tx.Commit() != nil {
+		if err := tx.Commit(); err != nil {
 			i.Log.Error("tx commit failed", 
 				"error", err,
 			)
 			return
 		}
 	}
+
+	// if all stages passed successfully
+	// replace previously keeped values with actual data
+	i.keepValues = keepValues
 }
 
 func (i *Sql) keepColumns(from, to map [string]any, first, last bool) {
