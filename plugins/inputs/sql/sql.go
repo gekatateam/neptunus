@@ -51,6 +51,9 @@ type Sql struct {
 	keepIndex  map[string]int
 	keepValues map[string]any
 
+	stopCh chan struct{}
+	doneCh chan struct{}
+
 	txLevel sql.IsolationLevel
 	db      *sqlx.DB
 }
@@ -163,6 +166,9 @@ func (i *Sql) Init() error {
 	db.DB.SetMaxIdleConns(i.ConnsMaxIdle)
 	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
 
+	i.stopCh = make(chan struct{})
+	i.doneCh = make(chan struct{})
+
 	if len(i.OnInit.Query) > 0 {
 		if err := i.init(); err != nil {
 			return fmt.Errorf("onInit query failed: %w", err)
@@ -173,15 +179,35 @@ func (i *Sql) Init() error {
 }
 
 func (i *Sql) Close() error {
-
-
-
-
+	i.stopCh <- struct{}{}
+	<- i.doneCh
 	return i.db.Close()
 }
 
 func (i *Sql) Run() {
-
+	if i.Interval > 0 {
+		ticker := time.NewTicker(i.Interval)
+		for {
+			select {
+			case <- ticker.C:
+				i.poll()
+			case <- i.stopCh:
+				ticker.Stop()
+				i.doneCh <- struct{}{}
+				return
+			}
+		}
+	} else {
+		for {
+			select {
+			case <- i.stopCh:
+				i.doneCh <- struct{}{}
+				return
+			default:
+				i.poll()
+			}
+		}
+	}
 }
 
 func (i *Sql) init() error {
@@ -346,11 +372,12 @@ func init() {
 		return &Sql{
 			ConnsMaxIdleTime: 10 * time.Minute,
 			ConnsMaxLifetime: 10 * time.Minute,
-			ConnsMaxOpen:     5,
-			ConnsMaxIdle:     2,
+			ConnsMaxOpen:     2,
+			ConnsMaxIdle:     1,
 			Transactional:    false,
 			IsolationLevel:   "Default",
 			Timeout:          30 * time.Second,
+			Interval:         0,
 			WaitForDelivery:  true,
 
 			Ider: &ider.Ider{},
