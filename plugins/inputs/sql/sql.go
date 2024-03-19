@@ -228,7 +228,6 @@ func (i *Sql) init() error {
 		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
 			return err
 		}
-
 		hasRows = rows.Next()
 		i.keepColumns(fetchedRow, keepValues, first, !hasRows)
 		first = false
@@ -257,7 +256,27 @@ func (i *Sql) poll() {
 		querier = tx
 	}
 
-	rows, err := sqlx.NamedQueryContext(ctx, querier, i.OnDone.Query, i.keepValues)
+	query, args, err := sqlx.Named(i.OnPoll.Query, i.keepValues)
+	if err != nil {
+		i.Log.Error("query Named args binding failed", 
+			"error", err,
+		)
+		i.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
+
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		i.Log.Error("query In args binding failed", 
+			"error", err,
+		)
+		i.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
+
+	query = querier.Rebind(query)
+
+	rows, err := querier.QueryContext(ctx, query, args...)
 	if err != nil {
 		i.Log.Error("query exec failed", 
 			"error", err,
@@ -311,6 +330,11 @@ func (i *Sql) poll() {
 		now = time.Now()
 	}
 
+	if first { // if at least one row returns, flag will be set to false
+		i.Log.Debug("onPoll query returns no rows")
+		return
+	}
+
 	// copy keys from init/previous query for usage in done stage
 	for k, v := range i.keepValues {
 		if _, ok := keepValues[k]; !ok {
@@ -321,7 +345,27 @@ func (i *Sql) poll() {
 	batchWg.Wait()
 
 	if len(i.OnDone.Query) > 0 {
-		_, err := sqlx.NamedExecContext(ctx, querier, i.OnDone.Query, keepValues)
+		query, args, err := sqlx.Named(i.OnDone.Query, keepValues)
+		if err != nil {
+			i.Log.Error("onDone query Named args binding failed", 
+				"error", err,
+			)
+			i.Observe(metrics.EventFailed, time.Since(now))
+			return
+		}
+	
+		query, args, err = sqlx.In(query, args...)
+		if err != nil {
+			i.Log.Error("onDone query In args binding failed", 
+				"error", err,
+			)
+			i.Observe(metrics.EventFailed, time.Since(now))
+			return
+		}
+	
+		query = querier.Rebind(query)
+
+		_, err = querier.ExecContext(ctx, query, args...)
 		if err != nil {
 			i.Log.Error("onDone query exec failed", 
 				"error", err,

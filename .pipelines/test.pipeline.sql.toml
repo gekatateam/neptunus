@@ -1,0 +1,50 @@
+[settings]
+  id = "test.pipeline.sql"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.sql]
+    driver = "pgx"
+    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    interval = "5s"
+    wait_for_delivery = true
+    transactional = true
+    [inputs.sql.keep_values]
+      last = [ "insert_timestamp" ]
+      all = [ "id" ]
+    [inputs.sql.on_init]
+      query = '''
+SELECT INSERT_TIMESTAMP FROM POLLING_TABLE
+WHERE POLLED_TIMESTAMP IS NULL
+ORDER BY INSERT_TIMESTAMP ASC
+LIMIT 1;
+      '''
+    [inputs.sql.on_poll]
+      query = '''
+SELECT ID, INSERT_TIMESTAMP, MESSAGE FROM POLLING_TABLE
+WHERE POLLED_TIMESTAMP IS NULL
+AND INSERT_TIMESTAMP >= :insert_timestamp
+ORDER BY INSERT_TIMESTAMP ASC
+LIMIT 3
+FOR UPDATE SKIP LOCKED;
+      '''
+    [inputs.sql.on_done]
+      query = '''
+UPDATE POLLING_TABLE
+SET POLLED_TIMESTAMP = now()
+WHERE ID IN (:id)
+AND INSERT_TIMESTAMP >= :insert_timestamp;
+      '''
+
+[[processors]]
+  [processors.template]
+    routing_key = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
+
+[[outputs]]
+  [outputs.log]
+    level = "warn"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
