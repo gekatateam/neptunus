@@ -256,29 +256,18 @@ func (i *Sql) poll() {
 		querier = tx
 	}
 
-	query, args, err := sqlx.Named(i.OnPoll.Query, i.keepValues)
+	query, args, err := i.bindNamed(i.OnPoll.Query, i.keepValues, querier)
 	if err != nil {
-		i.Log.Error("query Named args binding failed", 
+		i.Log.Error("onPoll query binding failed", 
 			"error", err,
 		)
 		i.Observe(metrics.EventFailed, time.Since(now))
 		return
 	}
-
-	query, args, err = sqlx.In(query, args...)
-	if err != nil {
-		i.Log.Error("query In args binding failed", 
-			"error", err,
-		)
-		i.Observe(metrics.EventFailed, time.Since(now))
-		return
-	}
-
-	query = querier.Rebind(query)
 
 	rows, err := querier.QueryContext(ctx, query, args...)
 	if err != nil {
-		i.Log.Error("query exec failed", 
+		i.Log.Error("onPoll query exec failed", 
 			"error", err,
 		)
 		i.Observe(metrics.EventFailed, time.Since(now))
@@ -345,25 +334,13 @@ func (i *Sql) poll() {
 	batchWg.Wait()
 
 	if len(i.OnDone.Query) > 0 {
-		query, args, err := sqlx.Named(i.OnDone.Query, keepValues)
+		query, args, err := i.bindNamed(i.OnDone.Query, keepValues, querier)
 		if err != nil {
-			i.Log.Error("onDone query Named args binding failed", 
+			i.Log.Error("onDone query binding failed", 
 				"error", err,
 			)
-			i.Observe(metrics.EventFailed, time.Since(now))
 			return
 		}
-	
-		query, args, err = sqlx.In(query, args...)
-		if err != nil {
-			i.Log.Error("onDone query In args binding failed", 
-				"error", err,
-			)
-			i.Observe(metrics.EventFailed, time.Since(now))
-			return
-		}
-	
-		query = querier.Rebind(query)
 
 		_, err = querier.ExecContext(ctx, query, args...)
 		if err != nil {
@@ -386,6 +363,20 @@ func (i *Sql) poll() {
 	// if all stages passed successfully
 	// replace previously keeped values with actual data
 	i.keepValues = keepValues
+}
+
+func (i *Sql) bindNamed(query string, args map[string]any, querier sqlx.ExtContext) (string, []any, error) {
+	q, a, err := sqlx.Named(query, args)
+	if err != nil {
+		return "", nil, fmt.Errorf("sqlx.Named: %w", err)
+	}
+
+	q, a, err = sqlx.In(q, a...)
+	if err != nil {
+		return "", nil, fmt.Errorf("sqlx.In: %w", err)
+	}
+
+	return querier.Rebind(q), a, nil
 }
 
 func (i *Sql) keepColumns(from, to map [string]any, first, last bool) {
