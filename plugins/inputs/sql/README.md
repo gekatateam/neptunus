@@ -1,9 +1,18 @@
-[settings]
-  id = "test.pipeline.sql"
-  lines = 1
-  run = true
-  buffer = 1_000
+# Sql Input Plugin
 
+The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
+
+## Poll cycle
+
+This plugin works in poll cycle:
+0. (if configured) on initialization, plugin executes `on_init` query and caches configured `keep_values`
+1. plugin executes `on_poll` query; each row is turned in an event; plugin caches configured `keep_values`
+2. (if configured) plugin waits for batch delivery and executes `on_done` query if `on_poll` was successfull
+
+If configured, steps 1 and 2 executing in transaction.
+
+## Configuration
+```toml
 [[inputs]]
   [inputs.sql]
     driver = "pgx"
@@ -37,14 +46,4 @@ SET POLLED_TIMESTAMP = now()
 WHERE ID IN (:id)
 AND INSERT_TIMESTAMP >= :insert_timestamp;
       '''
-
-[[processors]]
-  [processors.template]
-    routing_key = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
-
-[[outputs]]
-  [outputs.log]
-    level = "warn"
-    [outputs.log.serializer]
-      type = "json"
-      data_only = false
+```
