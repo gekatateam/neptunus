@@ -277,7 +277,7 @@ func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 	return starlark.Bool(b.Receiver().(*Event).event.HasTag(tag)), nil
 }
 
-func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []starlark.Tuple) (starlark.Value, error) {
 	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
 	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
 	// }
