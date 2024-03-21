@@ -25,7 +25,7 @@ Plugin behavoiur depends on the procedure being called:
     # only using in SendOne and SendBulk RPCs
     # if configured, an event id will be set by data from path
     # expected format - "type:path"
-    id_from = "filed:path.to.id"
+    id_from = "field:path.to.id"
 
     ## TLS configuration
     # if true, TLS listener will be used

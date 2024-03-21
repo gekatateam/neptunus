@@ -30,7 +30,7 @@ If commit queue is full, fetching is suspended until at least one message is com
 
     # if configured, an event id will be set by data from path
     # expected format - "type:path"
-    id_from = "filed:path.to.id"
+    id_from = "field:path.to.id"
 
     # determines from whence the consumer group should begin consuming
     # when it finds a partition without a committed offset, "first" or "last"

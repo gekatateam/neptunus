@@ -73,7 +73,7 @@ func (q *QueryInfo) Init() error {
 	}
 	return nil
 }
- 
+
 type KeepValues struct {
 	Last  []string `mapstructure:"last"`
 	First []string `mapstructure:"first"`
@@ -180,7 +180,7 @@ func (i *Sql) Init() error {
 
 func (i *Sql) Close() error {
 	i.stopCh <- struct{}{}
-	<- i.doneCh
+	<-i.doneCh
 	return i.db.Close()
 }
 
@@ -189,9 +189,9 @@ func (i *Sql) Run() {
 		ticker := time.NewTicker(i.Interval)
 		for {
 			select {
-			case <- ticker.C:
+			case <-ticker.C:
 				i.poll()
-			case <- i.stopCh:
+			case <-i.stopCh:
 				ticker.Stop()
 				i.doneCh <- struct{}{}
 				return
@@ -200,7 +200,7 @@ func (i *Sql) Run() {
 	} else {
 		for {
 			select {
-			case <- i.stopCh:
+			case <-i.stopCh:
 				i.doneCh <- struct{}{}
 				return
 			default:
@@ -246,7 +246,7 @@ func (i *Sql) poll() {
 	if i.Transactional {
 		tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.txLevel, ReadOnly: i.ReadOnly})
 		if err != nil {
-			i.Log.Error("tx begin failed", 
+			i.Log.Error("tx begin failed",
 				"error", err,
 			)
 			i.Observe(metrics.EventFailed, time.Since(now))
@@ -258,7 +258,7 @@ func (i *Sql) poll() {
 
 	query, args, err := i.bindNamed(i.OnPoll.Query, i.keepValues, querier)
 	if err != nil {
-		i.Log.Error("onPoll query binding failed", 
+		i.Log.Error("onPoll query binding failed",
 			"error", err,
 		)
 		i.Observe(metrics.EventFailed, time.Since(now))
@@ -267,7 +267,7 @@ func (i *Sql) poll() {
 
 	rows, err := querier.QueryContext(ctx, query, args...)
 	if err != nil {
-		i.Log.Error("onPoll query exec failed", 
+		i.Log.Error("onPoll query exec failed",
 			"error", err,
 		)
 		i.Observe(metrics.EventFailed, time.Since(now))
@@ -282,7 +282,7 @@ func (i *Sql) poll() {
 	for hasRows {
 		fetchedRow := make(map[string]any)
 		if err := sqlx.MapScan(rows, fetchedRow); err != nil {
-			i.Log.Error("row scan failed", 
+			i.Log.Error("row scan failed",
 				"error", err,
 			)
 			i.Observe(metrics.EventFailed, time.Since(now))
@@ -336,7 +336,7 @@ func (i *Sql) poll() {
 	if len(i.OnDone.Query) > 0 {
 		query, args, err := i.bindNamed(i.OnDone.Query, keepValues, querier)
 		if err != nil {
-			i.Log.Error("onDone query binding failed", 
+			i.Log.Error("onDone query binding failed",
 				"error", err,
 			)
 			return
@@ -344,7 +344,7 @@ func (i *Sql) poll() {
 
 		_, err = querier.ExecContext(ctx, query, args...)
 		if err != nil {
-			i.Log.Error("onDone query exec failed", 
+			i.Log.Error("onDone query exec failed",
 				"error", err,
 			)
 			return
@@ -353,7 +353,7 @@ func (i *Sql) poll() {
 
 	if tx, ok := querier.(*sqlx.Tx); ok {
 		if err := tx.Commit(); err != nil {
-			i.Log.Error("tx commit failed", 
+			i.Log.Error("tx commit failed",
 				"error", err,
 			)
 			return
@@ -379,7 +379,7 @@ func (i *Sql) bindNamed(query string, args map[string]any, querier sqlx.ExtConte
 	return querier.Rebind(q), a, nil
 }
 
-func (i *Sql) keepColumns(from, to map [string]any, first, last bool) {
+func (i *Sql) keepColumns(from, to map[string]any, first, last bool) {
 	for k, v := range i.keepIndex {
 		col, ok := from[k]
 		if !ok {

@@ -8,7 +8,7 @@
   [inputs.sql]
     driver = "pgx"
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
-    interval = "5s"
+    interval = "2s"
     wait_for_delivery = true
     transactional = true
     [inputs.sql.keep_values]
@@ -27,7 +27,7 @@ SELECT ID, INSERT_TIMESTAMP, MESSAGE FROM POLLING_TABLE
 WHERE POLLED_TIMESTAMP IS NULL
 AND INSERT_TIMESTAMP >= :insert_timestamp
 ORDER BY INSERT_TIMESTAMP ASC
-LIMIT 50
+LIMIT 200
 FOR UPDATE SKIP LOCKED;
       '''
     [inputs.sql.on_done]
@@ -44,7 +44,7 @@ AND INSERT_TIMESTAMP >= :insert_timestamp;
 
 [[outputs]]
   [outputs.log]
-    level = "warn"
+    level = "debug"
     [outputs.log.serializer]
       type = "json"
       data_only = false

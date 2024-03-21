@@ -30,7 +30,7 @@ This plugin produce events with routing key as request path, `server` label with
 
     # if configured, an event id will be set by data from path
     # expected format - "type:path"
-    id_from = "filed:path.to.id"
+    id_from = "field:path.to.id"
 
     ## TLS configuration
     # if true, TLS listener will be used
