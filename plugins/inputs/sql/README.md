@@ -25,7 +25,7 @@ Next cycle will start from second step immediately or each configured `interval`
     # if zero, next poll cycle will start immediately
     interval = "5s"
 
-    # if true, onDone query will be executed only after all events polled have been delivered
+    # if true, onDone query will be executed only after all events have been delivered
     wait_for_delivery = true
 
     # database connection params - https://pkg.go.dev/database/sql#DB.SetConnMaxIdleTime
@@ -55,14 +55,14 @@ Next cycle will start from second step immediately or each configured `interval`
       event_type = "type"
 
     # list of columns whose values will be saved for use in queries
-    # "first" - only values from first row in will be saved
-    # "last" - only values from last row in will be saved
+    # "first" - only values from first row will be saved
+    # "last" - only values from last row will be saved
     # "all" - all values will be saved, one slice per column
     #
-    # these settings are used in init and poll queries
+    # these settings are applied to init and poll queries
     # it is okay if query does not return configured column
     #
-    # keeped values can be used in queries using named params
+    # keeped values can be used in poll and done queries using named params
     # https://jmoiron.github.io/sqlx/#namedParams
     [inputs.sql.keep_values]
       first = []
