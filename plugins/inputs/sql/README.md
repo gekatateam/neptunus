@@ -93,7 +93,7 @@ LIMIT 100
 FOR UPDATE SKIP LOCKED;
       '''
 
-    # polling query, executed in the end of each poll cycle
+    # final query, executed in the end of each poll cycle
     # this query can use previously keeped values 
     [inputs.sql.on_done]
       file = "done.sql"
