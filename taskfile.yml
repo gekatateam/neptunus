@@ -13,29 +13,17 @@ tasks:
     - task: generics:notice
 
   build-linux-amd64:
+    vars:
+      NEPTUNUS_BUILD_GOOS: linux
+      NEPTUNUS_BUILD_GOARCH: amd64
     cmds:
     - task: generics:build
-      vars:
-        NEPTUNUS_BUILD_GOOS: linux
-        NEPTUNUS_BUILD_GOARCH: amd64
+    - task: generics:zip
 
   build-windows-amd64:
+    vars:
+      NEPTUNUS_BUILD_GOOS: windows
+      NEPTUNUS_BUILD_GOARCH: amd64
     cmds:
     - task: generics:build
-      vars:
-        NEPTUNUS_BUILD_GOOS: windows
-        NEPTUNUS_BUILD_GOARCH: amd64
-
-  pack-linux-amd64:
-    cmds:
     - task: generics:tar
-      vars:
-        NEPTUNUS_BUILD_GOOS: linux
-        NEPTUNUS_BUILD_GOARCH: amd64
-
-  pack-windows-amd64:
-    cmds:
-    - task: generics:zip
-      vars:
-        NEPTUNUS_BUILD_GOOS: windows
-        NEPTUNUS_BUILD_GOARCH: amd64
