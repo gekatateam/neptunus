@@ -39,3 +39,14 @@ tasks:
       -rj \
       {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
       {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe
+
+  notice:
+    internal: true
+    cmds:
+    - |
+      go list -m -json all | \
+      go-licence-detector \
+        -includeIndirect \
+        -rules '.github/licence-rules.json' \
+        -noticeTemplate '.github/NOTICE.txt.tmpl' \
+        -noticeOut '{{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt'   
