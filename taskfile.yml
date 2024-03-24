@@ -41,6 +41,11 @@ tasks:
         NEPTUNUS_BUILD_GOOS: windows
         NEPTUNUS_BUILD_GOARCH: amd64
 
+  build-docker-image:
+    aliases: [ docker ]
+    cmds:
+    - task: generics:docker
+
 # global tasks
   build:
     cmds:

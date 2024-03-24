@@ -52,3 +52,14 @@ tasks:
         -rules '.github/licence-rules.json' \
         -noticeTemplate '.github/NOTICE.txt.tmpl' \
         -noticeOut '{{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt'   
+
+  docker:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_VERSION ]
+    cmds:
+    - |
+      docker build \
+        --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
+        -t ghcr.io/gekatateam/neptunus:{{ .NEPTUNUS_BUILD_VERSION }} \
+        .
