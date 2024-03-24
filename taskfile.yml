@@ -46,6 +46,11 @@ tasks:
     cmds:
     - task: generics:docker
 
+  cleanup-after-build:
+    aliases: [ cleanup ]
+    cmds:
+    - task: generics:cleanup
+
 # global tasks
   build:
     cmds:

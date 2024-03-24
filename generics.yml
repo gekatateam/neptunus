@@ -63,3 +63,8 @@ tasks:
         --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
         -t ghcr.io/gekatateam/neptunus:{{ .NEPTUNUS_BUILD_VERSION }} \
         .
+
+  cleanup:
+    internal: true
+    cmds:
+    - rm -rf {{ .NEPTUNUS_BUILD_DIR }}
