@@ -44,6 +44,7 @@ tasks:
     internal: true
     cmds:
     - |
+      mkdir -p {{ .NEPTUNUS_BUILD_DIR }}
       go list -m -json all | \
       go-licence-detector \
         -includeIndirect \
