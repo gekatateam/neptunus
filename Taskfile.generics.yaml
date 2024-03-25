@@ -54,7 +54,7 @@ tasks:
       go list -m -json all | \
       go-licence-detector \
         -includeIndirect \
-        -rules '.github/licence-rules.json' \
+        -rules '.github/li-checker-rules.json' \
         -noticeTemplate '.github/NOTICE.txt.tmpl' \
         -noticeOut '{{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt'   
 
