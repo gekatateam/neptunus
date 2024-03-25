@@ -1,0 +1,80 @@
+version: 3
+
+tasks:
+  build:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+    cmds:
+    - |
+      mkdir -p {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
+      export GOOS="{{ .NEPTUNUS_BUILD_GOOS }}"
+      export GOARCH="{{ .NEPTUNUS_BUILD_GOARCH }}"
+      go build \
+        -ldflags="-X main.Version={{ .NEPTUNUS_BUILD_VERSION }}" \
+        -o {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} \
+        ./cmd/neptunus
+
+  tar:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+    preconditions:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+    cmds:
+    - |
+      tar \
+        -czvf {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz \
+        -C {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} neptunus \
+        -C ../../{{ .NEPTUNUS_BUILD_DIR }} NOTICE.txt
+
+  zip:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+    preconditions:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+    cmds:
+    - |
+      zip \
+      -rj \
+      {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
+      {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe \
+      {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+
+  notice:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR ]
+    cmds:
+    - |
+      mkdir -p {{ .NEPTUNUS_BUILD_DIR }}
+      go list -m -json all | \
+      go-licence-detector \
+        -includeIndirect \
+        -rules '.github/li-checker-rules.json' \
+        -noticeTemplate '.github/NOTICE.txt.tmpl' \
+        -noticeOut '{{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt'   
+
+  docker:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_VERSION ]
+    cmds:
+    - |
+      docker build \
+        --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
+        -t ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }} \
+        .
+    status:
+    - docker inspect --type=image ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }}
+
+  cleanup:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR ]
+    prompt: '{{ .NEPTUNUS_BUILD_DIR }}/ directory will be deleted. Do you want to continue?'
+    cmds:
+    - rm -rf {{ .NEPTUNUS_BUILD_DIR }}

@@ -1,0 +1,33 @@
+version: 3
+
+includes:
+  generics: Taskfile.generics.yaml
+  build: Taskfile.build.yaml
+  pack: Taskfile.pack.yaml
+
+vars:
+  NEPTUNUS_BUILD_DIR: "builds"
+  NEPTUNUS_BUILD_VERSION:
+    sh: git log -n 1 --format=%h
+#    sh: git describe --abbrev=0 --tags
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list --color
+
+  cleanup:
+    desc: Cleanup after build
+    cmds:
+    - task: generics:cleanup
+
+  all:
+    desc: Build and pack all artifacts
+    cmds:
+    - task: build:notice
+    - task: build:linux-amd64
+    - task: build:windows-amd64
+    - task: build:docker
+    - task: pack:linux-amd64
+    - task: pack:windows-amd64

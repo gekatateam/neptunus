@@ -1,7 +1,5 @@
 # Neptunus
-
-<img src="assets/neptunus.svg" width="250" height="250">
-
+ 
 Neptunus is a data processing engine for consuming, transforming and producing events. Originally conceived as a central unit of a mediation platform, Neptunus may:
  - receive data from a number of different sources, either from message brokers or by acting as a server
  - manage event streams based on filtering rules
