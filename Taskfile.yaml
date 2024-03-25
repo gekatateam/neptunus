@@ -8,8 +8,7 @@ includes:
 vars:
   NEPTUNUS_BUILD_DIR: "builds"
   NEPTUNUS_BUILD_VERSION:
-    sh: git log -n 1 --format=%h
-#    sh: git describe --abbrev=0 --tags
+    sh: git describe --abbrev=0 --tags
 
 tasks:
   default:
