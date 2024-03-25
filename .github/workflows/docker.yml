@@ -35,6 +35,12 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Build and pack binaries
+        run: |
+          task -v \
+            build:notice \
+            build:docker
+
       - name: Push image
         run: |
           docker push $(docker image ls --format "{{ .Repository }}:{{ .Tag }}" | grep neptunus)
