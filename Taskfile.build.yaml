@@ -1,0 +1,31 @@
+version: 3
+
+includes:
+  generics: Taskfile.generics.yaml
+
+tasks:
+  notice:
+    desc: Generate NOTICE.txt
+    cmds:
+    - task: generics:notice
+
+  linux-amd64:
+    desc: Build linux/amd64 binary
+    cmds:
+    - task: generics:build
+      vars:
+        NEPTUNUS_BUILD_GOOS: linux
+        NEPTUNUS_BUILD_GOARCH: amd64
+
+  windows-amd64:
+    desc: Build windows/amd64 binary
+    cmds:
+    - task: generics:build
+      vars:
+        NEPTUNUS_BUILD_GOOS: windows
+        NEPTUNUS_BUILD_GOARCH: amd64
+
+  docker:
+    desc: Build docker image
+    cmds:
+    - task: generics:docker

@@ -1,13 +1,10 @@
 version: 3
 
-vars:
-  NEPTUNUS_BUILD_DIR: "builds"
-
 tasks:
   build:
     internal: true
     requires:
-      vars: [ NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
     cmds:
     - |
       mkdir -p {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
@@ -21,7 +18,10 @@ tasks:
   tar:
     internal: true
     requires:
-      vars: [ NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+    preconditions:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
     cmds:
     - |
       tar \
@@ -32,7 +32,10 @@ tasks:
   zip:
     internal: true
     requires:
-      vars: [ NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+    preconditions:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
     cmds:
     - |
       zip \
@@ -43,6 +46,8 @@ tasks:
 
   notice:
     internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR ]
     cmds:
     - |
       mkdir -p {{ .NEPTUNUS_BUILD_DIR }}
@@ -61,10 +66,15 @@ tasks:
     - |
       docker build \
         --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
-        -t ghcr.io/gekatateam/neptunus:{{ .NEPTUNUS_BUILD_VERSION }} \
+        -t ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }} \
         .
+    status:
+    - docker inspect --type=image ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }}
 
   cleanup:
     internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_DIR ]
+    prompt: '{{ .NEPTUNUS_BUILD_DIR }}/ directory will be deleted. Do you want to continue?'
     cmds:
     - rm -rf {{ .NEPTUNUS_BUILD_DIR }}

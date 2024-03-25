@@ -19,8 +19,8 @@
 With batching and buffering
  - [x] Kafka
  - [ ] AMQP
- - [ ] Elasticsearch
- - [ ] PostgreSQL
+ - [x] Elasticsearch
+ - [x] ~~PostgreSQL~~ Sql should be used instead
  - [x] gRPC stream
 
 ## Filters

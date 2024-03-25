@@ -1,0 +1,21 @@
+version: 3
+
+includes:
+  generics: Taskfile.generics.yaml
+
+tasks:
+  linux-amd64:
+    desc: Create linux/amd64 tar.gz
+    cmds:
+    - task: generics:tar
+      vars:
+        NEPTUNUS_BUILD_GOOS: linux
+        NEPTUNUS_BUILD_GOARCH: amd64
+
+  windows-amd64:
+    desc: Create windows/amd64 zip
+    cmds:
+    - task: generics:zip
+      vars:
+        NEPTUNUS_BUILD_GOOS: windows
+        NEPTUNUS_BUILD_GOARCH: amd64
