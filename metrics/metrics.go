@@ -148,9 +148,7 @@ func init() {
 
 type ObserveFunc func(plugin, name, pipeline string, status EventStatus, t time.Duration)
 
-type Observer interface {
-	Observe(status EventStatus, t time.Duration)
-}
+func ObserveMock (plugin, name, pipeline string, status EventStatus, t time.Duration) {}
 
 func ObserveInputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
 	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	"github.com/gekatateam/neptunus/plugins/processors/parser"
@@ -297,6 +298,7 @@ func TestParser(t *testing.T) {
 				Ider: &ider.Ider{},
 				BaseProcessor: &core.BaseProcessor{
 					Log: logger.Mock(),
+					Obs: metrics.ObserveMock,
 				},
 			}
 			if err := mapstructure.Decode(test.config, processor); err != nil {
