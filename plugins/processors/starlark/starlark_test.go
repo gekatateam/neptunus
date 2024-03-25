@@ -6,6 +6,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	common "github.com/gekatateam/neptunus/plugins/common/starlark"
 	"github.com/gekatateam/neptunus/plugins/processors/starlark"
@@ -114,6 +115,7 @@ def process(event):
 				Starlark: &common.Starlark{},
 				BaseProcessor: &core.BaseProcessor{
 					Log: logger.Mock(),
+					Obs: metrics.ObserveMock,
 				},
 			}
 			if err := mapstructure.Decode(test.config, processor); err != nil {
