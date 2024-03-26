@@ -8,7 +8,7 @@ includes:
 vars:
   NEPTUNUS_BUILD_DIR: "builds"
   NEPTUNUS_BUILD_VERSION:
-    sh: git describe --abbrev=0 --tags
+    sh: echo "$(git describe --abbrev=0 --tags)-$(git log -n 1 --format=%h)"
 
 tasks:
   default:
@@ -24,9 +24,9 @@ tasks:
   all:
     desc: Build and pack all artifacts
     cmds:
-    - task: build:notice
     - task: build:linux-amd64
     - task: build:windows-amd64
+    - task: build:notice
     - task: build:docker
     - task: pack:linux-amd64
     - task: pack:windows-amd64

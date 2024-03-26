@@ -1,20 +1,21 @@
 name: build-and-publish-artifacts
 on:
   workflow_dispatch:
+  push:
+    tags: [ "v*.*.*" ]
 
 jobs:
   build-and-publish-artifacts:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-tags: true
           fetch-depth: 0
-          filter: tree:0
 
       - name: Setup Go 1.21.x
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: '1.21.x'
 
@@ -26,9 +27,9 @@ jobs:
       - name: Build and pack binaries
         run: |
           task -v \
-            build:notice \
             build:linux-amd64 \
             build:windows-amd64 \
+            build:notice \
             pack:linux-amd64 \
             pack:windows-amd64
 
@@ -37,5 +38,14 @@ jobs:
         with:
           name: archives
           path: |
+            builds/*.tar.gz
+            builds/*.zip
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          draft: true
+          files: |
             builds/*.tar.gz
             builds/*.zip
