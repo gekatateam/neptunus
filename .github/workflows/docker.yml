@@ -1,20 +1,21 @@
-name: build-and-publish-artifacts
+name: build-and-publish-docker-image
 on:
   workflow_dispatch:
+  push:
+    tags: [ "v*.*.*" ]
 
 jobs:
-  build-and-publish-artifacts:
+  build-and-publish-docker-image:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-tags: true
           fetch-depth: 0
-          filter: tree:0
 
       - name: Setup Go 1.21.x
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: '1.21.x'
 
@@ -35,11 +36,8 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build and pack binaries
-        run: |
-          task -v \
-            build:notice \
-            build:docker
+      - name: Build docker image
+        run: task -v build:docker
 
       - name: Push image
         run: |
