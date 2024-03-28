@@ -10,7 +10,7 @@ import (
 )
 
 type Drop struct {
-	*core.BaseProcessor
+	*core.BaseProcessor `mapstructure:"-"`
 }
 
 func (p *Drop) Init() error {
