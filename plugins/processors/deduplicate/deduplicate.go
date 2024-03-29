@@ -1,7 +1,9 @@
 package deduplicate
 
 import (
+	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -10,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 // redis client SetNX() method returns RedisBool
@@ -20,7 +23,9 @@ type Deduplicate struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	IdempotencyKey      string `mapstructure:"idempotency_key"`
 	Redis               Redis  `mapstructure:"redis"`
-	Retryer *retryer.Retryer `mapstructure:",squash"`
+
+	*tls.TLSClientConfig `mapstructure:",squash"`
+	*retryer.Retryer     `mapstructure:",squash"`
 
 	id     uint64
 	client redis.UniversalClient
@@ -40,6 +45,44 @@ type Redis struct {
 }
 
 func (p *Deduplicate) Init() error {
+	if len(p.IdempotencyKey) == 0 {
+		return errors.New("idempotency_key required")
+	}
+
+	if len(p.Redis.Servers) == 0 {
+		return errors.New("at least one Redis server address required")
+	}
+
+	tlsConfig, err := p.TLSClientConfig.Config()
+	if err != nil {
+		return err
+	}
+
+	if len(p.Redis.Keyspace) > 0 && !strings.HasSuffix(p.Redis.Keyspace, ":") {
+		p.Redis.Keyspace = p.Redis.Keyspace + ":"
+	}
+
+	// also, pool options:
+	// MinIdleConns    int
+	// MaxActiveConns  int
+	client := redis.NewUniversalClient(&redis.UniversalOptions{
+		Addrs:                 p.Redis.Servers,
+		Username:              p.Redis.Username,
+		Password:              p.Redis.Password,
+		MaxRetries:            0,
+		DialTimeout:           p.Redis.Timeout,
+		ReadTimeout:           p.Redis.Timeout,
+		WriteTimeout:          p.Redis.Timeout,
+		ContextTimeoutEnabled: true,
+		PoolSize:              p.Redis.ConnsMaxOpen,
+		PoolTimeout:           p.Redis.Timeout,
+		MaxIdleConns:          p.Redis.ConnsMaxIdle,
+		ConnMaxIdleTime:       p.Redis.ConnsMaxIdleTime,
+		ConnMaxLifetime:       p.Redis.ConnsMaxLifetime,
+		TLSConfig:             tlsConfig,
+	})
+	p.client = clientStorage.CompareAndStore(p.id, client)
+
 	return nil
 }
 
@@ -74,6 +117,13 @@ func init() {
 				ConnsMaxLifetime: 10 * time.Minute,
 				ConnsMaxOpen:     2,
 				ConnsMaxIdle:     1,
+				Timeout:          30 * time.Second,
+				TTL:              1 * time.Hour,
+			},
+			TLSClientConfig: &tls.TLSClientConfig{},
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
 			},
 		}
 	})
