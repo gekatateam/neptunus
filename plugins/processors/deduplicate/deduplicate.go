@@ -20,9 +20,7 @@ type Deduplicate struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	IdempotencyKey      string `mapstructure:"idempotency_key"`
 	Redis               Redis  `mapstructure:"redis"`
-
-	*tls.TLSClientConfig `mapstructure:",squash"`
-	*retryer.Retryer     `mapstructure:",squash"`
+	*retryer.Retryer    `mapstructure:",squash"`
 
 	id     uint64
 	client redis.UniversalClient
@@ -40,6 +38,8 @@ type Redis struct {
 	ConnsMaxLifetime time.Duration `mapstructure:"conns_max_life_time"`
 	ConnsMaxOpen     int           `mapstructure:"conns_max_open"`
 	ConnsMaxIdle     int           `mapstructure:"conns_max_idle"`
+
+	*tls.TLSClientConfig `mapstructure:",squash"`
 }
 
 func (p *Deduplicate) Init() error {
@@ -51,7 +51,7 @@ func (p *Deduplicate) Init() error {
 		return errors.New("at least one Redis server address required")
 	}
 
-	tlsConfig, err := p.TLSClientConfig.Config()
+	tlsConfig, err := p.Redis.TLSClientConfig.Config()
 	if err != nil {
 		return err
 	}
@@ -102,6 +102,7 @@ func (p *Deduplicate) SetId(id uint64) {
 func (p *Deduplicate) Run() {
 	for e := range p.In {
 		now := time.Now()
+		e.SetLabel("::duplicate", "false")
 
 		key, ok := e.GetLabel(p.IdempotencyKey)
 		if !ok {
@@ -167,8 +168,8 @@ func init() {
 				ConnsMaxIdle:     1,
 				Timeout:          30 * time.Second,
 				TTL:              1 * time.Hour,
+				TLSClientConfig:  &tls.TLSClientConfig{},
 			},
-			TLSClientConfig: &tls.TLSClientConfig{},
 			Retryer: &retryer.Retryer{
 				RetryAttempts: 0,
 				RetryAfter:    5 * time.Second,

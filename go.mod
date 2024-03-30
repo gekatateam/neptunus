@@ -27,8 +27,9 @@ require (
 	github.com/jackc/pgtype v1.14.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	golang.org/x/crypto v0.20.0 // indirect
-	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
+	golang.org/x/time v0.3.0 // indirect
 )
 
 require (
@@ -75,7 +76,6 @@ require (
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jackc/pgx/v4 v4.18.2
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/magefile/mage v1.15.0
 	github.com/microsoft/go-mssqldb v1.7.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/naoina/toml v0.1.1
