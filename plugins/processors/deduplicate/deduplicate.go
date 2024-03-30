@@ -1,6 +1,7 @@
 package deduplicate
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"strings"
@@ -15,10 +16,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-// redis client SetNX() method returns RedisBool
-// where false means than key already exists
-//
-// redis metrics needs here
 type Deduplicate struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	IdempotencyKey      string `mapstructure:"idempotency_key"`
@@ -32,6 +29,7 @@ type Deduplicate struct {
 }
 
 type Redis struct {
+	Shared           bool          `mapstructure:"shared"`
 	Servers          []string      `mapstructure:"servers"`
 	Username         string        `mapstructure:"username"`
 	Password         string        `mapstructure:"password"`
@@ -65,7 +63,7 @@ func (p *Deduplicate) Init() error {
 	// also, pool options:
 	// MinIdleConns    int
 	// MaxActiveConns  int
-	client := redis.NewUniversalClient(&redis.UniversalOptions{
+	p.client = redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:                 p.Redis.Servers,
 		Username:              p.Redis.Username,
 		Password:              p.Redis.Password,
@@ -81,7 +79,14 @@ func (p *Deduplicate) Init() error {
 		ConnMaxLifetime:       p.Redis.ConnsMaxLifetime,
 		TLSConfig:             tlsConfig,
 	})
-	p.client = clientStorage.CompareAndStore(p.id, client)
+
+	if p.Redis.Shared {
+		p.client = clientStorage.CompareAndStore(p.id, p.client)
+	}
+
+	if err := p.client.Ping(context.Background()).Err(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -97,13 +102,55 @@ func (p *Deduplicate) SetId(id uint64) {
 func (p *Deduplicate) Run() {
 	for e := range p.In {
 		now := time.Now()
-		e.Done()
-		p.Log.Debug("event dropped",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
-		)
+
+		key, ok := e.GetLabel(p.IdempotencyKey)
+		if !ok {
+			p.Log.Debug("event has no configured label, skipped",
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
+			p.Out <- e
+			p.Observe(metrics.EventAccepted, time.Since(now))
+			continue
+		}
+
+		var unique bool
+		err := p.Retryer.Do("set key", p.Log, func() error {
+			boolCmd := p.client.SetNX(context.Background(), p.Redis.Keyspace+key, time.Now().String(), p.Redis.TTL)
+			if err := boolCmd.Err(); err != nil {
+				return err
+			}
+
+			// false means than key not set because key already exists
+			unique = boolCmd.Val()
+			return nil
+		})
+
+		if err != nil {
+			p.Log.Error("redis cmd exec failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
+			continue
+		}
+
+		if !unique {
+			p.Log.Debug("duplicate event found",
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
+			e.SetLabel("::duplicate", "true")
+		}
+		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
@@ -112,6 +159,7 @@ func init() {
 	plugins.AddProcessor("deduplicate", func() core.Processor {
 		return &Deduplicate{
 			Redis: Redis{
+				Shared:           true,
 				Keyspace:         "neptunus:deduplicate",
 				ConnsMaxIdleTime: 10 * time.Minute,
 				ConnsMaxLifetime: 10 * time.Minute,
