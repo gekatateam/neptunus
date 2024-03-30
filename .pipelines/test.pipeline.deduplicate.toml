@@ -1,0 +1,41 @@
+[settings]
+  id = "test.pipeline.deduplicate"
+  lines = 5
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.httpl]
+    address = ":9100"
+    max_connections = 10
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.httpl.parser]
+    type = "json"
+
+[[processors]]
+  [processors.defaults.labels]
+    unique_key = "val1"
+
+[[processors]]
+  [processors.deduplicate]
+    idempotency_key = "unique_key"
+    [processors.deduplicate.redis]
+      shared = true
+      servers = [ "localhost:6379" ]
+      password = "redis"
+      conns_max_open = 5
+      conns_max_idle = 5
+
+[[processors]]
+  [processors.drop.filters.glob.labels]
+    "::duplicate" = [ "*" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false

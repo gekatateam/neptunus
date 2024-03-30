@@ -11,6 +11,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -26,8 +27,9 @@ require (
 	github.com/jackc/pgtype v1.14.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	golang.org/x/crypto v0.20.0 // indirect
-	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
+	golang.org/x/time v0.3.0 // indirect
 )
 
 require (
@@ -74,12 +76,12 @@ require (
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jackc/pgx/v4 v4.18.2
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/magefile/mage v1.15.0
 	github.com/microsoft/go-mssqldb v1.7.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/naoina/toml v0.1.1
 	github.com/opensearch-project/opensearch-go/v3 v3.0.0
 	github.com/prometheus/client_golang v1.18.0
+	github.com/redis/go-redis/v9 v9.5.1
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/sijms/go-ora/v2 v2.8.9
 	github.com/urfave/cli/v2 v2.27.1
