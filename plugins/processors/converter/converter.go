@@ -14,7 +14,6 @@ var targetObjectPattern = regexp.MustCompile(`^((label|field):)?([\w-\.]+)$`)
 
 type Converter struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	Timestamp           string   `mapstructure:"timestamp"`
 	Id                  string   `mapstructure:"id"`
 	Label               []string `mapstructure:"label"`
 	String              []string `mapstructure:"string"`
@@ -22,18 +21,11 @@ type Converter struct {
 	Unsigned            []string `mapstructure:"unsigned"`
 	Float               []string `mapstructure:"float"`
 	Boolean             []string `mapstructure:"boolean"`
-	Time                []string `mapstructure:"time"`
 
 	conversions []conversionParams
 }
 
 func (p *Converter) Init() error {
-	if len(p.Timestamp) > 0 {
-		if err := p.initConversionParam(p.Timestamp, toTimestamp); err != nil {
-			return fmt.Errorf("timestamp: %w", err)
-		}
-	}
-
 	if len(p.Id) > 0 {
 		if err := p.initConversionParam(p.Id, toId); err != nil {
 			return fmt.Errorf("id: %w", err)
@@ -76,12 +68,6 @@ func (p *Converter) Init() error {
 		}
 	}
 
-	for _, v := range p.Time {
-		if err := p.initConversionParam(v, toTime); err != nil {
-			return fmt.Errorf("time: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -91,7 +77,7 @@ func(p *Converter) initConversionParam(rawParam string, to to) error {
 		return fmt.Errorf("configured value %v does not match pattern", rawParam)
 	}
 
-	switch match[1] {
+	switch match[2] {
 	case "label":
 		p.conversions = append(p.conversions, conversionParams{
 			from: fromLabel,
@@ -104,6 +90,8 @@ func(p *Converter) initConversionParam(rawParam string, to to) error {
 			to:   to,
 			path: match[3],
 		})
+	default:
+		panic(fmt.Errorf("processors.converter: totally unexpected source type: %v", match[2]))
 	}
 
 	return nil

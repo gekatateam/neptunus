@@ -1,5 +1,7 @@
 package converter
 
+import "github.com/gekatateam/neptunus/core"
+
 type from int
 
 const (
@@ -19,6 +21,7 @@ const (
 	toFloat
 	toBoolean
 	toTime
+	toDuration
 )
 
 type conversionParams struct {
@@ -27,6 +30,11 @@ type conversionParams struct {
 	path string
 }
 
-type converter struct {}
+type converter struct{}
+
+func (c *converter) Convert(e *core.Event, p conversionParams) error {
 
 
+
+	return nil
+}
