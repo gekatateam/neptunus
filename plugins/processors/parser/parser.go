@@ -25,7 +25,11 @@ type Parser struct {
 
 func (p *Parser) Init() error {
 	if len(p.From) == 0 {
-		return errors.New("target field required")
+		return errors.New("from field required")
+	}
+
+	if len(p.To) == 0 {
+		p.To = "."
 	}
 
 	if err := p.Ider.Init(); err != nil {
@@ -115,25 +119,21 @@ MAIN_LOOP:
 					event.DeleteField(p.From)
 				}
 
-				if p.To == "" {
-					event.AppendFields(donor.Data)
-				} else {
-					if err := event.SetField(p.To, donor.Data); err != nil {
-						p.Log.Error("error set field",
-							"error", err,
-							slog.Group("event",
-								"id", e.Id,
-								"key", e.RoutingKey,
-								"field", p.To,
-							),
-						)
-						e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
-						e.AddTag("::parser_processing_failed")
-						e.Done() // decrease duty counter to compensate Copy()
-						p.Out <- e
-						p.Observe(metrics.EventFailed, time.Since(now))
-						continue MAIN_LOOP // continue main loop with error if set failed
-					}
+				if err := event.SetField(p.To, donor.Data); err != nil {
+					p.Log.Error("error set field",
+						"error", err,
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+							"field", p.To,
+						),
+					)
+					e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
+					e.AddTag("::parser_processing_failed")
+					e.Done() // decrease duty counter to compensate Copy()
+					p.Out <- e
+					p.Observe(metrics.EventFailed, time.Since(now))
+					continue MAIN_LOOP // continue main loop with error if set failed
 				}
 				p.Out <- event
 			}
@@ -150,7 +150,7 @@ func init() {
 		return &Parser{
 			Behaviour:  "merge",
 			DropOrigin: true,
-			To:         "",
+			To:         ".",
 			Ider:       &ider.Ider{},
 		}
 	})

@@ -28,7 +28,7 @@ func (m *mockParser) Parse(data []byte, routingKey string) ([]*core.Event, error
 	for i := 0; i < m.count; i++ {
 		r = append(r, core.NewEventWithData(
 			routingKey,
-			core.Map{
+			map[string]any{
 				"one": "one",
 				"two": i,
 			},
@@ -66,7 +66,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": "",
 				},
 			},
@@ -97,7 +97,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"notAfield": "im not a field",
 				},
 			},
@@ -122,7 +122,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": 1337,
 				},
 			},
@@ -147,7 +147,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": "im a field",
 				},
 			},
@@ -172,7 +172,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": "",
 				},
 			},
@@ -207,7 +207,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": "",
 				},
 			},
@@ -238,7 +238,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": "im a field",
 				},
 			},
@@ -272,7 +272,7 @@ func TestParser(t *testing.T) {
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
-				Data: core.Map{
+				Data: map[string]any{
 					"field": "im a field",
 					"im":    []int{1, 2, 3},
 				},

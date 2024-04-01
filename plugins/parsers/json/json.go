@@ -12,6 +12,7 @@ import (
 
 type Json struct {
 	*core.BaseParser `mapstructure:"-"`
+	SplitArray       bool `mapstructure:"split_array"`
 }
 
 func (p *Json) Init() error {
@@ -27,19 +28,24 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	events := []*core.Event{}
 
 	if data[0] == '[' { // array provided - [{...},{...},...]
-		eventData := []core.Map{}
+		eventData := []any{}
 		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return nil, err
 		}
 
-		for _, e := range eventData {
-			events = append(events, core.NewEventWithData(routingKey, e))
+		if p.SplitArray {
+			for _, e := range eventData {
+				events = append(events, core.NewEventWithData(routingKey, e))
+				p.Observe(metrics.EventAccepted, time.Since(now))
+				now = time.Now()
+			}
+		} else {
+			events = append(events, core.NewEventWithData(routingKey, eventData))
 			p.Observe(metrics.EventAccepted, time.Since(now))
-			now = time.Now()
 		}
 	} else { // object provided - {...}
-		eventData := core.Map{}
+		eventData := map[string]any{}
 		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return nil, err
@@ -52,6 +58,8 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 
 func init() {
 	plugins.AddParser("json", func() core.Parser {
-		return &Json{}
+		return &Json{
+			SplitArray: true,
+		}
 	})
 }

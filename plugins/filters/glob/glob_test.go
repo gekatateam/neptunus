@@ -60,22 +60,22 @@ func TestGlob(t *testing.T) {
 			events: []*core.Event{
 				{
 					RoutingKey: "passed-test-key",
-					Data: core.Map{
-						"one": core.Map{
+					Data: map[string]any{
+						"one": map[string]any{
 							"two": "three",
 						},
-						"three": core.Map{
+						"three": map[string]any{
 							"two": "three",
 						},
 					},
 				},
 				{
 					RoutingKey: "passed-test-key",
-					Data: core.Map{
-						"one": core.Map{
+					Data: map[string]any{
+						"one": map[string]any{
 							"two": "four",
 						},
-						"three": core.Map{
+						"three": map[string]any{
 							"two": "three",
 						},
 					},
@@ -102,11 +102,11 @@ func TestGlob(t *testing.T) {
 					Labels: map[string]string{
 						"test": "true",
 					},
-					Data: core.Map{
-						"one": core.Map{
+					Data: map[string]any{
+						"one": map[string]any{
 							"two": "three",
 						},
-						"three": core.Map{
+						"three": map[string]any{
 							"two": "three",
 						},
 					},
@@ -116,11 +116,11 @@ func TestGlob(t *testing.T) {
 					Labels: map[string]string{
 						"test": "false",
 					},
-					Data: core.Map{
-						"one": core.Map{
+					Data: map[string]any{
+						"one": map[string]any{
 							"two": "four",
 						},
-						"three": core.Map{
+						"three": map[string]any{
 							"two": "three",
 						},
 					},

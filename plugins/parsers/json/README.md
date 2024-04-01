@@ -3,10 +3,10 @@
 The `json` parser plugin parses json into events data map.
 
 The result of this plugin depends on passed data:
- - when json object is passed, plugin produces one event with a data map, that was parsed from object
- - when array of objects is passed, plugin produces an event for each object in the array
-
-In any other cases, e.g. array of strings, numbers, arrays, etc, plugin returns an error.
+ - when json object is passed, plugin produces one event
+ - when array passed:
+   - if `split_array` is `true`, each entry will be produced as an event
+   - if `split_array` is `false`, plugin produces one event
 
 ## Configuration
 ```toml
@@ -14,4 +14,5 @@ In any other cases, e.g. array of strings, numbers, arrays, etc, plugin returns 
   [inputs.http]
   [inputs.http.parser]
     type = "json"
+    split_array = true
 ```

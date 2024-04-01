@@ -29,8 +29,8 @@ func TestRegex(t *testing.T) {
 			events: []*core.Event{
 				{
 					RoutingKey: "rk",
-					Data: core.Map{
-						"one": core.Map{
+					Data: map[string]any{
+						"one": map[string]any{
 							"two": "one: data1 two: 1337 [leet info]",
 						},
 					},
@@ -61,14 +61,14 @@ func TestRegex(t *testing.T) {
 			events: []*core.Event{
 				{
 					RoutingKey: "rk",
-					Data:       core.Map{},
+					Data:       map[string]any{},
 					Labels: map[string]string{
 						"testlabelone": "first:f second:sec",
 					},
 				},
 				{
 					RoutingKey: "rk",
-					Data:       core.Map{},
+					Data:       map[string]any{},
 					Labels: map[string]string{
 						"testlabelone": "first:f second:sec",
 						"testlabeltwo": "foo bar fizz 1234",
@@ -112,8 +112,8 @@ func TestRegex(t *testing.T) {
 			events: []*core.Event{
 				{
 					RoutingKey: "rk",
-					Data: core.Map{
-						"test": core.Map{
+					Data: map[string]any{
+						"test": map[string]any{
 							"one": "first:f second:sec",
 							"two": "foo bar fizz 1234",
 						},
@@ -121,8 +121,8 @@ func TestRegex(t *testing.T) {
 				},
 				{
 					RoutingKey: "rk",
-					Data: core.Map{
-						"test": core.Map{
+					Data: map[string]any{
+						"test": map[string]any{
 							"one": "first:f second:sec",
 							"two": "foo bar but must not match",
 						},
@@ -166,8 +166,8 @@ func TestRegex(t *testing.T) {
 			events: []*core.Event{
 				{
 					RoutingKey: "rk",
-					Data: core.Map{
-						"test": core.Map{
+					Data: map[string]any{
+						"test": map[string]any{
 							"two": "foo bar fizz 1234",
 						},
 						"fizz": []int{0, 10, 100},

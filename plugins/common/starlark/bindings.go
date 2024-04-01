@@ -9,8 +9,6 @@ import (
 
 	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
-
-	"github.com/gekatateam/neptunus/core"
 )
 
 func init() {
@@ -383,7 +381,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 		}
 		return slice, nil
 	case *starlark.Dict:
-		datamap := make(core.Map, v.Len())
+		datamap := make(map[string]any, v.Len())
 		for _, starKey := range v.Keys() {
 			goKey, ok := starKey.(starlark.String)
 			if !ok { // event datamap key must be a string
@@ -398,9 +396,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 				return nil, err
 			}
 
-			if err := datamap.SetValue(string(goKey), goValue); err != nil {
-				return nil, err
-			}
+			datamap[goKey.String()] = goValue
 		}
 		return datamap, nil
 	case startime.Time:

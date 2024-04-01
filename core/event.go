@@ -28,12 +28,12 @@ func NewEvent(routingKey string) *Event {
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
 		Labels:     make(map[string]string),
-		Data:       make(Map),
+		Data:       nil,
 		ctx:        context.Background(),
 	}
 }
 
-func NewEventWithData(routingKey string, data Map) *Event {
+func NewEventWithData(routingKey string, data Payload) *Event {
 	return &Event{
 		Id:         uuid.New().String(),
 		UUID:       uuid.New(),

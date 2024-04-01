@@ -54,6 +54,33 @@ func PutInPayload(p Payload, key string, val any) (Payload, error) {
 		return nil, ErrInvalidPath
 	}
 
+	if key == "." {
+		if p == nil {
+			return val, nil
+		}
+
+		if pl, ok := p.(map[string]any); ok {
+			if vl, ok := val.(map[string]any); ok {
+				for k, v := range vl {
+					pl[k] = v
+				}
+				return pl, nil
+			}
+		}
+
+		if pl, ok := p.([]any); ok {
+			if vl, ok := val.([]any); ok {
+				return append(pl, vl...), nil
+			}
+		}
+
+		return nil, ErrInvalidPath
+	}
+
+	if key[0] == '.' {
+		return nil, ErrInvalidPath
+	}
+
 	dotIndex := strings.IndexRune(key, '.')
 	if dotIndex < 0 { // no nested keys
 		if p == nil {
@@ -85,6 +112,14 @@ func PutInPayload(p Payload, key string, val any) (Payload, error) {
 
 func DeleteFromPayload(p Payload, key string) (Payload, error) {
 	if len(key) == 0 {
+		return nil, ErrInvalidPath
+	}
+
+	if key == "." {
+		return nil, nil
+	}
+
+	if key[0] == '.' {
 		return nil, ErrInvalidPath
 	}
 

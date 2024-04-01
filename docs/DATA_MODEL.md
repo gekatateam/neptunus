@@ -7,7 +7,7 @@ The Neptunus engine works with events - single data frames. An event is a struct
  - **Labels** - an event metadata map, which are used for routing with routing key; think of this as an event headers.
  - **Tags** - list of **unique** event attributes, which also can be used for routing; plugins adds special tags, e.g. `::starlark_processing_failed` when an error occurs.
 - **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
-- **Fields** - an event payload, data map, that is filling by parsers; it is essentially the body of an event.
+- **Data** - an event payload, map or slice, that is filling by parsers; it is essentially the body of an event.
 
 Also, each event has a **UUID** field that is randomly generated. This field is for internal use only and may be useful as an unique identifier.
 
@@ -23,9 +23,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
  - `SetField(key string, value any) error` - set event field; if field cannot be set, error returns
  - `GetField(key string) (any, error)` - get event field; if field does not exist, error returns
  - `DeleteField(key string) error` - delete field from event; if field does not exist, error returns
- - `AppendFields(data Map)` - append fields to the root of data map
  - `Clone() *Event` - clone event
-<!-- - `Copy() *Event` - copy event; new Id and Timestamp will be generated -->
  - `Done()` - mark event as delivered, deleted from pipeline or finally failed
  - `StackError(err error)` - add error to event
 
@@ -37,12 +35,13 @@ As a developer, you can use Event fields directly, however, in most cases it may
     "metadata": {
         "user": {
             "name": "John Doe",
-            "email": "johndoe@gmail.com"
+            "email": "johndoe@gmail.com",
+            "roles": [ "employee", "manager" ]
         }
     }
 }
 ```
-To get user name, call `GetField("metadata.user.name")`, to add a new field with age, call `SetField("metadata.user.age", 42)`.
+To get first user role, call `GetField("metadata.user.roles.0")`, to add a new field with age, call `SetField("metadata.user.age", 42)`.
 ```json
 # event data after
 {
@@ -51,6 +50,7 @@ To get user name, call `GetField("metadata.user.name")`, to add a new field with
         "user": {
             "name": "John Doe",
             "email": "johndoe@gmail.com",
+            "roles": [ "employee", "manager" ],
             "age": 42
         }
     }
@@ -58,6 +58,15 @@ To get user name, call `GetField("metadata.user.name")`, to add a new field with
 ```
 
 These types can be used as field values: strings, integers (signed and unsigned), booleans, floating point numbers, arrays, slices and maps with string as a key. Any other types may cause errors at the serialization stage.
+
+There are a few corner cases:
+ - if `GetField(".")` is called, method returns event data as is.
+ - if `DeleteField(".")` is called, event data sets to `nil`.
+ - if `SetField(".", value)` is called:
+   - if an event data is `nil` - event data will be set from `value` arg;
+   - if an event data and `value` arg is `map[string]any` - `value` map will be merged to event data;
+   - if an event data and `value` arg is `[]any` - `value` slice will be appended to event data;
+   - otherwise, an error returns.
 
 ## Delivery Control
 
