@@ -22,7 +22,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
  - `HasTag(tag string) bool` - check if an event has the tag
  - `SetField(key string, value any) error` - set event field; if field cannot be set, error returns
  - `GetField(key string) (any, error)` - get event field; if field does not exist, error returns
- - `DeleteField(key string) (any, error)` - delete field from event; if field does not exist, error returns
+ - `DeleteField(key string) error` - delete field from event; if field does not exist, error returns
  - `AppendFields(data Map)` - append fields to the root of data map
  - `Clone() *Event` - clone event
 <!-- - `Copy() *Event` - copy event; new Id and Timestamp will be generated -->
