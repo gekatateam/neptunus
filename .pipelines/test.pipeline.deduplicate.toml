@@ -31,7 +31,7 @@
 
 [[processors]]
   [processors.drop.filters.glob.labels]
-    "::duplicate" = [ "*" ]
+    "::duplicate" = [ "true" ]
 
 [[outputs]]
   [outputs.log]

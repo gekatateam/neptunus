@@ -14,7 +14,7 @@ type Event struct {
 	RoutingKey string
 	Tags       []string
 	Labels     map[string]string
-	Data       Map
+	Data       Payload
 	Errors     Errors
 	ctx        context.Context
 	tracker    *tracker
@@ -28,12 +28,12 @@ func NewEvent(routingKey string) *Event {
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
 		Labels:     make(map[string]string),
-		Data:       make(Map),
+		Data:       nil,
 		ctx:        context.Background(),
 	}
 }
 
-func NewEventWithData(routingKey string, data Map) *Event {
+func NewEventWithData(routingKey string, data Payload) *Event {
 	return &Event{
 		Id:         uuid.New().String(),
 		UUID:       uuid.New(),
@@ -66,47 +66,33 @@ func (e *Event) Duty() int32 {
 }
 
 func (e *Event) GetField(key string) (any, error) {
-	return e.Data.GetValue(key)
+	val, err := FindInPayload(e.Data, key)
+	if err != nil {
+		return nil, ErrNoSuchField
+	}
+	return val, nil
 }
 
 func (e *Event) SetField(key string, value any) error {
-	return e.Data.SetValue(key, value)
+	p, err := PutInPayload(e.Data, key, value)
+	if err != nil {
+		return ErrInvalidPath
+	}
+	e.Data = p
+	return nil
 }
 
-func (e *Event) DeleteField(key string) (any, error) {
-	return e.Data.DeleteValue(key)
-}
-
-func (e *Event) AppendFields(data Map) {
-	e.Data.Append(data)
+func (e *Event) DeleteField(key string) error {
+	p, err := DeleteFromPayload(e.Data, key)
+	if err != nil {
+		return ErrNoSuchField
+	}
+	e.Data = p
+	return nil
 }
 
 func (e *Event) StackError(err error) {
 	e.Errors = append(e.Errors, err)
-}
-
-func (e *Event) copy() *Event {
-	event := &Event{
-		Id:         uuid.New().String(),
-		UUID:       uuid.New(),
-		Timestamp:  e.Timestamp,
-		RoutingKey: e.RoutingKey,
-		Tags:       make([]string, len(e.Tags)),
-		Labels:     make(map[string]string, len(e.Labels)),
-		Data:       e.Data.Clone(),
-		ctx:        context.Background(),
-	}
-
-	if e.tracker != nil {
-		event.tracker = e.tracker.Copy()
-	}
-
-	copy(event.Tags, e.Tags)
-	for k, v := range e.Labels {
-		event.Labels[k] = v
-	}
-
-	return event
 }
 
 func (e *Event) Clone() *Event {
@@ -117,7 +103,7 @@ func (e *Event) Clone() *Event {
 		RoutingKey: e.RoutingKey,
 		Tags:       make([]string, len(e.Tags)),
 		Labels:     make(map[string]string, len(e.Labels)),
-		Data:       e.Data.Clone(),
+		Data:       ClonePayload(e.Data),
 		ctx:        e.ctx,
 	}
 

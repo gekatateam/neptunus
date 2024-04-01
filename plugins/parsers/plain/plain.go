@@ -26,7 +26,7 @@ func (p *Plain) Close() error {
 func (p *Plain) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	now := time.Now()
 
-	event := core.NewEventWithData(routingKey, core.Map{
+	event := core.NewEventWithData(routingKey, map[string]any{
 		p.Field: string(data),
 	})
 	p.Observe(metrics.EventAccepted, time.Since(now))

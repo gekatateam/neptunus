@@ -40,7 +40,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 11,
 						"uri":      "/users/111",
 					},
@@ -51,7 +51,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 22,
 						"uri":      "/users/111",
 					},
@@ -62,7 +62,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 22,
 						"uri":      "/users/111",
 					},
@@ -101,7 +101,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 11,
 						"uri":      "/users/111",
 					},
@@ -111,7 +111,7 @@ func TestStats(t *testing.T) {
 						"code":   "200",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 22,
 						"uri":      "/users/111",
 					},
@@ -122,7 +122,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"uri": "/users/111",
 					},
 				},
@@ -132,7 +132,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": "45",
 						"uri":      "/users/111",
 					},
@@ -166,7 +166,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 11,
 						"uri":      "/users/111",
 					},
@@ -177,7 +177,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 22,
 						"uri":      "/users/111",
 					},
@@ -188,7 +188,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration": 22,
 						"uri":      "/users/111",
 					},
@@ -228,7 +228,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration":      11,
 						"response_time": 22,
 						"uri":           "/users/111",
@@ -240,7 +240,7 @@ func TestStats(t *testing.T) {
 						"proto":  "HTTP/1.0",
 						"client": "1.2.3.4",
 					},
-					Data: core.Map{
+					Data: map[string]any{
 						"duration":      44,
 						"response_time": 33,
 						"uri":           "/users/111",

@@ -8,7 +8,7 @@
  - [x] Serializer plugins
  - [ ] Research binary data processing
  - [ ] Hard consisntency units
- - [ ] Path navigation through arrays and slices, e.g. `data.0.field`
+ - [x] Path navigation through arrays and slices, e.g. `data.0.field`
 
 ## Inputs
  - [x] Kafka
