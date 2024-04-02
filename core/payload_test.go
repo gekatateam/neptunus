@@ -113,6 +113,26 @@ func TestFindInPayload(t *testing.T) {
 			result: nil,
 			err: core.ErrNoSuchField,
 		},
+		"from slice, incorrect index, bad value": {
+			p: []any{
+				map[string]any{
+					"foo": "bar",
+					"fizz": []any{
+						map[string]any{
+							"buzz": 33,
+						},
+						map[string]any{
+							"buzz": 33,
+							"bazz": 44,
+						},
+					},
+				},
+				"lorem",
+			},
+			key: "0.fizz.-1.bazz",
+			result: nil,
+			err: core.ErrNoSuchField,
+		},
 	}
 
 	for name, test := range tests {
@@ -279,6 +299,24 @@ func TestPutInPayload(t *testing.T) {
 			},
 			err: nil,
 		},
+		"add new key, invalid index, bad path": {
+			p: []any{
+				map[string]any{
+					"fizz": []any{
+						nil,
+						nil,
+						nil,
+						map[string]any{
+							"buzz": 1337,
+						},
+					},
+				},
+			},
+			key: "0.fizz.-3.buzz",
+			val: 1337,
+			result: nil,
+			err: core.ErrInvalidPath,
+		},
 	}
 
 	for name, test := range tests {
@@ -389,6 +427,22 @@ func TestDeleteFromPayload(t *testing.T) {
 				},
 			},
 			key: "fizz.5.bazz",
+			result: nil,
+			err: core.ErrNoSuchField,
+		},
+		"delete key, invalid index, bad result": {
+			p: map[string]any{
+				"foo": "bar",
+				"fizz": []any{
+					"buzz",
+					"bizz",
+					nil,
+					map[string]any{
+						"leet": 1337,
+					},
+				},
+			},
+			key: "fizz.-5.bazz",
 			result: nil,
 			err: core.ErrNoSuchField,
 		},
