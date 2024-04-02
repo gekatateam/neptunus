@@ -81,6 +81,45 @@ func PutInPayload(p Payload, key string, val any) (Payload, error) {
 		return nil, ErrInvalidPath
 	}
 
+	return putInPayload(p, key, val)
+}
+
+func DeleteFromPayload(p Payload, key string) (Payload, error) {
+	if len(key) == 0 {
+		return nil, ErrInvalidPath
+	}
+
+	if key == "." {
+		return nil, nil
+	}
+
+	if key[0] == '.' {
+		return nil, ErrInvalidPath
+	}
+
+	return deleteFromPayload(p, key)
+}
+
+func ClonePayload(p Payload) Payload {
+	switch t := p.(type) {
+	case map[string]any:
+		m := make(map[string]any)
+		for k := range t {
+			m[k] = ClonePayload(t[k])
+		}
+		return m
+	case []any:
+		s := make([]any, len(t))
+		for i := range t {
+			s[i] = ClonePayload(t[i])
+		}
+		return s
+	default:
+		return p
+	}
+}
+
+func putInPayload(p Payload, key string, val any) (Payload, error) {
 	dotIndex := strings.IndexRune(key, '.')
 	if dotIndex < 0 { // no nested keys
 		if p == nil {
@@ -110,19 +149,7 @@ func PutInPayload(p Payload, key string, val any) (Payload, error) {
 	return putInNode(currNode, currKey, nextNode)
 }
 
-func DeleteFromPayload(p Payload, key string) (Payload, error) {
-	if len(key) == 0 {
-		return nil, ErrInvalidPath
-	}
-
-	if key == "." {
-		return nil, nil
-	}
-
-	if key[0] == '.' {
-		return nil, ErrInvalidPath
-	}
-
+func deleteFromPayload(p Payload, key string) (Payload, error) {
 	dotIndex := strings.IndexRune(key, '.')
 	if dotIndex < 0 { // no nested keys
 		if p == nil {
@@ -148,25 +175,6 @@ func DeleteFromPayload(p Payload, key string) (Payload, error) {
 	return putInNode(currNode, currKey, nextNode)
 }
 
-func ClonePayload(p Payload) Payload {
-	switch t := p.(type) {
-	case map[string]any:
-		m := make(map[string]any)
-		for k := range t {
-			m[k] = ClonePayload(t[k])
-		}
-		return m
-	case []any:
-		s := make([]any, len(t))
-		for i := range t {
-			s[i] = ClonePayload(t[i])
-		}
-		return s
-	default:
-		return p
-	}
-}
-
 func searchInNode(p Payload, key string) (Payload, error) {
 	switch t := p.(type) {
 	case map[string]any:
@@ -177,7 +185,7 @@ func searchInNode(p Payload, key string) (Payload, error) {
 		}
 	case []any:
 		i, err := strconv.Atoi(key)
-		if err != nil {
+		if err != nil || i < 0 {
 			return nil, ErrNoSuchField
 		}
 
@@ -208,7 +216,7 @@ func putInNode(p Payload, key string, val any) (Payload, error) {
 		return t, nil
 	case []any:
 		i, err := strconv.Atoi(key)
-		if err != nil {
+		if err != nil || i < 0 {
 			return nil, ErrInvalidPath
 		}
 
@@ -238,7 +246,7 @@ func deleteFromNode(p Payload, key string) (Payload, error) {
 		return nil, ErrNoSuchField
 	case []any:
 		i, err := strconv.Atoi(key)
-		if err != nil {
+		if err != nil || i < 0 {
 			return nil, ErrInvalidPath
 		}
 
