@@ -83,7 +83,7 @@ func TestConverter(t *testing.T) {
 		},
 		"convert-to-uint-ignore-overflow-ok": {
 			config: map[string]any{
-				"ignore_overflow": true,
+				"ignore_out_of_range": true,
 				"unsigned": []string{
 					"string", "float", "int", "uint", "bool", "label:foo",
 				},
