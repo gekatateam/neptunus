@@ -141,7 +141,7 @@ func putInPayload(p Payload, key string, val any) (Payload, error) {
 		return nil, err
 	}
 
-	nextNode, err = PutInPayload(nextNode, nextKey, val)
+	nextNode, err = putInPayload(nextNode, nextKey, val)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func deleteFromPayload(p Payload, key string) (Payload, error) {
 		return nil, err
 	}
 
-	nextNode, err = DeleteFromPayload(nextNode, nextKey)
+	nextNode, err = deleteFromPayload(nextNode, nextKey)
 	if err != nil {
 		return nil, err
 	}

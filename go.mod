@@ -87,6 +87,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09
+	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0
 	golang.org/x/net v0.21.0
 	golang.org/x/sys v0.17.0 // indirect
 	kythe.io v0.0.64
