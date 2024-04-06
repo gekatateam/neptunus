@@ -15,6 +15,7 @@ var targetObjectPattern = regexp.MustCompile(`^((label|field):)?([\w-\.]+)$`)
 
 type Converter struct {
 	*core.BaseProcessor `mapstructure:"-"`
+	IgnoreOutOfRange    bool     `mapstructure:"ignore_out_of_range"`
 	Id                  string   `mapstructure:"id"`
 	Label               []string `mapstructure:"label"`
 	String              []string `mapstructure:"string"`
@@ -87,12 +88,14 @@ func(p *Converter) initConversionParam(rawParam string, to to) error {
 			from: fromLabel,
 			to:   to,
 			path: match[3],
+			ioor: p.IgnoreOutOfRange,
 		})
 	case "", "field":
 		p.conversions = append(p.conversions, conversionParams{
 			from: fromField,
 			to:   to,
 			path: match[3],
+			ioor: p.IgnoreOutOfRange,
 		})
 	default:
 		panic(fmt.Errorf("processors.converter: totally unexpected source type: %v", match[2]))
@@ -119,6 +122,8 @@ func (p *Converter) Run() {
 						"key", e.RoutingKey,
 					),
 				)
+				e.StackError(err)
+				e.AddTag("::converter_processing_failed")
 				hasError = true
 			}
 		}

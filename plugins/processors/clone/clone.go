@@ -1,7 +1,6 @@
 package copy
 
 import (
-	"errors"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -9,31 +8,30 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 )
 
-type Copy struct {
+type Clone struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	RoutingKey          string            `mapstructure:"routing_key"`
 	SaveTimestamp       bool              `mapstructure:"save_timestamp"`
 	Labels              map[string]string `mapstructure:"labels"`
 }
 
-func (p *Copy) Init() error {
-	if len(p.RoutingKey) == 0 {
-		return errors.New("routing key required")
-	}
-
+func (p *Clone) Init() error {
 	return nil
 }
 
-func (p *Copy) Close() error {
+func (p *Clone) Close() error {
 	return nil
 }
 
-func (p *Copy) Run() {
+func (p *Clone) Run() {
 	for e := range p.In {
 		now := time.Now()
 
 		copy := e.Clone()
-		copy.RoutingKey = p.RoutingKey
+		if len(p.RoutingKey) > 0 {
+			copy.RoutingKey = p.RoutingKey
+		}
+
 		for k, v := range p.Labels {
 			copy.SetLabel(k, v)
 		}
@@ -49,7 +47,7 @@ func (p *Copy) Run() {
 }
 
 func init() {
-	plugins.AddProcessor("copy", func() core.Processor {
-		return &Copy{}
+	plugins.AddProcessor("clone", func() core.Processor {
+		return &Clone{}
 	})
 }

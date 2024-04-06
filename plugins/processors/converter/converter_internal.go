@@ -2,6 +2,7 @@ package converter
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/gekatateam/neptunus/core"
@@ -35,6 +36,7 @@ type conversionParams struct {
 	from from
 	to   to
 	path string
+	ioor bool
 }
 
 type converter struct{}
@@ -62,28 +64,25 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 		case toInteger:
 			// the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise
 			field, err = strconv.ParseInt(label, 0, 64)
-			if err != nil {
-				return fmt.Errorf("from label to integer: %v: %w", p.path, err)
-			}
 		case toUnsigned:
 			field, err = strconv.ParseUint(label, 0, 64)
-			if err != nil {
-				return fmt.Errorf("from label to unsigned: %v: %w", p.path, err)
-			}
 		case toFloat:
 			field, err = strconv.ParseFloat(label, 64)
-			if err != nil {
-				return fmt.Errorf("from label to float: %v: %w", p.path, err)
-			}
 		case toBoolean:
 			field, err = strconv.ParseBool(label)
-			if err != nil {
-				return fmt.Errorf("from label to boolean: %v: %w", p.path, err)
-			}
 		}
 
+		if err == strconv.ErrRange && p.ioor {
+			goto LABEL_OUT_OF_RANGE_IGNORED
+		}
+
+		if err != nil {
+			return fmt.Errorf("from label: %v: %w", p.path, err)
+		}
+	LABEL_OUT_OF_RANGE_IGNORED:
+
 		if err = e.SetField(p.path, field); err != nil {
-			return fmt.Errorf("from label, set field failed: %v: %w", p.path, err)
+			return fmt.Errorf("from label: set field failed: %v: %w", p.path, err)
 		}
 	case fromField:
 		rawField, getErr := e.GetField(p.path)
@@ -98,38 +97,40 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 		case toId:
 			field, err := anyToString(rawField)
 			if err != nil {
-				return fmt.Errorf("from field to id: %v: %w", p.path, err)
+				return fmt.Errorf("from field: %v: %w", p.path, err)
 			}
 			e.Id = field
 			return nil
 		case toLabel:
 			field, err := anyToString(rawField)
 			if err != nil {
-				return fmt.Errorf("from field to label: %v: %w", p.path, err)
+				return fmt.Errorf("from field: %v: %w", p.path, err)
 			}
 			e.SetLabel(p.path, field)
 			return nil
 		case toString:
 			field, err = anyToString(rawField)
-			if err != nil {
-				return fmt.Errorf("from field to string: %v: %w", p.path, err)
-			}
 		case toInteger:
 			field, err = anyToInteger(rawField)
-			if err != nil {
-				return fmt.Errorf("from field to integer: %v: %w", p.path, err)
-			}
 		case toUnsigned:
 			field, err = anyToUnsigned(rawField)
-			if err != nil {
-				return fmt.Errorf("from field to unsigned: %v: %w", p.path, err)
-			}
 		case toFloat:
+			field, err = anyToFloat(rawField)
 		case toBoolean:
+			field, err = anyToBoolean(rawField)
 		}
 
+		if err == strconv.ErrRange && p.ioor {
+			goto FIELD_OUT_OF_RANGE_IGNORED
+		}
+
+		if err != nil {
+			return fmt.Errorf("from field: %v: %w", p.path, err)
+		}
+	FIELD_OUT_OF_RANGE_IGNORED:
+
 		if err = e.SetField(p.path, field); err != nil {
-			return fmt.Errorf("from field, set field failed: %v: %w", p.path, err)
+			return fmt.Errorf("from field: set field failed: %v: %w", p.path, err)
 		}
 	default:
 		panic(fmt.Errorf("unexpected from type: %v", p.from))
@@ -188,6 +189,9 @@ func anyToInteger(v any) (int64, error) {
 	case int64:
 		return int64(t), nil
 	case uint:
+		if uint64(t) > math.MaxInt64 {
+			return int64(t), strconv.ErrRange
+		}
 		return int64(t), nil
 	case uint8:
 		return int64(t), nil
@@ -196,17 +200,25 @@ func anyToInteger(v any) (int64, error) {
 	case uint32:
 		return int64(t), nil
 	case uint64:
+		if uint64(t) > math.MaxInt64 {
+			return int64(t), strconv.ErrRange
+		}
 		return int64(t), nil
 	case float32:
+		if t < math.MinInt64 || t > math.MaxInt64 {
+			return int64(t), strconv.ErrRange
+		}
 		return int64(t), nil
 	case float64:
+		if t < math.MinInt64 || t > math.MaxInt64 {
+			return int64(t), strconv.ErrRange
+		}
 		return int64(t), nil
 	case bool:
 		if t {
 			return int64(1), nil
-		} else {
-			return int64(0), nil
 		}
+		return int64(0), nil
 	default:
 		return 0, fmt.Errorf("cannot convert to integer: unsupported type")
 	}
@@ -217,14 +229,29 @@ func anyToUnsigned(v any) (uint64, error) {
 	case string:
 		return strconv.ParseUint(t, 0, 64)
 	case int:
+		if t < 0 {
+			return uint64(t), strconv.ErrRange
+		} 
 		return uint64(t), nil
 	case int8:
+		if t < 0 {
+			return uint64(t), strconv.ErrRange
+		} 
 		return uint64(t), nil
 	case int16:
+		if t < 0 {
+			return uint64(t), strconv.ErrRange
+		} 
 		return uint64(t), nil
 	case int32:
+		if t < 0 {
+			return uint64(t), strconv.ErrRange
+		} 
 		return uint64(t), nil
 	case int64:
+		if t < 0 {
+			return uint64(t), strconv.ErrRange
+		} 
 		return uint64(t), nil
 	case uint:
 		return uint64(t), nil
@@ -237,15 +264,20 @@ func anyToUnsigned(v any) (uint64, error) {
 	case uint64:
 		return uint64(t), nil
 	case float32:
+		if t < 0 || t > math.MaxUint64 {
+			return uint64(t), strconv.ErrRange
+		}
 		return uint64(t), nil
 	case float64:
+		if t < 0 || t > math.MaxUint64 {
+			return uint64(t), strconv.ErrRange
+		}
 		return uint64(t), nil
 	case bool:
 		if t {
 			return uint64(1), nil
-		} else {
-			return uint64(0), nil
 		}
+		return uint64(0), nil
 	default:
 		return 0, fmt.Errorf("cannot convert to unsigned: unsupported type")
 	}
@@ -282,9 +314,8 @@ func anyToFloat(v any) (float64, error) {
 	case bool:
 		if t {
 			return float64(1), nil
-		} else {
-			return float64(0), nil
 		}
+		return float64(0), nil
 	default:
 		return 0, fmt.Errorf("cannot convert to float: unsupported type")
 	}

@@ -1,8 +1,8 @@
 package processors
 
 import (
+	_ "github.com/gekatateam/neptunus/plugins/processors/clone"
 	_ "github.com/gekatateam/neptunus/plugins/processors/converter"
-	_ "github.com/gekatateam/neptunus/plugins/processors/copy"
 	_ "github.com/gekatateam/neptunus/plugins/processors/deduplicate"
 	_ "github.com/gekatateam/neptunus/plugins/processors/defaults"
 	_ "github.com/gekatateam/neptunus/plugins/processors/drop"
