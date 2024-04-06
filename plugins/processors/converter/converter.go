@@ -2,6 +2,7 @@ package converter
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"time"
 
@@ -23,6 +24,7 @@ type Converter struct {
 	Boolean             []string `mapstructure:"boolean"`
 
 	conversions []conversionParams
+	converter   *converter
 }
 
 func (p *Converter) Init() error {
@@ -68,6 +70,8 @@ func (p *Converter) Init() error {
 		}
 	}
 
+	p.converter = &converter{}
+
 	return nil
 }
 
@@ -104,8 +108,27 @@ func (p *Converter) Close() error {
 func (p *Converter) Run() {
 	for e := range p.In {
 		now := time.Now()
+		var hasError bool
+		
+		for _, c := range p.conversions {
+			if err := p.converter.Convert(e, c); err != nil {
+				p.Log.Error("conversion failed", 
+					"error", err,
+					slog.Group("event",
+						"id", e.Id,
+						"key", e.RoutingKey,
+					),
+				)
+				hasError = true
+			}
+		}
+
 		p.Out <- e
-		p.Observe(metrics.EventAccepted, time.Since(now))
+		if hasError {
+			p.Observe(metrics.EventFailed, time.Since(now))
+		} else {
+			p.Observe(metrics.EventAccepted, time.Since(now))
+		}
 	}
 }
 

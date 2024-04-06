@@ -70,6 +70,7 @@ require (
 	github.com/elastic/go-lumber v0.1.1
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/go-sql-driver/mysql v1.8.0
+	github.com/go-task/slim-sprig/v3 v3.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-json v0.10.2
 	github.com/goccy/go-yaml v1.11.2
@@ -87,7 +88,6 @@ require (
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09
-	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0
 	golang.org/x/net v0.21.0
 	golang.org/x/sys v0.17.0 // indirect
 	kythe.io v0.0.64

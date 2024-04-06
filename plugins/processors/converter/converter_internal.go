@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"golang.org/x/exp/constraints"
-
 	"github.com/gekatateam/neptunus/core"
 )
 
@@ -20,6 +18,7 @@ type to int
 
 const (
 	toTimestamp to = iota + 1
+
 	toId
 	toLabel
 	toString
@@ -144,46 +143,34 @@ func anyToString(v any) (string, error) {
 	case string:
 		return t, nil
 	case int:
-		return signedToString(t), nil
+		return strconv.FormatInt(int64(t), 10), nil
 	case int8:
-		return signedToString(t), nil
+		return strconv.FormatInt(int64(t), 10), nil
 	case int16:
-		return signedToString(t), nil
+		return strconv.FormatInt(int64(t), 10), nil
 	case int32:
-		return signedToString(t), nil
+		return strconv.FormatInt(int64(t), 10), nil
 	case int64:
-		return signedToString(t), nil
+		return strconv.FormatInt(int64(t), 10), nil
 	case uint:
-		return unsignedToString(t), nil
+		return strconv.FormatUint(uint64(t), 10), nil
 	case uint8:
-		return unsignedToString(t), nil
+		return strconv.FormatUint(uint64(t), 10), nil
 	case uint16:
-		return unsignedToString(t), nil
+		return strconv.FormatUint(uint64(t), 10), nil
 	case uint32:
-		return unsignedToString(t), nil
+		return strconv.FormatUint(uint64(t), 10), nil
 	case uint64:
-		return unsignedToString(t), nil
+		return strconv.FormatUint(uint64(t), 10), nil
 	case float32:
-		return floatToString(t), nil
+		return strconv.FormatFloat(float64(t), 'f', -1, 64), nil
 	case float64:
-		return floatToString(t), nil
+		return strconv.FormatFloat(float64(t), 'f', -1, 64), nil
 	case bool:
 		return strconv.FormatBool(t), nil
 	default:
 		return "", fmt.Errorf("cannot convert to string: unsupported type")
 	}
-}
-
-func signedToString[T constraints.Signed](v T) string {
-	return strconv.FormatInt(int64(v), 10)
-}
-
-func unsignedToString[T constraints.Unsigned](v T) string {
-	return strconv.FormatUint(uint64(v), 10)
-}
-
-func floatToString[T constraints.Float](v T) string {
-	return strconv.FormatFloat(float64(v), 'f', -1, 64)
 }
 
 func anyToInteger(v any) (int64, error) {
@@ -199,7 +186,7 @@ func anyToInteger(v any) (int64, error) {
 	case int32:
 		return int64(t), nil
 	case int64:
-		return t, nil
+		return int64(t), nil
 	case uint:
 		return int64(t), nil
 	case uint8:
@@ -248,7 +235,7 @@ func anyToUnsigned(v any) (uint64, error) {
 	case uint32:
 		return uint64(t), nil
 	case uint64:
-		return t, nil
+		return uint64(t), nil
 	case float32:
 		return uint64(t), nil
 	case float64:
@@ -261,5 +248,79 @@ func anyToUnsigned(v any) (uint64, error) {
 		}
 	default:
 		return 0, fmt.Errorf("cannot convert to unsigned: unsupported type")
+	}
+}
+
+func anyToFloat(v any) (float64, error) {
+	switch t := v.(type) {
+	case string:
+		return strconv.ParseFloat(t, 64)
+	case int:
+		return float64(t), nil
+	case int8:
+		return float64(t), nil
+	case int16:
+		return float64(t), nil
+	case int32:
+		return float64(t), nil
+	case int64:
+		return float64(t), nil
+	case uint:
+		return float64(t), nil
+	case uint8:
+		return float64(t), nil
+	case uint16:
+		return float64(t), nil
+	case uint32:
+		return float64(t), nil
+	case uint64:
+		return float64(t), nil
+	case float32:
+		return float64(t), nil
+	case float64:
+		return float64(t), nil
+	case bool:
+		if t {
+			return float64(1), nil
+		} else {
+			return float64(0), nil
+		}
+	default:
+		return 0, fmt.Errorf("cannot convert to float: unsupported type")
+	}
+}
+
+func anyToBoolean(v any) (bool, error) {
+	switch t := v.(type) {
+	case string:
+		return strconv.ParseBool(t)
+	case int:
+		return t > 0, nil
+	case int8:
+		return t > 0, nil
+	case int16:
+		return t > 0, nil
+	case int32:
+		return t > 0, nil
+	case int64:
+		return t > 0, nil
+	case uint:
+		return t > 0, nil
+	case uint8:
+		return t > 0, nil
+	case uint16:
+		return t > 0, nil
+	case uint32:
+		return t > 0, nil
+	case uint64:
+		return t > 0, nil
+	case float32:
+		return t > 0, nil
+	case float64:
+		return t > 0, nil
+	case bool:
+		return bool(t), nil
+	default:
+		return false, fmt.Errorf("cannot convert to boolean: unsupported type")
 	}
 }

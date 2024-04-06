@@ -6,6 +6,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/go-task/slim-sprig/v3"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
@@ -28,7 +30,7 @@ type Template struct {
 
 func (p *Template) Init() error {
 	if len(p.Id) > 0 {
-		id, err := template.New("id").Parse(p.Id)
+		id, err := template.New("id").Funcs(sprig.FuncMap()).Parse(p.Id)
 		if err != nil {
 			return err
 		}
@@ -36,7 +38,7 @@ func (p *Template) Init() error {
 	}
 
 	if len(p.RoutingKey) > 0 {
-		rk, err := template.New("routingKey").Parse(p.RoutingKey)
+		rk, err := template.New("routingKey").Funcs(sprig.FuncMap()).Parse(p.RoutingKey)
 		if err != nil {
 			return err
 		}
@@ -47,7 +49,7 @@ func (p *Template) Init() error {
 	p.fields = make(map[string]*template.Template)
 
 	for l, t := range p.Labels {
-		lt, err := template.New("labels::" + l).Parse(t)
+		lt, err := template.New("labels::" + l).Funcs(sprig.FuncMap()).Parse(t)
 		if err != nil {
 			return err
 		}
@@ -55,7 +57,7 @@ func (p *Template) Init() error {
 	}
 
 	for f, t := range p.Fields {
-		ft, err := template.New("fields::" + f).Parse(t)
+		ft, err := template.New("fields::" + f).Funcs(sprig.FuncMap()).Parse(t)
 		if err != nil {
 			return err
 		}
