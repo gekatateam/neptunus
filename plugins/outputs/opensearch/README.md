@@ -2,6 +2,8 @@
 
 The `opensearch` output plugin writes to [Opensearch](https://opensearch.org/docs/latest/) via HTTP using [Bulk API](https://opensearch.org/docs/2.11/api-reference/document-apis/bulk/).
 
+This plugin uses event routing key as an index name and event id as document id.
+
 # Configuration
 ```toml
 [[outputs]]

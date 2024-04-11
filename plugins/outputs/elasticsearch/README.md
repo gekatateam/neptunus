@@ -2,6 +2,8 @@
 
 The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) via HTTP using [Bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/docs-bulk.html).
 
+This plugin uses event routing key as an index name and event id as document id.
+
 # Configuration
 ```toml
 [[outputs]]

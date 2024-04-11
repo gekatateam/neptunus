@@ -49,7 +49,7 @@ Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `b
 
     # a "label name -> metadata key" map
     # if metadata key exists, it will be saved as configured label
-    [inputs.beats.labelheaders]
+    [inputs.beats.labelmetadata]
       beat_version = "version"
       event_type = "type"
 ```
