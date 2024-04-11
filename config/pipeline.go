@@ -175,12 +175,12 @@ func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
 }
 
 func setPipelineDefaults(pipe *Pipeline) *Pipeline {
-	if pipe.Settings.Lines == 0 {
+	if pipe.Settings.Lines <= 0 {
 		pipe.Settings.Lines = 1
 	}
 
-	if pipe.Settings.Buffer == 0 {
-		pipe.Settings.Buffer = 10
+	if pipe.Settings.Buffer < 0 {
+		pipe.Settings.Buffer = 0
 	}
 
 	return pipe

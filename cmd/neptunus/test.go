@@ -25,6 +25,7 @@ func test(cCtx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("storage initialization failed: %v", err.Error())
 	}
+	defer storage.Close()
 
 	pipesCfg, err := storage.List()
 	if err != nil {

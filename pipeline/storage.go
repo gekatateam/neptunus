@@ -1,6 +1,10 @@
 package pipeline
 
-import "github.com/gekatateam/neptunus/config"
+import (
+	"io"
+
+	"github.com/gekatateam/neptunus/config"
+)
 
 type Storage interface {
 	List() ([]*config.Pipeline, error)
@@ -8,4 +12,5 @@ type Storage interface {
 	Add(pipe *config.Pipeline) error
 	Update(pipe *config.Pipeline) error
 	Delete(id string) error
+	io.Closer
 }
