@@ -41,8 +41,9 @@ type Common struct {
 }
 
 type Engine struct {
-	Storage string      `toml:"storage" yaml:"storage" json:"storage"`
-	File    FileStorage `toml:"fs"      yaml:"fs"      json:"fs"`
+	Storage  string          `toml:"storage"  yaml:"storage"  json:"storage"`
+	File     FileStorage     `toml:"fs"       yaml:"fs"       json:"fs"`
+	Postgres PostgresStorage `toml:"postgres" yaml:"postgres" json:"postgres"`
 }
 
 type FileStorage struct {
