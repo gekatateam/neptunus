@@ -142,7 +142,7 @@ func (k *Vault) Get(key string) (any, error) {
 }
 
 func (k *Vault) readV2(path, secret string) (any, error) {
-	response, err := k.client.Secrets.KvV2Read(context.Background(), path, 
+	response, err := k.client.Secrets.KvV2Read(context.Background(), path,
 		vault.WithMountPath(k.MountPath),
 		vault.WithNamespace(k.Namespace),
 	)
@@ -158,7 +158,7 @@ func (k *Vault) readV2(path, secret string) (any, error) {
 }
 
 func (k *Vault) readV1(path, secret string) (any, error) {
-	response, err := k.client.Secrets.KvV1Read(context.Background(), path, 
+	response, err := k.client.Secrets.KvV1Read(context.Background(), path,
 		vault.WithMountPath(k.MountPath),
 		vault.WithNamespace(k.Namespace),
 	)

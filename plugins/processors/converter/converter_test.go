@@ -14,12 +14,12 @@ import (
 
 func TestConverter(t *testing.T) {
 	tests := map[string]struct {
-		config         map[string]any
-		input          chan *core.Event
-		output         chan *core.Event
-		event          *core.Event
-		expectedData   core.Payload
-		expectErrors   bool
+		config       map[string]any
+		input        chan *core.Event
+		output       chan *core.Event
+		event        *core.Event
+		expectedData core.Payload
+		expectErrors bool
 	}{
 		"convert-to-string-ok": {
 			config: map[string]any{
@@ -27,7 +27,7 @@ func TestConverter(t *testing.T) {
 					"string", "float", "int", "uint", "bool", "label:foo",
 				},
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
 				Labels: map[string]string{
@@ -35,19 +35,19 @@ func TestConverter(t *testing.T) {
 				},
 				Data: map[string]any{
 					"string": "string field",
-					"float": 13.133337,
-					"int": -200,
-					"uint": 504,
-					"bool": true,
+					"float":  13.133337,
+					"int":    -200,
+					"uint":   504,
+					"bool":   true,
 				},
 			},
 			expectedData: map[string]any{
 				"string": "string field",
-				"float": "13.133337",
-				"int": "-200",
-				"uint": "504",
-				"bool": "true",
-				"foo": "bar",
+				"float":  "13.133337",
+				"int":    "-200",
+				"uint":   "504",
+				"bool":   "true",
+				"foo":    "bar",
 			},
 			expectErrors: false,
 		},
@@ -57,7 +57,7 @@ func TestConverter(t *testing.T) {
 					"string", "float", "int", "uint", "field:bool", "label:foo",
 				},
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
 				Labels: map[string]string{
@@ -65,19 +65,19 @@ func TestConverter(t *testing.T) {
 				},
 				Data: map[string]any{
 					"string": "1337",
-					"float": 13.133337,
-					"int": -200,
-					"uint": 504,
-					"bool": true,
+					"float":  13.133337,
+					"int":    -200,
+					"uint":   504,
+					"bool":   true,
 				},
 			},
 			expectedData: map[string]any{
 				"string": int64(1337),
-				"float": int64(13),
-				"int": int64(-200),
-				"uint": int64(504),
-				"bool": int64(1),
-				"foo": int64(99),
+				"float":  int64(13),
+				"int":    int64(-200),
+				"uint":   int64(504),
+				"bool":   int64(1),
+				"foo":    int64(99),
 			},
 			expectErrors: false,
 		},
@@ -88,7 +88,7 @@ func TestConverter(t *testing.T) {
 					"string", "float", "int", "uint", "bool", "label:foo",
 				},
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
 				Labels: map[string]string{
@@ -96,28 +96,28 @@ func TestConverter(t *testing.T) {
 				},
 				Data: map[string]any{
 					"string": "1337",
-					"float": 13.133337,
-					"int": -200,
-					"uint": uint(504),
-					"bool": true,
+					"float":  13.133337,
+					"int":    -200,
+					"uint":   uint(504),
+					"bool":   true,
 				},
 			},
 			expectedData: map[string]any{
 				"string": uint64(1337),
-				"float": uint64(13),
-				"int": uint64(18446744073709551416), // expected behaviour btw
-				"uint": uint64(504),
-				"bool": uint64(1),
-				"foo": uint64(99),
+				"float":  uint64(13),
+				"int":    uint64(18446744073709551416), // expected behaviour btw
+				"uint":   uint64(504),
+				"bool":   uint64(1),
+				"foo":    uint64(99),
 			},
 			expectErrors: false,
 		},
 		"convert-to-uint-overflow-err": {
 			config: map[string]any{
 				"ignore_overflow": false,
-				"unsigned": []string{"field:int"},
+				"unsigned":        []string{"field:int"},
 			},
-			input: make(chan *core.Event, 100),
+			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
@@ -159,8 +159,8 @@ func TestConverter(t *testing.T) {
 			processor.Close()
 			wg.Wait()
 			close(test.output)
-			e := <- test.output
-			
+			e := <-test.output
+
 			if test.expectErrors != (len(e.Errors) > 0) {
 				t.Errorf("errors condition failed: %v", e.Errors)
 			}

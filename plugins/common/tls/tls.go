@@ -11,6 +11,7 @@ type TLSClientConfig struct {
 	KeyFile            string `mapstructure:"tls_key_file"`
 	CertFile           string `mapstructure:"tls_cert_file"`
 	CAFile             string `mapstructure:"tls_ca_file"`
+	MinVersion         string `mapstructure:"tls_min_version"`
 	ServerName         string `mapstructure:"tls_server_name"`
 	InsecureSkipVerify bool   `mapstructure:"tls_insecure_skip_verify"`
 	Enable             bool   `mapstructure:"tls_enable"`
@@ -26,6 +27,7 @@ func (t *TLSClientConfig) Config() (*tls.Config, error) {
 		KeyPairFile(t.CertFile, t.KeyFile).
 		SkipVerify(t.InsecureSkipVerify).
 		ServerName(t.ServerName).
+		MinMaxVersion(t.MinVersion, "").
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("tls: %v", err)

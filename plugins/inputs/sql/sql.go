@@ -16,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
+	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 const (
@@ -46,7 +47,8 @@ type Sql struct {
 	KeepValues   KeepValues        `mapstructure:"keep_values"`
 	LabelColumns map[string]string `mapstructure:"labelcolumns"`
 
-	Ider *ider.Ider `mapstructure:",squash"`
+	*ider.Ider           `mapstructure:",squash"`
+	*tls.TLSClientConfig `mapstructure:",squash"`
 
 	keepIndex  map[string]int
 	keepValues map[string]any
@@ -155,16 +157,25 @@ func (i *Sql) Init() error {
 		return fmt.Errorf("onDone: %w", err)
 	}
 
-	db, err := sqlx.Connect(i.Driver, i.Dsn)
+	tlsConfig, err := i.TLSClientConfig.Config()
 	if err != nil {
 		return err
 	}
-	i.db = db
+
+	db, err := OpenDB(i.Driver, i.Dsn, tlsConfig)
+	if err != nil {
+		return err
+	}
 
 	db.DB.SetConnMaxIdleTime(i.ConnsMaxIdleTime)
 	db.DB.SetConnMaxLifetime(i.ConnsMaxLifetime)
 	db.DB.SetMaxIdleConns(i.ConnsMaxIdle)
 	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
+
+	if err := db.Ping(); err != nil {
+		return err
+	}
+	i.db = db
 
 	i.stopCh = make(chan struct{})
 	i.doneCh = make(chan struct{})
@@ -415,7 +426,8 @@ func init() {
 			Interval:         0,
 			WaitForDelivery:  true,
 
-			Ider: &ider.Ider{},
+			Ider:            &ider.Ider{},
+			TLSClientConfig: &tls.TLSClientConfig{},
 		}
 	})
 }

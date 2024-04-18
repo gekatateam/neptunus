@@ -41,6 +41,8 @@ For example, with `neptunus/kv` engine, secret path `staging/inputs` and `kafka_
     # used for TLS client certificate authentication
     tls_key_file = "/etc/neptunus/key.pem"
     tls_cert_file = "/etc/neptunus/cert.pem"
+    # minimum TLS version, not limited by default
+    tls_min_version = "TLS12"
     # send the specified TLS server name via SNI
     tls_server_name = "exmple.svc.local"
     # use TLS but skip chain & host verification
