@@ -76,7 +76,7 @@ func (p *Converter) Init() error {
 	return nil
 }
 
-func(p *Converter) initConversionParam(rawParam string, to to) error {
+func (p *Converter) initConversionParam(rawParam string, to to) error {
 	match := targetObjectPattern.FindStringSubmatch(rawParam)
 	if len(match) != 4 {
 		return fmt.Errorf("configured value %v does not match pattern", rawParam)
@@ -112,10 +112,10 @@ func (p *Converter) Run() {
 	for e := range p.In {
 		now := time.Now()
 		var hasError bool
-		
+
 		for _, c := range p.conversions {
 			if err := p.converter.Convert(e, c); err != nil {
-				p.Log.Error("conversion failed", 
+				p.Log.Error("conversion failed",
 					"error", err,
 					slog.Group("event",
 						"id", e.Id,

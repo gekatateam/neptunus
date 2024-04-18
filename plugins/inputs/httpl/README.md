@@ -41,7 +41,7 @@ This plugin produce events with routing key as request path, `server` label with
     # one or more allowed client CA certificate file names to
     # enable mutually authenticated TLS connections
     tls_allowed_cacerts = [ "/etc/neptunus/clientca.pem" ]
-    # minimal and maximum TLS version accepted by the service
+    # minimum and maximum TLS version accepted by the service
     # not limited by default
     tls_min_version = "TLS12"
     tls_max_version = "TLS13"

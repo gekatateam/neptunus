@@ -50,7 +50,7 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 		}
 
 		var field any
-		var err   error
+		var err error
 
 		switch p.to {
 		case toId:
@@ -91,7 +91,7 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 		}
 
 		var field any
-		var err   error
+		var err error
 
 		switch p.to {
 		case toId:
@@ -231,27 +231,27 @@ func anyToUnsigned(v any) (uint64, error) {
 	case int:
 		if t < 0 {
 			return uint64(t), strconv.ErrRange
-		} 
+		}
 		return uint64(t), nil
 	case int8:
 		if t < 0 {
 			return uint64(t), strconv.ErrRange
-		} 
+		}
 		return uint64(t), nil
 	case int16:
 		if t < 0 {
 			return uint64(t), strconv.ErrRange
-		} 
+		}
 		return uint64(t), nil
 	case int32:
 		if t < 0 {
 			return uint64(t), strconv.ErrRange
-		} 
+		}
 		return uint64(t), nil
 	case int64:
 		if t < 0 {
 			return uint64(t), strconv.ErrRange
-		} 
+		}
 		return uint64(t), nil
 	case uint:
 		return uint64(t), nil
