@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
+	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -41,9 +41,9 @@ type Sql struct {
 	IsolationLevel string `mapstructure:"isolation_level"`
 	ReadOnly       bool   `mapstructure:"read_only"`
 
-	OnInit       QueryInfo         `mapstructure:"on_init"`
-	OnPoll       QueryInfo         `mapstructure:"on_poll"`
-	OnDone       QueryInfo         `mapstructure:"on_done"`
+	OnInit       csql.QueryInfo    `mapstructure:"on_init"`
+	OnPoll       csql.QueryInfo    `mapstructure:"on_poll"`
+	OnDone       csql.QueryInfo    `mapstructure:"on_done"`
 	KeepValues   KeepValues        `mapstructure:"keep_values"`
 	LabelColumns map[string]string `mapstructure:"labelcolumns"`
 
@@ -58,22 +58,6 @@ type Sql struct {
 
 	txLevel sql.IsolationLevel
 	db      *sqlx.DB
-}
-
-type QueryInfo struct {
-	Query string `mapstructure:"query"`
-	File  string `mapstructure:"file"`
-}
-
-func (q *QueryInfo) Init() error {
-	if len(q.File) > 0 {
-		rawQuery, err := os.ReadFile(q.File)
-		if err != nil {
-			return fmt.Errorf("file reading failed: %w", err)
-		}
-		q.Query = string(rawQuery)
-	}
-	return nil
 }
 
 type KeepValues struct {
@@ -162,7 +146,7 @@ func (i *Sql) Init() error {
 		return err
 	}
 
-	db, err := OpenDB(i.Driver, i.Dsn, tlsConfig)
+	db, err := csql.OpenDB(i.Driver, i.Dsn, tlsConfig)
 	if err != nil {
 		return err
 	}

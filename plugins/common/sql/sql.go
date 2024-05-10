@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/jmoiron/sqlx"
 
@@ -65,4 +66,20 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 	}
 
 	return sqlx.NewDb(db, driverName), nil
+}
+
+type QueryInfo struct {
+	Query string `mapstructure:"query"`
+	File  string `mapstructure:"file"`
+}
+
+func (q *QueryInfo) Init() error {
+	if len(q.File) > 0 {
+		rawQuery, err := os.ReadFile(q.File)
+		if err != nil {
+			return fmt.Errorf("file reading failed: %w", err)
+		}
+		q.Query = string(rawQuery)
+	}
+	return nil
 }
