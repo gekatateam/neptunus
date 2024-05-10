@@ -1,8 +1,10 @@
 package sql
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -10,9 +12,13 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/pool"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
+
+const tablePlaceholder = ":tableName"
 
 type Sql struct {
 	*core.BaseOutput `mapstructure:"-"`
@@ -22,15 +28,19 @@ type Sql struct {
 	ConnsMaxLifetime time.Duration `mapstructure:"conns_max_life_time"`
 	ConnsMaxOpen     int           `mapstructure:"conns_max_open"`
 	ConnsMaxIdle     int           `mapstructure:"conns_max_idle"`
-	Timeout          time.Duration `mapstructure:"timeout"`
+	QueryTimeout     time.Duration `mapstructure:"query_timeout"`
+	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
 
-	OnInit csql.QueryInfo `mapstructure:"on_init"`
-	OnPush csql.QueryInfo `mapstructure:"on_push"`
+	OnInit  csql.QueryInfo    `mapstructure:"on_init"`
+	OnPush  csql.QueryInfo    `mapstructure:"on_push"`
+	Columns map[string]string `mapstructure:"columns"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	*retryer.Retryer              `mapstructure:",squash"`
 
-	db *sqlx.DB
+	queryersPool *pool.Pool[*core.Event]
+	db           *sqlx.DB
 }
 
 func (o *Sql) Init() error {
@@ -42,12 +52,24 @@ func (o *Sql) Init() error {
 		return errors.New("driver required")
 	}
 
+	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
+		return errors.New("OnPush.query or OnPush.file requred")
+	}
+
 	if err := o.OnInit.Init(); err != nil {
 		return fmt.Errorf("onInit: %w", err)
 	}
 
 	if err := o.OnPush.Init(); err != nil {
 		return fmt.Errorf("onPush: %w", err)
+	}
+
+	if o.IdleTimeout > 0 && o.IdleTimeout < time.Minute {
+		o.IdleTimeout = time.Minute
+	}
+
+	if o.Batcher.Buffer < 0 {
+		o.Batcher.Buffer = 1
 	}
 
 	tlsConfig, err := o.TLSClientConfig.Config()
@@ -70,17 +92,67 @@ func (o *Sql) Init() error {
 	}
 	o.db = db
 
+	if len(o.OnInit.Query) > 0 {
+		if err := o.init(); err != nil {
+			return fmt.Errorf("onInit query failed: %w", err)
+		}
+	}
+
+	o.queryersPool = pool.New(o.newQueryer)
+
 	return nil
 }
 
 func (o *Sql) Run() {
-	for e := range o.In {
+	clearTicker := time.NewTicker(time.Minute)
+	if o.IdleTimeout == 0 {
+		clearTicker.Stop()
+	}
 
+MAIN_LOOP:
+	for {
+		select {
+		case e, ok := <-o.In:
+			if !ok {
+				clearTicker.Stop()
+				break MAIN_LOOP
+			}
+			o.queryersPool.Get(e.RoutingKey).Push(e)
+		case <-clearTicker.C:
+			for _, key := range o.queryersPool.Keys() {
+				if time.Since(o.queryersPool.Get(key).LastWrite()) > o.IdleTimeout {
+					o.queryersPool.Remove(key)
+				}
+			}
+		}
 	}
 }
 
 func (o *Sql) Close() error {
 	return nil
+}
+
+func (o *Sql) init() error {
+	ctx, cancel := context.WithTimeout(context.Background(), o.QueryTimeout)
+	defer cancel()
+
+	_, err := o.db.ExecContext(ctx, o.OnInit.Query)
+	return err
+}
+
+func (o *Sql) newQueryer(key string) pool.Runner[*core.Event] {
+	return &querier{
+		BaseOutput: o.BaseOutput,
+		Batcher:    o.Batcher,
+		Retryer:    o.Retryer,
+		db:         o.db,
+		query:      strings.Replace(o.OnPush.Query, tablePlaceholder, key, 1),
+		columns:    o.Columns,
+		lastWrite:  time.Now(),
+		tableName:  key,
+		timeout:    o.QueryTimeout,
+		input:      make(chan *core.Event),
+	}
 }
 
 func init() {
@@ -90,12 +162,17 @@ func init() {
 			ConnsMaxLifetime: 10 * time.Minute,
 			ConnsMaxOpen:     2,
 			ConnsMaxIdle:     1,
-			Timeout:          30 * time.Second,
+			QueryTimeout:     30 * time.Second,
+			IdleTimeout:      5 * time.Minute,
 
 			TLSClientConfig: &tls.TLSClientConfig{},
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
+			},
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
 			},
 		}
 	})

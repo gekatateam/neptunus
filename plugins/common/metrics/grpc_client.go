@@ -104,7 +104,7 @@ func (w *clientStreamWrapper) RecvMsg(m any) error {
 		return nil
 	}
 
-	if err != nil && !w.closed { // stream done
+	if !w.closed { // stream done
 		w.closed = true
 		grpcClientCallsSummary.WithLabelValues(
 			w.pipeline, w.pluginName, w.procedure, string(w.gRPCType), fromGrpcError(err).Code().String(),

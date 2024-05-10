@@ -68,6 +68,20 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 	return sqlx.NewDb(db, driverName), nil
 }
 
+func BindNamed(query string, args any, querier sqlx.ExtContext) (string, []any, error) {
+	q, a, err := sqlx.Named(query, args)
+	if err != nil {
+		return "", nil, fmt.Errorf("sqlx.Named: %w", err)
+	}
+
+	q, a, err = sqlx.In(q, a...)
+	if err != nil {
+		return "", nil, fmt.Errorf("sqlx.In: %w", err)
+	}
+
+	return querier.Rebind(q), a, nil
+}
+
 type QueryInfo struct {
 	Query string `mapstructure:"query"`
 	File  string `mapstructure:"file"`

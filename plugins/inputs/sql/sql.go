@@ -251,7 +251,7 @@ func (i *Sql) poll() {
 		querier = tx
 	}
 
-	query, args, err := i.bindNamed(i.OnPoll.Query, i.keepValues, querier)
+	query, args, err := csql.BindNamed(i.OnPoll.Query, i.keepValues, querier)
 	if err != nil {
 		i.Log.Error("onPoll query binding failed",
 			"error", err,
@@ -329,7 +329,7 @@ func (i *Sql) poll() {
 	batchWg.Wait()
 
 	if len(i.OnDone.Query) > 0 {
-		query, args, err := i.bindNamed(i.OnDone.Query, keepValues, querier)
+		query, args, err := csql.BindNamed(i.OnDone.Query, keepValues, querier)
 		if err != nil {
 			i.Log.Error("onDone query binding failed",
 				"error", err,
@@ -358,20 +358,6 @@ func (i *Sql) poll() {
 	// if all stages passed successfully
 	// replace previously keeped values with actual data
 	i.keepValues = keepValues
-}
-
-func (i *Sql) bindNamed(query string, args map[string]any, querier sqlx.ExtContext) (string, []any, error) {
-	q, a, err := sqlx.Named(query, args)
-	if err != nil {
-		return "", nil, fmt.Errorf("sqlx.Named: %w", err)
-	}
-
-	q, a, err = sqlx.In(q, a...)
-	if err != nil {
-		return "", nil, fmt.Errorf("sqlx.In: %w", err)
-	}
-
-	return querier.Rebind(q), a, nil
 }
 
 func (i *Sql) keepColumns(from, to map[string]any, first, last bool) {
