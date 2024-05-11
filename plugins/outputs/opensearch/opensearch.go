@@ -117,6 +117,7 @@ MAIN_LOOP:
 }
 
 func (o *Opensearch) Close() error {
+	o.indexersPool.Close()
 	o.client = nil
 	return nil
 }

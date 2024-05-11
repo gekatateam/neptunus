@@ -123,6 +123,7 @@ MAIN_LOOP:
 }
 
 func (o *Elasticsearch) Close() error {
+	o.indexersPool.Close()
 	o.client = nil
 	return nil
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-const tablePlaceholder = ":tableName"
+const tablePlaceholder = ":table_name"
 
 type Sql struct {
 	*core.BaseOutput `mapstructure:"-"`
@@ -31,9 +31,10 @@ type Sql struct {
 	QueryTimeout     time.Duration `mapstructure:"query_timeout"`
 	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
 
-	OnInit  csql.QueryInfo    `mapstructure:"on_init"`
-	OnPush  csql.QueryInfo    `mapstructure:"on_push"`
-	Columns map[string]string `mapstructure:"columns"`
+	TablePlaceholder string            `mapstructure:"table_placeholder"`
+	OnInit           csql.QueryInfo    `mapstructure:"on_init"`
+	OnPush           csql.QueryInfo    `mapstructure:"on_push"`
+	Columns          map[string]string `mapstructure:"columns"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
@@ -52,6 +53,10 @@ func (o *Sql) Init() error {
 		return errors.New("driver required")
 	}
 
+	if len(o.Columns) == 0 {
+		return errors.New("columns mapping required")
+	}
+
 	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
 		return errors.New("OnPush.query or OnPush.file requred")
 	}
@@ -62,6 +67,10 @@ func (o *Sql) Init() error {
 
 	if err := o.OnPush.Init(); err != nil {
 		return fmt.Errorf("onPush: %w", err)
+	}
+
+	if len(o.TablePlaceholder) == 0 {
+		o.TablePlaceholder = tablePlaceholder
 	}
 
 	if o.IdleTimeout > 0 && o.IdleTimeout < time.Minute {
@@ -129,7 +138,8 @@ MAIN_LOOP:
 }
 
 func (o *Sql) Close() error {
-	return nil
+	o.queryersPool.Close()
+	return o.db.Close()
 }
 
 func (o *Sql) init() error {
@@ -146,7 +156,7 @@ func (o *Sql) newQueryer(key string) pool.Runner[*core.Event] {
 		Batcher:    o.Batcher,
 		Retryer:    o.Retryer,
 		db:         o.db,
-		query:      strings.Replace(o.OnPush.Query, tablePlaceholder, key, 1),
+		query:      strings.Replace(o.OnPush.Query, o.TablePlaceholder, key, 1),
 		columns:    o.Columns,
 		lastWrite:  time.Now(),
 		tableName:  key,
@@ -164,6 +174,7 @@ func init() {
 			ConnsMaxIdle:     1,
 			QueryTimeout:     30 * time.Second,
 			IdleTimeout:      5 * time.Minute,
+			TablePlaceholder: tablePlaceholder,
 
 			TLSClientConfig: &tls.TLSClientConfig{},
 			Batcher: &batcher.Batcher[*core.Event]{

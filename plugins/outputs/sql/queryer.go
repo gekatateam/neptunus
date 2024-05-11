@@ -40,9 +40,6 @@ func (q *querier) Run() {
 		}
 
 		now := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
-		defer cancel()
-
 		q.lastWrite = now
 
 		rawArgs := make([]map[string]any, len(buf))
@@ -50,19 +47,24 @@ func (q *querier) Run() {
 			arg := map[string]any{}
 			for column, field := range q.columns {
 				// if field does not exists, nil returns
-				_, value := e.GetField(field)
+				value, _ := e.GetField(field)
 				arg[column] = value
 			}
 			rawArgs[i] = arg
 		}
 
 		err := q.Retryer.Do("exec query", q.Log, func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
+			defer cancel()
+
 			query, args, err := csql.BindNamed(q.query, rawArgs, q.db)
 			if err != nil {
 				return fmt.Errorf("query binding failed: %w", err)
 			}
 
-			_, err = q.db.ExecContext(ctx, query, args)
+			q.Log.Debug(fmt.Sprintf("query after bindings: %v", query))
+
+			_, err = q.db.ExecContext(ctx, query, args...)
 			return err
 		})
 
