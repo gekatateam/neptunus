@@ -21,7 +21,7 @@ With batching and buffering
  - [x] Kafka
  - [ ] AMQP
  - [x] Elasticsearch
- - [ ] SQL
+ - [x] SQL
  - [x] gRPC stream
 
 ## Filters
@@ -30,7 +30,7 @@ With batching and buffering
 
 ## Processors
  - [x] Regular expressions
- - [ ] Type convertions (strings, numbers, time, duration, bytes, labels, tags, routing key, fields)
+ - [x] Type convertions (strings, numbers, time, duration, bytes, labels, tags, routing key, fields)
  - [x] Default values for fields
  - [x] ~~Math operations with numbers~~ Starlark should be used instead
  - [x] Starlark
