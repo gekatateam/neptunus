@@ -45,11 +45,11 @@ Other drivers use plugin TLS configuration.
     # if configured value less than 1, it will be set to 1
     batch_buffer = 100
 
-    # maximum number of attempts to send a batch of messages
+    # maximum number of attempts to execute push query
     # before event will be marked as failed
     retry_attempts = 0 # zero for endless attempts
 
-    # interval between retries to (re-)send a batch of messages
+    # interval between retries to (re-)execute push query
     retry_after = "5s"
 
     ## TLS configuration
