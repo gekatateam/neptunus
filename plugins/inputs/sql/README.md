@@ -33,6 +33,9 @@ Other drivers use plugin TLS configuration.
     # if true, onDone query will be executed only after all events have been delivered
     wait_for_delivery = true
 
+    # queries execution timeout
+    timeout = "30s"
+
     # database connection params - https://pkg.go.dev/database/sql#DB.SetConnMaxIdleTime
     conns_max_idle_time = "10m"
     conns_max_life_time = "10m"

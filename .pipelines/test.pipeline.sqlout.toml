@@ -1,0 +1,41 @@
+[settings]
+  id = "test.pipeline.sqlout"
+  lines = 5
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.httpl]
+    address = ":9100"
+    max_connections = 10
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.httpl.parser]
+    type = "json"
+
+[[processors]]
+  [processors.rk.mapping]
+    "TEST_TABLE" = [ "/http.input.test" ]
+
+[[outputs]]
+  [outputs.sql]
+    driver = "pgx"
+    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    [outputs.sql.columns]
+      expedition_type = "type"
+      expedition_region = "region"
+    [outputs.sql.on_init]
+      query = '''
+CREATE TABLE IF NOT EXISTS TEST_TABLE (
+	EXPEDITION_TYPE TEXT
+	, EXPEDITION_REGION TEXT
+);
+'''
+    [outputs.sql.on_push]
+      query = '''
+INSERT INTO :table_name (EXPEDITION_TYPE, EXPEDITION_REGION)
+VALUES (:expedition_type, :expedition_region)
+ON CONFLICT DO NOTHING;
+'''

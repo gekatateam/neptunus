@@ -25,6 +25,17 @@ func TestFindInPayload(t *testing.T) {
 			result: 133,
 			err: nil,
 		},
+		"from map, first level, ok value": {
+			p: map[string]any{
+				"foo": "bar",
+				"fizz": map[string]any{
+					"buzz": 133,
+				},
+			},
+			key: "foo",
+			result: "bar",
+			err: nil,
+		},
 		"from map, last slice, ok value": {
 			p: map[string]any{
 				"foo": "bar",

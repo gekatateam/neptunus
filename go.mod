@@ -77,14 +77,14 @@ require (
 	github.com/elastic/go-elasticsearch/v8 v8.11.1
 	github.com/elastic/go-lumber v0.1.1
 	github.com/go-chi/chi/v5 v5.0.11
-	github.com/go-sql-driver/mysql v1.8.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/go-task/slim-sprig/v3 v3.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-json v0.10.2
 	github.com/goccy/go-yaml v1.11.2
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jackc/pgx/v4 v4.18.2
-	github.com/jmoiron/sqlx v1.3.5
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/microsoft/go-mssqldb v1.7.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/naoina/toml v0.1.1
