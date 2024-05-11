@@ -78,7 +78,7 @@ Target topic name takes from an event routing key. Plugin creates one writer per
     key_label = ""
 
     # maximum number of attempts to send a batch of messages
-    # before event will be marked as failed
+    # before events will be marked as failed
     # 
     # only messages that ended with:
     # - network timeout error 

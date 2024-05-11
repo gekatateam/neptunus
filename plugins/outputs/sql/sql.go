@@ -172,7 +172,7 @@ func init() {
 			ConnsMaxLifetime: 10 * time.Minute,
 			ConnsMaxOpen:     2,
 			ConnsMaxIdle:     1,
-			QueryTimeout:     30 * time.Second,
+			QueryTimeout:     10 * time.Second,
 			IdleTimeout:      5 * time.Minute,
 			TablePlaceholder: tablePlaceholder,
 
