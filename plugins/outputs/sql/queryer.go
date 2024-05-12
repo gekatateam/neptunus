@@ -57,12 +57,13 @@ func (q *querier) Run() {
 			ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
 			defer cancel()
 
+			// after init tests, error normally does not occur here
 			query, args, err := csql.BindNamed(q.query, rawArgs, q.db)
 			if err != nil {
 				return fmt.Errorf("query binding failed: %w", err)
 			}
 
-			q.Log.Debug(fmt.Sprintf("query after bindings: %v", query))
+			q.Log.Debug(fmt.Sprintf("binded query: %v", query))
 
 			_, err = q.db.ExecContext(ctx, query, args...)
 			return err
