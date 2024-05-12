@@ -20,6 +20,7 @@ Other drivers use plugin TLS configuration.
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
 
     # database connection params - https://pkg.go.dev/database/sql#DB.SetConnMaxIdleTime
+    # one connection pool shares between producers
     conns_max_idle_time = "10m"
     conns_max_life_time = "10m"
     conns_max_open = 2
@@ -28,8 +29,7 @@ Other drivers use plugin TLS configuration.
     # queries execution timeout
     query_timeout = "10s"
 
-    # a placeholder in push query, which will be replaced 
-    # by event routing key
+    # a placeholder in push query, which will be replaced by event routing key
     # that may be useful if target table is partitioned
     table_placeholder = ":table_name"
 
@@ -46,7 +46,7 @@ Other drivers use plugin TLS configuration.
     batch_buffer = 100
 
     # maximum number of attempts to execute push query
-    # before event will be marked as failed
+    # before events batch will be marked as failed
     retry_attempts = 0 # zero for endless attempts
 
     # interval between retries to (re-)execute push query
