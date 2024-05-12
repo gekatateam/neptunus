@@ -58,7 +58,7 @@ func (o *Sql) Init() error {
 	}
 
 	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
-		return errors.New("OnPush.query or OnPush.file requred")
+		return errors.New("onPush.query or onPush.file requred")
 	}
 
 	if err := o.OnInit.Init(); err != nil {
@@ -100,6 +100,17 @@ func (o *Sql) Init() error {
 		return err
 	}
 	o.db = db
+
+	testArgs := map[string]any{}
+	for k, v := range o.Columns {
+		testArgs[k] = v
+	}
+
+	if _, _, err := csql.BindNamed(
+		strings.Replace(o.OnPush.Query, o.TablePlaceholder, "TEST_TABLE_NAME", 1), 
+		testArgs, o.db); err != nil {
+		return fmt.Errorf("query test binding failed: %w", err)
+	}
 
 	if len(o.OnInit.Query) > 0 {
 		if err := o.init(); err != nil {
