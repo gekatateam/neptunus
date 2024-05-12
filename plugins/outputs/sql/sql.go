@@ -53,9 +53,9 @@ func (o *Sql) Init() error {
 		return errors.New("driver required")
 	}
 
-	if len(o.Columns) == 0 {
-		return errors.New("columns mapping required")
-	}
+	// if len(o.Columns) == 0 {
+	// 	return errors.New("columns mapping required")
+	// }
 
 	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
 		return errors.New("onPush.query or onPush.file requred")
@@ -107,7 +107,7 @@ func (o *Sql) Init() error {
 	}
 
 	if _, _, err := csql.BindNamed(
-		strings.Replace(o.OnPush.Query, o.TablePlaceholder, "TEST_TABLE_NAME", 1), 
+		strings.Replace(o.OnPush.Query, o.TablePlaceholder, "TEST_TABLE_NAME", 1),
 		testArgs, o.db); err != nil {
 		return fmt.Errorf("query test binding failed: %w", err)
 	}

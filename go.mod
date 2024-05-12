@@ -91,6 +91,7 @@ require (
 	github.com/opensearch-project/opensearch-go/v3 v3.0.0
 	github.com/prometheus/client_golang v1.18.0
 	github.com/redis/go-redis/v9 v9.5.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/sijms/go-ora/v2 v2.8.9
 	github.com/urfave/cli/v2 v2.27.1
