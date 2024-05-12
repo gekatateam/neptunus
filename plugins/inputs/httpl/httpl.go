@@ -86,6 +86,7 @@ func (i *Httpl) Init() error {
 		WriteTimeout: i.WriteTimeout,
 		Handler:      mux,
 		TLSConfig:    tlsConfig,
+		ErrorLog:     slog.NewLogLogger(i.Log.Handler(), slog.LevelError),
 	}
 
 	return nil

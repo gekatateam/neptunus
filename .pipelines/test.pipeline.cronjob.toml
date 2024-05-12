@@ -1,0 +1,59 @@
+[settings]
+  id = "test.pipeline.cronjob"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.cronjob]
+    location = "UTC"
+    # this job is used to create table partitions
+    [[inputs.cronjob.jobs]]
+      name = "partition.create"
+      schedule = "0 0 0 * * *"
+    # this job generates healthcheck
+    [[inputs.cronjob.jobs]]
+      name = "healthcheck.notify"
+      schedule = "@every 10s"
+
+[[processors]]
+  [processors.starlark]
+    code = '''
+load("time.star", "time")
+
+def process(event):
+    events = []
+
+    for i in range(6):
+      t = time.now() + time.hour * 24 * i
+      e = newEvent("expeditions_" + t.format("2006_01_02"))
+      events.append(e)
+
+    return events
+    '''
+  [processors.starlark.filters.glob]
+    routing_key = [ "cronjob.partition.create" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
+  [outputs.log.filters.glob]
+    routing_key = [ "cronjob.healthcheck.notify" ]
+
+[[outputs]]
+  [outputs.sql]
+    driver = "pgx"
+    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    buffer = 1
+    [outputs.sql.on_push]
+      query = '''
+CREATE TABLE IF NOT EXISTS :table_name (
+	EXPEDITION_TYPE TEXT
+	, EXPEDITION_REGION TEXT
+);
+'''
+  [outputs.sql.filters.glob]
+    routing_key = [ "expeditions_*" ]
