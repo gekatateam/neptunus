@@ -16,7 +16,7 @@ import (
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-var secretKeyPattern = regexp.MustCompile(`([a-zA-Z_\-/]+)#([a-zA-Z_\-\.]+)`)
+var secretKeyPattern = regexp.MustCompile(`([a-zA-Z0-9_\-\./]+)#([a-zA-Z0-9_\-\.]+)`)
 
 type Vault struct {
 	*core.BaseKeykeeper `mapstructure:"-"`
