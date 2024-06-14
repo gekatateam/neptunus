@@ -133,13 +133,13 @@ func (o *Exec) unpackArgs(e *core.Event) ([]string, error) {
 				args = append(args, arg)
 			}
 		case map[string]any:
-			for i, j := range f {
+			for k, j := range f {
 				arg, err := convert.AnyToString(j)
 				if err != nil {
-					return nil, fmt.Errorf("%v.%v: %w", v, i, err)
+					return nil, fmt.Errorf("%v.%v: %w", v, k, err)
 				}
 
-				args = append(args, i, arg)
+				args = append(args, k, arg)
 			}
 		default:
 			arg, err := convert.AnyToString(f)
