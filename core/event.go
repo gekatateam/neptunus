@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/gekatateam/mappath"
 )
 
 type Event struct {
@@ -14,7 +16,7 @@ type Event struct {
 	RoutingKey string
 	Tags       []string
 	Labels     map[string]string
-	Data       Payload
+	Data       any
 	Errors     Errors
 	ctx        context.Context
 	tracker    *tracker
@@ -33,7 +35,7 @@ func NewEvent(routingKey string) *Event {
 	}
 }
 
-func NewEventWithData(routingKey string, data Payload) *Event {
+func NewEventWithData(routingKey string, data any) *Event {
 	return &Event{
 		Id:         uuid.New().String(),
 		UUID:       uuid.New(),
@@ -66,26 +68,26 @@ func (e *Event) Duty() int32 {
 }
 
 func (e *Event) GetField(key string) (any, error) {
-	val, err := FindInPayload(e.Data, key)
+	val, err := mappath.Get(e.Data, key)
 	if err != nil {
-		return nil, ErrNoSuchField
+		return nil, mappath.ErrNoSuchField
 	}
 	return val, nil
 }
 
 func (e *Event) SetField(key string, value any) error {
-	p, err := PutInPayload(e.Data, key, value)
+	p, err := mappath.Put(e.Data, key, value)
 	if err != nil {
-		return ErrInvalidPath
+		return mappath.ErrInvalidPath
 	}
 	e.Data = p
 	return nil
 }
 
 func (e *Event) DeleteField(key string) error {
-	p, err := DeleteFromPayload(e.Data, key)
+	p, err := mappath.Delete(e.Data, key)
 	if err != nil {
-		return ErrNoSuchField
+		return mappath.ErrNoSuchField
 	}
 	e.Data = p
 	return nil
@@ -103,7 +105,7 @@ func (e *Event) Clone() *Event {
 		RoutingKey: e.RoutingKey,
 		Tags:       make([]string, len(e.Tags)),
 		Labels:     make(map[string]string, len(e.Labels)),
-		Data:       ClonePayload(e.Data),
+		Data:       mappath.Clone(e.Data),
 		ctx:        e.ctx,
 	}
 

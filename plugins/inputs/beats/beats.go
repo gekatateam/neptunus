@@ -11,6 +11,7 @@ import (
 	"time"
 
 	lumber "github.com/elastic/go-lumber/server/v2"
+	"github.com/gekatateam/mappath"
 	"github.com/goccy/go-json"
 
 	"github.com/gekatateam/neptunus/core"
@@ -162,7 +163,7 @@ func (i *Beats) toEvent(beatEvent any) (*core.Event, error) {
 		return nil, errors.New("received event is not representable as core.Event")
 	}
 
-	beat, err := core.FindInPayload(rawData, "@metadata.beat")
+	beat, err := mappath.Get(rawData, "@metadata.beat")
 	if err != nil {
 		return nil, errors.New("received event has no @metadata.beat field")
 	}

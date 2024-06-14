@@ -18,7 +18,7 @@ func TestConverter(t *testing.T) {
 		input        chan *core.Event
 		output       chan *core.Event
 		event        *core.Event
-		expectedData core.Payload
+		expectedData any
 		expectErrors bool
 	}{
 		"convert-to-string-ok": {
