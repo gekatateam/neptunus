@@ -10,7 +10,7 @@ The `exec` output executes configured command on each event.
     command = "bash"
 
     # list of labels, each will be added to the environment 
-    # of the process in the "label key=label value" form
+    # of the process in the "label_key=label_value" form
     envs = []
 
     # list of fields that will be used as command args
