@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -26,12 +27,12 @@ const defaultBufferSize = 4096
 type Http struct {
 	*core.BaseInput `mapstructure:"-"`
 	EnableMetrics   bool              `mapstructure:"enable_metrics"`
-	Address         string            `mapstructure:"address"            validate:"notblank"`
+	Address         string            `mapstructure:"address"`
 	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
 	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
-	AllowedMethods  []string          `mapstructure:"allowed_methods"    validate:"notblank"`
-	QueryParamsTo   string            `mapstructure:"query_params_to"` 
+	AllowedMethods  []string          `mapstructure:"allowed_methods"`
+	QueryParamsTo   string            `mapstructure:"query_params_to"`
 	MaxConnections  int               `mapstructure:"max_connections"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 
@@ -40,12 +41,20 @@ type Http struct {
 
 	server   *http.Server
 	listener net.Listener
-	parser core.Parser
+	parser   core.Parser
 
 	allowedMethods map[string]struct{}
 }
 
 func (i *Http) Init() error {
+	if len(i.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	if len(i.AllowedMethods) == 0 {
+		return errors.New("at least one allowed method required")
+	}
+
 	if err := i.Ider.Init(); err != nil {
 		return err
 	}

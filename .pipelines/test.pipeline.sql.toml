@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.sql"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
