@@ -167,7 +167,6 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, event := range e {
-		event.SetLabel("input", "http")
 		event.SetLabel("server", i.Address)
 		event.SetLabel("sender", r.RemoteAddr)
 
@@ -201,6 +200,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if i.WaitForDelivery {
 			wg.Add(1)
+			event.SetHook(wg.Done)
 		}
 
 		i.Ider.Apply(event)
