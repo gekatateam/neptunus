@@ -89,6 +89,7 @@ FETCH_LOOP:
 		}
 
 		for _, e := range events {
+			e.SetLabel("offset", strconv.FormatInt(msg.Offset, 10))
 			for label, header := range r.labelHeaders {
 				if h, ok := headers[header]; ok {
 					e.SetLabel(label, h)

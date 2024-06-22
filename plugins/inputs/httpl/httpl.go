@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"golang.org/x/net/netutil"
@@ -28,6 +29,7 @@ type Httpl struct {
 	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
 	MaxConnections  int               `mapstructure:"max_connections"`
+	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 
 	*ider.Ider              `mapstructure:",squash"`
@@ -128,14 +130,17 @@ func (i *Httpl) Close() error {
 
 func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case http.MethodPost:
+	case http.MethodPost, http.MethodPut:
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
 	i.Log.Debug("request received",
 		"sender", r.RemoteAddr,
 	)
+
+	wg := &sync.WaitGroup{}
 
 	var cursor, events = 0, 0
 	scanner := bufio.NewScanner(r.Body)
@@ -163,7 +168,6 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, event := range e {
-			event.SetLabel("input", "httpl")
 			event.SetLabel("server", i.Address)
 			event.SetLabel("sender", r.RemoteAddr)
 
@@ -172,6 +176,11 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if len(h) > 0 {
 					event.SetLabel(k, h)
 				}
+			}
+
+			if i.WaitForDelivery {
+				wg.Add(1)
+				event.SetHook(wg.Done)
 			}
 
 			i.Ider.Apply(event)
@@ -187,6 +196,8 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			now = time.Now()
 		}
 	}
+
+	wg.Wait()
 
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))

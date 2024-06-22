@@ -27,6 +27,12 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	now := time.Now()
 	events := []*core.Event{}
 
+	if len(data) == 0 {
+		e := core.NewEvent(routingKey)
+		p.Observe(metrics.EventAccepted, time.Since(now))
+		return []*core.Event{e}, nil
+	}
+
 	if data[0] == '[' { // array provided - [{...},{...},...]
 		eventData := []any{}
 		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {

@@ -1,29 +1,22 @@
 [settings]
-  id = "test.pipeline.exec"
+  id = "test.pipeline.http"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
-  [inputs.httpl]
+  [inputs.http]
     address = ":9100"
     max_connections = 10
+    query_params_to = "."
+    wait_for_delivery = true
     tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
-  [inputs.httpl.parser]
+  [inputs.http.parser]
     type = "json"
-
-[[processors]]
-  [processors.starlark]
-    code = '''
-def process(event):
-  args = [ "-Command", "echo '" + event.getId() + "' >> test.txt" ]
-  event.delField(".")
-  event.setField(".", args)
-  return event
-    '''
+    split_array = false
 
 [[outputs]]
   [outputs.log]
@@ -31,8 +24,3 @@ def process(event):
     [outputs.log.serializer]
       type = "json"
       data_only = false
-
-[[outputs]]
-  [outputs.exec]
-    command = "powershell.exe"
-    args = ["."]
