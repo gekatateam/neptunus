@@ -2,6 +2,8 @@
 
 The `http` input plugin serves requests on configured address. This plugin requires parser.
 
+Unlike [httpl input](../httpl/), this plugin fully reads request body before parsing stage, and also takes into account URL-encoded request params.
+
 If body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
 
 This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
@@ -17,7 +19,7 @@ This plugin produce events with routing key as request path, `server` label with
     enable_metrics = false
 
     # address and port to host HTTP listener on
-    address = ":9200"
+    address = ":9900"
 
     # number of maximum simultaneous connections
     max_connections = 10

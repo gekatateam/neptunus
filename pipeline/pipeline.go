@@ -14,7 +14,6 @@ import (
 	"github.com/gekatateam/neptunus/core/unit"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
-	"github.com/gekatateam/neptunus/pkg/validator"
 	"github.com/gekatateam/neptunus/plugins"
 
 	"github.com/gekatateam/neptunus/plugins/core/broadcast"
@@ -597,10 +596,6 @@ func (p *Pipeline) configureInputs() error {
 
 			if err := mapstructure.Decode(inputCfg, input, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v input configuration mapping error: %v", plugin, err.Error())
-			}
-
-			if err := validator.Validate(input); err != nil {
-				return fmt.Errorf("%v input validation error: %v", plugin, err.Error())
 			}
 
 			if err := input.Init(); err != nil {

@@ -1,6 +1,6 @@
 # Httpl Input Plugin
 
-The `httpl` input plugin serves requests on configured address and streams request body to parser line by line. This plugin requires parser.
+The `httpl` input plugin serves requests on configured address and streams request body to parser line by line, so, unlike [http input](../http/), this plugin is good for streaming. This plugin requires parser.
 
 If all body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
 
@@ -17,7 +17,7 @@ This plugin produce events with routing key as request path, `server` label with
     enable_metrics = false
 
     # address and port to host HTTP listener on
-    address = ":9200"
+    address = ":9800"
 
     # number of maximum simultaneous connections
     max_connections = 10
