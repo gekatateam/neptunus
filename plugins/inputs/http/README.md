@@ -6,7 +6,7 @@ Unlike [httpl input](../httpl/), this plugin fully reads request body before par
 
 If body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
 
-This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
+This plugin produce events with routing key as request path, `server` label with configured address, `sender` label with request RemoteAddr address and `method` with request HTTP method.
 
 > [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#http-server)

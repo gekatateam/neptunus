@@ -178,6 +178,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, event := range e {
 		event.SetLabel("server", i.Address)
 		event.SetLabel("sender", r.RemoteAddr)
+		event.SetLabel("method", r.Method)
 
 		for k, v := range i.LabelHeaders {
 			h := r.Header.Get(v)
