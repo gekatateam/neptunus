@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,6 +58,10 @@ func ReadConfig(file string) (*Config, error) {
 	config := Default
 
 	switch e := filepath.Ext(file); e {
+	case ".json":
+		if err := json.Unmarshal(buf, &config); err != nil {
+			return &config, err
+		}
 	case ".toml":
 		if err := toml.Unmarshal(buf, &config); err != nil {
 			return &config, err
