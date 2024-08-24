@@ -8,18 +8,18 @@ type hookFunc func()
 
 type tracker struct {
 	duty    int32
-	hook    hookFunc
+	hook    []hookFunc
 }
 
 func newTracker(hook hookFunc) *tracker {
 	return &tracker{
 		duty:    1,
-		hook:    hook,
+		hook:    []hookFunc{hook},
 	}
 }
 
-func (d *tracker) SetHook(hook hookFunc) {
-	d.hook = hook
+func (d *tracker) AddHook(hook hookFunc) {
+	d.hook = append(d.hook, hook)
 }
 
 func (d *tracker) Copy() *tracker {
@@ -39,6 +39,8 @@ func (d *tracker) Decreace() {
 	}
 
 	if n == 0 {
-		d.hook()
+		for _, hook := range d.hook {
+			hook()
+		}
 	}
 }

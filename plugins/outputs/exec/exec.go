@@ -44,7 +44,7 @@ func (o *Exec) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			e.Done()
+			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
@@ -58,7 +58,7 @@ func (o *Exec) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			e.Done()
+			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
@@ -77,7 +77,7 @@ func (o *Exec) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			e.Done()
+			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
 		} else {
 			o.Log.Debug("command execution completed",
@@ -86,7 +86,7 @@ func (o *Exec) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			e.Done()
+			o.Done <- e
 			o.Observe(metrics.EventAccepted, time.Since(now))
 		}
 

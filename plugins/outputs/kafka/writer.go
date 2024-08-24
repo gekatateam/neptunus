@@ -80,7 +80,7 @@ func (w *topicWriter) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				w.Done <- e
 				w.Observe(metrics.EventFailed, time.Since(now))
 				continue
 			}
@@ -120,7 +120,7 @@ func (w *topicWriter) Run() {
 
 			messages = append(messages, msg)
 			readyEvents[e.UUID] = &eventMsgStatus{
-				event:     e,
+				Event:     e,
 				spentTime: time.Since(now),
 				error:     errors.New("not delivered yet"),
 			}
@@ -135,21 +135,21 @@ func (w *topicWriter) Run() {
 		// mark as done only after successful write
 		// or when the maximum number of attempts has been reached
 		for _, e := range eventsStat {
-			e.event.Done()
+			w.Done <- e.Event
 			if e.error != nil {
 				w.Log.Error("event produce failed",
 					"error", e.error,
 					slog.Group("event",
-						"id", e.event.Id,
-						"key", e.event.RoutingKey,
+						"id", e.Id,
+						"key", e.RoutingKey,
 					),
 				)
 				w.Observe(metrics.EventFailed, e.spentTime)
 			} else {
 				w.Log.Debug("event produced",
 					slog.Group("event",
-						"id", e.event.Id,
-						"key", e.event.RoutingKey,
+						"id", e.Id,
+						"key", e.RoutingKey,
 					),
 				)
 				w.Observe(metrics.EventAccepted, e.spentTime)
@@ -262,7 +262,7 @@ func (w *topicWriter) write(messages []kafka.Message, eventsStatus map[uuid.UUID
 }
 
 type eventMsgStatus struct {
-	event     *core.Event
+	*core.Event
 	spentTime time.Duration
 	error     error
 }

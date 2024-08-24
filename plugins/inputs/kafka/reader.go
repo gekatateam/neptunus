@@ -98,7 +98,7 @@ FETCH_LOOP:
 
 			r.commitSemaphore <- struct{}{}
 			r.fetchCh <- msg
-			e.SetHook(func() {
+			e.AddHook(func() {
 				r.commitCh <- msg.Offset
 			})
 

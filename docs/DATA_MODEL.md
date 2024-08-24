@@ -70,11 +70,11 @@ There are a few corner cases:
 
 ## Delivery Control
 
-You can set a tracker for each event using `SetHook(hook func())` method, but only once. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
+You can add a delivery hooks for each event using `AddHook(hook func())` method. Each call adds new hook to tracker. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
  - it increases when an event is cloned using corresponding method; cloned events shares tracker.
  - it decreases when an event `Done()` method calls.
 
-When tracker duty counter decreases to zero, tracker will call hook function.
+When tracker duty counter decreases to zero, tracker will call all hook functions in the order they were added.
 
 Tracker can be used by input plugins that wants to know when event processing done, such as `beats` or `kafka`, before responding to a client/broker that message has been accepted.
 

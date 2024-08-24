@@ -18,6 +18,7 @@ const (
 type to int
 
 const (
+	//lint:ignore U1000 reserved
 	toTimestamp to = iota + 1
 
 	toId
@@ -28,6 +29,7 @@ const (
 	toFloat
 	toBoolean
 
+	//lint:ignore U1000 reserved
 	toTime
 	toDuration
 )

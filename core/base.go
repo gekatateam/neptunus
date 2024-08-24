@@ -30,15 +30,17 @@ type BaseProcessor struct {
 	Plugin   string
 	Pipeline string
 
-	Log *slog.Logger
-	Obs metrics.ObserveFunc
-	In  <-chan *Event
-	Out chan<- *Event
+	Log  *slog.Logger
+	Obs  metrics.ObserveFunc
+	In   <-chan *Event
+	Out  chan<- *Event
+	Drop chan<- *Event
 }
 
-func (b *BaseProcessor) SetChannels(in <-chan *Event, out chan<- *Event) {
+func (b *BaseProcessor) SetChannels(in <-chan *Event, out chan<- *Event, drop chan<- *Event) {
 	b.In = in
 	b.Out = out
+	b.Drop = drop
 }
 
 func (b *BaseProcessor) Observe(status metrics.EventStatus, dur time.Duration) {
@@ -50,12 +52,13 @@ type BaseOutput struct {
 	Plugin   string
 	Pipeline string
 
-	Log *slog.Logger
-	Obs metrics.ObserveFunc
-	In  <-chan *Event
+	Log  *slog.Logger
+	Obs  metrics.ObserveFunc
+	In   <-chan *Event
+	Done chan<- *Event
 }
 
-func (b *BaseOutput) SetChannels(in <-chan *Event) {
+func (b *BaseOutput) SetChannels(in <-chan *Event, done chan<- *Event) {
 	b.In = in
 }
 

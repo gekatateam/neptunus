@@ -48,10 +48,12 @@ func NewEventWithData(routingKey string, data any) *Event {
 	}
 }
 
-func (e *Event) SetHook(hook hookFunc) {
+func (e *Event) AddHook(hook hookFunc) {
 	if e.tracker == nil {
 		e.tracker = newTracker(hook)
+		return
 	}
+	e.tracker.AddHook(hook)
 }
 
 func (e *Event) Done() {

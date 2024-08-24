@@ -50,6 +50,7 @@ func TestParser(t *testing.T) {
 		config         map[string]any
 		input          chan *core.Event
 		output         chan *core.Event
+		drop           chan *core.Event
 		event          *core.Event
 		parseCount     int
 		parseError     bool
@@ -65,6 +66,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": "",
@@ -96,6 +98,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"notAfield": "im not a field",
@@ -121,6 +124,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": 1337,
@@ -146,6 +150,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": "im a field",
@@ -171,6 +176,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": "",
@@ -206,6 +212,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": "",
@@ -237,6 +244,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": "im a field",
@@ -271,6 +279,7 @@ func TestParser(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event: &core.Event{
 				Data: map[string]any{
 					"field": "im a field",
@@ -313,19 +322,24 @@ func TestParser(t *testing.T) {
 				count: test.parseCount,
 				err:   test.parseError,
 			})
-			processor.SetChannels(test.input, test.output)
+			processor.SetChannels(test.input, test.output, test.drop)
 			wg.Add(1)
 			go func() {
 				processor.Run()
 				wg.Done()
 			}()
 
-			test.event.SetHook(func() {})
+			test.event.AddHook(func() {})
 			test.input <- test.event
 			close(test.input)
 			processor.Close()
 			wg.Wait()
 			close(test.output)
+			close(test.drop)
+
+			for e := range test.drop {
+				e.Done()
+			}
 
 			cursor := 0
 			duty := -1

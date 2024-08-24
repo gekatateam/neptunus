@@ -84,10 +84,10 @@ func (p *Stats) Run() {
 
 			now := time.Now()
 			p.Observe(e)
-			if !p.DropOrigin {
-				p.Out <- e
+			if p.DropOrigin {
+				p.Drop <- e
 			} else {
-				e.Done()
+				p.Out <- e
 			}
 			p.BaseProcessor.Observe(metrics.EventAccepted, time.Since(now))
 		}

@@ -107,13 +107,14 @@ MAIN_LOOP:
 				p.Out <- event
 			}
 			if p.DropOrigin {
-				e.Done()
+				p.Drop <- e
 			} else {
 				p.Out <- e
 			}
 			p.Log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		case "merge":
 			for _, donor := range events {
+				// and again, we using event copy, same reason
 				event := e.Clone()
 				if p.DropOrigin {
 					event.DeleteField(p.From)
@@ -130,14 +131,14 @@ MAIN_LOOP:
 					)
 					e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
 					e.AddTag("::parser_processing_failed")
-					e.Done() // decrease duty counter to compensate Copy()
+					e.Done() // decrease duty counter to compensate Clone()
 					p.Out <- e
 					p.Observe(metrics.EventFailed, time.Since(now))
 					continue MAIN_LOOP // continue main loop with error if set failed
 				}
 				p.Out <- event
 			}
-			e.Done() // decrease duty because origin event not returns
+			p.Drop <- e // because we no longer need the origin event
 			p.Log.Debug(fmt.Sprintf("produced %v events", len(events)))
 		}
 

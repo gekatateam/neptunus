@@ -17,6 +17,7 @@ func TestStarlark(t *testing.T) {
 		config map[string]any
 		input  chan *core.Event
 		output chan *core.Event
+		drop   chan *core.Event
 		event  *core.Event
 	}{
 		"return-same-event": {
@@ -28,6 +29,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-none": {
@@ -39,6 +41,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-error": {
@@ -50,6 +53,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-new-event": {
@@ -61,6 +65,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-list-of-new": {
@@ -72,6 +77,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-list-of-same": {
@@ -83,6 +89,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-list-of-mixed": {
@@ -94,6 +101,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 		"return-bad-type": {
@@ -105,6 +113,7 @@ def process(event):
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			event:  core.NewEvent("test-key"),
 		},
 	}
@@ -126,19 +135,24 @@ def process(event):
 			}
 
 			wg := &sync.WaitGroup{}
-			processor.SetChannels(test.input, test.output)
+			processor.SetChannels(test.input, test.output, test.drop)
 			wg.Add(1)
 			go func() {
 				processor.Run()
 				wg.Done()
 			}()
 
-			test.event.SetHook(func() {})
+			test.event.AddHook(func() {})
 			test.input <- test.event
 			close(test.input)
 			processor.Close()
 			wg.Wait()
 			close(test.output)
+			close(test.drop)
+
+			for e := range test.drop {
+				e.Done()
+			}
 
 			duty := 0
 			for e := range test.output {
