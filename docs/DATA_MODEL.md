@@ -25,6 +25,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
  - `DeleteField(key string) error` - delete field from event; if field does not exist, error returns
  - `Clone() *Event` - clone event
  - `Done()` - mark event as delivered, deleted from pipeline or finally failed
+ - `Duty() int32` - get event duty counter value
  - `StackError(err error)` - add error to event
 
 `SetField`, `GetField` and `DeleteField` use dots as path separator. For example:
@@ -78,4 +79,6 @@ When tracker duty counter decreases to zero, tracker will call all hook function
 
 Tracker can be used by input plugins that wants to know when event processing done, such as `beats` or `kafka`, before responding to a client/broker that message has been accepted.
 
-This also means than processors and outputs must call `Done()` method when an event no more needed, delivered or failed after configured attempts.
+Plugins must never call `Done()` event method themselves, pipeline will do this on its own. Instead, processors must send unnecessary events to `Drop` channel, and outputs must send processed events to `Done`.
+
+In tests, you can use `Duty()` event method to make sure plugin works correctly with tracker.

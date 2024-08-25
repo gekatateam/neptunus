@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,7 +17,6 @@ type Event struct {
 	Labels     map[string]string
 	Data       any
 	Errors     Errors
-	ctx        context.Context
 	tracker    *tracker
 }
 
@@ -31,7 +29,6 @@ func NewEvent(routingKey string) *Event {
 		Tags:       make([]string, 0, 5),
 		Labels:     make(map[string]string),
 		Data:       nil,
-		ctx:        context.Background(),
 	}
 }
 
@@ -44,7 +41,6 @@ func NewEventWithData(routingKey string, data any) *Event {
 		Tags:       make([]string, 0, 5),
 		Labels:     make(map[string]string),
 		Data:       data,
-		ctx:        context.Background(),
 	}
 }
 
@@ -108,7 +104,6 @@ func (e *Event) Clone() *Event {
 		Tags:       make([]string, len(e.Tags)),
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       mappath.Clone(e.Data),
-		ctx:        e.ctx,
 	}
 
 	if e.tracker != nil {
@@ -121,14 +116,6 @@ func (e *Event) Clone() *Event {
 	}
 
 	return event
-}
-
-func (e *Event) Context() context.Context {
-	return e.ctx
-}
-
-func (e *Event) ReplaceContext(ctx context.Context) {
-	e.ctx = ctx
 }
 
 func (e *Event) GetLabel(key string) (string, bool) {

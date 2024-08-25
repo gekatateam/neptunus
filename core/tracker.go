@@ -7,14 +7,14 @@ import (
 type hookFunc func()
 
 type tracker struct {
-	duty    int32
-	hook    []hookFunc
+	duty int32
+	hook []hookFunc
 }
 
 func newTracker(hook hookFunc) *tracker {
 	return &tracker{
-		duty:    1,
-		hook:    []hookFunc{hook},
+		duty: 1,
+		hook: []hookFunc{hook},
 	}
 }
 

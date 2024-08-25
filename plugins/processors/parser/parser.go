@@ -121,6 +121,7 @@ MAIN_LOOP:
 				}
 
 				if err := event.SetField(p.To, donor.Data); err != nil {
+					p.Drop <- event // drop cloned event
 					p.Log.Error("error set field",
 						"error", err,
 						slog.Group("event",
@@ -131,7 +132,6 @@ MAIN_LOOP:
 					)
 					e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
 					e.AddTag("::parser_processing_failed")
-					e.Done() // decrease duty counter to compensate Clone()
 					p.Out <- e
 					p.Observe(metrics.EventFailed, time.Since(now))
 					continue MAIN_LOOP // continue main loop with error if set failed
