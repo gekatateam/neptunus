@@ -69,6 +69,7 @@ func (o *Exec) Run() {
 		cmd.Env = append(cmd.Env, os.Environ()...)
 		cmd.Env = append(cmd.Env, envs...)
 
+		o.Done <- e
 		if err := cmd.Run(); err != nil {
 			o.Log.Error("command execution failed",
 				"error", err,
@@ -77,7 +78,6 @@ func (o *Exec) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
 		} else {
 			o.Log.Debug("command execution completed",
@@ -86,7 +86,6 @@ func (o *Exec) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			o.Done <- e
 			o.Observe(metrics.EventAccepted, time.Since(now))
 		}
 

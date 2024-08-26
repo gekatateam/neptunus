@@ -6,8 +6,8 @@ The Neptunus engine works with events - single data frames. An event is a struct
  - **Routing key** - an event key, which should be used for events routing inside a pipeline and in outer world; usually it is a queue/topic name, URL path, etc.
  - **Labels** - an event metadata map, which are used for routing with routing key; think of this as an event headers.
  - **Tags** - list of **unique** event attributes, which also can be used for routing; plugins adds special tags, e.g. `::starlark_processing_failed` when an error occurs.
-- **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
-- **Data** - an event payload, map or slice, that is filling by parsers; it is essentially the body of an event.
+ - **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
+ - **Data** - an event payload, map or slice, that is filling by parsers; it is essentially the body of an event.
 
 Also, each event has a **UUID** field that is randomly generated. This field is for internal use only and may be useful as an unique identifier.
 
