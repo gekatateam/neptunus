@@ -206,7 +206,7 @@ func TestRegex(t *testing.T) {
 			}
 
 			wg := &sync.WaitGroup{}
-			processor.SetChannels(test.input, test.output)
+			processor.SetChannels(test.input, test.output, nil)
 			wg.Add(1)
 			go func() {
 				processor.Run()

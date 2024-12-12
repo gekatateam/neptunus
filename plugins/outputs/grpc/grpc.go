@@ -128,7 +128,7 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 					"key", e.RoutingKey,
 				),
 			)
-			e.Done()
+			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
@@ -149,6 +149,7 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			return err
 		})
 
+		o.Done <- e
 		if err == nil {
 			o.Log.Debug("event sent",
 				slog.Group("event",
@@ -167,7 +168,6 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			)
 			o.Observe(metrics.EventFailed, time.Since(now))
 		}
-		e.Done()
 	}
 }
 
@@ -191,7 +191,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				o.Done <- e
 				o.Observe(metrics.EventFailed, time.Since(now))
 				continue
 			}
@@ -207,7 +207,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 								"key", e.RoutingKey,
 							),
 						)
-						e.Done()
+						o.Done <- e
 						o.Observe(metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
@@ -224,7 +224,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 							"key", e.RoutingKey,
 						),
 					)
-					e.Done()
+					o.Done <- e
 					o.Observe(metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}
@@ -288,7 +288,7 @@ MAIN_LOOP:
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				o.Done <- e
 				o.Observe(metrics.EventFailed, time.Since(now))
 				continue MAIN_LOOP
 			}
@@ -304,7 +304,7 @@ MAIN_LOOP:
 								"key", e.RoutingKey,
 							),
 						)
-						e.Done()
+						o.Done <- e
 						o.Observe(metrics.EventFailed, time.Since(now))
 						continue MAIN_LOOP
 					}
@@ -327,7 +327,7 @@ MAIN_LOOP:
 							"key", e.RoutingKey,
 						),
 					)
-					e.Done()
+					o.Done <- e
 					o.Observe(metrics.EventAccepted, time.Since(now))
 					continue MAIN_LOOP
 				}

@@ -94,7 +94,7 @@ func (i *indexer) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				i.Done <- e
 				i.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
 				continue
@@ -131,7 +131,7 @@ func (i *indexer) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				i.Done <- e
 				i.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
 				continue
@@ -161,7 +161,7 @@ func (i *indexer) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				i.Done <- e.Event
 				i.Observe(metrics.EventFailed, e.spentTime)
 			}
 			return
@@ -169,6 +169,7 @@ func (i *indexer) Run() {
 
 		for j, v := range res.Items {
 			e := sentEvents[j]
+			i.Done <- e.Event
 			if errCause := v[operationtype.OperationType{Name: i.operation}].Error; errCause != nil {
 				i.Log.Error("event send failed",
 					"error", errCause.Type+": "+*errCause.Reason,
@@ -177,7 +178,6 @@ func (i *indexer) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
 				i.Observe(metrics.EventFailed, e.spentTime)
 			} else {
 				i.Log.Debug("event sent",
@@ -186,7 +186,6 @@ func (i *indexer) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
 				i.Observe(metrics.EventAccepted, e.spentTime)
 			}
 		}

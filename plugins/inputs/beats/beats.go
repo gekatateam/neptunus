@@ -119,7 +119,7 @@ func (i *Beats) Run() {
 
 					if i.AckOnDelivery {
 						batchWg.Add(1)
-						event.SetHook(batchWg.Done)
+						event.AddHook(batchWg.Done)
 					}
 
 					if i.KeepTimestamp {

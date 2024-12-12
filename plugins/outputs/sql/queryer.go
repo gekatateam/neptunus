@@ -71,6 +71,7 @@ func (q *querier) Run() {
 
 		timePerEvent := time.Duration(int64(time.Since(now)) / int64(len(buf)))
 		for _, e := range buf {
+			q.Done <- e
 			if err != nil {
 				q.Log.Error("event query execution failed",
 					"error", err,
@@ -79,7 +80,6 @@ func (q *querier) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
 				q.Observe(metrics.EventFailed, timePerEvent)
 			} else {
 				q.Log.Debug("event query executed successfully",
@@ -88,7 +88,6 @@ func (q *querier) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
 				q.Observe(metrics.EventAccepted, timePerEvent)
 			}
 		}

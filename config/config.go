@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,25 +28,25 @@ var (
 )
 
 type Config struct {
-	Common Common `toml:"common" yaml:"common"`
-	Engine Engine `toml:"engine" yaml:"engine"`
+	Common Common `toml:"common" yaml:"common" json:"common"`
+	Engine Engine `toml:"engine" yaml:"engine" json:"engine"`
 }
 
 type Common struct {
-	LogLevel  string            `toml:"log_level"  yaml:"log_level"`
-	LogFormat string            `toml:"log_format" yaml:"log_format"`
-	LogFields map[string]string `toml:"log_fields" yaml:"log_fields"`
-	HttpPort  string            `toml:"http_port"  yaml:"http_port"`
+	LogLevel  string            `toml:"log_level"  yaml:"log_level"  json:"log_level"`
+	LogFormat string            `toml:"log_format" yaml:"log_format" json:"log_format"`
+	LogFields map[string]string `toml:"log_fields" yaml:"log_fields" json:"log_fields"`
+	HttpPort  string            `toml:"http_port"  yaml:"http_port"  json:"http_port"`
 }
 
 type Engine struct {
-	Storage string      `toml:"storage" yaml:"storage"`
-	File    FileStorage `toml:"fs"      yaml:"fs"`
+	Storage string      `toml:"storage" yaml:"storage" json:"storage"`
+	File    FileStorage `toml:"fs"      yaml:"fs"      json:"fs"`
 }
 
 type FileStorage struct {
-	Directory string `toml:"directory" yaml:"directory"`
-	Extention string `toml:"extention" yaml:"extention"`
+	Directory string `toml:"directory" yaml:"directory" json:"directory"`
+	Extention string `toml:"extention" yaml:"extention" json:"extention"`
 }
 
 func ReadConfig(file string) (*Config, error) {
@@ -63,6 +64,10 @@ func ReadConfig(file string) (*Config, error) {
 		}
 	case ".yaml", ".yml":
 		if err := yaml.Unmarshal(buf, &config); err != nil {
+			return &config, err
+		}
+	case "json":
+		if err := json.Unmarshal(buf, &config); err != nil {
 			return &config, err
 		}
 	default:

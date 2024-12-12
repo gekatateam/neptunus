@@ -299,7 +299,7 @@ func (i *Sql) poll() {
 
 		if i.WaitForDelivery {
 			batchWg.Add(1)
-			e.SetHook(batchWg.Done)
+			e.AddHook(batchWg.Done)
 		}
 
 		i.Ider.Apply(e)

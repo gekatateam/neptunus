@@ -17,6 +17,7 @@ func TestStats(t *testing.T) {
 		config       map[string]any
 		input        chan *core.Event
 		output       chan *core.Event
+		drop         chan *core.Event
 		events       []*core.Event
 		expectEvents map[uint64]map[string]float64
 	}{
@@ -33,6 +34,7 @@ func TestStats(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			events: []*core.Event{
 				{
 					Labels: map[string]string{
@@ -94,6 +96,7 @@ func TestStats(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			events: []*core.Event{
 				{
 					Labels: map[string]string{
@@ -159,6 +162,7 @@ func TestStats(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			events: []*core.Event{
 				{
 					Labels: map[string]string{
@@ -221,6 +225,7 @@ func TestStats(t *testing.T) {
 			},
 			input:  make(chan *core.Event, 100),
 			output: make(chan *core.Event, 100),
+			drop:   make(chan *core.Event, 100),
 			events: []*core.Event{
 				{
 					Labels: map[string]string{
@@ -280,7 +285,7 @@ func TestStats(t *testing.T) {
 			}
 
 			wg := &sync.WaitGroup{}
-			processor.SetChannels(test.input, test.output)
+			processor.SetChannels(test.input, test.output, test.drop)
 			wg.Add(1)
 			go func() {
 				processor.Run()
@@ -293,7 +298,12 @@ func TestStats(t *testing.T) {
 			close(test.input)
 			processor.Close()
 			wg.Wait()
+			close(test.drop)
 			close(test.output)
+
+			for e := range test.drop {
+				e.Done()
+			}
 
 			for e := range test.output {
 				labels := []label{}

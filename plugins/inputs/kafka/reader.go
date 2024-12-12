@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -15,8 +16,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
-
-type readersPool map[string]*topicReader
 
 type topicReader struct {
 	*core.BaseInput
@@ -93,12 +92,14 @@ FETCH_LOOP:
 			for label, header := range r.labelHeaders {
 				if h, ok := headers[header]; ok {
 					e.SetLabel(label, h)
+					e.SetLabel("partition", strconv.Itoa(msg.Partition))
+					e.SetLabel("offset", strconv.Itoa(int(msg.Offset)))
 				}
 			}
 
 			r.commitSemaphore <- struct{}{}
 			r.fetchCh <- msg
-			e.SetHook(func() {
+			e.AddHook(func() {
 				r.commitCh <- msg.Offset
 			})
 
@@ -159,7 +160,7 @@ func (c *commitController) Run() {
 
 	for {
 		select {
-		case msg, _ := <-c.fetchCh: // new message fetched
+		case msg := <-c.fetchCh: // new message fetched
 			c.log.Debug(fmt.Sprintf("accepted msg with offset: %v", msg.Offset))
 
 			// add message to queue
@@ -167,7 +168,7 @@ func (c *commitController) Run() {
 				Message:   msg,
 				delivered: false,
 			})
-		case offset, _ := <-c.commitCh: // an event delivered
+		case offset := <-c.commitCh: // an event delivered
 			c.log.Debug(fmt.Sprintf("got delivered offset: %v", offset))
 
 			// mark message as delivered

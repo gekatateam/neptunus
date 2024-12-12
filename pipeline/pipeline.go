@@ -11,6 +11,7 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/core/unit"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -61,10 +62,6 @@ type outputSet struct {
 type procSet struct {
 	p core.Processor
 	f []core.Filter
-}
-
-type unit interface {
-	Run()
 }
 
 // pipeline run a set of plugins
@@ -214,17 +211,17 @@ func (p *Pipeline) Run(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		inputUnit, outCh := core.NewDirectInputSoftUnit(input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
+		inputUnit, outCh := unit.NewInput(&p.config.Settings, p.log, input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
-		go func(u unit) {
-			u.Run()
+		go func() {
+			inputUnit.Run()
 			wg.Done()
-		}(inputUnit)
+		}()
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
-	inFusionUnit, outCh := core.NewDirectFusionSoftUnit(fusion.New(&core.BaseCore{
+	inFusionUnit, outCh := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
 		Alias:    "fusion::inputs",
 		Plugin:   "fusion",
 		Pipeline: p.config.Settings.Id,
@@ -235,10 +232,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 		Obs: metrics.ObserveCoreSummary,
 	}), inputsOutChannels, p.config.Settings.Buffer)
 	wg.Add(1)
-	go func(u unit) {
-		u.Run()
+	go func() {
+		inFusionUnit.Run()
 		wg.Done()
-	}(inFusionUnit)
+	}()
 
 	if len(p.procs) > 0 {
 		p.log.Info(fmt.Sprintf("starting processors, scaling to %v parallel lines", p.config.Settings.Lines))
@@ -246,12 +243,12 @@ func (p *Pipeline) Run(ctx context.Context) {
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
 			for _, processor := range p.procs[i] {
-				processorUnit, procOut := core.NewDirectProcessorSoftUnit(processor.p, processor.f, procInput, p.config.Settings.Buffer)
+				processorUnit, procOut := unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput, p.config.Settings.Buffer)
 				wg.Add(1)
-				go func(u unit) {
-					u.Run()
+				go func() {
+					processorUnit.Run()
 					wg.Done()
-				}(processorUnit)
+				}()
 				procInput = procOut
 			}
 			procsOutChannels = append(procsOutChannels, procInput)
@@ -259,7 +256,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		outFusionUnit, fusionOutCh := core.NewDirectFusionSoftUnit(fusion.New(&core.BaseCore{
+		outFusionUnit, fusionOutCh := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
 			Alias:    "fusion::processors",
 			Plugin:   "fusion",
 			Pipeline: p.config.Settings.Id,
@@ -271,14 +268,14 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}), procsOutChannels, p.config.Settings.Buffer)
 		outCh = fusionOutCh
 		wg.Add(1)
-		go func(u unit) {
-			u.Run()
+		go func() {
+			outFusionUnit.Run()
 			wg.Done()
-		}(outFusionUnit)
+		}()
 	}
 
 	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs := core.NewDirectBroadcastSoftUnit(broadcast.New(&core.BaseCore{
+	bcastUnit, bcastChs := unit.NewBroadcast(&p.config.Settings, p.log, broadcast.New(&core.BaseCore{
 		Alias:    "broadcast::processors",
 		Plugin:   "fusion",
 		Pipeline: p.config.Settings.Id,
@@ -289,19 +286,19 @@ func (p *Pipeline) Run(ctx context.Context) {
 		Obs: metrics.ObserveCoreSummary,
 	}), outCh, len(p.outs), p.config.Settings.Buffer)
 	wg.Add(1)
-	go func(u unit) {
-		u.Run()
+	go func() {
+		bcastUnit.Run()
 		wg.Done()
-	}(bcastUnit)
+	}()
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
-		outputUnit := core.NewDirectOutputSoftUnit(output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
+		outputUnit := unit.NewOutput(&p.config.Settings, p.log, output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
 		wg.Add(1)
-		go func(u unit) {
-			u.Run()
+		go func() {
+			outputUnit.Run()
 			wg.Done()
-		}(outputUnit)
+		}()
 	}
 
 	p.log.Info("pipeline started")

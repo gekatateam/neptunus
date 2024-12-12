@@ -50,13 +50,13 @@ func (o *Log) Run() {
 					"key", e.RoutingKey,
 				),
 			)
-			e.Done()
+			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
 			continue
 		}
 
 		o.logFunc(string(event))
-		e.Done()
+		o.Done <- e
 		o.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }

@@ -76,12 +76,21 @@ func (p *Starlark) Run() {
 			continue
 		}
 
-		markAsDone(e, events)
+		p.markAsDone(e, events)
 		for _, event := range events {
 			p.Out <- event
 		}
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
+}
+
+func (p *Starlark) markAsDone(e *core.Event, events []*core.Event) {
+	for _, v := range events {
+		if v == e {
+			return
+		}
+	}
+	p.Drop <- e
 }
 
 func unpack(starValue starlark.Value) ([]*core.Event, error) {
@@ -109,15 +118,6 @@ func unpack(starValue starlark.Value) ([]*core.Event, error) {
 	}
 
 	return nil, fmt.Errorf("unknown function result, expected event, events list, error or none, got %v", starValue.Type())
-}
-
-func markAsDone(e *core.Event, events []*core.Event) {
-	for _, v := range events {
-		if v == e {
-			return
-		}
-	}
-	e.Done()
 }
 
 func init() {

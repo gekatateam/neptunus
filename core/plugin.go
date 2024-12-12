@@ -30,7 +30,7 @@ type Filter interface {
 
 // processor plugin transforms events
 type Processor interface {
-	SetChannels(in <-chan *Event, out chan<- *Event)
+	SetChannels(in <-chan *Event, out chan<- *Event, drop chan<- *Event)
 	io.Closer
 	Runner
 	Initer
@@ -38,7 +38,7 @@ type Processor interface {
 
 // output plugin produces events to outer world
 type Output interface {
-	SetChannels(in <-chan *Event)
+	SetChannels(in <-chan *Event, done chan<- *Event)
 	io.Closer
 	Runner
 	Initer
