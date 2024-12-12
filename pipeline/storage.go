@@ -8,4 +8,5 @@ type Storage interface {
 	Add(pipe *config.Pipeline) error
 	Update(pipe *config.Pipeline) error
 	Delete(id string) error
+	Close() error
 }

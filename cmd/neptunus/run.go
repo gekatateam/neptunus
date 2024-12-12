@@ -90,6 +90,12 @@ func run(cCtx *cli.Context) error {
 		)
 	}
 
+	if err := storage.Close(); err != nil {
+		logger.Default.Warn("storage closed with error",
+			"error", err,
+		)
+	}
+
 	wg.Wait()
 	logger.Default.Info("we're done here")
 

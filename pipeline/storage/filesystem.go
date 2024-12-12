@@ -45,6 +45,10 @@ func (s *fileStorage) List() ([]*config.Pipeline, error) {
 	return pipes, nil
 }
 
+func (s *fileStorage) Close() error {
+	return nil
+}
+
 func (s *fileStorage) Get(id string) (*config.Pipeline, error) {
 	if _, err := os.Stat(s.dir + id + s.ext); os.IsNotExist(err) {
 		return nil, &pipeline.NotFoundError{Err: err}
