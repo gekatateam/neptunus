@@ -121,7 +121,7 @@ Pipeline settings are not directly related to event processing, these parameters
  - **lines** - Number of parallel streams of pipeline processors. It can be useful in cases, when events are consumed and produced faster than they are transformed in one stream. 
  - **run** - Should engine starts pipeline at daemon startup.
  - **buffer** - Buffer size of channels connecting a plugins.
- - **consistency** - Pipeline consistency mode; `soft` or `hard`;
+ - **consistency** - Pipeline consistency mode; `soft` by default, `hard` mode will be added in future releases;
 
 > [!IMPORTANT]
 > Processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of channels buffers overflow). You should test it first before use it in production.  
