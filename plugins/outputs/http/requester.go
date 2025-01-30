@@ -18,22 +18,23 @@ type requester struct {
 	*core.BaseOutput
 
 	lastWrite time.Time
-	url       string
+	uri       string
+	method    string
 
-	method string
-	nonRetryableCodes map[int]struct{}
-	headerlabels map[string]string
+	retryableCodes map[int]struct{}
+	headerlabels   map[string]string
+	paramfields    map[string]string
 
 	client *http.Client
 	*batcher.Batcher[*core.Event]
 	*retryer.Retryer
 
-	ser core.Serializer
+	ser   core.Serializer
 	input chan *core.Event
 }
 
 func (r *requester) Run() {
-	r.Log.Info(fmt.Sprintf("requester for %v spawned", r.url))
+	r.Log.Info(fmt.Sprintf("requester for %v spawned", r.uri))
 
 	r.Batcher.Run(r.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
@@ -46,7 +47,7 @@ func (r *requester) Run() {
 		for k, v := range r.headerlabels {
 			if label, ok := buf[0].GetLabel(v); ok {
 				headers[k] = label
-			}	
+			}
 		}
 
 		rawBody, err := r.ser.Serialize(buf...)
@@ -60,7 +61,7 @@ func (r *requester) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				r.Done <- e
 				r.Observe(metrics.EventFailed, t)
 			}
 			return
@@ -79,7 +80,7 @@ func (r *requester) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				r.Done <- e
 				r.Observe(metrics.EventFailed, durationLastEvent(i, len(buf), t, ts))
 			}
 		} else {
@@ -90,13 +91,13 @@ func (r *requester) Run() {
 						"key", e.RoutingKey,
 					),
 				)
-				e.Done()
+				r.Done <- e
 				r.Observe(metrics.EventAccepted, durationLastEvent(i, len(buf), t, ts))
 			}
 		}
 	})
 
-	r.Log.Info(fmt.Sprintf("requester for %v closed", r.url))
+	r.Log.Info(fmt.Sprintf("requester for %v closed", r.uri))
 }
 
 func (r *requester) Push(e *core.Event) {
@@ -112,7 +113,7 @@ func (r *requester) Close() error {
 	return nil
 }
 
-func (r *requester) perform(body []byte, headers map[string]string) error {
+func (r *requester) perform(uri string, params url.Values, body []byte, headers map[string]string) error {
 	req, err := http.NewRequest(r.method, r.url.String(), bytes.NewReader(bytes.Clone(body)))
 
 }
@@ -123,7 +124,7 @@ func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
 
 func durationLastEvent(i, len int, t1, t2 time.Duration) time.Duration {
 	if i == len-1 {
-		return t1+t2
+		return t1 + t2
 	}
 	return t1
 }

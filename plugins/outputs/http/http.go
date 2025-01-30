@@ -2,12 +2,11 @@ package http
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
@@ -16,22 +15,25 @@ import (
 )
 
 type Http struct {
-	*core.BaseOutput  `mapstructure:"-"`
-	Host              string        `mapstructure:"host"`
-	Method            string        `mapstructure:"method"`
-	Timeout           time.Duration `mapstructure:"timeout"`
-	IdleConnTimeout   time.Duration `mapstructure:"idle_conn_timeout"`
-	MaxIdleConns      int           `mapstructure:"max_idle_conns"`
-	IdleTimeout       time.Duration `mapstructure:"idle_timeout"`
-	NonRetryableCodes []int         `mapstructure:"non_retryable_codes"`
+	*core.BaseOutput `mapstructure:"-"`
+	Host             string        `mapstructure:"host"`
+	Method           string        `mapstructure:"method"`
+	Timeout          time.Duration `mapstructure:"timeout"`
+	IdleConnTimeout  time.Duration `mapstructure:"idle_conn_timeout"`
+	MaxIdleConns     int           `mapstructure:"max_idle_conns"`
+	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
+	RetryableCodes   []int         `mapstructure:"retryable_codes"`
 
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
+	Paramfields  map[string]string `mapstructure:"paramfields"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
 	requestersPool *pool.Pool[*core.Event]
+	retryableCodes map[int]struct{}
+	providedUri    *url.URL
 
 	client *http.Client
 	ser    core.Serializer
@@ -42,9 +44,22 @@ func (o *Http) Init() error {
 		return errors.New("host required")
 	}
 
+	url, err := url.ParseRequestURI(o.Host)
+	if err != nil {
+		return err
+	}
+
+	o.providedUri = url
+
 	if o.Batcher.Buffer < 0 {
 		o.Batcher.Buffer = 1
 	}
+
+	retryableCodes := map[int]struct{}{}
+	for _, v := range o.RetryableCodes {
+		retryableCodes[v] = struct{}{}
+	}
+	o.retryableCodes = retryableCodes
 
 	tlsConfig, err := o.TLSClientConfig.Config()
 	if err != nil {
@@ -59,6 +74,8 @@ func (o *Http) Init() error {
 			MaxIdleConns:    o.MaxIdleConns,
 		},
 	}
+
+	o.requestersPool = pool.New(o.newRequester)
 
 	return nil
 }
@@ -81,7 +98,7 @@ MAIN_LOOP:
 				clearTicker.Stop()
 				break MAIN_LOOP
 			}
-			o.requestersPool.Get(e.RoutingKey).Push(e)
+			o.requestersPool.Get(o.uriFromRoutingKey(e.RoutingKey)).Push(e)
 		case <-clearTicker.C:
 			for _, pipeline := range o.requestersPool.Keys() {
 				if time.Since(o.requestersPool.Get(pipeline).LastWrite()) > o.IdleTimeout {
@@ -94,13 +111,36 @@ MAIN_LOOP:
 
 func (o *Http) Close() error {
 	o.requestersPool.Close()
+	o.client.CloseIdleConnections()
 	o.client = nil
 	return nil
+}
+
+func (o *Http) newRequester(uri string) pool.Runner[*core.Event] {
+	return &requester{
+		BaseOutput:     o.BaseOutput,
+		lastWrite:      time.Now(),
+		uri:            uri,
+		method:         o.Method,
+		retryableCodes: o.retryableCodes,
+		headerlabels:   o.Headerlabels,
+		paramfields:    o.Paramfields,
+		client:         o.client,
+		ser:            o.ser,
+		Batcher:        o.Batcher,
+		Retryer:        o.Retryer,
+		input:          make(chan *core.Event),
+	}
+}
+
+func (o *Http) uriFromRoutingKey(rk string) string {
+	return o.providedUri.JoinPath(rk).String()
 }
 
 func init() {
 	plugins.AddOutput("http", func() core.Output {
 		return &Http{
+			IdleTimeout: 1 * time.Hour,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
