@@ -1,6 +1,6 @@
 # Http Output Plugin
 
-The `http` output plugin writes events using HTTP client to configured host. Request path depends on event routing key.
+The `http` output plugin writes events using HTTP client to configured host, but request path depends on event routing key. This plugin requires serializer.
 
 # Configuration
 ```toml
