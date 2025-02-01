@@ -63,6 +63,10 @@ func (o *Http) Init() error {
 		o.Batcher.Buffer = 1
 	}
 
+	if o.IdleTimeout > 0 && o.IdleTimeout < time.Minute {
+		o.IdleTimeout = time.Minute
+	}
+
 	successCodes := map[int]struct{}{}
 	for _, v := range o.SuccessCodes {
 		successCodes[v] = struct{}{}
@@ -148,9 +152,12 @@ func (o *Http) uriFromRoutingKey(rk string) string {
 func init() {
 	plugins.AddOutput("http", func() core.Output {
 		return &Http{
-			Method:       http.MethodPost,
-			SuccessCodes: []int{200, 201, 204},
-			IdleTimeout:  1 * time.Hour,
+			Method:          http.MethodPost,
+			SuccessCodes:    []int{200, 201, 204},
+			Timeout:         10 * time.Second,
+			IdleConnTimeout: 1 * time.Minute,
+			MaxIdleConns:    10,
+			IdleTimeout:     1 * time.Hour,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
