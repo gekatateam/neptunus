@@ -5,9 +5,7 @@ The `sql` input plugin performs SQL query for writing events. This plugin based 
 Plugin creates one producer per each unique event routing key. An event routing key may be used as a table name using `table_placeholder` parameter.
 
 ## TLS usage
-With `oracle` driver you need to specify path to Oracle Wallet using `wallet` param in connection string.
-
-Other drivers use plugin TLS configuration.
+Drivers use plugin TLS configuration.
 
 ## Configuration
 ```toml

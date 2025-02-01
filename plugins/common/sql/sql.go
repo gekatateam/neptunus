@@ -59,8 +59,10 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 
 		cfg.TLSConfig = tlsConfig
 		db = sql.OpenDB(mssql.NewConnectorConfig(cfg))
-	case "oracle": // oracle uses Oracle Wallet
-		db = sql.OpenDB(ora.NewConnector(dsn))
+	case "oracle":
+		oraConnector := ora.NewConnector(dsn).(*ora.OracleConnector)
+		oraConnector.WithTLSConfig(tlsConfig)
+		db = sql.OpenDB(oraConnector)
 	default:
 		return nil, errors.New("unknown driver - " + driverName)
 	}

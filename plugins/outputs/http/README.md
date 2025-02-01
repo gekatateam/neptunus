@@ -2,6 +2,8 @@
 
 The `http` output plugin writes events using HTTP client to configured host, but request path depends on event routing key. This plugin requires serializer.
 
+Plugin creates one requester per each unique event routing key, with personal batch controller. By the way, HTTP client shares between requesters.
+
 # Configuration
 ```toml
 [[outputs]]
@@ -38,7 +40,7 @@ The `http` output plugin writes events using HTTP client to configured host, but
     # events buffer size
     batch_buffer = 100    
 
-    # maximum number of attempts to execute bulk request
+    # maximum number of attempts to execute request
     # before events will be marked as failed
     # 
     # only requests that ended with `success_codes`
