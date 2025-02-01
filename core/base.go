@@ -60,6 +60,7 @@ type BaseOutput struct {
 
 func (b *BaseOutput) SetChannels(in <-chan *Event, done chan<- *Event) {
 	b.In = in
+	b.Done = done
 }
 
 func (b *BaseOutput) Observe(status metrics.EventStatus, dur time.Duration) {

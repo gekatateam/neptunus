@@ -105,7 +105,7 @@ func (i *Httpl) Run() {
 			"error", err.Error(),
 		)
 	} else {
-		i.Log.Info("http server stopped")
+		i.Log.Info("stopping http server")
 	}
 }
 
@@ -138,6 +138,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	i.Log.Debug("request received",
 		"sender", r.RemoteAddr,
+		"path", r.URL.Path,
 	)
 
 	wg := &sync.WaitGroup{}
@@ -200,7 +201,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v\n", events)))
+	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v", events)))
 	if err != nil {
 		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,

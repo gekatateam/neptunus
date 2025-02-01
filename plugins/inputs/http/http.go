@@ -119,7 +119,7 @@ func (i *Http) Run() {
 			"error", err.Error(),
 		)
 	} else {
-		i.Log.Info("http server stopped")
+		i.Log.Info("stopping http server")
 	}
 }
 
@@ -152,6 +152,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg := &sync.WaitGroup{}
 	i.Log.Debug("request received",
 		"sender", r.RemoteAddr,
+		"path", r.URL.Path,
 	)
 
 	buf := bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
@@ -167,7 +168,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	e, err := i.parser.Parse(buf.Bytes(), r.URL.Path)
 	if err != nil {
-		i.Log.Error(fmt.Sprintf("parser error"),
+		i.Log.Error("parser error",
 			"error", err,
 		)
 		http.Error(w, fmt.Sprintf("parser error: %v", err), http.StatusBadRequest)
@@ -188,7 +189,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(i.QueryParamsTo) > 0 {
-			params := make(map[string][]any)
+			params := make(map[string]any)
 			for k, v := range r.URL.Query() {
 				values := make([]any, len(v))
 				for i := range v {
@@ -228,7 +229,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(fmt.Sprintf("accepted events: %v\n", len(e))))
+	_, err = w.Write([]byte(fmt.Sprintf("accepted events: %v", len(e))))
 	if err != nil {
 		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,

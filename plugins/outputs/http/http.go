@@ -44,6 +44,10 @@ func (o *Http) Init() error {
 		return errors.New("host required")
 	}
 
+	if len(o.Method) == 0 {
+		return errors.New("method required")
+	}
+
 	if len(o.SuccessCodes) == 0 {
 		return errors.New("at least one success code required")
 	}
@@ -122,18 +126,18 @@ func (o *Http) Close() error {
 
 func (o *Http) newRequester(uri string) pool.Runner[*core.Event] {
 	return &requester{
-		BaseOutput:     o.BaseOutput,
-		lastWrite:      time.Now(),
-		uri:            uri,
-		method:         o.Method,
-		successCodes:   o.successCodes,
-		headerlabels:   o.Headerlabels,
-		paramfields:    o.Paramfields,
-		client:         o.client,
-		ser:            o.ser,
-		Batcher:        o.Batcher,
-		Retryer:        o.Retryer,
-		input:          make(chan *core.Event),
+		BaseOutput:   o.BaseOutput,
+		lastWrite:    time.Now(),
+		uri:          uri,
+		method:       o.Method,
+		successCodes: o.successCodes,
+		headerlabels: o.Headerlabels,
+		paramfields:  o.Paramfields,
+		client:       o.client,
+		ser:          o.ser,
+		Batcher:      o.Batcher,
+		Retryer:      o.Retryer,
+		input:        make(chan *core.Event),
 	}
 }
 
@@ -144,8 +148,9 @@ func (o *Http) uriFromRoutingKey(rk string) string {
 func init() {
 	plugins.AddOutput("http", func() core.Output {
 		return &Http{
+			Method:       http.MethodPost,
 			SuccessCodes: []int{200, 201, 204},
-			IdleTimeout: 1 * time.Hour,
+			IdleTimeout:  1 * time.Hour,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,
