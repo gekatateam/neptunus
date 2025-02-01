@@ -25,6 +25,17 @@ const (
 	keepAll
 )
 
+var txIsolationLevels = map[string]sql.IsolationLevel{
+	"Default":         sql.LevelDefault,
+	"ReadUncommitted": sql.LevelReadUncommitted,
+	"ReadCommitted":   sql.LevelReadCommitted,
+	"WriteCommitted":  sql.LevelWriteCommitted,
+	"RepeatableRead":  sql.LevelRepeatableRead,
+	"Snapshot":        sql.LevelSnapshot,
+	"Serializable":    sql.LevelSerializable,
+	"Linearizable":    sql.LevelLinearizable,
+}
+
 type Sql struct {
 	*core.BaseInput  `mapstructure:"-"`
 	Dsn              string        `mapstructure:"dsn"`
@@ -84,24 +95,8 @@ func (i *Sql) Init() error {
 	}
 
 	if i.Transactional {
-		switch i.IsolationLevel {
-		case "Default":
-			i.txLevel = sql.LevelDefault
-		case "ReadUncommitted":
-			i.txLevel = sql.LevelReadUncommitted
-		case "ReadCommitted":
-			i.txLevel = sql.LevelReadCommitted
-		case "WriteCommitted":
-			i.txLevel = sql.LevelWriteCommitted
-		case "RepeatableRead":
-			i.txLevel = sql.LevelRepeatableRead
-		case "Snapshot":
-			i.txLevel = sql.LevelSnapshot
-		case "Serializable":
-			i.txLevel = sql.LevelSerializable
-		case "Linearizable":
-			i.txLevel = sql.LevelLinearizable
-		default:
+		var ok bool
+		if i.txLevel, ok = txIsolationLevels[i.IsolationLevel]; !ok {
 			return fmt.Errorf("unknown tx isolation level: %v", i.IsolationLevel)
 		}
 	}

@@ -1,7 +1,7 @@
-package httpl
+package http
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -22,14 +22,18 @@ import (
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-type Httpl struct {
+const defaultBufferSize = 4096
+
+type Http struct {
 	*core.BaseInput `mapstructure:"-"`
 	EnableMetrics   bool              `mapstructure:"enable_metrics"`
 	Address         string            `mapstructure:"address"`
 	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
-	MaxConnections  int               `mapstructure:"max_connections"`
 	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
+	AllowedMethods  []string          `mapstructure:"allowed_methods"`
+	QueryParamsTo   string            `mapstructure:"query_params_to"`
+	MaxConnections  int               `mapstructure:"max_connections"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 
 	*ider.Ider              `mapstructure:",squash"`
@@ -37,13 +41,18 @@ type Httpl struct {
 
 	server   *http.Server
 	listener net.Listener
+	parser   core.Parser
 
-	parser core.Parser
+	allowedMethods map[string]struct{}
 }
 
-func (i *Httpl) Init() error {
+func (i *Http) Init() error {
 	if len(i.Address) == 0 {
 		return errors.New("address required")
+	}
+
+	if len(i.AllowedMethods) == 0 {
+		return errors.New("at least one allowed method required")
 	}
 
 	if err := i.Ider.Init(); err != nil {
@@ -53,6 +62,11 @@ func (i *Httpl) Init() error {
 	tlsConfig, err := i.TLSServerConfig.Config()
 	if err != nil {
 		return err
+	}
+
+	i.allowedMethods = make(map[string]struct{}, len(i.AllowedMethods))
+	for _, v := range i.AllowedMethods {
+		i.allowedMethods[v] = struct{}{}
 	}
 
 	var listener net.Listener
@@ -94,11 +108,11 @@ func (i *Httpl) Init() error {
 	return nil
 }
 
-func (i *Httpl) SetParser(p core.Parser) {
+func (i *Http) SetParser(p core.Parser) {
 	i.parser = p
 }
 
-func (i *Httpl) Run() {
+func (i *Http) Run() {
 	i.Log.Info(fmt.Sprintf("starting http server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.Log.Error("http server startup failed",
@@ -109,7 +123,7 @@ func (i *Httpl) Run() {
 	}
 }
 
-func (i *Httpl) Close() error {
+func (i *Http) Close() error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
@@ -128,80 +142,94 @@ func (i *Httpl) Close() error {
 	return nil
 }
 
-func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost, http.MethodPut:
-	default:
+func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if _, ok := i.allowedMethods[r.Method]; !ok {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
+	now := time.Now()
+	wg := &sync.WaitGroup{}
 	i.Log.Debug("request received",
 		"sender", r.RemoteAddr,
 		"path", r.URL.Path,
 	)
 
-	wg := &sync.WaitGroup{}
+	buf := bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		i.Log.Error("body read error",
+			"error", err,
+		)
+		http.Error(w, fmt.Sprintf("body read error: %v", err.Error()), http.StatusInternalServerError)
+		i.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
 
-	var cursor, events = 0, 0
-	scanner := bufio.NewScanner(r.Body)
-	for scanner.Scan() {
-		now := time.Now()
-		cursor++
+	e, err := i.parser.Parse(buf.Bytes(), r.URL.Path)
+	if err != nil {
+		i.Log.Error("parser error",
+			"error", err,
+		)
+		http.Error(w, fmt.Sprintf("parser error: %v", err), http.StatusBadRequest)
+		i.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
 
-		if err := scanner.Err(); err != nil {
-			i.Log.Error(fmt.Sprintf("reading error at line %v", cursor),
-				"error", err,
-			)
-			http.Error(w, fmt.Sprintf("reading error at line %v: %v", cursor, err.Error()), http.StatusInternalServerError)
-			i.Observe(metrics.EventFailed, time.Since(now))
-			return
+	for _, event := range e {
+		event.SetLabel("server", i.Address)
+		event.SetLabel("sender", r.RemoteAddr)
+		event.SetLabel("method", r.Method)
+
+		for k, v := range i.LabelHeaders {
+			h := r.Header.Get(v)
+			if len(h) > 0 {
+				event.SetLabel(k, h)
+			}
 		}
 
-		e, err := i.parser.Parse(scanner.Bytes(), r.URL.Path)
-		if err != nil {
-			i.Log.Error(fmt.Sprintf("parser error at line %v", cursor),
-				"error", err,
-			)
-			http.Error(w, fmt.Sprintf("parser error at line %v: %v", cursor, err.Error()), http.StatusBadRequest)
-			i.Observe(metrics.EventFailed, time.Since(now))
-			return
-		}
-
-		for _, event := range e {
-			event.SetLabel("server", i.Address)
-			event.SetLabel("sender", r.RemoteAddr)
-
-			for k, v := range i.LabelHeaders {
-				h := r.Header.Get(v)
-				if len(h) > 0 {
-					event.SetLabel(k, h)
+		if len(i.QueryParamsTo) > 0 {
+			params := make(map[string]any)
+			for k, v := range r.URL.Query() {
+				values := make([]any, len(v))
+				for i := range v {
+					values[i] = v[i]
 				}
+				params[k] = values
 			}
 
-			if i.WaitForDelivery {
-				wg.Add(1)
-				event.AddHook(wg.Done)
+			if err := event.SetField(i.QueryParamsTo, params); err != nil {
+				i.Log.Warn("failed set query params to event",
+					"error", fmt.Errorf("at %v: %w", i.QueryParamsTo, err),
+					slog.Group("event",
+						"id", event.Id,
+						"key", event.RoutingKey,
+					),
+				)
 			}
-
-			i.Ider.Apply(event)
-			i.Out <- event
-			i.Log.Debug("event accepted",
-				slog.Group("event",
-					"id", event.Id,
-					"key", event.RoutingKey,
-				),
-			)
-			events++
-			i.Observe(metrics.EventAccepted, time.Since(now))
-			now = time.Now()
 		}
+
+		if i.WaitForDelivery {
+			wg.Add(1)
+			event.AddHook(wg.Done)
+		}
+
+		i.Ider.Apply(event)
+		i.Out <- event
+		i.Log.Debug("event accepted",
+			slog.Group("event",
+				"id", event.Id,
+				"key", event.RoutingKey,
+			),
+		)
+		i.Observe(metrics.EventAccepted, time.Since(now))
+		now = time.Now()
 	}
 
 	wg.Wait()
 
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v", events)))
+	_, err = w.Write([]byte(fmt.Sprintf("accepted events: %v", len(e))))
 	if err != nil {
 		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,
@@ -210,12 +238,13 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	plugins.AddInput("httpl", func() core.Input {
-		return &Httpl{
-			Address:         ":9800",
+	plugins.AddInput("http", func() core.Input {
+		return &Http{
+			Address:         ":9900",
 			ReadTimeout:     10 * time.Second,
 			WriteTimeout:    10 * time.Second,
 			MaxConnections:  0,
+			AllowedMethods:  []string{"POST", "PUT"},
 			Ider:            &ider.Ider{},
 			TLSServerConfig: &pkgtls.TLSServerConfig{},
 		}

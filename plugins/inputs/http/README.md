@@ -1,10 +1,12 @@
-# Httpl Input Plugin
+# Http Input Plugin
 
-The `httpl` input plugin serves requests on configured address and streams request body to parser line by line, so, unlike [http input](../http/), this plugin is good for streaming. This plugin requires parser.
+The `http` input plugin serves requests on configured address. This plugin requires parser.
 
-If all body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
+Unlike [httpl input](../httpl/), this plugin fully reads request body before parsing stage, and also takes into account URL-encoded request params.
 
-This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
+If body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
+
+This plugin produce events with routing key as request path, `server` label with configured address, `sender` label with request RemoteAddr address and `method` with request HTTP method.
 
 > [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#http-server)
@@ -12,12 +14,12 @@ This plugin produce events with routing key as request path, `server` label with
 ## Configuration
 ```toml
 [[inputs]]
-  [inputs.httpl]
+  [inputs.http]
     # if true, plugin server writes it's own metrics
     enable_metrics = false
 
     # address and port to host HTTP listener on
-    address = ":9800"
+    address = ":9900"
 
     # number of maximum simultaneous connections
     max_connections = 10
@@ -27,6 +29,13 @@ This plugin produce events with routing key as request path, `server` label with
 
     # maximum duration before timing out write of the response
     write_timeout = "10s"
+
+    # allowed incoming requests methods, POST, PUT, GET
+    allowed_methods = [ "POST", "PUT" ]
+
+    # if not empty, plugin will try to save request parameters 
+    # in events body at the specified path
+    query_params_to = "."
 
     # if true, server waits for events to be delivered
     # before responding to a client
@@ -52,10 +61,10 @@ This plugin produce events with routing key as request path, `server` label with
 
     # a "label name -> header" map
     # if request header exists, it will be saved as configured label
-    [inputs.httpl.labelheaders]
+    [inputs.http.labelheaders]
       length = "Content-Length"
       encoding = "Content-Type"
 
-    [inputs.httpl.parser]
+    [inputs.http.parser]
       type = "json"
 ```
