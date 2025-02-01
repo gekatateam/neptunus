@@ -166,7 +166,7 @@ func (w *topicWriter) Run() {
 	}
 
 	if w.enableMetrics {
-		kafkastats.RegisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId, w.writer.Stats)
+		kafkastats.UnregisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId)
 	}
 }
 
