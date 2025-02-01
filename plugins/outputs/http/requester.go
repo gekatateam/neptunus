@@ -87,7 +87,7 @@ func (r *requester) Run() {
 		}
 
 		totalBefore := time.Since(now)
-		now = time.Now() // reset now() to measure time spent on the query
+		now = time.Now() // reset now() to measure time spent on the request
 		err = r.perform(r.uri, values, rawBody, header)
 		totalAfter := time.Since(now)
 

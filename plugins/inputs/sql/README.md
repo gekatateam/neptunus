@@ -12,9 +12,7 @@ This plugin works in poll cycle:
 Next cycle will start from second step immediately or each configured `interval`.
 
 ## TLS usage
-With `oracle` driver you need to specify path to Oracle Wallet using `wallet` param in connection string.
-
-Other drivers use plugin TLS configuration.
+Drivers use plugin TLS configuration.
 
 ## Configuration
 ```toml
