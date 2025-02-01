@@ -22,7 +22,7 @@ type Http struct {
 	IdleConnTimeout  time.Duration `mapstructure:"idle_conn_timeout"`
 	MaxIdleConns     int           `mapstructure:"max_idle_conns"`
 	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
-	RetryableCodes   []int         `mapstructure:"retryable_codes"`
+	SuccessCodes     []int         `mapstructure:"success_codes"`
 
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
 	Paramfields  map[string]string `mapstructure:"paramfields"`
@@ -32,7 +32,7 @@ type Http struct {
 	*retryer.Retryer              `mapstructure:",squash"`
 
 	requestersPool *pool.Pool[*core.Event]
-	retryableCodes map[int]struct{}
+	successCodes   map[int]struct{}
 	providedUri    *url.URL
 
 	client *http.Client
@@ -42,6 +42,10 @@ type Http struct {
 func (o *Http) Init() error {
 	if len(o.Host) == 0 {
 		return errors.New("host required")
+	}
+
+	if len(o.SuccessCodes) == 0 {
+		return errors.New("at least one success code required")
 	}
 
 	url, err := url.ParseRequestURI(o.Host)
@@ -55,11 +59,11 @@ func (o *Http) Init() error {
 		o.Batcher.Buffer = 1
 	}
 
-	retryableCodes := map[int]struct{}{}
-	for _, v := range o.RetryableCodes {
-		retryableCodes[v] = struct{}{}
+	successCodes := map[int]struct{}{}
+	for _, v := range o.SuccessCodes {
+		successCodes[v] = struct{}{}
 	}
-	o.retryableCodes = retryableCodes
+	o.successCodes = successCodes
 
 	tlsConfig, err := o.TLSClientConfig.Config()
 	if err != nil {
@@ -122,7 +126,7 @@ func (o *Http) newRequester(uri string) pool.Runner[*core.Event] {
 		lastWrite:      time.Now(),
 		uri:            uri,
 		method:         o.Method,
-		retryableCodes: o.retryableCodes,
+		successCodes:   o.successCodes,
 		headerlabels:   o.Headerlabels,
 		paramfields:    o.Paramfields,
 		client:         o.client,
@@ -140,6 +144,7 @@ func (o *Http) uriFromRoutingKey(rk string) string {
 func init() {
 	plugins.AddOutput("http", func() core.Output {
 		return &Http{
+			SuccessCodes: []int{200, 201, 204},
 			IdleTimeout: 1 * time.Hour,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,

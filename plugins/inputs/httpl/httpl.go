@@ -180,7 +180,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if i.WaitForDelivery {
 				wg.Add(1)
-				event.SetHook(wg.Done)
+				event.AddHook(wg.Done)
 			}
 
 			i.Ider.Apply(event)
