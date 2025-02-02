@@ -154,7 +154,7 @@ func (i *Kafka) Init() (err error) {
 		}
 
 		var (
-			fetchCh  = make(chan kafka.Message)
+			fetchCh  = make(chan *trackedMessage)
 			commitCh = make(chan int64)
 			exitCh   = make(chan struct{})
 			doneCh   = make(chan struct{})
