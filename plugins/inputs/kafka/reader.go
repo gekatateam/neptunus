@@ -30,7 +30,7 @@ type topicReader struct {
 	reader          *kafka.Reader
 	commitSemaphore chan struct{}
 
-	fetchCh  chan kafka.Message
+	fetchCh  chan *trackedMessage
 	commitCh chan int64
 	exitCh   chan struct{}
 	doneCh   chan struct{}
@@ -70,13 +70,27 @@ FETCH_LOOP:
 			continue FETCH_LOOP
 		}
 
-		r.Log.Debug("message fetched")
+		r.Log.Debug("message fetched",
+			"topic", msg.Topic,
+			"offset", strconv.FormatInt(msg.Offset, 10),
+			"partition", strconv.Itoa(msg.Partition),
+		)
 
 		events, err := r.parser.Parse(msg.Value, r.topic)
 		if err != nil {
-			r.Log.Error("parser error",
+			r.Log.Error("parser error, message marked as ready to be commited",
 				"error", err,
+				"topic", msg.Topic,
+				"offset", strconv.FormatInt(msg.Offset, 10),
+				"partition", strconv.Itoa(msg.Partition),
 			)
+
+			r.commitSemaphore <- struct{}{}
+			r.fetchCh <- &trackedMessage{
+				Message:   msg,
+				events:    0,
+				delivered: true, // if parser fails, commit message
+			}
 
 			r.Observe(metrics.EventFailed, time.Since(now))
 			continue FETCH_LOOP
@@ -88,18 +102,22 @@ FETCH_LOOP:
 			headers[string(header.Key)] = string(header.Value)
 		}
 
+		r.commitSemaphore <- struct{}{}
+		r.fetchCh <- &trackedMessage{
+			Message:   msg,
+			events:    len(events),
+			delivered: len(events) == 0, // if parser returns zero events, commit message
+		}
+
 		for _, e := range events {
 			e.SetLabel("offset", strconv.FormatInt(msg.Offset, 10))
+			e.SetLabel("partition", strconv.Itoa(msg.Partition))
 			for label, header := range r.labelHeaders {
 				if h, ok := headers[header]; ok {
 					e.SetLabel(label, h)
-					e.SetLabel("partition", strconv.Itoa(msg.Partition))
-					e.SetLabel("offset", strconv.Itoa(int(msg.Offset)))
 				}
 			}
 
-			r.commitSemaphore <- struct{}{}
-			r.fetchCh <- msg
 			e.AddHook(func() {
 				r.commitCh <- msg.Offset
 			})
@@ -137,6 +155,7 @@ FETCH_LOOP:
 
 type trackedMessage struct {
 	kafka.Message
+	events    int
 	delivered bool
 }
 
@@ -148,10 +167,10 @@ type commitController struct {
 	commitSemaphore  chan struct{} // max uncommitted control
 	exitIfQueueEmpty bool
 
-	fetchCh  chan kafka.Message // for new messages to push in commitQueue
-	commitCh chan int64         // for offsets that ready to be committed
-	exitCh   chan struct{}      // for exit preparation signal
-	doneCh   chan struct{}      // done signal, channel will be closed just before watch() returns
+	fetchCh  chan *trackedMessage // for new messages to push in commitQueue
+	commitCh chan int64           // for offsets that ready to be committed
+	exitCh   chan struct{}        // for exit preparation signal
+	doneCh   chan struct{}        // done signal, channel will be closed just before watch() returns
 
 	log *slog.Logger
 }
@@ -165,16 +184,17 @@ func (c *commitController) Run() {
 			c.log.Debug(fmt.Sprintf("accepted msg with offset: %v", msg.Offset))
 
 			// add message to queue
-			c.commitQueue.Store(msg.Offset, &trackedMessage{
-				Message:   msg,
-				delivered: false,
-			})
+			c.commitQueue.Store(msg.Offset, msg)
 		case offset := <-c.commitCh: // an event delivered
 			c.log.Debug(fmt.Sprintf("got delivered offset: %v", offset))
 
 			// mark message as delivered
 			if m, ok := c.commitQueue.Get(offset); ok {
-				m.delivered = true
+				if m.events == 0 {
+					m.delivered = true
+				} else {
+					m.events--
+				}
 			} else { // normally it is never happens
 				c.log.Error("unexpected case, delivered offset is not in queue; please, report this issue")
 			}
