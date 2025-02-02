@@ -71,7 +71,7 @@ FETCH_LOOP:
 		}
 
 		r.Log.Debug("message fetched",
-	        "topic", msg.Topic,
+			"topic", msg.Topic,
 			"offset", strconv.FormatInt(msg.Offset, 10),
 			"partition", strconv.Itoa(msg.Partition),
 		)
