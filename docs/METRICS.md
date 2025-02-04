@@ -16,6 +16,24 @@ Number of configured processors lines.
 Labels:
  - **pipeline** - pipeline Id
 
+#### Gauge `pipeline_channel_length`
+Pipeline plugin communication channel length.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin** - plugin type
+ - **name** - plugin name (alias)
+ - **desc** - channel descriptor, `in` (for input channels), `drop` (for drop events) or `done` (for delivery hooks)
+
+#### Gauge `pipeline_channel_capacity`
+Pipeline plugin communication channel capacity.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin** - plugin type
+ - **name** - plugin name (alias)
+ - **desc** - channel descriptor, `in`, `drop` or `done`
+
 ## Plugins common
 
 Metrics that writes by each plugin, depends on plugin kind

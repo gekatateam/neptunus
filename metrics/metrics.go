@@ -109,13 +109,13 @@ func Init() {
 	chans = &chanCollector{}
 	chanLength = prometheus.NewDesc(
 		"pipeline_channel_length",
-		"Pipeline plugin-to-plugin channel communication length.",
+		"Pipeline plugin communication channel length.",
 		[]string{"plugin", "name", "pipeline", "desc"},
 		nil,
 	)
 	chanCapacity = prometheus.NewDesc(
 		"pipeline_channel_capacity",
-		"Pipeline plugin-to-plugin channel communication capacity.",
+		"Pipeline plugin communication channel capacity.",
 		[]string{"plugin", "name", "pipeline", "desc"},
 		nil,
 	)

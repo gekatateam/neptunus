@@ -79,6 +79,6 @@ When tracker duty counter decreases to zero, tracker will call all hook function
 
 Tracker can be used by input plugins that wants to know when event processing done, such as `beats` or `kafka`, before responding to a client/broker that message has been accepted.
 
-Plugins must never call `Done()` event method themselves, pipeline will do this on its own. Instead, processors must send unnecessary events to `Drop` channel, and outputs must send processed events to `Done`.
+Plugins must **never** call `Done()` event method themselves, pipeline will do this on its own. Instead, processors must send unnecessary events to `Drop` channel, and outputs must send processed events to `Done`.
 
 In tests, you can use `Duty()` event method to make sure plugin works correctly with tracker.
