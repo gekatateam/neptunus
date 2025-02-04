@@ -2,9 +2,21 @@ package metrics
 
 import "github.com/prometheus/client_golang/prometheus"
 
+type ChanDesc string
+
+const (
+	ChanDescIn   ChanDesc = "in"   // input channels for any plugins
+	ChanDescDrop ChanDesc = "drop" // channels that drops events, e.g. dropped by processors, input/output filters
+	ChanDescDone ChanDesc = "done" // outputs channels for done events
+)
+
 type ChanStats struct {
-	Capacity int
-	Length   int
+	Capacity   int
+	Length     int
+	Plugin     string
+	Name       string
+	Pipeline   string
+	Descriptor string
 }
 
 type chanCollector struct {
@@ -27,11 +39,19 @@ func (c *chanCollector) Collect(ch chan<- prometheus.Metric) {
 			chanCapacity,
 			prometheus.GaugeValue,
 			float64(state.Capacity),
+			state.Plugin,
+			state.Name,
+			state.Pipeline,
+			state.Descriptor,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			chanLength,
 			prometheus.GaugeValue,
 			float64(state.Length),
+			state.Plugin,
+			state.Name,
+			state.Pipeline,
+			state.Descriptor,
 		)
 	}
 }

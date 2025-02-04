@@ -73,7 +73,7 @@ Typical pipeline consists of at least one input, at least one output and, not ne
 
 ```
  ┌────────────────┐
- |┌───┐ ┌───┐     |
+ |┌───┐ ┌───┐ rej |
  ||>in├─┤ f ├┬──Θ |
  |└───┘ └─┬┬┴┴─┐  |
  |        └┤ f ├──┼>
@@ -150,7 +150,7 @@ After processors, events are cloned to each output. For better performance, you 
 
 Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
 
-In inputs and outputs case, if any filter rejects event, the event is removed from pipeline. In processors case, otherwise, rejected event going to a next processor.
+In inputs and outputs case, if any filter rejects event, the event is dropped from pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
 
@@ -312,4 +312,4 @@ outputs:
 
 This also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
 
-An alias can be assigned to each plugin - this will affect logs and metrics. **The uniqueness of aliases is not controlled by engine, repeated aliases may cause collisions**.
+An alias can be assigned to each plugin - this will affect logs and metrics. Each alias must be unique.

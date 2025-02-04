@@ -22,6 +22,8 @@ import (
 )
 
 func run(cCtx *cli.Context) error {
+	metrics.Init()
+
 	cfg, err := config.ReadConfig(cCtx.String("config"))
 	if err != nil {
 		return fmt.Errorf("error reading configuration file: %v", err.Error())

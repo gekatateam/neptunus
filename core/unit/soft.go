@@ -4,9 +4,11 @@ package unit
 // because of async filtering, but (planned to be) fast
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 // fToCh stores a pair of a filter and it's acceptsChan output
@@ -41,9 +43,15 @@ func newProcessorSoftUnit(p core.Processor, f []core.Filter, in <-chan *core.Eve
 	for _, filter := range f {
 		acceptsChan := make(chan *core.Event, bufferSize)
 		filter.SetChannels(in, unit.out, acceptsChan)
+
+		registerChan(in, filter, metrics.ChanDescIn, core.KindFilter)
+
 		in = acceptsChan // connect current filter success output to next filter/plugin input
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
+
+	registerChan(in, p, metrics.ChanDescIn, core.KindProcessor)
+	registerChan(drop, p, metrics.ChanDescDrop, core.KindProcessor)
 
 	p.SetChannels(in, unit.out, unit.drop)
 	return unit, out
@@ -111,9 +119,16 @@ func newOutputSoftUnit(o core.Output, f []core.Filter, in <-chan *core.Event, bu
 	for _, filter := range f {
 		acceptsChan := make(chan *core.Event, bufferSize)
 		filter.SetChannels(in, unit.rej, acceptsChan)
+
+		registerChan(in, filter, metrics.ChanDescIn, core.KindFilter)
+
 		in = acceptsChan
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
+
+	registerChan(in, o, metrics.ChanDescIn, core.KindOutput)
+	registerChan(unit.rej, o, metrics.ChanDescDrop, core.KindOutput)
+	registerChan(unit.done, o, metrics.ChanDescDone, core.KindOutput)
 
 	o.SetChannels(in, unit.done)
 	return unit
@@ -152,7 +167,7 @@ func (u *outSoftUnit) Run() {
 	// run output
 	u.o.Run() // blocking call, loop inside
 	u.o.Close()
-	close(u.rej) // close rejected events chan
+	close(u.rej)  // close rejected events chan
 	close(u.done) // close done events chan
 
 	u.wg.Wait()
@@ -181,9 +196,14 @@ func newInputSoftUnit(i core.Input, f []core.Filter, stop <-chan struct{}, buffe
 	for _, filter := range f {
 		acceptsChan := make(chan *core.Event, bufferSize)
 		filter.SetChannels(out, unit.rej, acceptsChan)
+
+		registerChan(out, filter, metrics.ChanDescIn, core.KindFilter)
+
 		out = acceptsChan
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
+
+	registerChan(unit.rej, i, metrics.ChanDescDrop, core.KindInput)
 
 	return unit, out
 }
@@ -245,6 +265,8 @@ func newBroadcastSoftUnit(c core.Broadcast, in <-chan *core.Event, outsCount, bu
 	}
 	c.SetChannels(in, unit.outs)
 
+	registerChan(in, c, metrics.ChanDescIn, core.KindCore)
+
 	return unit, outs
 }
 
@@ -266,13 +288,17 @@ type fusionSoftUnit struct {
 }
 
 func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit *fusionSoftUnit, unitOut <-chan *core.Event) {
-	out := make(chan *core.Event, bufferSize*len(ins))
+	out := make(chan *core.Event, bufferSize)
 	unit = &fusionSoftUnit{
 		c:   c,
 		ins: ins,
 		out: out,
 	}
 	c.SetChannels(ins, out)
+
+	for i, in := range ins {
+		registerChan(in, c, metrics.ChanDescIn, core.KindCore, strconv.Itoa(i))
+	}
 
 	return unit, out
 }

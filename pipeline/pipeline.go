@@ -71,6 +71,7 @@ type Pipeline struct {
 
 	state   state
 	lastErr error
+	aliases map[string]struct{}
 
 	keepers map[string]core.Keykeeper
 	outs    []outputSet
@@ -83,6 +84,7 @@ func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 		config:  config,
 		log:     log,
 		state:   StateCreated,
+		aliases: make(map[string]struct{}),
 		keepers: make(map[string]core.Keykeeper),
 		outs:    make([]outputSet, 0, len(config.Outputs)),
 		procs:   make([][]procSet, 0, config.Settings.Lines),
@@ -330,7 +332,12 @@ func (p *Pipeline) configureKeykeepers() error {
 				alias = keeperCfg.Alias()
 			}
 
-			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName("BaseKeykeeper")
+			if _, ok := p.aliases[alias]; ok {
+				return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v keykeeper", alias, plugin)
+			}
+			p.aliases[alias] = struct{}{}
+
+			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName(core.KindKeykeeper)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseKeykeeper{
 					Alias:    alias,
@@ -377,6 +384,11 @@ func (p *Pipeline) configureOutputs() error {
 				alias = outputCfg.Alias()
 			}
 
+			if _, ok := p.aliases[alias]; ok {
+				return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v output", alias, plugin)
+			}
+			p.aliases[alias] = struct{}{}
+
 			if serializerNeedy, ok := output.(core.SetSerializer); ok {
 				cfgSerializer := outputCfg.Serializer()
 				if cfgSerializer == nil {
@@ -407,7 +419,7 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
-			baseField := reflect.ValueOf(output).Elem().FieldByName("BaseOutput")
+			baseField := reflect.ValueOf(output).Elem().FieldByName(core.KindOutput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseOutput{
 					Alias:    alias,
@@ -461,6 +473,11 @@ func (p *Pipeline) configureProcessors() error {
 					alias = fmt.Sprintf("%v:%v", processorCfg.Alias(), i)
 				}
 
+				if _, ok := p.aliases[alias]; ok {
+					return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v processor", alias, plugin)
+				}
+				p.aliases[alias] = struct{}{}
+
 				if serializerNeedy, ok := processor.(core.SetSerializer); ok {
 					cfgSerializer := processorCfg.Serializer()
 					if cfgSerializer == nil {
@@ -493,7 +510,7 @@ func (p *Pipeline) configureProcessors() error {
 
 				processorCfg["::line"] = i
 
-				baseField := reflect.ValueOf(processor).Elem().FieldByName("BaseProcessor")
+				baseField := reflect.ValueOf(processor).Elem().FieldByName(core.KindProcessor)
 				if baseField.IsValid() && baseField.CanSet() {
 					baseField.Set(reflect.ValueOf(&core.BaseProcessor{
 						Alias:    alias,
@@ -548,6 +565,11 @@ func (p *Pipeline) configureInputs() error {
 				alias = inputCfg.Alias()
 			}
 
+			if _, ok := p.aliases[alias]; ok {
+				return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v input", alias, plugin)
+			}
+			p.aliases[alias] = struct{}{}
+
 			if serializerNeedy, ok := input.(core.SetSerializer); ok {
 				cfgSerializer := inputCfg.Serializer()
 				if cfgSerializer == nil {
@@ -578,7 +600,7 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
-			baseField := reflect.ValueOf(input).Elem().FieldByName("BaseInput")
+			baseField := reflect.ValueOf(input).Elem().FieldByName(core.KindInput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseInput{
 					Alias:    alias,
@@ -624,8 +646,13 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 
 		var alias = fmt.Sprintf("filter:%v::%v", plugin, parentName)
 		if len(filterCfg.Alias()) > 0 {
-			alias = fmt.Sprintf("%v::%v", filterCfg.Alias(), parentName)
+			alias = filterCfg.Alias()
 		}
+
+		if _, ok := p.aliases[alias]; ok {
+			return nil, fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v filter", alias, plugin)
+		}
+		p.aliases[alias] = struct{}{}
 
 		if serializerNeedy, ok := filter.(core.SetSerializer); ok {
 			cfgSerializer := filterCfg.Serializer()
@@ -657,7 +684,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
-		baseField := reflect.ValueOf(filter).Elem().FieldByName("BaseFilter")
+		baseField := reflect.ValueOf(filter).Elem().FieldByName(core.KindFilter)
 		if baseField.IsValid() && baseField.CanSet() {
 			baseField.Set(reflect.ValueOf(&core.BaseFilter{
 				Alias:    alias,
@@ -696,14 +723,19 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 
 	var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
 	if len(parserCfg.Alias()) > 0 {
-		alias = fmt.Sprintf("%v::%v", parserCfg.Alias(), parentName)
+		alias = parserCfg.Alias()
 	}
+
+	if _, ok := p.aliases[alias]; ok {
+		return nil, fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v parser", alias, plugin)
+	}
+	p.aliases[alias] = struct{}{}
 
 	if idNeedy, ok := parser.(core.SetId); ok {
 		idNeedy.SetId(parserCfg.Id())
 	}
 
-	baseField := reflect.ValueOf(parser).Elem().FieldByName("BaseParser")
+	baseField := reflect.ValueOf(parser).Elem().FieldByName(core.KindParser)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseParser{
 			Alias:    alias,
@@ -740,14 +772,19 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 
 	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
 	if len(serCfg.Alias()) > 0 {
-		alias = fmt.Sprintf("%v::%v", serCfg.Alias(), parentName)
+		alias = serCfg.Alias()
 	}
+
+	if _, ok := p.aliases[alias]; ok {
+		return nil, fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v serializer", alias, plugin)
+	}
+	p.aliases[alias] = struct{}{}
 
 	if idNeedy, ok := serializer.(core.SetId); ok {
 		idNeedy.SetId(serCfg.Id())
 	}
 
-	baseField := reflect.ValueOf(serializer).Elem().FieldByName("BaseSerializer")
+	baseField := reflect.ValueOf(serializer).Elem().FieldByName(core.KindSerializer)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseSerializer{
 			Alias:    alias,
