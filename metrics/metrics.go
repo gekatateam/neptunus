@@ -32,7 +32,7 @@ var (
 	pipeLines *prometheus.Desc
 )
 
-func init() {
+func Init() {
 	// plugins stats
 	// status="(accepted|rejected|failed)"
 	inputSummary = prometheus.NewSummaryVec(
@@ -109,14 +109,14 @@ func init() {
 	chans = &chanCollector{}
 	chanLength = prometheus.NewDesc(
 		"pipeline_channel_length",
-		"Pipeline unit-to-unit channel communication length.",
-		[]string{"pipeline", "inner", "outer"},
+		"Pipeline plugin-to-plugin channel communication length.",
+		[]string{"plugin", "name", "pipeline", "desc"},
 		nil,
 	)
 	chanCapacity = prometheus.NewDesc(
 		"pipeline_channel_capacity",
-		"Pipeline unit-to-unit channel communication capacity.",
-		[]string{"pipeline", "inner", "outer"},
+		"Pipeline plugin-to-plugin channel communication capacity.",
+		[]string{"plugin", "name", "pipeline", "desc"},
 		nil,
 	)
 
@@ -148,7 +148,7 @@ func init() {
 
 type ObserveFunc func(plugin, name, pipeline string, status EventStatus, t time.Duration)
 
-func ObserveMock (plugin, name, pipeline string, status EventStatus, t time.Duration) {}
+func ObserveMock(plugin, name, pipeline string, status EventStatus, t time.Duration) {}
 
 func ObserveInputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
 	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
@@ -177,6 +177,8 @@ func ObserveSerializerSummary(plugin, name, pipeline string, status EventStatus,
 func ObserveCoreSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
 	coreSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
 }
+
+type CollectChanFunc func(statFunc func() ChanStats)
 
 func CollectChan(statFunc func() ChanStats) {
 	chans.append(statFunc)

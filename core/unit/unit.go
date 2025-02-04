@@ -2,9 +2,12 @@ package unit
 
 import (
 	"log/slog"
+	"reflect"
+	"strings"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 const (
@@ -23,7 +26,7 @@ type Unit interface {
 //
 // ┌────────────────┐
 // |┌───┐           |
-//─┼┤ f ├┬─────────┐|
+// ─┼┤ f ├┬─────────┐|
 // |└─┬┬┴┴─┐ ┌────┐||
 // |  └┤ f ├─┤proc├┴┼─
 // |   └───┘ └────┘ |
@@ -43,7 +46,7 @@ func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []
 //
 // ┌────────────────┐
 // |┌───┐           |
-//─┼┤ f ├┬────────Θ |
+// ─┼┤ f ├┬────────Θ |
 // |└─┬┬┴┴─┐ ┌────┐ |
 // |  └┤ f ├─┤out>| |
 // |   └───┘ └────┘ |
@@ -84,7 +87,7 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 //
 // ┌────────┐
 // |   ┌────┼─
-//-┼───█────┼─
+// -┼───█────┼─
 // |   └────┼─
 // └────────┘
 func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <-chan *core.Event, outsCount, bufferSize int) (unit Unit, unitOuts []<-chan *core.Event) {
@@ -101,9 +104,9 @@ func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <
 // this unit uses plugin for avoid concrete metrics writing in core
 //
 // ┌────────┐
-//─┼───┐    |
-//─┼───█────┼─
-//─┼───┘    |
+// ─┼───┐    |
+// ─┼───█────┼─
+// ─┼───┘    |
 // └────────┘
 func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit Unit, unitOut <-chan *core.Event) {
 	switch c.Consistency {
@@ -112,4 +115,55 @@ func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-ch
 	default:
 		return newFusionSoftUnit(f, ins, bufferSize)
 	}
+}
+
+// register plugin input channel in metrics system
+// in case of library usage, this function can be replaced to any other
+var CollectChanFunc metrics.CollectChanFunc = metrics.CollectChan
+
+func registerChan(ch <-chan *core.Event, p any, desc metrics.ChanDesc, kind string, extra ...string) {
+	var e string
+	if len(extra) > 0 {
+		e = "::" + strings.Join(extra, "::")
+	}
+
+	CollectChanFunc(func() metrics.ChanStats {
+		return metrics.ChanStats{
+			Capacity:   cap(ch),
+			Length:     len(ch),
+			Plugin:     pluginPlugin(p, kind),
+			Name:       pluginAlias(p, kind) + e,
+			Pipeline:   pluginPipeline(p, kind),
+			Descriptor: string(desc),
+		}
+	})
+}
+
+// easy way to get plugin alias and pipeline without bolerplate
+// there is on affection on performance, because it's used only on startup
+func pluginAlias(p any, kind string) string {
+	return reflect.ValueOf(p).
+		Elem().
+		FieldByName(kind).
+		Elem().
+		FieldByName("Alias").
+		String()
+}
+
+func pluginPipeline(p any, kind string) string {
+	return reflect.ValueOf(p).
+		Elem().
+		FieldByName(kind).
+		Elem().
+		FieldByName("Pipeline").
+		String()
+}
+
+func pluginPlugin(p any, kind string) string {
+	return reflect.ValueOf(p).
+		Elem().
+		FieldByName(kind).
+		Elem().
+		FieldByName("Plugin").
+		String()
 }

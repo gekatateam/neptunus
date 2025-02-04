@@ -2,9 +2,21 @@ package core
 
 import (
 	"log/slog"
+	"reflect"
 	"time"
 
 	"github.com/gekatateam/neptunus/metrics"
+)
+
+var (
+	KindCore       = reflect.ValueOf(BaseCore{}).Type().Name()
+	KindInput      = reflect.ValueOf(BaseInput{}).Type().Name()
+	KindProcessor  = reflect.ValueOf(BaseProcessor{}).Type().Name()
+	KindOutput     = reflect.ValueOf(BaseOutput{}).Type().Name()
+	KindFilter     = reflect.ValueOf(BaseFilter{}).Type().Name()
+	KindParser     = reflect.ValueOf(BaseParser{}).Type().Name()
+	KindSerializer = reflect.ValueOf(BaseSerializer{}).Type().Name()
+	KindKeykeeper  = reflect.ValueOf(BaseKeykeeper{}).Type().Name()
 )
 
 type BaseInput struct {

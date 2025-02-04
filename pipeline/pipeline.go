@@ -330,7 +330,7 @@ func (p *Pipeline) configureKeykeepers() error {
 				alias = keeperCfg.Alias()
 			}
 
-			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName("BaseKeykeeper")
+			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName(core.KindKeykeeper)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseKeykeeper{
 					Alias:    alias,
@@ -407,7 +407,7 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
-			baseField := reflect.ValueOf(output).Elem().FieldByName("BaseOutput")
+			baseField := reflect.ValueOf(output).Elem().FieldByName(core.KindOutput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseOutput{
 					Alias:    alias,
@@ -493,7 +493,7 @@ func (p *Pipeline) configureProcessors() error {
 
 				processorCfg["::line"] = i
 
-				baseField := reflect.ValueOf(processor).Elem().FieldByName("BaseProcessor")
+				baseField := reflect.ValueOf(processor).Elem().FieldByName(core.KindProcessor)
 				if baseField.IsValid() && baseField.CanSet() {
 					baseField.Set(reflect.ValueOf(&core.BaseProcessor{
 						Alias:    alias,
@@ -578,7 +578,7 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
-			baseField := reflect.ValueOf(input).Elem().FieldByName("BaseInput")
+			baseField := reflect.ValueOf(input).Elem().FieldByName(core.KindInput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseInput{
 					Alias:    alias,
@@ -657,7 +657,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
-		baseField := reflect.ValueOf(filter).Elem().FieldByName("BaseFilter")
+		baseField := reflect.ValueOf(filter).Elem().FieldByName(core.KindFilter)
 		if baseField.IsValid() && baseField.CanSet() {
 			baseField.Set(reflect.ValueOf(&core.BaseFilter{
 				Alias:    alias,
@@ -703,7 +703,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		idNeedy.SetId(parserCfg.Id())
 	}
 
-	baseField := reflect.ValueOf(parser).Elem().FieldByName("BaseParser")
+	baseField := reflect.ValueOf(parser).Elem().FieldByName(core.KindParser)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseParser{
 			Alias:    alias,
@@ -747,7 +747,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		idNeedy.SetId(serCfg.Id())
 	}
 
-	baseField := reflect.ValueOf(serializer).Elem().FieldByName("BaseSerializer")
+	baseField := reflect.ValueOf(serializer).Elem().FieldByName(core.KindSerializer)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseSerializer{
 			Alias:    alias,
