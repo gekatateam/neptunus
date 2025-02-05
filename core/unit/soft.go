@@ -28,7 +28,7 @@ type procSoftUnit struct {
 	drop chan *core.Event
 }
 
-func newProcessorSoftUnit(p core.Processor, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit *procSoftUnit, unitOut <-chan *core.Event) {
+func newProcessorSoftUnit(p core.Processor, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit *procSoftUnit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	out := make(chan *core.Event, bufferSize)
 	drop := make(chan *core.Event, bufferSize)
 	unit = &procSoftUnit{
@@ -41,20 +41,18 @@ func newProcessorSoftUnit(p core.Processor, f []core.Filter, in <-chan *core.Eve
 	}
 
 	for _, filter := range f {
+		chansStats = append(chansStats, registerChan(in, filter, metrics.ChanIn, core.KindFilter))
 		acceptsChan := make(chan *core.Event, bufferSize)
 		filter.SetChannels(in, unit.out, acceptsChan)
-
-		registerChan(in, filter, metrics.ChanDescIn, core.KindFilter)
-
 		in = acceptsChan // connect current filter success output to next filter/plugin input
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
 
-	registerChan(in, p, metrics.ChanDescIn, core.KindProcessor)
-	registerChan(drop, p, metrics.ChanDescDrop, core.KindProcessor)
+	chansStats = append(chansStats, registerChan(in, p, metrics.ChanIn, core.KindProcessor))
+	chansStats = append(chansStats, registerChan(drop, p, metrics.ChanDrop, core.KindProcessor))
 
 	p.SetChannels(in, unit.out, unit.drop)
-	return unit, out
+	return unit, out, chansStats
 }
 
 // starts events processing
@@ -106,7 +104,7 @@ type outSoftUnit struct {
 	done chan *core.Event // done events are completely processed
 }
 
-func newOutputSoftUnit(o core.Output, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit *outSoftUnit) {
+func newOutputSoftUnit(o core.Output, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit *outSoftUnit, chansStats []metrics.ChanStatsFunc) {
 	unit = &outSoftUnit{
 		o:    o,
 		f:    make([]fToCh, 0, len(f)),
@@ -117,21 +115,19 @@ func newOutputSoftUnit(o core.Output, f []core.Filter, in <-chan *core.Event, bu
 	}
 
 	for _, filter := range f {
+		chansStats = append(chansStats, registerChan(in, filter, metrics.ChanIn, core.KindFilter))
 		acceptsChan := make(chan *core.Event, bufferSize)
 		filter.SetChannels(in, unit.rej, acceptsChan)
-
-		registerChan(in, filter, metrics.ChanDescIn, core.KindFilter)
-
 		in = acceptsChan
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
 
-	registerChan(in, o, metrics.ChanDescIn, core.KindOutput)
-	registerChan(unit.rej, o, metrics.ChanDescDrop, core.KindOutput)
-	registerChan(unit.done, o, metrics.ChanDescDone, core.KindOutput)
+	chansStats = append(chansStats, registerChan(in, o, metrics.ChanIn, core.KindOutput))
+	chansStats = append(chansStats, registerChan(unit.rej, o, metrics.ChanDrop, core.KindOutput))
+	chansStats = append(chansStats, registerChan(unit.done, o, metrics.ChanDone, core.KindOutput))
 
 	o.SetChannels(in, unit.done)
-	return unit
+	return unit, chansStats
 }
 
 func (u *outSoftUnit) Run() {
@@ -182,7 +178,7 @@ type inSoftUnit struct {
 	stop <-chan struct{}
 }
 
-func newInputSoftUnit(i core.Input, f []core.Filter, stop <-chan struct{}, bufferSize int) (unit *inSoftUnit, unitOut <-chan *core.Event) {
+func newInputSoftUnit(i core.Input, f []core.Filter, stop <-chan struct{}, bufferSize int) (unit *inSoftUnit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	out := make(chan *core.Event, bufferSize)
 	unit = &inSoftUnit{
 		i:    i,
@@ -194,18 +190,16 @@ func newInputSoftUnit(i core.Input, f []core.Filter, stop <-chan struct{}, buffe
 	i.SetChannels(out)
 
 	for _, filter := range f {
+		chansStats = append(chansStats, registerChan(out, filter, metrics.ChanIn, core.KindFilter))
 		acceptsChan := make(chan *core.Event, bufferSize)
 		filter.SetChannels(out, unit.rej, acceptsChan)
-
-		registerChan(out, filter, metrics.ChanDescIn, core.KindFilter)
-
 		out = acceptsChan
 		unit.f = append(unit.f, fToCh{filter, acceptsChan})
 	}
 
-	registerChan(unit.rej, i, metrics.ChanDescDrop, core.KindInput)
+	chansStats = append(chansStats, registerChan(unit.rej, i, metrics.ChanDrop, core.KindInput))
 
-	return unit, out
+	return unit, out, chansStats
 }
 
 func (u *inSoftUnit) Run() {
@@ -250,7 +244,7 @@ type bcastSoftUnit struct {
 	outs []chan<- *core.Event
 }
 
-func newBroadcastSoftUnit(c core.Broadcast, in <-chan *core.Event, outsCount, bufferSize int) (unit *bcastSoftUnit, unitOuts []<-chan *core.Event) {
+func newBroadcastSoftUnit(c core.Broadcast, in <-chan *core.Event, outsCount, bufferSize int) (unit *bcastSoftUnit, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	outs := make([]<-chan *core.Event, 0, outsCount)
 	unit = &bcastSoftUnit{
 		c:    c,
@@ -265,9 +259,9 @@ func newBroadcastSoftUnit(c core.Broadcast, in <-chan *core.Event, outsCount, bu
 	}
 	c.SetChannels(in, unit.outs)
 
-	registerChan(in, c, metrics.ChanDescIn, core.KindCore)
+	chansStats = append(chansStats, registerChan(in, c, metrics.ChanIn, core.KindCore))
 
-	return unit, outs
+	return unit, outs, chansStats
 }
 
 func (u *bcastSoftUnit) Run() {
@@ -287,7 +281,7 @@ type fusionSoftUnit struct {
 	out chan<- *core.Event
 }
 
-func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit *fusionSoftUnit, unitOut <-chan *core.Event) {
+func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit *fusionSoftUnit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	out := make(chan *core.Event, bufferSize)
 	unit = &fusionSoftUnit{
 		c:   c,
@@ -297,10 +291,10 @@ func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) 
 	c.SetChannels(ins, out)
 
 	for i, in := range ins {
-		registerChan(in, c, metrics.ChanDescIn, core.KindCore, strconv.Itoa(i))
+		chansStats = append(chansStats, registerChan(in, c, metrics.ChanIn, core.KindCore, strconv.Itoa(i)))
 	}
 
-	return unit, out
+	return unit, out, chansStats
 }
 
 func (u *fusionSoftUnit) Run() {

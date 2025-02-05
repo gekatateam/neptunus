@@ -30,12 +30,20 @@ import (
 
 type state string
 
-const (
+var (
 	StateCreated  state = "created"
 	StateStarting state = "starting"
 	StateStopping state = "stopping"
 	StateRunning  state = "running"
 	StateStopped  state = "stopped"
+
+	StateCode = map[state]int{
+		StateCreated:  1,
+		StateStarting: 2,
+		StateStopping: 3,
+		StateRunning:  4,
+		StateStopped:  5,
+	}
 )
 
 var keyConfigPattern = regexp.MustCompile(`^@{(.+):(.+)}$`)
@@ -77,6 +85,8 @@ type Pipeline struct {
 	outs    []outputSet
 	procs   [][]procSet
 	ins     []inputSet
+
+	chansStatsFuncs []metrics.ChanStatsFunc
 }
 
 func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
@@ -90,6 +100,15 @@ func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 		procs:   make([][]procSet, 0, config.Settings.Lines),
 		ins:     make([]inputSet, 0, len(config.Inputs)),
 	}
+}
+
+func (p *Pipeline) ChansStats() []metrics.ChanStats {
+	chansStats := []metrics.ChanStats{}
+	for _, f := range p.chansStatsFuncs {
+		chansStats = append(chansStats, f())
+	}
+
+	return chansStats
 }
 
 func (p *Pipeline) State() state {
@@ -213,7 +232,8 @@ func (p *Pipeline) Run(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		inputUnit, outCh := unit.NewInput(&p.config.Settings, p.log, input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
+		inputUnit, outCh, chansStats := unit.NewInput(&p.config.Settings, p.log, input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
+		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 		inputsOutChannels = append(inputsOutChannels, outCh)
 		wg.Add(1)
 		go func() {
@@ -223,7 +243,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
-	inFusionUnit, outCh := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
+	inFusionUnit, outCh, chansStats := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
 		Alias:    "fusion::inputs",
 		Plugin:   "fusion",
 		Pipeline: p.config.Settings.Id,
@@ -233,6 +253,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		)),
 		Obs: metrics.ObserveCoreSummary,
 	}), inputsOutChannels, p.config.Settings.Buffer)
+	p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 	wg.Add(1)
 	go func() {
 		inFusionUnit.Run()
@@ -245,7 +266,8 @@ func (p *Pipeline) Run(ctx context.Context) {
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
 			for _, processor := range p.procs[i] {
-				processorUnit, procOut := unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput, p.config.Settings.Buffer)
+				processorUnit, procOut, chansStats := unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput, p.config.Settings.Buffer)
+				p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 				wg.Add(1)
 				go func() {
 					processorUnit.Run()
@@ -258,7 +280,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 
 		p.log.Info("starting processors-to-broadcast fusionner")
-		outFusionUnit, fusionOutCh := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
+		outFusionUnit, fusionOutCh, chansStats := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
 			Alias:    "fusion::processors",
 			Plugin:   "fusion",
 			Pipeline: p.config.Settings.Id,
@@ -268,6 +290,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 			)),
 			Obs: metrics.ObserveCoreSummary,
 		}), procsOutChannels, p.config.Settings.Buffer)
+		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 		outCh = fusionOutCh
 		wg.Add(1)
 		go func() {
@@ -277,7 +300,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 
 	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs := unit.NewBroadcast(&p.config.Settings, p.log, broadcast.New(&core.BaseCore{
+	bcastUnit, bcastChs, chansStats := unit.NewBroadcast(&p.config.Settings, p.log, broadcast.New(&core.BaseCore{
 		Alias:    "broadcast::processors",
 		Plugin:   "fusion",
 		Pipeline: p.config.Settings.Id,
@@ -287,6 +310,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		)),
 		Obs: metrics.ObserveCoreSummary,
 	}), outCh, len(p.outs), p.config.Settings.Buffer)
+	p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 	wg.Add(1)
 	go func() {
 		bcastUnit.Run()
@@ -295,7 +319,8 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
-		outputUnit := unit.NewOutput(&p.config.Settings, p.log, output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
+		outputUnit, chansStats := unit.NewOutput(&p.config.Settings, p.log, output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
+		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 		wg.Add(1)
 		go func() {
 			outputUnit.Run()

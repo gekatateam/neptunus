@@ -6,14 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type EventStatus string
-
-const (
-	EventAccepted EventStatus = "accepted"
-	EventRejected EventStatus = "rejected"
-	EventFailed   EventStatus = "failed"
-)
-
 var (
 	coreSummary       *prometheus.SummaryVec
 	inputSummary      *prometheus.SummaryVec
@@ -23,13 +15,11 @@ var (
 	parserSummary     *prometheus.SummaryVec
 	serializerSummary *prometheus.SummaryVec
 
-	chans        *chanCollector
+	pipes        *pipelineCollectror
+	pipeState    *prometheus.Desc
+	pipeLines    *prometheus.Desc
 	chanCapacity *prometheus.Desc
 	chanLength   *prometheus.Desc
-
-	pipes     *pipelineCollectror
-	pipeState *prometheus.Desc
-	pipeLines *prometheus.Desc
 )
 
 func Init() {
@@ -105,21 +95,6 @@ func Init() {
 		[]string{"plugin", "name", "pipeline", "status"},
 	)
 
-	// unit-to-unit channels internal stats
-	chans = &chanCollector{}
-	chanLength = prometheus.NewDesc(
-		"pipeline_channel_length",
-		"Pipeline plugin communication channel length.",
-		[]string{"plugin", "name", "pipeline", "desc"},
-		nil,
-	)
-	chanCapacity = prometheus.NewDesc(
-		"pipeline_channel_capacity",
-		"Pipeline plugin communication channel capacity.",
-		[]string{"plugin", "name", "pipeline", "desc"},
-		nil,
-	)
-
 	// pipelines stats
 	pipes = &pipelineCollectror{}
 	pipeState = prometheus.NewDesc(
@@ -135,6 +110,19 @@ func Init() {
 		nil,
 	)
 
+	chanLength = prometheus.NewDesc(
+		"pipeline_channel_length",
+		"Pipeline plugin communication channel length.",
+		[]string{"plugin", "name", "pipeline", "desc"},
+		nil,
+	)
+	chanCapacity = prometheus.NewDesc(
+		"pipeline_channel_capacity",
+		"Pipeline plugin communication channel capacity.",
+		[]string{"plugin", "name", "pipeline", "desc"},
+		nil,
+	)
+
 	prometheus.MustRegister(inputSummary)
 	prometheus.MustRegister(filterSummary)
 	prometheus.MustRegister(processorSummary)
@@ -142,51 +130,5 @@ func Init() {
 	prometheus.MustRegister(parserSummary)
 	prometheus.MustRegister(serializerSummary)
 	prometheus.MustRegister(coreSummary)
-	prometheus.MustRegister(chans)
 	prometheus.MustRegister(pipes)
-}
-
-type ObserveFunc func(plugin, name, pipeline string, status EventStatus, t time.Duration)
-
-func ObserveMock(plugin, name, pipeline string, status EventStatus, t time.Duration) {}
-
-func ObserveInputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
-}
-
-func ObserveFilterSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	filterSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
-}
-
-func ObserveProcessorSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	processorSummary.WithLabelValues(plugin, pipeline, name, string(status)).Observe(t.Seconds())
-}
-
-func ObserveOutputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	outputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
-}
-
-func ObserveParserSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	parserSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
-}
-
-func ObserveSerializerSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	serializerSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
-}
-
-func ObserveCoreSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	coreSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
-}
-
-type CollectChanFunc func(statFunc func() ChanStats)
-
-func CollectChan(statFunc func() ChanStats) {
-	chans.append(statFunc)
-}
-
-func CollectPipes(statFunc func() map[string]struct {
-	State int
-	Lines int
-}) {
-	pipes.set(statFunc)
 }
