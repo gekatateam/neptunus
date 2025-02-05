@@ -2,39 +2,85 @@ package metrics
 
 import "github.com/prometheus/client_golang/prometheus"
 
-type pipelineCollectror struct {
-	statFunc func() map[string]struct {
-		State int
-		Lines int
-	}
+type ChanDesc string
+
+const (
+	ChanIn   ChanDesc = "in"   // input channels for any plugins
+	ChanDrop ChanDesc = "drop" // channels that drops events, e.g. dropped by processors, input/output filters
+	ChanDone ChanDesc = "done" // outputs channels for done events
+)
+
+type ChanStatsFunc func() ChanStats
+
+type ChanStats struct {
+	Capacity   int
+	Length     int
+	Plugin     string
+	Name       string
+	Descriptor ChanDesc
 }
 
-func (c *pipelineCollectror) set(f func() map[string]struct {
-	State int
-	Lines int
-}) {
+type PipelineStats struct {
+	Pipeline string
+	State    int
+	Lines    int
+	Chans    []ChanStats
+}
+
+func CollectPipes(statFunc func() []PipelineStats) {
+	pipes.set(statFunc)
+}
+
+type pipelineCollectror struct {
+	statFunc func() []PipelineStats
+}
+
+func (c *pipelineCollectror) set(f func() []PipelineStats) {
 	c.statFunc = f
 }
 
 func (c *pipelineCollectror) Describe(ch chan<- *prometheus.Desc) {
 	ch <- pipeState
 	ch <- pipeLines
+	ch <- chanCapacity
+	ch <- chanLength
 }
 
 func (c *pipelineCollectror) Collect(ch chan<- prometheus.Metric) {
-	for id, state := range c.statFunc() {
+	for _, pipe := range c.statFunc() {
 		ch <- prometheus.MustNewConstMetric(
 			pipeState,
 			prometheus.GaugeValue,
-			float64(state.State),
-			id,
+			float64(pipe.State),
+			pipe.Pipeline,
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			pipeLines,
 			prometheus.GaugeValue,
-			float64(state.Lines),
-			id,
+			float64(pipe.Lines),
+			pipe.Pipeline,
 		)
+
+		for _, channel := range pipe.Chans {
+			ch <- prometheus.MustNewConstMetric(
+				chanCapacity,
+				prometheus.GaugeValue,
+				float64(channel.Capacity),
+				channel.Plugin,
+				channel.Name,
+				pipe.Pipeline,
+				string(channel.Descriptor),
+			)
+			ch <- prometheus.MustNewConstMetric(
+				chanLength,
+				prometheus.GaugeValue,
+				float64(channel.Length),
+				channel.Plugin,
+				channel.Name,
+				pipe.Pipeline,
+				string(channel.Descriptor),
+			)
+		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline"
 )
 
@@ -192,35 +193,16 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 	return nil
 }
 
-func (m *internalService) Metrics() map[string]struct {
-	State int
-	Lines int
-} {
-	pipesState := make(map[string]struct {
-		State int
-		Lines int
-	})
-	for id, pipe := range m.pipes {
-		var state int
-		switch pipe.p.State() {
-		case pipeline.StateCreated:
-			state = 1
-		case pipeline.StateStarting:
-			state = 2
-		case pipeline.StateRunning:
-			state = 3
-		case pipeline.StateStopping:
-			state = 4
-		case pipeline.StateStopped:
-			state = 5
-		}
-		pipesState[id] = struct {
-			State int
-			Lines int
-		}{
-			state,
-			pipe.p.Config().Settings.Lines,
-		}
+func (m *internalService) Stats() []metrics.PipelineStats {
+	pipesState := []metrics.PipelineStats{}
+
+	for name, pipe := range m.pipes {
+		pipesState = append(pipesState, metrics.PipelineStats{
+			Pipeline: name,
+			State:    pipeline.StateCode[pipe.p.State()],
+			Lines:    pipe.p.Config().Settings.Lines,
+			Chans:    pipe.p.ChansStats(),
+		})
 	}
 	return pipesState
 }

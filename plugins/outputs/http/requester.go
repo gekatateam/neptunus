@@ -23,9 +23,9 @@ type requester struct {
 	uri       string
 	method    string
 
-	successCodes   map[int]struct{}
-	headerlabels   map[string]string
-	paramfields    map[string]string
+	successCodes map[int]struct{}
+	headerlabels map[string]string
+	paramfields  map[string]string
 
 	client *http.Client
 	*batcher.Batcher[*core.Event]
@@ -175,7 +175,7 @@ func (r *requester) perform(uri string, params url.Values, body []byte, header h
 		if err != nil {
 			return err
 		}
-	
+
 		req.Header = header
 
 		res, err := r.client.Do(req)
@@ -207,7 +207,7 @@ func (r *requester) perform(uri string, params url.Values, body []byte, header h
 func durationPerEvent(totalBefore, totalAfter time.Duration, batchSize, i int) time.Duration {
 	each := totalBefore / time.Duration(batchSize)
 
-	if i == batchSize - 1 { // last event also takes request duraion
+	if i == batchSize-1 { // last event also takes request duraion
 		return each + totalAfter
 	}
 
