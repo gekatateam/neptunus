@@ -12,6 +12,8 @@ Glob syntax is similar to [standard wildcards](https://tldp.org/LDP/GNU-Linux-To
 [[processors]]
   [processors.through]
   [processors.through.filters.glob]
+    reverse = false
+
     # list of patterns, one of which an event routing key must match
     routing_key = [ "http*" ]
 

@@ -7,5 +7,6 @@ The `pass` filter accepts all events. Yes, that's all.
 [[processors]]
   [processors.through]
   [processors.through.filters.pass]
+    reverse = false
 ```
 This plugin has no any specific configuration.

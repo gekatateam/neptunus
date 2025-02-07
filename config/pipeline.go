@@ -55,6 +55,18 @@ func (p Plugin) Alias() string {
 	return alias
 }
 
+func (p Plugin) Reverse() bool {
+	reverseRaw, ok := p["reverse"]
+	if !ok {
+		return false
+	}
+	reverse, ok := reverseRaw.(bool)
+	if !ok {
+		return false
+	}
+	return reverse
+}
+
 func (p Plugin) Type() string {
 	typeRaw, ok := p["type"]
 	if !ok {

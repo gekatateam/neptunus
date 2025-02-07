@@ -20,6 +20,8 @@ def filter(event):
       type = "json"
       data_only = false
     [outputs.log.filters.starlark]
+      reverse = false
+
       # script file with code
       file = "script.star"
 

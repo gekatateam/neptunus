@@ -39,6 +39,9 @@
     [outputs.log.serializer]
       type = "json"
       data_only = false
+    [outputs.log.filters.glob]
+      reverse = false
+      routing_key = [ "/httpout-test-final" ]
     [outputs.log.filters.noerrors]
     [outputs.log.filters.pass]
 

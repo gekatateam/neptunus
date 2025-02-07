@@ -84,6 +84,8 @@ type BaseFilter struct {
 	Plugin   string
 	Pipeline string
 
+	Reverse bool
+
 	Log *slog.Logger
 	Obs metrics.ObserveFunc
 	In  <-chan *Event
@@ -95,6 +97,11 @@ func (b *BaseFilter) SetChannels(in <-chan *Event, rejected chan<- *Event, accep
 	b.In = in
 	b.Rej = rejected
 	b.Acc = accepted
+
+	if b.Reverse {
+		b.Rej = accepted
+		b.Acc = rejected
+	}
 }
 
 func (b *BaseFilter) Observe(status metrics.EventStatus, dur time.Duration) {
