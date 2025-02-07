@@ -715,6 +715,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 				Alias:    alias,
 				Plugin:   plugin,
 				Pipeline: p.config.Settings.Id,
+				Reverse:  filterCfg.Reverse(),
 				Log: p.log.With(slog.Group("filter",
 					"plugin", plugin,
 					"name", alias,

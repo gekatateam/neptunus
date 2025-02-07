@@ -148,7 +148,7 @@ In one line events move sequentially, from processor to processor, according to 
 
 After processors, events are cloned to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
 
-Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
+Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters. Each filter can be reversed using `reverse` parameter. If it's `true`, rejected events goes to accept flow, and accepted events goes to reject.
 
 In inputs and outputs case, if any filter rejects event, the event is dropped from pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
 

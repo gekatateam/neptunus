@@ -7,5 +7,6 @@ The `noerrors` filter accepts event only if it's has no errors.
 [[processors]]
   [processors.through]
   [processors.through.filters.noerrors]
+    reverse = false
 ```
 This plugin has no any specific configuration.
