@@ -2,6 +2,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -19,31 +20,29 @@ type Json struct {
 	OmitFailed           bool   `mapstructure:"omit_failed"`
 	Mode                 string `mapstructure:"mode"`
 
-	serFunc func(event *core.Event) ([]byte, error)
+	serFunc func(events ...*core.Event) ([]byte, error)
 
-	delim byte
-	start []byte
-	end   []byte
+	delim string
+	start string
+	end   string
 }
 
 func (s *Json) Init() error {
 	switch s.Mode {
 	case "jsonl":
-		s.delim = '\n'
-		s.start = []byte{}
-		s.end = []byte{}
+		s.delim = "\n"
 	case "array":
-		s.delim = ','
-		s.start = []byte{'['}
-		s.end = []byte{']'}
+		s.delim = ","
+		s.start = "["
+		s.end = "]"
 	default:
 		return fmt.Errorf("forbidden mode: %v, expected one of: jsonl, array", s.Mode)
 	}
 
-	if s.DataOnly {
-		s.serFunc = s.serializeData
+	if s.OmitFailed {
+		s.serFunc = s.serializeTryAll
 	} else {
-		s.serFunc = s.serializeEvent
+		s.serFunc = s.serializeFailFast
 	}
 
 	return nil
@@ -54,16 +53,17 @@ func (s *Json) Close() error {
 }
 
 func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
+	return s.serFunc(events...)
+}
+
+func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
 	buf := bytes.NewBuffer(make([]byte, 0, 4096))
-	var result []byte
-	buf.Write(s.start)
+	buf.WriteString(s.start)
 
-	lastIter := len(events) - 1
-	for i, e := range events {
-		rawData, err := s.serFunc(e)
+	for _, e := range events {
+		rawData, err := s.eventOrData(e)
 		if err != nil {
-			s.Observe(metrics.EventFailed, time.Since(now))
 			s.Log.Error("serialization failed",
 				"error", err,
 				slog.Group("event",
@@ -72,34 +72,85 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 				),
 			)
 			e.AddTag("::json_serialization_failed")
-			if s.OmitFailed {
-				now = time.Now()
-				continue
-			}
-			return nil, err
+			s.Observe(metrics.EventFailed, time.Since(now))
+			now = time.Now()
+			continue
 		}
 		buf.Write(rawData)
-		buf.WriteByte(s.delim)
+		buf.WriteString(s.delim)
 
-		if i == lastIter && buf.Len() > 0 {
+		s.Observe(metrics.EventAccepted, time.Since(now))
+		now = time.Now()
+	}
+
+	if buf.Len() > len(s.start) { // at least one event serialized successfully
+		buf.Truncate(buf.Len() - 1) // trim last delimeter
+		buf.WriteString(s.end)
+		return buf.Bytes(), nil
+	}
+
+	return nil, errors.New("all events serialization failed")
+}
+
+func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
+	now := time.Now()
+	buf := bytes.NewBuffer(make([]byte, 0, 4096))
+	buf.WriteString(s.start)
+
+	var sErr error
+	last := len(events) - 1
+	for i, e := range events {
+		if sErr != nil {
+			s.Log.Error("one of previous serialization failed",
+				"error", sErr,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
+			e.AddTag("::json_serialization_failed")
+			s.Observe(metrics.EventFailed, time.Since(now))
+			now = time.Now()
+			continue
+		}
+
+		rawData, err := s.eventOrData(e)
+		if err != nil {
+			s.Log.Error("serialization failed",
+				"error", err,
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
+			e.AddTag("::json_serialization_failed")
+			s.Observe(metrics.EventFailed, time.Since(now))
+			now = time.Now()
+			sErr = err
+			continue
+		}
+		buf.Write(rawData)
+		buf.WriteString(s.delim)
+
+		if i == last && buf.Len() > 0 {
 			buf.Truncate(buf.Len() - 1) // trim last delimeter
-			buf.Write(s.end)
-			result = make([]byte, buf.Len())
-			copy(result, buf.Bytes())
+			buf.WriteString(s.end)
 		}
 
 		s.Observe(metrics.EventAccepted, time.Since(now))
 		now = time.Now()
 	}
 
-	return result, nil
+	if sErr != nil {
+		return nil, sErr
+	}
+	return buf.Bytes(), nil
 }
 
-func (s *Json) serializeData(event *core.Event) ([]byte, error) {
-	return json.MarshalNoEscape(event.Data)
-}
-
-func (s *Json) serializeEvent(event *core.Event) ([]byte, error) {
+func (s *Json) eventOrData(event *core.Event) ([]byte, error) {
+	if s.DataOnly {
+		return json.MarshalNoEscape(event.Data)
+	}
 	return json.MarshalNoEscape(event)
 }
 
