@@ -24,12 +24,12 @@ type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Dsn                 string        `mapstructure:"dsn"`
 	Driver              string        `mapstructure:"driver"`
+	Shared              bool          `mapstructure:"shared"`
 	ConnsMaxIdleTime    time.Duration `mapstructure:"conns_max_idle_time"`
 	ConnsMaxLifetime    time.Duration `mapstructure:"conns_max_life_time"`
 	ConnsMaxOpen        int           `mapstructure:"conns_max_open"`
 	ConnsMaxIdle        int           `mapstructure:"conns_max_idle"`
 	QueryTimeout        time.Duration `mapstructure:"query_timeout"`
-	IdleTimeout         time.Duration `mapstructure:"idle_timeout"`
 
 	TablePlaceholder string            `mapstructure:"table_placeholder"`
 	OnEvent          csql.QueryInfo    `mapstructure:"on_event"`
@@ -40,6 +40,7 @@ type Sql struct {
 	*retryer.Retryer     `mapstructure:",squash"`
 
 	db *sqlx.DB
+	id uint64
 }
 
 func (p *Sql) Init() error {
@@ -63,10 +64,6 @@ func (p *Sql) Init() error {
 		p.TablePlaceholder = tablePlaceholder
 	}
 
-	if p.IdleTimeout > 0 && p.IdleTimeout < time.Minute {
-		p.IdleTimeout = time.Minute
-	}
-
 	tlsConfig, err := p.TLSClientConfig.Config()
 	if err != nil {
 		return err
@@ -82,10 +79,14 @@ func (p *Sql) Init() error {
 	db.DB.SetMaxIdleConns(p.ConnsMaxIdle)
 	db.DB.SetMaxOpenConns(p.ConnsMaxOpen)
 
+	p.db = db
+	if p.Shared {
+		p.db = clientStorage.CompareAndStore(p.id, db)
+	}
+
 	if err := db.Ping(); err != nil {
 		return err
 	}
-	p.db = db
 
 	testArgs := map[string]any{}
 	for k, v := range p.Columns {
@@ -99,6 +100,10 @@ func (p *Sql) Init() error {
 	}
 
 	return nil
+}
+
+func (p *Sql) SetId(id uint64) {
+	p.id = id
 }
 
 func (p *Sql) Run() {
@@ -119,7 +124,9 @@ func (p *Sql) Run() {
 			defer cancel()
 
 			// after init tests, error normally does not occur here
-			query, args, err := csql.BindNamed(p.OnEvent.Query, rawArgs, p.db)
+			query, args, err := csql.BindNamed(
+				strings.Replace(p.OnEvent.Query, p.TablePlaceholder, e.RoutingKey, 1), 
+				rawArgs, p.db)
 			if err != nil {
 				return fmt.Errorf("query binding failed: %w", err)
 			}
@@ -159,9 +166,10 @@ func (p *Sql) Run() {
 				),
 			)
 			e.StackError(err)
-			e.AddTag("::converter_processing_failed")
+			e.AddTag("::sql_processing_failed")
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
+			continue
 		}
 
 		for field, column := range p.Fields {
@@ -189,12 +197,12 @@ func (p *Sql) Close() error {
 func init() {
 	plugins.AddProcessor("sql", func() core.Processor {
 		return &Sql{
+			Shared:           true,
 			ConnsMaxIdleTime: 10 * time.Minute,
 			ConnsMaxLifetime: 10 * time.Minute,
 			ConnsMaxOpen:     2,
 			ConnsMaxIdle:     1,
 			QueryTimeout:     10 * time.Second,
-			IdleTimeout:      5 * time.Minute,
 			TablePlaceholder: tablePlaceholder,
 
 			TLSClientConfig: &tls.TLSClientConfig{},
