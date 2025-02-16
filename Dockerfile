@@ -16,7 +16,10 @@ FROM alpine:3
 
 EXPOSE 9600/tcp
 
-COPY --from=builder --chmod=u+x neptunus /bin/neptunus
+RUN addgroup --gid 9600 neptunus && \
+    adduser --uid 9600 --ingroup neptunus --no-create-home --disabled-password neptunus
+
+COPY --from=builder --chmod=555 neptunus /bin/neptunus
 
 # musl and glibc compability
 RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
@@ -37,6 +40,8 @@ COPY <<-EOT /etc/neptunus/conf/config.toml
         directory = "/etc/neptunus/conf/pipelines"
         extention = "toml"
 EOT
+
+USER 9600:9600
 
 ENTRYPOINT [ "/bin/neptunus" ]
 CMD [ "run", "--config", "/etc/neptunus/conf/config.toml" ]
