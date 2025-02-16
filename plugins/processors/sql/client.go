@@ -21,7 +21,7 @@ func (s *dbClientStorage) CompareAndStore(id uint64, client *sqlx.DB) *sqlx.DB {
 	defer s.mu.Unlock()
 
 	if c, ok := s.clients[id]; ok {
-		defer client.Close()
+		client.Close()
 		return c
 	}
 

@@ -1,3 +1,5 @@
+# Sql Processor Pluign
+
 The `sql` processor plugin performs SQL query using incoming events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
 
 An event routing key may be used as a table name using `table_placeholder` parameter.
@@ -60,19 +62,21 @@ Drivers use plugin TLS configuration.
     [processors.sql.columns]
       expedition_type = "type"
       expedition_region = "region"
+      expedition_owner = "owner"
 
     # "event fields -> query result columns" mapping
     # please note that each field type is always a slice
     [processors.sql.fields]
-      type = "expedition_type"
-      region = "expedition_region"
+      uid = "expedition_uid"
+      owner = "expedition_owner"
 
     # query, that will be executed for event
-    [outputs.sql.on_event]
+    [processors.sql.on_event]
       query = '''
 UPDATE :table_name SET
     EXPEDITION_TYPE = :expedition_type
     , EXPEDITION_REGION = :expedition_region
-RETURNING EXPEDITION_OWNER, UID;
+    WHERE EXPEDITION_OWNER = :expedition_owner
+RETURNING EXPEDITION_OWNER, EXPEDITION_UID;
 '''
 ```

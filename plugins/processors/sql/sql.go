@@ -84,7 +84,7 @@ func (p *Sql) Init() error {
 		p.db = clientStorage.CompareAndStore(p.id, db)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := p.db.Ping(); err != nil {
 		return err
 	}
 
@@ -125,7 +125,7 @@ func (p *Sql) Run() {
 
 			// after init tests, error normally does not occur here
 			query, args, err := csql.BindNamed(
-				strings.Replace(p.OnEvent.Query, p.TablePlaceholder, e.RoutingKey, 1), 
+				strings.Replace(p.OnEvent.Query, p.TablePlaceholder, e.RoutingKey, 1),
 				rawArgs, p.db)
 			if err != nil {
 				return fmt.Errorf("query binding failed: %w", err)
