@@ -59,7 +59,8 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 
 		cfg.TLSConfig = tlsConfig
 		db = sql.OpenDB(mssql.NewConnectorConfig(cfg))
-	case "oracle":
+	case "oracle", "ora", "goracle":
+		driverName = "ora" // https://github.com/jmoiron/sqlx/blob/master/bind.go#L27
 		oraConnector := ora.NewConnector(dsn).(*ora.OracleConnector)
 		oraConnector.WithTLSConfig(tlsConfig)
 		db = sql.OpenDB(oraConnector)
