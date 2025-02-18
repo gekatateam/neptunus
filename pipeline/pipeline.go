@@ -32,17 +32,19 @@ type state string
 
 var (
 	StateCreated  state = "created"
+	StateBuilding state = "building"
 	StateStarting state = "starting"
-	StateStopping state = "stopping"
 	StateRunning  state = "running"
+	StateStopping state = "stopping"
 	StateStopped  state = "stopped"
 
 	StateCode = map[state]int{
 		StateCreated:  1,
-		StateStarting: 2,
-		StateStopping: 3,
+		StateBuilding: 2,
+		StateStarting: 3,
 		StateRunning:  4,
-		StateStopped:  5,
+		StateStopping: 5,
+		StateStopped:  6,
 	}
 )
 
@@ -153,8 +155,7 @@ func (p *Pipeline) Close() error {
 	return nil
 }
 
-func (p *Pipeline) Test() error {
-	var err error
+func (p *Pipeline) Test() (err error) {
 	if err = p.configureKeykeepers(); err != nil {
 		p.log.Error("keykeepers confiruration test failed",
 			"error", err.Error(),
@@ -186,40 +187,44 @@ func (p *Pipeline) Test() error {
 		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("outputs confiruration has no errors")
-	p.log.Info("pipeline tested successfully")
 
+	p.log.Info("pipeline tested successfully")
 	return nil
+
 PIPELINE_TEST_FAILED:
 	return errors.New("pipeline test failed")
 }
 
-func (p *Pipeline) Build() error {
-	if err := p.configureKeykeepers(); err != nil {
+func (p *Pipeline) Build() (err error) {
+	p.state = StateBuilding
+	defer func() {
 		p.lastErr = err
-		return err
+		if p.lastErr != nil {
+			p.state = StateStopped
+		}
+	}()
+
+	if err = p.configureKeykeepers(); err != nil {
+		return
 	}
 	p.log.Debug("keykeepers confiruration has no errors")
 
-	if err := p.configureInputs(); err != nil {
-		p.lastErr = err
-		return err
+	if err = p.configureInputs(); err != nil {
+		return
 	}
 	p.log.Debug("inputs confiruration has no errors")
 
-	if err := p.configureProcessors(); err != nil {
-		p.lastErr = err
-		return err
+	if err = p.configureProcessors(); err != nil {
+		return
 	}
 	p.log.Debug("processors confiruration has no errors")
 
-	if err := p.configureOutputs(); err != nil {
-		p.lastErr = err
-		return err
+	if err = p.configureOutputs(); err != nil {
+		return
 	}
 	p.log.Debug("outputs confiruration has no errors")
 
-	p.lastErr = nil
-	return nil
+	return
 }
 
 func (p *Pipeline) Run(ctx context.Context) {

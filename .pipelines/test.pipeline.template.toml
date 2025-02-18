@@ -1,5 +1,5 @@
 [settings]
-  id = "test.pipeline.sqlproc"
+  id = "test.pipeline.template"
   lines = 2
   run = true
   buffer = 5
@@ -23,12 +23,11 @@
 
 [[outputs]]
   [outputs.log]
-  [outputs.log.serializer]
-    type = "template_text"
+    [outputs.log.serializer]
+      type = "template_text"
 
-    # string with template
-    template_text = """
-{{ range $event := . }}
-Alert: {{ $event.Data.alert_name }}. Ok result: {{ $event.Data.ok_result }}. Err result: {{ $event.Data.err_result }}
-{{ end }}
-"""
+      template_text = '''
+{{- range $event := . -}}
+Alert: {{ $event.GetField "alert_name" }}. Ok result: {{ $event.GetField "ok_result" }}. Err result: {{ $event.GetField "err_result" }}
+{{- end -}}
+'''

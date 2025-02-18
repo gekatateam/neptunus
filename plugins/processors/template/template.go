@@ -6,11 +6,12 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/go-task/slim-sprig/v3"
+	sprig "github.com/go-task/slim-sprig/v3"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	cte "github.com/gekatateam/neptunus/plugins/common/template"
 )
 
 type Template struct {
@@ -75,11 +76,9 @@ func (p *Template) Close() error {
 
 func (p *Template) Run() {
 	for e := range p.In {
-		var (
-			now      time.Time       = time.Now()
-			hasError bool            = false
-			te       *templatedEvent = &templatedEvent{e: e}
-		)
+		now := time.Now()
+		hasError := false
+		te := cte.New(e)
 
 		if len(p.Id) > 0 {
 			if err := p.id.Execute(p.buf, te); err != nil {

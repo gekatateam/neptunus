@@ -139,7 +139,7 @@ func (i *Http) Close() error {
 		)
 	}
 
-	return nil
+	return i.listener.Close()
 }
 
 func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {

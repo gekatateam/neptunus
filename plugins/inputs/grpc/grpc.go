@@ -69,7 +69,7 @@ func (i *Grpc) Close() error {
 	i.Log.Debug("closing plugin")
 	close(i.closeCh)
 	i.server.GracefulStop()
-	return nil
+	return i.listener.Close()
 }
 
 func (i *Grpc) Init() error {

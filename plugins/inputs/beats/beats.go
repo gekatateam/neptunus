@@ -75,10 +75,14 @@ func (i *Beats) Init() error {
 
 func (i *Beats) Close() error {
 	if i.server != nil {
-		return i.server.Close()
+		if err := i.server.Close(); err != nil {
+			i.Log.Error("beats server graceful shutdown ended with error",
+				"error", err.Error(),
+			)
+		}
 	}
 
-	return nil
+	return i.listener.Close()
 }
 
 func (i *Beats) Run() {

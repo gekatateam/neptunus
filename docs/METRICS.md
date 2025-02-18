@@ -5,7 +5,7 @@
 Metrics that writes by each pipeline
 
 #### Gauge `pipeline_state`
-Pipeline state: 1-5 is for Created, Starting, Running, Stopping, Stopped.
+Pipeline state: 1-6 is for Created, Building, Starting, Running, Stopping, Stopped.
 
 Labels:
  - **pipeline** - pipeline Id

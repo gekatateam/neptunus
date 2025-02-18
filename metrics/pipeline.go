@@ -22,6 +22,7 @@ type ChanStats struct {
 
 type PipelineStats struct {
 	Pipeline string
+	Run      bool
 	State    int
 	Lines    int
 	Chans    []ChanStats
@@ -56,6 +57,13 @@ func (c *pipelineCollectror) Collect(ch chan<- prometheus.Metric) {
 		)
 
 		ch <- prometheus.MustNewConstMetric(
+			pipeRun,
+			prometheus.GaugeValue,
+			bool2float(pipe.Run),
+			pipe.Pipeline,
+		)
+
+		ch <- prometheus.MustNewConstMetric(
 			pipeLines,
 			prometheus.GaugeValue,
 			float64(pipe.Lines),
@@ -83,4 +91,14 @@ func (c *pipelineCollectror) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 	}
+}
+
+// https://github.com/golang/go/issues/6011
+func bool2float(cond bool) (x float64) {
+	if cond {
+		x = 1
+	} else {
+		x = 0
+	}
+	return
 }

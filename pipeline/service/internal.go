@@ -11,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline"
+	"github.com/gekatateam/neptunus/pkg/syncs"
 )
 
 var _ pipeline.Service = (*internalService)(nil)
@@ -21,7 +22,7 @@ type pipeUnit struct {
 }
 
 type internalService struct {
-	pipes map[string]pipeUnit
+	pipes *syncs.Map[string, pipeUnit]
 	log   *slog.Logger
 	wg    *sync.WaitGroup
 	s     pipeline.Storage
@@ -31,7 +32,7 @@ func Internal(s pipeline.Storage, log *slog.Logger) *internalService {
 	return &internalService{
 		log:   log,
 		s:     s,
-		pipes: map[string]pipeUnit{},
+		pipes: &syncs.Map[string, pipeUnit]{},
 		wg:    &sync.WaitGroup{},
 	}
 }
@@ -43,31 +44,41 @@ func (m *internalService) StartAll() error {
 	}
 
 	for _, pipeCfg := range pipes {
-		m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipeline.New(pipeCfg, nil), nil}
+		m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipeline.New(pipeCfg, nil), nil})
 		if pipeCfg.Settings.Run {
 			m.runPipeline(pipeCfg)
 		}
 	}
 
+	m.pipes.Range(func(key string, value pipeUnit) bool {
+
+		return true
+	})
+
 	return nil
 }
 
 func (m *internalService) StopAll() {
-	for _, u := range m.pipes {
+	m.pipes.Range(func(_ string, u pipeUnit) bool {
 		if u.p.State() == pipeline.StateRunning {
 			u.c()
 		}
-	}
+
+		return true
+	})
+
 	m.wg.Wait()
 }
 
 func (m *internalService) Start(id string) error {
-	if unit, ok := m.pipes[id]; ok {
+	if unit, ok := m.pipes.Load(id); ok {
 		switch unit.p.State() {
 		case pipeline.StateRunning:
 			return &pipeline.ConflictError{Err: errors.New("pipeline already running")}
 		case pipeline.StateStopping:
 			return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+		case pipeline.StateBuilding:
+			return &pipeline.ConflictError{Err: errors.New("pipeline building, please wait")}
 		case pipeline.StateStarting:
 			return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 		}
@@ -82,7 +93,7 @@ func (m *internalService) Start(id string) error {
 }
 
 func (m *internalService) Stop(id string) error {
-	unit, ok := m.pipes[id]
+	unit, ok := m.pipes.Load(id)
 	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
@@ -92,6 +103,8 @@ func (m *internalService) Stop(id string) error {
 		return &pipeline.ConflictError{Err: errors.New("pipeline already stopped")}
 	case pipeline.StateStopping:
 		return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+	case pipeline.StateBuilding:
+		return &pipeline.ConflictError{Err: errors.New("pipeline building, please wait")}
 	case pipeline.StateStarting:
 		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 	}
@@ -101,7 +114,7 @@ func (m *internalService) Stop(id string) error {
 }
 
 func (m *internalService) State(id string) (string, error, error) {
-	unit, ok := m.pipes[id]
+	unit, ok := m.pipes.Load(id)
 	if !ok {
 		return "", nil, &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
@@ -117,40 +130,40 @@ func (m *internalService) Get(id string) (*config.Pipeline, error) {
 	return m.s.Get(id)
 }
 
-func (m *internalService) Add(pipe *config.Pipeline) error {
-	if err := m.s.Add(pipe); err != nil {
+func (m *internalService) Add(pipeCfg *config.Pipeline) error {
+	if err := m.s.Add(pipeCfg); err != nil {
 		return err
 	}
 
-	m.pipes[pipe.Settings.Id] = pipeUnit{pipeline.New(pipe, nil), nil}
+	m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipeline.New(pipeCfg, nil), nil})
 	return nil
 }
 
-func (m *internalService) Update(pipe *config.Pipeline) error {
-	unit, ok := m.pipes[pipe.Settings.Id]
+func (m *internalService) Update(pipeCfg *config.Pipeline) error {
+	unit, ok := m.pipes.Load(pipeCfg.Settings.Id)
 	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
 	switch unit.p.State() {
 	case pipeline.StateStopped, pipeline.StateCreated:
-		m.pipes[pipe.Settings.Id] = pipeUnit{pipeline.New(pipe, nil), nil}
+		m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipeline.New(pipeCfg, nil), nil})
 	default:
 		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be updated")}
 	}
 
-	return m.s.Update(pipe)
+	return m.s.Update(pipeCfg)
 }
 
 func (m *internalService) Delete(id string) error {
-	unit, ok := m.pipes[id]
+	unit, ok := m.pipes.Load(id)
 	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
 	switch unit.p.State() {
 	case pipeline.StateStopped, pipeline.StateCreated:
-		delete(m.pipes, id)
+		m.pipes.Delete(id)
 	default:
 		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be deleted")}
 	}
@@ -173,7 +186,7 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 			"id", pipeCfg.Settings.Id,
 			"error", err.Error(),
 		)
-		m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipe, nil}
+		m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipe, nil})
 		pipe.Close()
 		m.log.Warn("pipeline was closed as not ready for event processing",
 			"id", pipeCfg.Settings.Id,
@@ -182,7 +195,7 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	m.pipes[pipeCfg.Settings.Id] = pipeUnit{pipe, cancel}
+	m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipe, cancel})
 	m.wg.Add(1)
 	go func(p *pipeline.Pipeline) {
 		p.Run(ctx)
@@ -196,13 +209,15 @@ func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
 func (m *internalService) Stats() []metrics.PipelineStats {
 	pipesState := []metrics.PipelineStats{}
 
-	for name, pipe := range m.pipes {
+	m.pipes.Range(func(name string, pipe pipeUnit) bool {
 		pipesState = append(pipesState, metrics.PipelineStats{
 			Pipeline: name,
 			State:    pipeline.StateCode[pipe.p.State()],
 			Lines:    pipe.p.Config().Settings.Lines,
 			Chans:    pipe.p.ChansStats(),
 		})
-	}
+
+		return true
+	})
 	return pipesState
 }
