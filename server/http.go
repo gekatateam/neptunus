@@ -35,8 +35,8 @@ func Http(cfg config.Common) (*httpServer, error) {
 
 	// up all probes after api server startup
 	// it is dangerous to make probes depending on pipelines state
-	// because, yes, they are may fail at startup, 
-	// but users can deploy pipelines with `run = true` setting in runtime, 
+	// because, yes, they are may fail at startup,
+	// but users can deploy pipelines with `run = true` setting in runtime,
 	// can stop pipelines, try to start deployed pipelines, etc.
 	mux.HandleFunc("/probe", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

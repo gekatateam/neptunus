@@ -1,6 +1,6 @@
 # Template Processor Plugin
 
-The `template` processor uses [Golang templates](https://pkg.go.dev/text/template) to modify/create event Id, routing key, labels and fields. 
+The `template` processor uses [Golang templates](https://pkg.go.dev/text/template) to modify/create event Id, routing key, labels and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) available!
 
 Processor passes read-only event to template with methods:
  - `RoutingKey() string`
