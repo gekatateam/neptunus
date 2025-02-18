@@ -1,0 +1,65 @@
+[settings]
+  id = "test.pipeline.sqlproc"
+  lines = 2
+  run = true
+  buffer = 5
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    query_params_to = "."
+    wait_for_delivery = false
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+    [inputs.http.parser]
+      type = "json"
+      split_array = true
+
+[[processors]]
+  [processors.starlark]
+    code = '''
+def process(event):
+    event.setRK(event.getRK().strip("/"))
+    return event
+    '''
+
+[[processors]]
+  [processors.sql]
+    driver = "pgx"
+    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    retry_attempts = 3
+    [processors.sql.columns]
+      expedition_type = "type"
+      expedition_region = "region"
+      expedition_owner = "owner"
+    [processors.sql.fields]
+      uid = "expedition_uid"
+      owner = "expedition_owner"
+    [processors.sql.on_event]
+      query = '''
+UPDATE :table_name SET
+    EXPEDITION_TYPE = :expedition_type
+    , EXPEDITION_REGION = :expedition_region
+    WHERE EXPEDITION_OWNER IN (:expedition_owner)
+RETURNING EXPEDITION_OWNER, EXPEDITION_UID;
+'''
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
+
+
+# CREATE TABLE IF NOT EXISTS EXPEDITIONS (
+# 	EXPEDITION_TYPE TEXT
+# 	, EXPEDITION_REGION TEXT
+#   , EXPEDITION_OWNER TEXT
+#   , EXPEDITION_UID serial primary key
+# );
+
+# INSERT INTO EXPEDITIONS (EXPEDITION_OWNER) VALUES ('Joe', 'Cool') RETURNING EXPEDITION_UID;

@@ -20,8 +20,9 @@ func (s *redisClientStorage) CompareAndStore(id uint64, client redis.UniversalCl
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if client, ok := s.clients[id]; ok {
-		return client
+	if c, ok := s.clients[id]; ok {
+		client.Close()
+		return c
 	}
 
 	s.clients[id] = client

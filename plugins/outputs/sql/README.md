@@ -1,6 +1,6 @@
 # Sql Output Pluign
 
-The `sql` input plugin performs SQL query for writing events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
+The `sql` output plugin performs SQL query for writing events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
 
 Plugin creates one producer per each unique event routing key. An event routing key may be used as a table name using `table_placeholder` parameter.
 
