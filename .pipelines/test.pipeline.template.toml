@@ -1,0 +1,34 @@
+[settings]
+  id = "test.pipeline.sqlproc"
+  lines = 2
+  run = true
+  buffer = 5
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    query_params_to = "."
+    wait_for_delivery = false
+    tls_enable = false
+    [inputs.http.parser]
+      type = "json"
+      split_array = true
+
+[[processors]]
+  [processors.defaults.fields]
+      alert_name = "Test alert"
+      ok_result = "0 ID:1 OK"
+      err_result = "2 Error omg"
+
+[[outputs]]
+  [outputs.log]
+  [outputs.log.serializer]
+    type = "template_text"
+
+    # string with template
+    template_text = """
+{{ range $event := . }}
+Alert: {{ $event.Data.alert_name }}. Ok result: {{ $event.Data.ok_result }}. Err result: {{ $event.Data.err_result }}
+{{ end }}
+"""
