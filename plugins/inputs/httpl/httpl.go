@@ -125,7 +125,7 @@ func (i *Httpl) Close() error {
 		)
 	}
 
-	return nil
+	return i.listener.Close()
 }
 
 func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {

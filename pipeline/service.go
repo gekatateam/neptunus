@@ -1,6 +1,9 @@
 package pipeline
 
-import "github.com/gekatateam/neptunus/config"
+import (
+	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/metrics"
+)
 
 type Service interface {
 	Start(id string) error
@@ -11,4 +14,8 @@ type Service interface {
 	Add(pipe *config.Pipeline) error
 	Update(pipe *config.Pipeline) error
 	Delete(id string) error
+}
+
+type Stater interface {
+	Stats() []metrics.PipelineStats
 }

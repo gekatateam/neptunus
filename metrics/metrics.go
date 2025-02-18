@@ -17,6 +17,7 @@ var (
 
 	pipes        *pipelineCollectror
 	pipeState    *prometheus.Desc
+	pipeRun      *prometheus.Desc
 	pipeLines    *prometheus.Desc
 	chanCapacity *prometheus.Desc
 	chanLength   *prometheus.Desc
@@ -99,7 +100,13 @@ func Init() {
 	pipes = &pipelineCollectror{}
 	pipeState = prometheus.NewDesc(
 		"pipeline_state",
-		"Pipeline state: 1-5 is for Created, Starting, Running, Stopping, Stopped.",
+		"Pipeline state: 1-6 is for Created, Building, Starting, Running, Stopping, Stopped.",
+		[]string{"pipeline"},
+		nil,
+	)
+	pipeRun = prometheus.NewDesc(
+		"pipeline_run",
+		"Is pipeline must run.",
 		[]string{"pipeline"},
 		nil,
 	)

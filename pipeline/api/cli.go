@@ -50,7 +50,7 @@ func (c *cliApi) List(_ *cli.Context) error {
 		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pipe.Settings.Id, state, pipe.Settings.Run, lastErr)
 	}
 	w.Flush()
-	fmt.Printf(b.String())
+	fmt.Print(b.String())
 
 	return nil
 }
@@ -81,7 +81,7 @@ func (c *cliApi) Describe(cCtx *cli.Context) error {
 	}
 
 	fmt.Printf("Manifest:\n")
-	fmt.Printf(string(rawPipe) + "\n")
+	fmt.Printf("%v\n", string(rawPipe))
 	fmt.Printf("\n")
 	fmt.Printf("Runtime:\n")
 	fmt.Printf("state: %v\n", state)
