@@ -152,6 +152,13 @@ func (p *Pipeline) Close() error {
 		}
 		set.o.Close()
 	}
+
+	p.aliases = make(map[string]struct{})
+	p.keepers = make(map[string]core.Keykeeper)
+	p.outs = make([]outputSet, 0, len(p.config.Outputs))
+	p.procs = make([][]procSet, 0, p.config.Settings.Lines)
+	p.ins = make([]inputSet, 0, len(p.config.Inputs))
+
 	return nil
 }
 
@@ -228,8 +235,9 @@ func (p *Pipeline) Build() (err error) {
 }
 
 func (p *Pipeline) Run(ctx context.Context) {
-	p.log.Info("starting pipeline")
 	p.state = StateStarting
+	p.log.Info("starting pipeline")
+
 	wg := &sync.WaitGroup{}
 
 	p.log.Info("starting inputs")
@@ -333,17 +341,19 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}()
 	}
 
-	p.log.Info("pipeline started")
 	p.state = StateRunning
+	p.log.Info("pipeline started")
 
 	<-ctx.Done()
-	p.log.Info("stop signal received, stopping pipeline")
+
 	p.state = StateStopping
+	p.log.Info("stop signal received, stopping pipeline")
 	for _, stop := range inputsStopChannels {
 		stop <- struct{}{}
 	}
 	wg.Wait()
 
+	p.Close()
 	p.log.Info("pipeline stopped")
 	p.state = StateStopped
 }
