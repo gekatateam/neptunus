@@ -66,29 +66,29 @@ func run(cCtx *cli.Context) error {
 		r.Mount("/pipelines", restApi.Router())
 	})
 
+	if err := s.StartAll(); err != nil {
+		return err
+	}
+
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if err := httpServer.Serve(); err != nil {
 			logger.Default.Error("http server startup failed",
 				"error", err,
 			)
 			os.Exit(1)
 		}
-		wg.Done()
 	}()
 
-	if err := s.StartAll(); err != nil {
-		return err
-	}
-
 	<-quit
-	s.StopAll()
-
 	if err := httpServer.Shutdown(context.Background()); err != nil {
 		logger.Default.Warn("http server stopped with error",
 			"error", err,
 		)
 	}
+
+	s.StopAll()
 
 	if err := storage.Close(); err != nil {
 		logger.Default.Warn("storage closed with error",

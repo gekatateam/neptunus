@@ -17,8 +17,9 @@ import (
 var _ pipeline.Service = (*internalService)(nil)
 
 type pipeUnit struct {
-	p *pipeline.Pipeline
-	c context.CancelFunc
+	p  *pipeline.Pipeline
+	mu *sync.Mutex
+	c  context.CancelFunc
 }
 
 type internalService struct {
@@ -44,25 +45,23 @@ func (m *internalService) StartAll() error {
 	}
 
 	for _, pipeCfg := range pipes {
-		m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipeline.New(pipeCfg, nil), nil})
+		unit := pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil}
+		m.pipes.Store(pipeCfg.Settings.Id, unit)
 		if pipeCfg.Settings.Run {
-			m.runPipeline(pipeCfg)
+			m.runPipeline(unit)
 		}
 	}
-
-	m.pipes.Range(func(key string, value pipeUnit) bool {
-
-		return true
-	})
 
 	return nil
 }
 
 func (m *internalService) StopAll() {
 	m.pipes.Range(func(_ string, u pipeUnit) bool {
-		if u.p.State() == pipeline.StateRunning {
+		u.mu.Lock()
+		if u.c != nil {
 			u.c()
 		}
+		u.mu.Unlock()
 
 		return true
 	})
@@ -71,25 +70,42 @@ func (m *internalService) StopAll() {
 }
 
 func (m *internalService) Start(id string) error {
-	if unit, ok := m.pipes.Load(id); ok {
-		switch unit.p.State() {
-		case pipeline.StateRunning:
-			return &pipeline.ConflictError{Err: errors.New("pipeline already running")}
-		case pipeline.StateStopping:
-			return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
-		case pipeline.StateBuilding:
-			return &pipeline.ConflictError{Err: errors.New("pipeline building, please wait")}
-		case pipeline.StateStarting:
-			return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
-		}
-	}
-
 	pipeCfg, err := m.s.Get(id)
 	if err != nil {
 		return err
 	}
 
-	return m.runPipeline(pipeCfg)
+	unit, _ := m.pipes.LoadOrStore(id, pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil})
+
+	switch unit.p.State() {
+	case pipeline.StateRunning:
+		return &pipeline.ConflictError{Err: errors.New("pipeline already running")}
+	case pipeline.StateStopping:
+		return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+	case pipeline.StateBuilding:
+		return &pipeline.ConflictError{Err: errors.New("pipeline building, please wait")}
+	case pipeline.StateStarting:
+		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
+	}
+
+	// double-check here because pipeline buid and start stages
+	// may take a lot of time
+	// so, if several parallel calls occured, only one will go to runPipeline()
+	unit.mu.Lock()
+	defer unit.mu.Unlock()
+
+	switch unit.p.State() {
+	case pipeline.StateRunning:
+		return &pipeline.ConflictError{Err: errors.New("pipeline already running")}
+	case pipeline.StateStopping:
+		return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+	case pipeline.StateBuilding:
+		return &pipeline.ConflictError{Err: errors.New("pipeline building, please wait")}
+	case pipeline.StateStarting:
+		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
+	}
+
+	return m.runPipeline(unit)
 }
 
 func (m *internalService) Stop(id string) error {
@@ -97,6 +113,20 @@ func (m *internalService) Stop(id string) error {
 	if !ok {
 		return &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
+
+	switch unit.p.State() {
+	case pipeline.StateStopped, pipeline.StateCreated:
+		return &pipeline.ConflictError{Err: errors.New("pipeline already stopped")}
+	case pipeline.StateStopping:
+		return &pipeline.ConflictError{Err: errors.New("pipeline stopping, please wait")}
+	case pipeline.StateBuilding:
+		return &pipeline.ConflictError{Err: errors.New("pipeline building, please wait")}
+	case pipeline.StateStarting:
+		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
+	}
+
+	unit.mu.Lock()
+	defer unit.mu.Unlock()
 
 	switch unit.p.State() {
 	case pipeline.StateStopped, pipeline.StateCreated:
@@ -131,11 +161,16 @@ func (m *internalService) Get(id string) (*config.Pipeline, error) {
 }
 
 func (m *internalService) Add(pipeCfg *config.Pipeline) error {
+	_, ok := m.pipes.Load(pipeCfg.Settings.Id)
+	if ok {
+		return &pipeline.ConflictError{Err: errors.New("pipeline unit exists in runtime registry")}
+	}
+
 	if err := m.s.Add(pipeCfg); err != nil {
 		return err
 	}
 
-	m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipeline.New(pipeCfg, nil), nil})
+	m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil})
 	return nil
 }
 
@@ -147,12 +182,25 @@ func (m *internalService) Update(pipeCfg *config.Pipeline) error {
 
 	switch unit.p.State() {
 	case pipeline.StateStopped, pipeline.StateCreated:
-		m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipeline.New(pipeCfg, nil), nil})
 	default:
 		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be updated")}
 	}
 
-	return m.s.Update(pipeCfg)
+	unit.mu.Lock()
+	defer unit.mu.Unlock()
+
+	switch unit.p.State() {
+	case pipeline.StateStopped, pipeline.StateCreated:
+	default:
+		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be updated")}
+	}
+
+	if err := m.s.Update(pipeCfg); err != nil {
+		return err
+	}
+
+	m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{m.createPipeline(pipeCfg), unit.mu, nil})
+	return nil
 }
 
 func (m *internalService) Delete(id string) error {
@@ -163,45 +211,63 @@ func (m *internalService) Delete(id string) error {
 
 	switch unit.p.State() {
 	case pipeline.StateStopped, pipeline.StateCreated:
-		m.pipes.Delete(id)
 	default:
 		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be deleted")}
 	}
 
-	return m.s.Delete(id)
+	unit.mu.Lock()
+	defer unit.mu.Unlock()
+
+	switch unit.p.State() {
+	case pipeline.StateStopped, pipeline.StateCreated:
+	default:
+		return &pipeline.ConflictError{Err: errors.New("only stopped pipelines can be deleted")}
+	}
+
+	if err := m.s.Delete(id); err != nil {
+		return err
+	}
+
+	m.pipes.Delete(id)
+	return nil
 }
 
-func (m *internalService) runPipeline(pipeCfg *config.Pipeline) error {
-	pipe := pipeline.New(pipeCfg, logger.Default.With(
+func (m *internalService) createPipeline(pipeCfg *config.Pipeline) *pipeline.Pipeline {
+	return pipeline.New(pipeCfg, logger.Default.With(
 		slog.Group("pipeline",
 			"id", pipeCfg.Settings.Id,
 		),
 	))
+}
 
+func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
+	id := pipeUnit.p.Config().Settings.Id
 	m.log.Info("building pipeline",
-		"id", pipeCfg.Settings.Id,
+		"id", id,
 	)
-	if err := pipe.Build(); err != nil {
+	if err := pipeUnit.p.Build(); err != nil {
 		m.log.Error("pipeline building failed",
-			"id", pipeCfg.Settings.Id,
 			"error", err.Error(),
+			"id", id,
 		)
-		m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipe, nil})
-		pipe.Close()
+
+		pipeUnit.p.Close()
 		m.log.Warn("pipeline was closed as not ready for event processing",
-			"id", pipeCfg.Settings.Id,
+			"id", id,
 		)
-		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", pipeCfg.Settings.Id, err.Error())}
+		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", id, err)}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	m.pipes.Store(pipeCfg.Settings.Id, pipeUnit{pipe, cancel})
+	pipeUnit.c = cancel
+	m.pipes.Store(id, pipeUnit)
+
 	m.wg.Add(1)
 	go func(p *pipeline.Pipeline) {
 		p.Run(ctx)
 		m.wg.Done()
 		cancel()
-	}(pipe)
+	}(pipeUnit.p)
 
 	return nil
 }

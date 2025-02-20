@@ -4,7 +4,7 @@
 
 Usage: 
 ```
-neptunus pipeline [--server-address HTTP_ADDRESS] COMMAND [FLAGS]
+neptunus pipeline [--server-address http://localhost:9600] [--request-timeout 10s] COMMAND [FLAGS]
 ```
 
 Get help:

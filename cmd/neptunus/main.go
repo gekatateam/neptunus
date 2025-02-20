@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"runtime/debug"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -58,9 +59,16 @@ func main() {
 				Usage: "cli commands for pipeline management",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  "server-address",
-						Value: "http://localhost" + config.Default.Common.HttpPort,
-						Usage: "daemon http api server address",
+						Name:    "server-address",
+						Aliases: []string{"s"},
+						Value:   "http://localhost" + config.Default.Common.HttpPort,
+						Usage:   "daemon http api server address",
+					},
+					&cli.DurationFlag{
+						Name:    "request-timeout",
+						Aliases: []string{"t"},
+						Value:   10 * time.Second,
+						Usage:   "api call timeout",
 					},
 				},
 				Before: cliController.Init,
