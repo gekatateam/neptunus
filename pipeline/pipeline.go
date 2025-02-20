@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
@@ -210,6 +211,8 @@ func (p *Pipeline) Build() (err error) {
 			p.state = StateStopped
 		}
 	}()
+
+	time.Sleep(10 * time.Second)
 
 	if err = p.configureKeykeepers(); err != nil {
 		return

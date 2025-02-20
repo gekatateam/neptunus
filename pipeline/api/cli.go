@@ -25,7 +25,7 @@ func Cli(gateway pipeline.Service) *cliApi {
 }
 
 func (c *cliApi) Init(cCtx *cli.Context) error {
-	c.gw = gateway.Rest(cCtx.String("server-address"), "api/v1/pipelines")
+	c.gw = gateway.Rest(cCtx.String("server-address"), "api/v1/pipelines", cCtx.Duration("request-timeout"))
 	return nil
 }
 

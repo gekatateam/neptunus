@@ -24,13 +24,13 @@ type restGateway struct {
 	ctx  context.Context
 }
 
-func Rest(addr, path string) *restGateway {
+func Rest(addr, path string, timeout time.Duration) *restGateway {
 	return &restGateway{
 		addr: fmt.Sprintf("%v/%v", addr, path),
 		c: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: timeout,
 		},
-		t:   10 * time.Second,
+		t:   timeout,
 		ctx: context.Background(),
 	}
 }
