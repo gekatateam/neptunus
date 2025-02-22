@@ -1,0 +1,29 @@
+[settings]
+  id = "test.pipeline.kafka.3"
+  lines = 5
+  run = false
+  buffer = 5
+
+[[inputs]]
+  [inputs.kafka]
+    enable_metrics = false
+    client_id = "kafka-three"
+    group_id = "neptunus.kafka.input"
+    start_offset = "first"
+    brokers = ["localhost:9092"]
+    topics = [ "neptunus.kafka.output" ]
+    commit_interval = "1m"
+    max_uncommitted = 1_000
+  [inputs.kafka.sasl]
+    mechanism = "plain"
+    username = "user"
+    password = "bitnami"
+  [inputs.kafka.parser]
+    type = "json"
+
+[[outputs]]
+  [outputs.log]
+    level = "warn"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false

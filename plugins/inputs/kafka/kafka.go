@@ -155,7 +155,7 @@ func (i *Kafka) Init() (err error) {
 
 		var (
 			fetchCh  = make(chan *trackedMessage)
-			commitCh = make(chan int64)
+			commitCh = make(chan commitMessage)
 			exitCh   = make(chan struct{})
 			doneCh   = make(chan struct{})
 			semCh    = make(chan struct{}, i.MaxUncommitted)
@@ -207,10 +207,8 @@ func (i *Kafka) Init() (err error) {
 		}
 
 		i.commitConsPool[topic] = &commitController{
-			commitInterval: i.CommitInterval,
-			commitQueue: orderedmap.New[int64, *trackedMessage](
-				orderedmap.WithCapacity[int64, *trackedMessage](i.MaxUncommitted),
-			),
+			commitInterval:  i.CommitInterval,
+			commitQueues:    make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
 			commitSemaphore: semCh,
 
 			reader:   reader,

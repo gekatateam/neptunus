@@ -59,6 +59,7 @@ func (m *internalService) StopAll() {
 	m.pipes.Range(func(_ string, u pipeUnit) bool {
 		u.mu.Lock()
 		if u.c != nil {
+			println(u.p.Config().Settings.Id)
 			u.c()
 		}
 		u.mu.Unlock()

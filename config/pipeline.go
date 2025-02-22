@@ -144,15 +144,15 @@ func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
 	pipeline := Pipeline{}
 
 	switch format {
-	case "toml":
+	case ".toml":
 		if err := toml.Unmarshal(data, &pipeline); err != nil {
 			return &pipeline, err
 		}
-	case "yaml", "yml":
+	case ".yaml", ".yml":
 		if err := yaml.Unmarshal(data, &pipeline); err != nil {
 			return &pipeline, err
 		}
-	case "json":
+	case ".json":
 		if err := json.Unmarshal(data, &pipeline); err != nil {
 			return &pipeline, err
 		}
@@ -168,15 +168,15 @@ func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
 	var err error
 
 	switch format {
-	case "toml":
+	case ".toml":
 		if content, err = toml2.Marshal(pipe); err != nil {
 			return nil, err
 		}
-	case "yaml", "yml":
+	case ".yaml", ".yml":
 		if content, err = yaml.Marshal(pipe); err != nil {
 			return nil, err
 		}
-	case "json":
+	case ".json":
 		if content, err = json.Marshal(pipe); err != nil {
 			return nil, err
 		}

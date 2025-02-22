@@ -6,7 +6,7 @@ Plugin uses slice of read-only events with methods:
  - `Id() string`
  - `Timestamp() time.Time`
  - `GetLabel(key string) string` - returns empty string if an event has no label associated with key
- - `GetField(path string) any` - returns `nil` if an event has ho field on passed path
+ - `GetField(path string) any` - returns `nil` if an event has no field on passed path
 
 # Configuration
 ```toml

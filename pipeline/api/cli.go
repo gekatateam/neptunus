@@ -74,7 +74,7 @@ func (c *cliApi) Describe(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	rawPipe, err := config.MarshalPipeline(pipe, cCtx.String("format"))
+	rawPipe, err := config.MarshalPipeline(pipe, "."+cCtx.String("format"))
 	if err != nil {
 		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
 		os.Exit(1)
