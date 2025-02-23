@@ -184,7 +184,7 @@ func (a *restApi) Add() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
 
-		pipe, err := config.UnmarshalPipeline(data, "json")
+		pipe, err := config.UnmarshalPipeline(data, ".json")
 		switch {
 		case err == nil:
 		default:
@@ -228,7 +228,7 @@ func (a *restApi) Update() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
 
-		pipe, err := config.UnmarshalPipeline(data, "json")
+		pipe, err := config.UnmarshalPipeline(data, ".json")
 		switch {
 		case err == nil:
 			pipe.Settings.Id = chi.URLParam(r, "id")
@@ -237,7 +237,7 @@ func (a *restApi) Update() http.Handler {
 			w.Write(model.ErrToJson(err.Error()))
 		}
 
-		err = a.s.Add(pipe)
+		err = a.s.Update(pipe)
 		switch {
 		case err == nil:
 			data, _ := json.Marshal(pipe)

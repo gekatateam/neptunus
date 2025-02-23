@@ -12,7 +12,7 @@
     start_offset = "first"
     brokers = ["localhost:9092"]
     topics = [ "neptunus.kafka.output" ]
-    commit_interval = "1m"
+    commit_interval = "20s"
     max_uncommitted = 1_000
   [inputs.kafka.sasl]
     mechanism = "plain"

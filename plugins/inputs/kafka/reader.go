@@ -201,7 +201,14 @@ func (c *commitController) Run() {
 			}
 
 			// add message to queue
-			q.Store(msg.Offset, msg)
+			if _, ok := q.Get(msg.Offset); ok {
+				c.log.Warn(fmt.Sprintf("duplicate messsage detected with partition: %v, offset: %v;"+
+					" there may have been after consumers rebalancing", msg.Partition, msg.Offset))
+				//lint:ignore S1005 explicitly indicates reading from the channel, not waiting
+				_ = <-c.commitSemaphore
+			} else { // normally it is never happens
+				q.Store(msg.Offset, msg)
+			}
 		case msg := <-c.commitCh: // an event delivered
 			c.log.Debug(fmt.Sprintf("got delivered partition: %v, offset: %v", msg.partition, msg.offset))
 
@@ -221,7 +228,6 @@ func (c *commitController) Run() {
 		case <-ticker.C: // it is time to commit messages
 			c.log.Info("commit phase started, consuming paused")
 
-			var commitQueueLen int
 			for _, q := range c.commitQueues {
 				// find the uncommitted sequence from queue beginning
 				var offsetsToDelete []int64
@@ -249,30 +255,26 @@ func (c *commitController) Run() {
 
 					for _, v := range offsetsToDelete {
 						q.Delete(v)
-						<-c.commitSemaphore
+						//lint:ignore S1005 explicitly indicates reading from the channel, not waiting
+						_ = <-c.commitSemaphore
 					}
 
-					c.log.Info(fmt.Sprintf("committed partition: %v, offset: %v; left in local queue: %v, left in channel: %v",
+					c.log.Info(fmt.Sprintf("committed partition: %v, offset: %v; left in local queue: %v, left in global queue: %v",
 						commitCandidate.Partition, commitCandidate.Offset, q.Len(), len(c.commitSemaphore)))
 				}
-
-				commitQueueLen += q.Len()
 			}
 
-			if c.exitIfQueueEmpty && commitQueueLen == 0 {
+			c.log.Info("commit phase completed, consuming unblocked")
+
+			if c.exitIfQueueEmpty && len(c.commitSemaphore) == 0 {
 				ticker.Stop()
 				close(c.doneCh)
 				return
 			}
 		case <-c.exitCh:
-			c.log.Info(fmt.Sprintf("left in channel: %v", len(c.commitSemaphore)))
-			var commitQueueLen int
-			for _, q := range c.commitQueues {
-				commitQueueLen += q.Len()
-			}
-
+			c.log.Info(fmt.Sprintf("left in global queue: %v", len(c.commitSemaphore)))
 			c.exitIfQueueEmpty = true
-			if commitQueueLen == 0 {
+			if len(c.commitSemaphore) == 0 {
 				ticker.Stop()
 				close(c.doneCh)
 				return
