@@ -168,7 +168,8 @@ type commitMessage struct {
 }
 
 type commitController struct {
-	commitInterval time.Duration
+	commitInterval      time.Duration
+	commitRetryInterval time.Duration
 
 	reader           *kafka.Reader
 	commitQueues     map[int]*orderedmap.OrderedMap[int64, *trackedMessage]
@@ -249,7 +250,7 @@ func (c *commitController) Run() {
 						c.log.Error("offset commit failed",
 							"error", err,
 						)
-						time.Sleep(time.Second) // TODO: make this configurable
+						time.Sleep(c.commitRetryInterval)
 						goto BEFORE_COMMIT
 					}
 
