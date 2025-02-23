@@ -42,6 +42,7 @@ type Kafka struct {
 	MaxBatchSize         datasize.Size     `mapstructure:"max_batch_size"`
 	MaxUncommitted       int               `mapstructure:"max_uncommitted"`
 	CommitInterval       time.Duration     `mapstructure:"commit_interval"`
+	CommitRetryInterval  time.Duration     `mapstructure:"commit_retry_interval"`
 	SASL                 SASL              `mapstructure:"sasl"`
 	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider           `mapstructure:",squash"`
@@ -155,7 +156,7 @@ func (i *Kafka) Init() (err error) {
 
 		var (
 			fetchCh  = make(chan *trackedMessage)
-			commitCh = make(chan int64)
+			commitCh = make(chan commitMessage)
 			exitCh   = make(chan struct{})
 			doneCh   = make(chan struct{})
 			semCh    = make(chan struct{}, i.MaxUncommitted)
@@ -207,11 +208,10 @@ func (i *Kafka) Init() (err error) {
 		}
 
 		i.commitConsPool[topic] = &commitController{
-			commitInterval: i.CommitInterval,
-			commitQueue: orderedmap.New[int64, *trackedMessage](
-				orderedmap.WithCapacity[int64, *trackedMessage](i.MaxUncommitted),
-			),
-			commitSemaphore: semCh,
+			commitInterval:      i.CommitInterval,
+			commitRetryInterval: i.CommitRetryInterval,
+			commitQueues:        make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
+			commitSemaphore:     semCh,
 
 			reader:   reader,
 			fetchCh:  fetchCh,
@@ -263,20 +263,21 @@ func (i *Kafka) Close() error {
 func init() {
 	plugins.AddInput("kafka", func() core.Input {
 		return &Kafka{
-			ClientId:          "neptunus.kafka.input",
-			GroupId:           "neptunus.kafka.input",
-			GroupBalancer:     "range",
-			StartOffset:       "last",
-			GroupTTL:          24 * time.Hour,
-			DialTimeout:       5 * time.Second,
-			SessionTimeout:    30 * time.Second,
-			RebalanceTimeout:  30 * time.Second,
-			HeartbeatInterval: 3 * time.Second,
-			ReadBatchTimeout:  3 * time.Second,
-			WaitBatchTimeout:  3 * time.Second,
-			MaxUncommitted:    100,
-			CommitInterval:    300 * time.Millisecond,
-			MaxBatchSize:      datasize.Mebibyte, // 1 MiB,
+			ClientId:            "neptunus.kafka.input",
+			GroupId:             "neptunus.kafka.input",
+			GroupBalancer:       "range",
+			StartOffset:         "last",
+			GroupTTL:            24 * time.Hour,
+			DialTimeout:         5 * time.Second,
+			SessionTimeout:      30 * time.Second,
+			RebalanceTimeout:    30 * time.Second,
+			HeartbeatInterval:   3 * time.Second,
+			ReadBatchTimeout:    3 * time.Second,
+			WaitBatchTimeout:    3 * time.Second,
+			MaxUncommitted:      100,
+			CommitInterval:      1 * time.Second,
+			CommitRetryInterval: 1 * time.Second,
+			MaxBatchSize:        datasize.Mebibyte, // 1 MiB,
 			SASL: SASL{
 				Mechanism: "none",
 			},

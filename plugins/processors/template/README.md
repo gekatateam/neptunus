@@ -7,7 +7,7 @@ Processor passes read-only event to template with methods:
  - `Id() string`
  - `Timestamp() time.Time`
  - `GetLabel(key string) string` - returns empty string if an event has no label associated with key
- - `GetField(path string) any` - returns `nil` if an event has ho field on passed path
+ - `GetField(path string) any` - returns `nil` if an event has no field on passed path
 
 If template execution or field setting fails, event is marked as failed, but other templates execution continues.
 

@@ -180,9 +180,9 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	pipeRaw, err := config.MarshalPipeline(pipe, "json")
+	pipeRaw, err := config.MarshalPipeline(pipe, ".json")
 	if err != nil {
-		return nil
+		return err
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
@@ -198,7 +198,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 
 	defer res.Body.Close()
 	switch res.StatusCode {
-	case http.StatusOK:
+	case http.StatusCreated:
 		return nil
 	case http.StatusConflict:
 		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
@@ -213,11 +213,13 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	pipeRaw, err := config.MarshalPipeline(pipe, "json")
+	pipeRaw, err := config.MarshalPipeline(pipe, ".json")
 	if err != nil {
-		return nil
+		return err
 	}
 	buf := bytes.NewBuffer(pipeRaw)
+
+	println(fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id), buf)
 	if err != nil {

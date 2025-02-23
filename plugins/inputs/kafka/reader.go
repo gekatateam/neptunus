@@ -31,7 +31,7 @@ type topicReader struct {
 	commitSemaphore chan struct{}
 
 	fetchCh  chan *trackedMessage
-	commitCh chan int64
+	commitCh chan commitMessage
 	exitCh   chan struct{}
 	doneCh   chan struct{}
 
@@ -119,7 +119,10 @@ FETCH_LOOP:
 			}
 
 			e.AddHook(func() {
-				r.commitCh <- msg.Offset
+				r.commitCh <- commitMessage{
+					partition: msg.Partition,
+					offset:    msg.Offset,
+				}
 			})
 
 			r.ider.Apply(e)
@@ -159,16 +162,22 @@ type trackedMessage struct {
 	delivered bool
 }
 
+type commitMessage struct {
+	partition int
+	offset    int64
+}
+
 type commitController struct {
-	commitInterval time.Duration
+	commitInterval      time.Duration
+	commitRetryInterval time.Duration
 
 	reader           *kafka.Reader
-	commitQueue      *orderedmap.OrderedMap[int64, *trackedMessage]
+	commitQueues     map[int]*orderedmap.OrderedMap[int64, *trackedMessage]
 	commitSemaphore  chan struct{} // max uncommitted control
 	exitIfQueueEmpty bool
 
 	fetchCh  chan *trackedMessage // for new messages to push in commitQueue
-	commitCh chan int64           // for offsets that ready to be committed
+	commitCh chan commitMessage   // for offsets that ready to be committed
 	exitCh   chan struct{}        // for exit preparation signal
 	doneCh   chan struct{}        // done signal, channel will be closed just before watch() returns
 
@@ -181,67 +190,92 @@ func (c *commitController) Run() {
 	for {
 		select {
 		case msg := <-c.fetchCh: // new message fetched
-			c.log.Debug(fmt.Sprintf("accepted msg with offset: %v", msg.Offset))
+			c.log.Debug(fmt.Sprintf("accepted msg with partition: %v, offset: %v", msg.Partition, msg.Offset))
+
+			q, ok := c.commitQueues[msg.Partition]
+			if !ok {
+				q = orderedmap.New[int64, *trackedMessage](
+					orderedmap.WithCapacity[int64, *trackedMessage](cap(c.commitSemaphore)),
+				)
+				c.commitQueues[msg.Partition] = q
+				c.log.Info(fmt.Sprintf("ordered queue created for partition: %v", msg.Partition))
+			}
 
 			// add message to queue
-			c.commitQueue.Store(msg.Offset, msg)
-		case offset := <-c.commitCh: // an event delivered
-			c.log.Debug(fmt.Sprintf("got delivered offset: %v", offset))
+			if _, ok := q.Get(msg.Offset); ok {
+				c.log.Warn(fmt.Sprintf("duplicate messsage detected with partition: %v, offset: %v;"+
+					" there may have been after consumers rebalancing", msg.Partition, msg.Offset))
+				//lint:ignore S1005 explicitly indicates reading from the channel, not waiting
+				_ = <-c.commitSemaphore
+			} else { // normally it is never happens
+				q.Store(msg.Offset, msg)
+			}
+		case msg := <-c.commitCh: // an event delivered
+			c.log.Debug(fmt.Sprintf("got delivered partition: %v, offset: %v", msg.partition, msg.offset))
 
 			// mark message as delivered
-			if m, ok := c.commitQueue.Get(offset); ok {
+			if m, ok := c.commitQueues[msg.partition].Get(msg.offset); ok {
 				if m.events == 0 {
 					m.delivered = true
 				} else {
 					m.events--
+					if m.events == 0 {
+						m.delivered = true
+					}
 				}
 			} else { // normally it is never happens
 				c.log.Error("unexpected case, delivered offset is not in queue; please, report this issue")
 			}
 		case <-ticker.C: // it is time to commit messages
-			c.log.Debug("commit phase started, consuming paused")
+			c.log.Info("commit phase started, consuming paused")
 
-			// find the uncommitted sequence from queue beginning
-			var offsetsToDelete []int64
-			var commitCandidate *kafka.Message
-			for pair := c.commitQueue.Oldest(); pair != nil; pair = pair.Next() {
-				if !pair.Value.delivered {
-					break
+			for _, q := range c.commitQueues {
+				// find the uncommitted sequence from queue beginning
+				var offsetsToDelete []int64
+				var commitCandidate *kafka.Message
+				for pair := q.Oldest(); pair != nil; pair = pair.Next() {
+					if !pair.Value.delivered {
+						break
+					}
+					commitCandidate = &pair.Value.Message
+					offsetsToDelete = append(offsetsToDelete, pair.Key)
 				}
-				commitCandidate = &pair.Value.Message
-				offsetsToDelete = append(offsetsToDelete, pair.Key)
+
+				if commitCandidate != nil {
+					c.log.Debug(fmt.Sprintf("got candidate with partition: %v, offset: %v", commitCandidate.Partition, commitCandidate.Offset))
+				BEFORE_COMMIT:
+					// TODO: not the best solution because we don't know how library handling consumers rebalancing
+					// we need test it
+					if err := c.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
+						c.log.Error("offset commit failed",
+							"error", err,
+						)
+						time.Sleep(c.commitRetryInterval)
+						goto BEFORE_COMMIT
+					}
+
+					for _, v := range offsetsToDelete {
+						q.Delete(v)
+						//lint:ignore S1005 explicitly indicates reading from the channel, not waiting
+						_ = <-c.commitSemaphore
+					}
+
+					c.log.Info(fmt.Sprintf("committed partition: %v, offset: %v; left in local queue: %v, left in global queue: %v",
+						commitCandidate.Partition, commitCandidate.Offset, q.Len(), len(c.commitSemaphore)))
+				}
 			}
 
-			if commitCandidate != nil {
-				c.log.Debug(fmt.Sprintf("got candidate with offset: %v", commitCandidate.Offset))
-			BEFORE_COMMIT:
-				// TODO: not the best solution because we don't know how library handling consumers rebalancing
-				// we need test it
-				if err := c.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
-					c.log.Error("offset commit failed",
-						"error", err,
-					)
-					time.Sleep(time.Second) // TODO: make this configurable
-					goto BEFORE_COMMIT
-				}
+			c.log.Info("commit phase completed, consuming unblocked")
 
-				for _, v := range offsetsToDelete {
-					c.commitQueue.Delete(v)
-					<-c.commitSemaphore
-				}
-
-				c.log.Debug(fmt.Sprintf("offset committed: %v, left in queue: %v, left in channel: %v",
-					commitCandidate.Offset, c.commitQueue.Len(), len(c.commitSemaphore)))
-			}
-
-			if c.exitIfQueueEmpty && c.commitQueue.Len() == 0 {
+			if c.exitIfQueueEmpty && len(c.commitSemaphore) == 0 {
 				ticker.Stop()
 				close(c.doneCh)
 				return
 			}
 		case <-c.exitCh:
+			c.log.Info(fmt.Sprintf("left in global queue: %v", len(c.commitSemaphore)))
 			c.exitIfQueueEmpty = true
-			if c.commitQueue.Len() == 0 {
+			if len(c.commitSemaphore) == 0 {
 				ticker.Stop()
 				close(c.doneCh)
 				return

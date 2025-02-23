@@ -28,6 +28,7 @@ Request body: **No**.
 
 Response:
  - **200** - Ok;
+ - **404** - Pipeline with provided `pipelineId` was not found;
  - **500** - Any error.
 
 #### POST `/api/v1/pipelines/{pipelineId}`

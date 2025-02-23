@@ -91,7 +91,7 @@ func readPipeline(file string) (*config.Pipeline, error) {
 		return nil, &pipeline.IOError{Err: err}
 	}
 
-	pipe, err := config.UnmarshalPipeline(buf, filepath.Ext(file)[1:])
+	pipe, err := config.UnmarshalPipeline(buf, filepath.Ext(file))
 	if err != nil {
 		return nil, &pipeline.ValidationError{Err: err}
 	}
@@ -100,7 +100,7 @@ func readPipeline(file string) (*config.Pipeline, error) {
 }
 
 func writePipeline(pipe *config.Pipeline, file string) error {
-	data, err := config.MarshalPipeline(pipe, filepath.Ext(file)[1:])
+	data, err := config.MarshalPipeline(pipe, filepath.Ext(file))
 	if err != nil {
 		return &pipeline.ValidationError{Err: err}
 	}

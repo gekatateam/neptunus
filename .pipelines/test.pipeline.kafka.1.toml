@@ -1,0 +1,36 @@
+[settings]
+  id = "test.pipeline.kafka.1"
+  lines = 5
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.http]
+    address = ":9300"
+  [inputs.http.parser]
+    type = "json"
+    split_array = true
+
+[[processors]]
+  [processors.rk.mapping]
+    "neptunus.kafka.output" = [ "/http.input.test" ]
+
+[[outputs]]
+  [outputs.kafka]
+    enable_metrics = true
+    client_id = "kafka-one"
+    brokers = ["localhost:9092"]
+    topics_autocreate = true
+    idle_timeout = "0s"
+    batch_buffer = 400
+  [outputs.kafka.sasl]
+    mechanism = "plain"
+    username = "user"
+    password = "bitnami"
+  [outputs.kafka.headerlabels]
+    input-from = "input"
+  [outputs.kafka.serializer]
+    type = "json"
+    data_only = true
+  [outputs.kafka.filters.glob]
+    routing_key = [ "neptunus.kafka.output" ] 

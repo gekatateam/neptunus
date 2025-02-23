@@ -76,7 +76,10 @@ If commit queue is full, fetching is suspended until at least one message is com
     max_uncommitted = 100
 
     # interval between commit queue scans
-    commit_interval = "300ms"
+    commit_interval = "1s"
+
+    # interval between commit retries after error
+    commit_retry_interval = "1s"
 
     ## TLS configuration
     # if true, TLS client will be used
