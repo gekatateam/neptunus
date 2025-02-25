@@ -28,6 +28,7 @@ Here is a common part example:
 
 **Engine** section used for pipelines engine settings:
  - **storage**: What kind of storage should be used.
+ - **fail_fast**: Fail on startup, if any pipeline returns error.
 
 ### FS storage
 
@@ -39,6 +40,7 @@ This is a default storage for the engine:
 ```toml
 [engine]
   storage = "fs"
+  fail_fast = false
   [engine.fs]
     directory = ".pipelines"
     extention = "toml"
