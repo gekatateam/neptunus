@@ -5,6 +5,7 @@
     [common.log_fields]
       runner = "local"
       dc = "east-01"
+      host = "${COMPUTERNAME}"
 
 [engine]
   storage = "fs"
