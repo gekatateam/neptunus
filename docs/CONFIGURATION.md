@@ -12,6 +12,8 @@ The daemon part configures Neptunus app and pipelines engine.
  - **http_port**: Address for HTTP api server. See more in [api documentation](API.md).
  - **log_fields**: A map of fields, that will be added to each log entry.
 
+You can also use environment variables in daemon config with `${MY_VAR}` syntax. Please note than replacement occurs before file parsing.
+
 Here is a common part example:
 ```toml
 [common]
@@ -21,6 +23,7 @@ Here is a common part example:
   [common.log_fields]
     stage = "dev"
     dc = "east-01"
+    host = "${HOSTNAME}"
 ```
 
 **Engine** section used for pipelines engine settings:

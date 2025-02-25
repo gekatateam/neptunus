@@ -55,6 +55,7 @@ func ReadConfig(file string) (*Config, error) {
 		return nil, err
 	}
 
+	buf = []byte(os.ExpandEnv(string(buf)))
 	config := Default
 
 	switch e := filepath.Ext(file); e {

@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -68,7 +69,13 @@ func (o *Kafka) Init() error {
 		o.Batcher.Buffer = 1
 	}
 
-	if _, err := o.newWriter(""); err != nil {
+	w, err := o.newWriter("")
+	if err != nil {
+		return err
+	}
+
+	defer w.Close()
+	if err := o.testConn(w); err != nil {
 		return err
 	}
 
@@ -230,6 +237,27 @@ MAIN_LOOP:
 func (o *Kafka) Close() error {
 	o.writersPool.Close()
 	o.ser.Close()
+	return nil
+}
+
+func (o *Kafka) testConn(writer *kafka.Writer) error {
+	dialer := &kafka.Dialer{
+		ClientID:      writer.Transport.(*kafka.Transport).ClientID,
+		DualStack:     true,
+		Timeout:       writer.Transport.(*kafka.Transport).DialTimeout,
+		SASLMechanism: writer.Transport.(*kafka.Transport).SASL,
+		TLS:           writer.Transport.(*kafka.Transport).TLS,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), writer.Transport.(*kafka.Transport).DialTimeout)
+	defer cancel()
+
+	conn, err := dialer.DialContext(ctx, "tcp", o.Brokers[0])
+	if err != nil {
+		return err
+	}
+
+	conn.Close()
 	return nil
 }
 

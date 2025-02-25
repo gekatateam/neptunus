@@ -35,8 +35,10 @@ func Init(cfg config.Common) error {
 
 	switch f := cfg.LogFormat; f {
 	case "logfmt":
+		opts.ReplaceAttr = attrReplacer
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	case "json":
+		opts.ReplaceAttr = attrReplacer
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	case "pretty":
 		handler = prettylog.NewHandler(opts)
@@ -58,4 +60,16 @@ func Init(cfg config.Common) error {
 
 func Mock() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+func attrReplacer(_ []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		a.Key = "@timestamp"
+	}
+
+	if a.Key == slog.MessageKey {
+		a.Key = "message"
+	}
+
+	return a
 }
