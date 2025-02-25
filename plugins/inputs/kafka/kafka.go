@@ -162,17 +162,23 @@ func (i *Kafka) Init() (err error) {
 			semCh    = make(chan struct{}, i.MaxUncommitted)
 		)
 
+		dialer := &kafka.Dialer{
+			ClientID:      i.ClientId,
+			DualStack:     true,
+			Timeout:       i.DialTimeout,
+			SASLMechanism: m,
+			TLS:           tlsConfig,
+		}
+
+		if err := i.testConn(dialer); err != nil {
+			return err
+		}
+
 		reader := kafka.NewReader(kafka.ReaderConfig{
-			Brokers: i.Brokers,
-			GroupID: i.GroupId,
-			Topic:   topic,
-			Dialer: &kafka.Dialer{
-				ClientID:      i.ClientId,
-				DualStack:     true,
-				Timeout:       i.DialTimeout,
-				SASLMechanism: m,
-				TLS:           tlsConfig,
-			},
+			Brokers:               i.Brokers,
+			GroupID:               i.GroupId,
+			Topic:                 topic,
+			Dialer:                dialer,
 			MaxBytes:              int(i.MaxBatchSize.Bytes()),
 			QueueCapacity:         100, // <-
 			MaxAttempts:           1,
@@ -257,6 +263,19 @@ func (i *Kafka) Run() {
 
 func (i *Kafka) Close() error {
 	i.cancelFunc()
+	return nil
+}
+
+func (i *Kafka) testConn(dialer *kafka.Dialer) error {
+	ctx, cancel := context.WithTimeout(context.Background(), i.DialTimeout)
+	defer cancel()
+
+	conn, err := dialer.DialContext(ctx, "tcp", i.Brokers[0])
+	if err != nil {
+		return err
+	}
+
+	conn.Close()
 	return nil
 }
 
