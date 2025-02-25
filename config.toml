@@ -1,6 +1,6 @@
 [common]
   log_level = "info"
-  log_format = "logfmt"
+  log_format = "json"
   http_port = ":9601"
     [common.log_fields]
       runner = "local"
