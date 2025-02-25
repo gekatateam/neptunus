@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline/api"
 	"github.com/gekatateam/neptunus/pipeline/service"
+	xerrors "github.com/gekatateam/neptunus/pkg/errors"
 	"github.com/gekatateam/neptunus/server"
 )
 
@@ -67,7 +69,14 @@ func run(cCtx *cli.Context) error {
 	})
 
 	if err := s.StartAll(); err != nil {
-		return err
+		var pipelineErr *xerrors.Errorlist
+		if errors.As(err, &pipelineErr) {
+			if cfg.Engine.FailFast {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	wg.Add(1)

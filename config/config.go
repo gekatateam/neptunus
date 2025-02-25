@@ -18,7 +18,8 @@ var (
 			HttpPort:  ":9600",
 		},
 		Engine: Engine{
-			Storage: "fs",
+			Storage:  "fs",
+			FailFast: false,
 			File: FileStorage{
 				Directory: ".pipelines",
 				Extention: ".toml",
@@ -40,8 +41,9 @@ type Common struct {
 }
 
 type Engine struct {
-	Storage string      `toml:"storage" yaml:"storage" json:"storage"`
-	File    FileStorage `toml:"fs"      yaml:"fs"      json:"fs"`
+	Storage  string      `toml:"storage"   yaml:"storage"   json:"storage"`
+	FailFast bool        `toml:"fail_fast" yaml:"fail_fast" json:"fail_fast"`
+	File     FileStorage `toml:"fs"        yaml:"fs"        json:"fs"`
 }
 
 type FileStorage struct {

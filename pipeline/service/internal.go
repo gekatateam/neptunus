@@ -11,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pipeline"
+	xerrors "github.com/gekatateam/neptunus/pkg/errors"
 	"github.com/gekatateam/neptunus/pkg/syncs"
 )
 
@@ -44,12 +45,19 @@ func (m *internalService) StartAll() error {
 		return err
 	}
 
+	var errs xerrors.Errorlist
 	for _, pipeCfg := range pipes {
 		unit := pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil}
 		m.pipes.Store(pipeCfg.Settings.Id, unit)
 		if pipeCfg.Settings.Run {
-			m.runPipeline(unit)
+			if err := m.runPipeline(unit); err != nil {
+				errs = append(errs, err)
+			}
 		}
+	}
+
+	if len(errs) > 0 {
+		return &errs
 	}
 
 	return nil
@@ -248,12 +256,16 @@ func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	if err := pipeUnit.p.Build(); err != nil {
 		m.log.Error("pipeline building failed",
 			"error", err.Error(),
-			"id", id,
+			slog.Group("pipeline",
+				"id", id,
+			),
 		)
 
 		pipeUnit.p.Close()
 		m.log.Warn("pipeline was closed as not ready for event processing",
-			"id", id,
+			slog.Group("pipeline",
+				"id", id,
+			),
 		)
 		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", id, err)}
 	}
