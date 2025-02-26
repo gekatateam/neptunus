@@ -499,9 +499,6 @@ Labels:
 > [!WARNING]  
 > Due to the specifics of the [library](https://github.com/segmentio/kafka-go) used, producer metrics updates every 15 sec, not on read
 
-> [!WARNING]  
-> Due to the specifics of the [library](https://github.com/segmentio/kafka-go/blob/v0.4.43/reader.go#L685s) used, value of 'partition' lablel is always '-1'
-
 #### Counter `plugin_kafka_reader_messages_count`
 Number of messages read by client
 
@@ -526,17 +523,6 @@ Labels:
 
 #### Counter `plugin_kafka_reader_errors_count`
 Number of errors occurred during reads
-
-Labels:
- - **pipeline** - pipeline Id
- - **plugin_name** - plugin name (alias)
- - **topic** - kafka topic name
- - **partition** - partition number
- - **group_id** - consumer group
- - **client_id** - kafka client ID
-
-#### Counter `plugin_kafka_reader_rebalances_count`
-Number of consumer rebalances
 
 Labels:
  - **pipeline** - pipeline Id

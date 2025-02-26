@@ -8,7 +8,6 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// value of 'partition' lablel is always '-1' beacuse of https://github.com/segmentio/kafka-go/blob/v0.4.43/reader.go#L685s
 var (
 	kafkaReaderMetricsRegister  = &sync.Once{}
 	kafkaReaderMetricsCollector = &kafkaReaderCollector{
@@ -16,12 +15,11 @@ var (
 		mu:        &sync.Mutex{},
 	}
 
-	kafkaReaderMessagesCount   *prometheus.CounterVec
-	kafkaReaderBytesCount      *prometheus.CounterVec
-	kafkaReaderErrorsCount     *prometheus.CounterVec
-	kafkaReaderRebalancesCount *prometheus.CounterVec
-	kafkaReaderTimeoutsCount   *prometheus.CounterVec
-	kafkaReaderFetchesCount    *prometheus.CounterVec
+	kafkaReaderMessagesCount *prometheus.CounterVec
+	kafkaReaderBytesCount    *prometheus.CounterVec
+	kafkaReaderErrorsCount   *prometheus.CounterVec
+	kafkaReaderTimeoutsCount *prometheus.CounterVec
+	kafkaReaderFetchesCount  *prometheus.CounterVec
 
 	kafkaReaderOffset              *prometheus.GaugeVec
 	kafkaReaderLag                 *prometheus.GaugeVec
@@ -78,13 +76,6 @@ func init() {
 		prometheus.CounterOpts{
 			Name: "plugin_kafka_reader_errors_count",
 			Help: "Number of errors occurred during reads",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderRebalancesCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_rebalances_count",
-			Help: "Number of consumer rebalances",
 		},
 		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
 	)
@@ -323,6 +314,7 @@ type readerDescriptor struct {
 	pipeline   string
 	pluginName string
 	topic      string
+	partition  string
 	clientId   string
 	groupId    string
 }
@@ -366,11 +358,6 @@ func (c *kafkaReaderCollector) collect() {
 			desc.topic, stats.Partition,
 			desc.groupId, desc.clientId,
 		).Add(float64(stats.Errors))
-		kafkaReaderRebalancesCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.Rebalances))
 		kafkaReaderFetchesCount.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
@@ -535,12 +522,11 @@ func (c *kafkaReaderCollector) collect() {
 	}
 }
 
-func RegisterKafkaReader(pipeline, pluginName, topic, groupId, clientId string, statFunc func() ReaderStats) {
+func RegisterKafkaReader(pipeline, pluginName, topic, partition, groupId, clientId string, statFunc func() ReaderStats) {
 	kafkaReaderMetricsRegister.Do(func() {
 		prometheus.MustRegister(kafkaReaderMessagesCount)
 		prometheus.MustRegister(kafkaReaderBytesCount)
 		prometheus.MustRegister(kafkaReaderErrorsCount)
-		prometheus.MustRegister(kafkaReaderRebalancesCount)
 		prometheus.MustRegister(kafkaReaderFetchesCount)
 		prometheus.MustRegister(kafkaReaderTimeoutsCount)
 
@@ -586,16 +572,18 @@ func RegisterKafkaReader(pipeline, pluginName, topic, groupId, clientId string, 
 		pipeline:   pipeline,
 		pluginName: pluginName,
 		topic:      topic,
+		partition:  partition,
 		groupId:    groupId,
 		clientId:   clientId,
 	}, statFunc)
 }
 
-func UnregisterKafkaReader(pipeline, pluginName, topic, groupId, clientId string) {
+func UnregisterKafkaReader(pipeline, pluginName, topic, partition, groupId, clientId string) {
 	kafkaReaderMetricsCollector.delete(readerDescriptor{
 		pipeline:   pipeline,
 		pluginName: pluginName,
 		topic:      topic,
+		partition:  partition,
 		groupId:    groupId,
 		clientId:   clientId,
 	})

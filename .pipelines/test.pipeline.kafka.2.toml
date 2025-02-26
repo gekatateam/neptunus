@@ -6,7 +6,7 @@
 
 [[inputs]]
   [inputs.kafka]
-    enable_metrics = false
+    enable_metrics = true
     client_id = "kafka-two"
     group_id = "neptunus.kafka.input"
     start_offset = "first"

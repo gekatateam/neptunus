@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"time"
@@ -20,9 +21,10 @@ import (
 type topicReader struct {
 	*core.BaseInput
 
-	topic    string
-	groupId  string
-	clientId string
+	topic     string
+	partition string
+	groupId   string
+	clientId  string
 
 	enableMetrics bool
 	labelHeaders  map[string]string
@@ -42,7 +44,7 @@ type topicReader struct {
 
 func (r *topicReader) Run(rCtx context.Context) {
 	if r.enableMetrics {
-		kafkastats.RegisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.groupId, r.clientId, func() kafkastats.ReaderStats {
+		kafkastats.RegisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.partition, r.groupId, r.clientId, func() kafkastats.ReaderStats {
 			return kafkastats.ReaderStats{
 				ReaderStats:         r.reader.Stats(),
 				CommitQueueLenght:   len(r.commitSemaphore),
@@ -51,7 +53,7 @@ func (r *topicReader) Run(rCtx context.Context) {
 		})
 	}
 
-	r.Log.Info(fmt.Sprintf("consumer for topic %v spawned", r.topic))
+	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v spawned", r.topic, r.partition))
 
 FETCH_LOOP:
 	for {
@@ -59,8 +61,18 @@ FETCH_LOOP:
 		now := time.Now()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				r.Log.Debug(fmt.Sprintf("consumer for topic %v context canceled", r.topic))
+				r.Log.Debug(fmt.Sprintf("consumer for topic %v and partition %v context canceled", r.topic, r.partition))
 				break FETCH_LOOP
+			}
+
+			if errors.Is(err, kafka.ErrGenerationEnded) {
+				r.Log.Debug(fmt.Sprintf("consumer for topic %v and partition %v generation ended", r.topic, r.partition))
+				break FETCH_LOOP
+			}
+
+			// https://github.com/segmentio/kafka-go/issues/1286
+			if errors.Is(err, io.ErrUnexpectedEOF) {
+				continue FETCH_LOOP
 			}
 
 			r.Log.Error("fetch error",
@@ -138,21 +150,27 @@ FETCH_LOOP:
 		}
 	}
 
-	r.Log.Info(fmt.Sprintf("consumer for topic %v done, waiting for events delivery", r.topic))
-	r.exitCh <- struct{}{}
+	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v done, waiting for events delivery", r.topic, r.partition))
+	select {
+	// multiple goroutines can write to this channel, but only one reads
+	// this is a bit dirty hack that doesn't block forever second and other writing goroutines
+	case r.exitCh <- struct{}{}:
+	default:
+	}
+
 	<-r.doneCh
 
-	r.Log.Info("commit queue is empty now, closing consumer")
+	r.Log.Info(fmt.Sprintf("commit queue is empty now, closing consumer for topic %v and partition %v", r.topic, r.partition))
 	if err := r.reader.Close(); err != nil {
-		r.Log.Warn(fmt.Sprintf("consumer for topic %v closed with error", r.topic),
+		r.Log.Warn(fmt.Sprintf("consumer for topic %v and partition %v closed with error", r.topic, r.partition),
 			"error", err,
 		)
 	} else {
-		r.Log.Info(fmt.Sprintf("consumer for topic %v closed", r.topic))
+		r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v closed", r.topic, r.partition))
 	}
 
 	if r.enableMetrics {
-		kafkastats.UnregisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.groupId, r.clientId)
+		kafkastats.UnregisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.partition, r.groupId, r.clientId)
 	}
 }
 
@@ -168,13 +186,11 @@ type commitMessage struct {
 }
 
 type commitController struct {
-	commitInterval      time.Duration
-	commitRetryInterval time.Duration
-
-	reader           *kafka.Reader
+	gen              *kafka.Generation
 	commitQueues     map[int]*orderedmap.OrderedMap[int64, *trackedMessage]
 	commitSemaphore  chan struct{} // max uncommitted control
 	exitIfQueueEmpty bool
+	commitInterval   time.Duration
 
 	fetchCh  chan *trackedMessage // for new messages to push in commitQueue
 	commitCh chan commitMessage   // for offsets that ready to be committed
@@ -198,16 +214,17 @@ func (c *commitController) Run() {
 					orderedmap.WithCapacity[int64, *trackedMessage](cap(c.commitSemaphore)),
 				)
 				c.commitQueues[msg.Partition] = q
-				c.log.Info(fmt.Sprintf("ordered queue created for partition: %v", msg.Partition))
+				c.log.Info(fmt.Sprintf("local queue created for partition: %v", msg.Partition))
 			}
 
 			// add message to queue
-			if _, ok := q.Get(msg.Offset); ok {
-				c.log.Warn(fmt.Sprintf("duplicate messsage detected with partition: %v, offset: %v;"+
-					" there may have been after consumers rebalancing", msg.Partition, msg.Offset))
+			if _, ok := q.Get(msg.Offset); ok { // normally it is never happens
+				c.log.Warn(fmt.Sprintf("duplicate messsage detected with partition: %v, offset: %v; "+
+					"there may have been after consumers rebalancing; please, report this issue",
+					msg.Partition, msg.Offset))
 				//lint:ignore S1005 explicitly indicates reading from the channel, not waiting
 				_ = <-c.commitSemaphore
-			} else { // normally it is never happens
+			} else {
 				q.Store(msg.Offset, msg)
 			}
 		case msg := <-c.commitCh: // an event delivered
@@ -223,7 +240,7 @@ func (c *commitController) Run() {
 						m.delivered = true
 					}
 				}
-			} else { // normally it is never happens
+			} else { // normally it is never happens too
 				c.log.Error("unexpected case, delivered offset is not in queue; please, report this issue")
 			}
 		case <-ticker.C: // it is time to commit messages
@@ -242,16 +259,18 @@ func (c *commitController) Run() {
 				}
 
 				if commitCandidate != nil {
-					c.log.Debug(fmt.Sprintf("got candidate with partition: %v, offset: %v", commitCandidate.Partition, commitCandidate.Offset))
-				BEFORE_COMMIT:
-					// TODO: not the best solution because we don't know how library handling consumers rebalancing
-					// we need test it
-					if err := c.reader.CommitMessages(context.Background(), *commitCandidate); err != nil {
-						c.log.Error("offset commit failed",
+					c.log.Debug(fmt.Sprintf("got candidate with partition: %v, offset: %v",
+						commitCandidate.Partition, commitCandidate.Offset))
+					// BEFORE_COMMIT:
+					err := c.gen.CommitOffsets(map[string]map[int]int64{
+						commitCandidate.Topic: {
+							commitCandidate.Partition: commitCandidate.Offset + 1,
+						},
+					})
+					if err != nil {
+						c.log.Error("offset commit failed; cleaning queues from delivered events",
 							"error", err,
 						)
-						time.Sleep(c.commitRetryInterval)
-						goto BEFORE_COMMIT
 					}
 
 					for _, v := range offsetsToDelete {
@@ -260,7 +279,8 @@ func (c *commitController) Run() {
 						_ = <-c.commitSemaphore
 					}
 
-					c.log.Info(fmt.Sprintf("committed partition: %v, offset: %v; left in local queue: %v, left in global queue: %v",
+					c.log.Info(fmt.Sprintf("committed/cleaned partition: %v, offset: %v; "+
+						"left in local queue: %v, left in global queue: %v",
 						commitCandidate.Partition, commitCandidate.Offset, q.Len(), len(c.commitSemaphore)))
 				}
 			}
