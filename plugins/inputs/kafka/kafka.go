@@ -43,7 +43,6 @@ type Kafka struct {
 	MaxBatchSize         datasize.Size     `mapstructure:"max_batch_size"`
 	MaxUncommitted       int               `mapstructure:"max_uncommitted"`
 	CommitInterval       time.Duration     `mapstructure:"commit_interval"`
-	CommitRetryInterval  time.Duration     `mapstructure:"commit_retry_interval"`
 	SASL                 SASL              `mapstructure:"sasl"`
 	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider           `mapstructure:",squash"`
@@ -233,10 +232,9 @@ GENERATION_LOOP:
 			gen.Start(func(_ context.Context) {
 				defer wg.Done()
 				commiter := &commitController{
-					commitInterval:      i.CommitInterval,
-					commitRetryInterval: i.CommitRetryInterval,
-					commitQueues:        make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
-					commitSemaphore:     semCh,
+					commitInterval:  i.CommitInterval,
+					commitQueues:    make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
+					commitSemaphore: semCh,
 
 					gen:      gen,
 					fetchCh:  fetchCh,
@@ -316,21 +314,20 @@ func (i *Kafka) testConn(dialer *kafka.Dialer) error {
 func init() {
 	plugins.AddInput("kafka", func() core.Input {
 		return &Kafka{
-			ClientId:            "neptunus.kafka.input",
-			GroupId:             "neptunus.kafka.input",
-			GroupBalancer:       "range",
-			StartOffset:         "last",
-			GroupTTL:            24 * time.Hour,
-			DialTimeout:         5 * time.Second,
-			SessionTimeout:      30 * time.Second,
-			RebalanceTimeout:    30 * time.Second,
-			HeartbeatInterval:   3 * time.Second,
-			ReadBatchTimeout:    3 * time.Second,
-			WaitBatchTimeout:    3 * time.Second,
-			MaxUncommitted:      100,
-			CommitInterval:      1 * time.Second,
-			CommitRetryInterval: 1 * time.Second,
-			MaxBatchSize:        datasize.Mebibyte, // 1 MiB,
+			ClientId:          "neptunus.kafka.input",
+			GroupId:           "neptunus.kafka.input",
+			GroupBalancer:     "range",
+			StartOffset:       "last",
+			GroupTTL:          24 * time.Hour,
+			DialTimeout:       5 * time.Second,
+			SessionTimeout:    30 * time.Second,
+			RebalanceTimeout:  30 * time.Second,
+			HeartbeatInterval: 3 * time.Second,
+			ReadBatchTimeout:  3 * time.Second,
+			WaitBatchTimeout:  3 * time.Second,
+			MaxUncommitted:    100,
+			CommitInterval:    1 * time.Second,
+			MaxBatchSize:      datasize.Mebibyte, // 1 MiB,
 			SASL: SASL{
 				Mechanism: "none",
 			},

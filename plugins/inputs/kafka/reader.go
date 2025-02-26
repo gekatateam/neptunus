@@ -186,13 +186,11 @@ type commitMessage struct {
 }
 
 type commitController struct {
-	commitInterval      time.Duration
-	commitRetryInterval time.Duration
-
 	gen              *kafka.Generation
 	commitQueues     map[int]*orderedmap.OrderedMap[int64, *trackedMessage]
 	commitSemaphore  chan struct{} // max uncommitted control
 	exitIfQueueEmpty bool
+	commitInterval   time.Duration
 
 	fetchCh  chan *trackedMessage // for new messages to push in commitQueue
 	commitCh chan commitMessage   // for offsets that ready to be committed
