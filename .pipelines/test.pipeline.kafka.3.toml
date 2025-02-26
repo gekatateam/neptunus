@@ -10,10 +10,10 @@ consistency = "soft"
 
 [[inputs]]
 [inputs.kafka]
+enable_metrics = true
 brokers = ["localhost:9092"]
 client_id = "kafka-three-UPDATED"
 commit_interval = "20s"
-enable_metrics = false
 group_id = "neptunus.kafka.input"
 max_uncommitted = 1e+03
 start_offset = "first"

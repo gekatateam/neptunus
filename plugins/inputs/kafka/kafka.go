@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -48,11 +49,14 @@ type Kafka struct {
 	*ider.Ider           `mapstructure:",squash"`
 	*tls.TLSClientConfig `mapstructure:",squash"`
 
+	dialer         *kafka.Dialer
+	cgConfig       kafka.ConsumerGroupConfig
 	readersPool    map[string]*topicReader
 	commitConsPool map[string]*commitController
-	fetchCtx       context.Context
-	cancelFunc     context.CancelFunc
-	wg             *sync.WaitGroup
+
+	fetchCtx   context.Context
+	cancelFunc context.CancelFunc
+	wg         *sync.WaitGroup
 
 	parser core.Parser
 }
@@ -98,134 +102,90 @@ func (i *Kafka) Init() (err error) {
 	i.commitConsPool = make(map[string]*commitController)
 	i.wg = &sync.WaitGroup{}
 
-	for _, topic := range i.Topics {
-		var m sasl.Mechanism
-		var err error
-		switch i.SASL.Mechanism {
-		case "none":
-		case "plain":
-			m = &plain.Mechanism{
-				Username: i.SASL.Username,
-				Password: i.SASL.Password,
-			}
-		case "scram-sha-256":
-			m, err = scram.Mechanism(scram.SHA256, i.SASL.Username, i.SASL.Password)
-			if err != nil {
-				return err
-			}
-		case "scram-sha-512":
-			m, err = scram.Mechanism(scram.SHA512, i.SASL.Username, i.SASL.Password)
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", i.SASL.Mechanism)
+	var m sasl.Mechanism
+	switch i.SASL.Mechanism {
+	case "none":
+	case "plain":
+		m = &plain.Mechanism{
+			Username: i.SASL.Username,
+			Password: i.SASL.Password,
 		}
-
-		var offset int64
-		switch i.StartOffset {
-		case "first":
-			offset = kafka.FirstOffset
-		case "last":
-			offset = kafka.LastOffset
-		default:
-			return fmt.Errorf("unknown offset: %v; expected one of: first, last", i.StartOffset)
-		}
-
-		var groupBalancer kafka.GroupBalancer
-		switch i.GroupBalancer {
-		case "range":
-			groupBalancer = &kafka.RangeGroupBalancer{}
-		case "round-robin":
-			groupBalancer = &kafka.RoundRobinGroupBalancer{}
-		case "rack-affinity":
-			if len(i.Rack) == 0 {
-				return errors.New("rack required for rack-affinity gorup balancer")
-			}
-			groupBalancer = &kafka.RackAffinityGroupBalancer{
-				Rack: i.Rack,
-			}
-		default:
-			return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
-		}
-
-		tlsConfig, err := i.TLSClientConfig.Config()
+	case "scram-sha-256":
+		m, err = scram.Mechanism(scram.SHA256, i.SASL.Username, i.SASL.Password)
 		if err != nil {
 			return err
 		}
-
-		var (
-			fetchCh  = make(chan *trackedMessage)
-			commitCh = make(chan commitMessage)
-			exitCh   = make(chan struct{})
-			doneCh   = make(chan struct{})
-			semCh    = make(chan struct{}, i.MaxUncommitted)
-		)
-
-		dialer := &kafka.Dialer{
-			ClientID:      i.ClientId,
-			DualStack:     true,
-			Timeout:       i.DialTimeout,
-			SASLMechanism: m,
-			TLS:           tlsConfig,
-		}
-
-		if err := i.testConn(dialer); err != nil {
+	case "scram-sha-512":
+		m, err = scram.Mechanism(scram.SHA512, i.SASL.Username, i.SASL.Password)
+		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown SASL mechanism: %v; expected one of: plain, sha-256, sha-512", i.SASL.Mechanism)
+	}
 
-		reader := kafka.NewReader(kafka.ReaderConfig{
-			Brokers:               i.Brokers,
-			GroupID:               i.GroupId,
-			Topic:                 topic,
-			Dialer:                dialer,
-			MaxBytes:              int(i.MaxBatchSize.Bytes()),
-			QueueCapacity:         100, // <-
-			MaxAttempts:           1,
-			WatchPartitionChanges: true,
-			StartOffset:           offset,
-			HeartbeatInterval:     i.HeartbeatInterval,
-			SessionTimeout:        i.SessionTimeout,
-			RebalanceTimeout:      i.RebalanceTimeout,
-			ReadBatchTimeout:      i.ReadBatchTimeout,
-			MaxWait:               i.WaitBatchTimeout,
-			RetentionTime:         i.GroupTTL,
-			GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
-			Logger:                common.NewLogger(i.Log),
-			ErrorLogger:           common.NewErrorLogger(i.Log),
-		})
+	var offset int64
+	switch i.StartOffset {
+	case "first":
+		offset = kafka.FirstOffset
+	case "last":
+		offset = kafka.LastOffset
+	default:
+		return fmt.Errorf("unknown offset: %v; expected one of: first, last", i.StartOffset)
+	}
 
-		i.readersPool[topic] = &topicReader{
-			BaseInput:     i.BaseInput,
-			topic:         topic,
-			groupId:       i.GroupId,
-			clientId:      i.ClientId,
-			enableMetrics: i.EnableMetrics,
-			labelHeaders:  i.LabelHeaders,
-			parser:        i.parser,
-			ider:          i.Ider,
-
-			commitSemaphore: semCh,
-			reader:          reader,
-			fetchCh:         fetchCh,
-			commitCh:        commitCh,
-			exitCh:          exitCh,
-			doneCh:          doneCh,
+	var groupBalancer kafka.GroupBalancer
+	switch i.GroupBalancer {
+	case "range":
+		groupBalancer = &kafka.RangeGroupBalancer{}
+	case "round-robin":
+		groupBalancer = &kafka.RoundRobinGroupBalancer{}
+	case "rack-affinity":
+		if len(i.Rack) == 0 {
+			return errors.New("rack required for rack-affinity gorup balancer")
 		}
-
-		i.commitConsPool[topic] = &commitController{
-			commitInterval:      i.CommitInterval,
-			commitRetryInterval: i.CommitRetryInterval,
-			commitQueues:        make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
-			commitSemaphore:     semCh,
-
-			reader:   reader,
-			fetchCh:  fetchCh,
-			commitCh: commitCh,
-			exitCh:   exitCh,
-			doneCh:   doneCh,
-			log:      i.Log,
+		groupBalancer = &kafka.RackAffinityGroupBalancer{
+			Rack: i.Rack,
 		}
+	default:
+		return fmt.Errorf("unknown group balancer: %v; expected one of: range, round-robin, rack-affinity", i.GroupBalancer)
+	}
+
+	tlsConfig, err := i.TLSClientConfig.Config()
+	if err != nil {
+		return err
+	}
+
+	i.dialer = &kafka.Dialer{
+		ClientID:      i.ClientId,
+		DualStack:     true,
+		Timeout:       i.DialTimeout,
+		SASLMechanism: m,
+		TLS:           tlsConfig,
+	}
+
+	if err := i.testConn(i.dialer); err != nil {
+		return err
+	}
+
+	i.cgConfig = kafka.ConsumerGroupConfig{
+		ID:                    i.GroupId,
+		Brokers:               i.Brokers,
+		Topics:                i.Topics,
+		Dialer:                i.dialer,
+		WatchPartitionChanges: true,
+		StartOffset:           offset,
+		HeartbeatInterval:     i.HeartbeatInterval,
+		SessionTimeout:        i.SessionTimeout,
+		RebalanceTimeout:      i.RebalanceTimeout,
+		RetentionTime:         i.GroupTTL,
+		GroupBalancers:        []kafka.GroupBalancer{groupBalancer},
+		Logger:                common.NewLogger(i.Log),
+		ErrorLogger:           common.NewErrorLogger(i.Log),
+	}
+
+	if err := i.cgConfig.Validate(); err != nil {
+		return err
 	}
 
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
@@ -233,32 +193,106 @@ func (i *Kafka) Init() (err error) {
 	return nil
 }
 
-func (i *Kafka) SetChannels(out chan<- *core.Event) {
-	for _, reader := range i.readersPool {
-		reader.out = out
-	}
-}
-
 func (i *Kafka) SetParser(p core.Parser) {
 	i.parser = p
 }
 
 func (i *Kafka) Run() {
-	for topic := range i.readersPool {
-		i.wg.Add(1)
-		go func(r *topicReader) {
-			defer i.wg.Done()
-			r.Run(i.fetchCtx)
-		}(i.readersPool[topic])
+	wg := &sync.WaitGroup{}
+	cg, _ := kafka.NewConsumerGroup(i.cgConfig) // because config validated before, no err possible here
+	defer cg.Close()
 
-		i.wg.Add(1)
-		go func(c *commitController) {
-			defer i.wg.Done()
-			c.Run()
-		}(i.commitConsPool[topic])
+GENERATION_LOOP:
+	for {
+		gen, err := cg.Next(i.fetchCtx)
+		switch {
+		case err == nil:
+			i.Log.Info(fmt.Sprintf("new generation started with member id: %v, generation id: %v", gen.MemberID, gen.ID))
+		case errors.Is(err, context.Canceled):
+			i.Log.Info("stop signal received, breaking generation loop")
+			cg.Close()
+			break GENERATION_LOOP
+		default:
+			i.Log.Warn("consumer group closed, maybe because Kafka cluster is shutting down or network problems",
+				"error", err,
+			)
+			time.Sleep(i.DialTimeout)
+			continue GENERATION_LOOP
+		}
+
+		for topic, topicAssigment := range gen.Assignments {
+			var (
+				fetchCh  = make(chan *trackedMessage)
+				commitCh = make(chan commitMessage)
+				exitCh   = make(chan struct{})
+				doneCh   = make(chan struct{})
+				semCh    = make(chan struct{}, i.MaxUncommitted)
+			)
+
+			wg.Add(1)
+			gen.Start(func(_ context.Context) {
+				defer wg.Done()
+				commiter := &commitController{
+					commitInterval:      i.CommitInterval,
+					commitRetryInterval: i.CommitRetryInterval,
+					commitQueues:        make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
+					commitSemaphore:     semCh,
+
+					gen:      gen,
+					fetchCh:  fetchCh,
+					commitCh: commitCh,
+					exitCh:   exitCh,
+					doneCh:   doneCh,
+					log:      i.Log,
+				}
+
+				commiter.Run()
+			})
+
+			for _, partitionAssigment := range topicAssigment {
+				wg.Add(1)
+				gen.Start(func(ctx context.Context) {
+					defer wg.Done()
+					reader := &topicReader{
+						BaseInput:     i.BaseInput,
+						topic:         topic,
+						partition:     strconv.Itoa(partitionAssigment.ID),
+						groupId:       i.GroupId,
+						clientId:      i.ClientId,
+						enableMetrics: i.EnableMetrics,
+						labelHeaders:  i.LabelHeaders,
+						parser:        i.parser,
+						ider:          i.Ider,
+						out:           i.Out,
+
+						commitSemaphore: semCh,
+						fetchCh:         fetchCh,
+						commitCh:        commitCh,
+						exitCh:          exitCh,
+						doneCh:          doneCh,
+
+						reader: kafka.NewReader(kafka.ReaderConfig{
+							Brokers:          i.Brokers,
+							Topic:            topic,
+							Partition:        partitionAssigment.ID,
+							MaxBytes:         int(i.MaxBatchSize.Bytes()),
+							QueueCapacity:    100, // <-
+							MaxAttempts:      1,
+							Dialer:           i.dialer,
+							ReadBatchTimeout: i.ReadBatchTimeout,
+							MaxWait:          i.WaitBatchTimeout,
+							Logger:           common.NewLogger(i.Log),
+							ErrorLogger:      common.NewErrorLogger(i.Log),
+						}),
+					}
+					reader.reader.SetOffset(partitionAssigment.Offset)
+					reader.Run(ctx)
+				})
+			}
+		}
 	}
 
-	i.wg.Wait()
+	wg.Wait()
 }
 
 func (i *Kafka) Close() error {
