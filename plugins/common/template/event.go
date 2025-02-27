@@ -28,6 +28,14 @@ func (te TEvent) Timestamp() time.Time {
 	return te.e.Timestamp
 }
 
+func (te TEvent) Errors() []string {
+	var errs []string
+	for _, err := range te.e.Errors {
+		errs = append(errs, err.Error())
+	}
+	return errs
+}
+
 func (te TEvent) GetLabel(key string) string {
 	val, _ := te.e.GetLabel(key)
 	return val

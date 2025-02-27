@@ -3,6 +3,7 @@ package cronjob
 import (
 	"fmt"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/robfig/cron/v3"
 
@@ -38,6 +39,7 @@ func (i *Cronjob) Init() error {
 	}
 	return nil
 }
+
 
 func (i *Cronjob) Close() error {
 	i.cron.Stop()

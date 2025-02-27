@@ -2,12 +2,7 @@
 
 The `template` processor uses [Golang templates](https://pkg.go.dev/text/template) to modify/create event Id, routing key, labels and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) available!
 
-Processor passes read-only event to template with methods:
- - `RoutingKey() string`
- - `Id() string`
- - `Timestamp() time.Time`
- - `GetLabel(key string) string` - returns empty string if an event has no label associated with key
- - `GetField(path string) any` - returns `nil` if an event has no field on passed path
+Plugin uses [wrapped events](../../common/template/README.md).
 
 If template execution or field setting fails, event is marked as failed, but other templates execution continues.
 
