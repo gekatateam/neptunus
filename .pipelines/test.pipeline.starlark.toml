@@ -5,14 +5,14 @@
   buffer = 1_000
 
 [[inputs]]
-  [inputs.httpl]
+  [inputs.http]
     address = ":9100"
     max_connections = 10
     tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
-  [inputs.httpl.parser]
+  [inputs.http.parser]
     type = "json"
 
 [[processors]]
@@ -32,6 +32,8 @@ def process(event):
 
     event.setTimestamp(event.getTimestamp() + time.hour)
 
+    event.setField("errors", len(event.getErrors()))
+
     return [event]
     '''
 
@@ -45,7 +47,7 @@ def process(event):
 
 [[outputs]]
   [outputs.log]
-    level = "debug"
+    level = "info"
     [outputs.log.serializer]
       type = "json"
       data_only = false
@@ -67,4 +69,3 @@ def filter(event):
     idle_timeout = "10s"
     tls_enable = true
     tls_insecure_skip_verify = true
-
