@@ -6,6 +6,9 @@ An event routing key may be used as a table name using `table_placeholder` param
 
 If query returns rows, it will be added to event.
 
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
+
 ## TLS usage
 Drivers use plugin TLS configuration.
 
@@ -13,6 +16,9 @@ Drivers use plugin TLS configuration.
 ```toml
 [[processors]]
   [processors.sql]
+    # if true, plugin client writes it's own metrics
+    enable_metrics = false
+
     # SQL driver, must be on of: "pgx", "mysql", "sqlserver", "oracle", "clickhouse"
     driver = "pgx"
 

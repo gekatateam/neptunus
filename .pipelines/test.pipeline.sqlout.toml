@@ -21,6 +21,7 @@
 
 [[outputs]]
   [outputs.sql]
+    enable_metrics = true
     driver = "pgx"
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
     [outputs.sql.columns]

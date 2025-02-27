@@ -872,3 +872,53 @@ Labels:
  - **partition** - partition number
  - **group_id** - consumer group
  - **client_id** - kafka client ID
+
+### DB pool
+
+#### Gauge `plugin_db_connections_max`
+Pipeline plugin DB pool maximum number of open connections.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **driver** - driver name
+
+#### Gauge `plugin_db_connections_open`
+Pipeline plugin DB pool number of established connections both in use and idle.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **driver** - driver name
+
+#### Gauge `plugin_db_connections_in_use`
+Pipeline plugin DB pool number of connections currently in use.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **driver** - driver name
+
+#### Gauge `plugin_db_connections_idle`
+Pipeline plugin DB pool number of idle connections..
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **driver** - driver name
+
+#### Counter `plugin_db_connections_waited_total`
+Pipeline plugin DB pool total number of connections waited for.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **driver** - driver name
+
+#### Counter `plugin_db_connections_waited_seconds_total`
+Pipeline plugin DB pool total time blocked waiting for a new connection.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **driver** - driver name

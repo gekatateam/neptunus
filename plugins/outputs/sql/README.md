@@ -4,6 +4,9 @@ The `sql` output plugin performs SQL query for writing events. This plugin based
 
 Plugin creates one producer per each unique event routing key. An event routing key may be used as a table name using `table_placeholder` parameter.
 
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
+
 ## TLS usage
 Drivers use plugin TLS configuration.
 
@@ -11,6 +14,9 @@ Drivers use plugin TLS configuration.
 ```toml
 [[outputs]]
   [outputs.sql]
+    # if true, plugin client writes it's own metrics
+    enable_metrics = false
+
     # SQL driver, must be on of: "pgx", "mysql", "sqlserver", "oracle", "clickhouse"
     driver = "pgx"
 

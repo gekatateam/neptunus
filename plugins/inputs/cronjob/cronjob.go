@@ -40,7 +40,6 @@ func (i *Cronjob) Init() error {
 	return nil
 }
 
-
 func (i *Cronjob) Close() error {
 	i.cron.Stop()
 	return nil

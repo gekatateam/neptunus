@@ -13,6 +13,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
@@ -22,6 +23,7 @@ const tablePlaceholder = ":table_name"
 
 type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`
+	EnableMetrics       bool          `mapstructure:"enable_metrics"`
 	Dsn                 string        `mapstructure:"dsn"`
 	Driver              string        `mapstructure:"driver"`
 	Shared              bool          `mapstructure:"shared"`
@@ -107,6 +109,16 @@ func (p *Sql) SetId(id uint64) {
 }
 
 func (p *Sql) Run() {
+	if p.EnableMetrics {
+		dbstats.RegisterDB(p.Pipeline, p.Alias, p.Driver, p.db)
+	}
+
+	defer func() {
+		if p.EnableMetrics {
+			dbstats.UnregisterDB(p.Pipeline, p.Alias, p.Driver)
+		}
+	}()
+
 	for e := range p.In {
 		now := time.Now()
 
