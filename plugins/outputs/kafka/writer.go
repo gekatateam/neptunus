@@ -56,6 +56,7 @@ func (w *topicWriter) Push(e *core.Event) {
 func (w *topicWriter) Run() {
 	if w.enableMetrics {
 		kafkastats.RegisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId, w.writer.Stats)
+		defer kafkastats.UnregisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId)
 	}
 	w.Log.Info(fmt.Sprintf("producer for topic %v spawned", w.writer.Topic))
 	w.lastWrite = time.Now()
@@ -163,10 +164,6 @@ func (w *topicWriter) Run() {
 		)
 	} else {
 		w.Log.Info(fmt.Sprintf("producer for topic %v closed", w.writer.Topic))
-	}
-
-	if w.enableMetrics {
-		kafkastats.UnregisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId)
 	}
 }
 

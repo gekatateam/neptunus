@@ -179,13 +179,8 @@ func (i *Sql) Close() error {
 func (i *Sql) Run() {
 	if i.EnableMetrics {
 		dbstats.RegisterDB(i.Pipeline, i.Alias, i.Driver, i.db)
+		defer dbstats.UnregisterDB(i.Pipeline, i.Alias, i.Driver)
 	}
-
-	defer func() {
-		if i.EnableMetrics {
-			dbstats.UnregisterDB(i.Pipeline, i.Alias, i.Driver)
-		}
-	}()
 
 	if i.Interval > 0 {
 		ticker := time.NewTicker(i.Interval)

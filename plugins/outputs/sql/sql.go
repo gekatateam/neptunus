@@ -129,13 +129,8 @@ func (o *Sql) Run() {
 
 	if o.EnableMetrics {
 		dbstats.RegisterDB(o.Pipeline, o.Alias, o.Driver, o.db)
+		defer dbstats.UnregisterDB(o.Pipeline, o.Alias, o.Driver)
 	}
-
-	defer func() {
-		if o.EnableMetrics {
-			dbstats.UnregisterDB(o.Pipeline, o.Alias, o.Driver)
-		}
-	}()
 
 MAIN_LOOP:
 	for {

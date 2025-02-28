@@ -111,13 +111,8 @@ func (p *Sql) SetId(id uint64) {
 func (p *Sql) Run() {
 	if p.EnableMetrics {
 		dbstats.RegisterDB(p.Pipeline, p.Alias, p.Driver, p.db)
+		defer dbstats.UnregisterDB(p.Pipeline, p.Alias, p.Driver)
 	}
-
-	defer func() {
-		if p.EnableMetrics {
-			dbstats.UnregisterDB(p.Pipeline, p.Alias, p.Driver)
-		}
-	}()
 
 	for e := range p.In {
 		now := time.Now()
