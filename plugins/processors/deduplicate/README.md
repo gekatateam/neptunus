@@ -19,7 +19,7 @@ Processor adds `::duplicate` label to event with with `true` value if duplicate 
 
     # Redis connection config
     [processors.deduplicate.redis]
-      # if true, one Redis client is shared among the processors in set
+      # if true, one Redis client is shared between processors in set
       # otherwise, each plugin uses a personal client
       shared = true
 
@@ -45,4 +45,19 @@ Processor adds `::duplicate` label to event with with `true` value if duplicate 
       conns_max_idle = 1
       conns_max_life_time = "10m"
       conns_max_idle_time = "10m"
+
+      ## TLS configuration
+      # if true, TLS client will be used
+      tls_enable = false
+      # trusted root certificates for server
+      tls_ca_file = "/etc/neptunus/ca.pem"
+      # used for TLS client certificate authentication
+      tls_key_file = "/etc/neptunus/key.pem"
+      tls_cert_file = "/etc/neptunus/cert.pem"
+      # minimum TLS version, not limited by default
+      tls_min_version = "TLS12"
+      # send the specified TLS server name via SNI
+      tls_server_name = "exmple.svc.local"
+      # use TLS but skip chain & host verification
+      tls_insecure_skip_verify = false
 ```

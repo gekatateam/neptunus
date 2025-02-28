@@ -51,6 +51,7 @@ func (r *topicReader) Run(rCtx context.Context) {
 				CommitQueueCapacity: cap(r.commitSemaphore),
 			}
 		})
+		defer kafkastats.UnregisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.partition, r.groupId, r.clientId)
 	}
 
 	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v spawned", r.topic, r.partition))
@@ -167,10 +168,6 @@ FETCH_LOOP:
 		)
 	} else {
 		r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v closed", r.topic, r.partition))
-	}
-
-	if r.enableMetrics {
-		kafkastats.UnregisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.partition, r.groupId, r.clientId)
 	}
 }
 

@@ -123,8 +123,8 @@ MAIN_LOOP:
 
 func (o *Http) Close() error {
 	o.requestersPool.Close()
+	o.ser.Close()
 	o.client.CloseIdleConnections()
-	o.client = nil
 	return nil
 }
 

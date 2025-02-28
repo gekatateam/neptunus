@@ -3,6 +3,7 @@ package cronjob
 import (
 	"fmt"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/robfig/cron/v3"
 

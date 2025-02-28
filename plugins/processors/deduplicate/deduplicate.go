@@ -137,6 +137,7 @@ func (p *Deduplicate) Run() {
 					"key", e.RoutingKey,
 				),
 			)
+			e.StackError(err)
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue

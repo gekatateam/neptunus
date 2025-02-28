@@ -48,10 +48,8 @@ type Kafka struct {
 	*ider.Ider           `mapstructure:",squash"`
 	*tls.TLSClientConfig `mapstructure:",squash"`
 
-	dialer         *kafka.Dialer
-	cgConfig       kafka.ConsumerGroupConfig
-	readersPool    map[string]*topicReader
-	commitConsPool map[string]*commitController
+	dialer   *kafka.Dialer
+	cgConfig kafka.ConsumerGroupConfig
 
 	fetchCtx   context.Context
 	cancelFunc context.CancelFunc
@@ -67,15 +65,6 @@ type SASL struct {
 }
 
 func (i *Kafka) Init() (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
-			for _, v := range i.readersPool {
-				v.reader.Close()
-			}
-		}
-	}()
-
 	if len(i.Brokers) == 0 {
 		return errors.New("at least one broker address required")
 	}
@@ -97,8 +86,6 @@ func (i *Kafka) Init() (err error) {
 	}
 
 	i.Topics = slices.Compact(i.Topics)
-	i.readersPool = make(map[string]*topicReader)
-	i.commitConsPool = make(map[string]*commitController)
 	i.wg = &sync.WaitGroup{}
 
 	var m sasl.Mechanism

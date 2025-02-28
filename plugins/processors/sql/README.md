@@ -2,9 +2,12 @@
 
 The `sql` processor plugin performs SQL query using incoming events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
 
-An event routing key may be used as a table name using `table_placeholder` parameter.
+An event label may be used as a table name using `table_placeholder` parameter.
 
 If query returns rows, it will be added to event.
+
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
 
 ## TLS usage
 Drivers use plugin TLS configuration.
@@ -13,13 +16,16 @@ Drivers use plugin TLS configuration.
 ```toml
 [[processors]]
   [processors.sql]
+    # if true, plugin client writes it's own metrics
+    enable_metrics = false
+
     # SQL driver, must be on of: "pgx", "mysql", "sqlserver", "oracle", "clickhouse"
     driver = "pgx"
 
     # datasource service name in selected driver format
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
 
-    # if true, one SQL client is shared among the processors in set
+    # if true, one SQL client is shared between processors in set
     # otherwise, each plugin uses a personal client
     shared = true
 
@@ -32,9 +38,12 @@ Drivers use plugin TLS configuration.
     # queries execution timeout
     query_timeout = "10s"
 
-    # a placeholder in query, which will be replaced by event routing key
+    # a placeholder in query, which will be replaced by configured label
     # that may be useful if target table is partitioned
     table_placeholder = ":table_name"
+
+    # label, which value will be used as a table name, if configured
+    table_label = "table_name"
 
     # maximum number of attempts to execute query
     # before event will be marked as failed

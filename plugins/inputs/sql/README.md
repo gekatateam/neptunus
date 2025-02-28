@@ -2,6 +2,9 @@
 
 The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
 
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
+
 ## Poll cycle
 
 This plugin works in poll cycle:
@@ -18,6 +21,9 @@ Drivers use plugin TLS configuration.
 ```toml
 [[inputs]]
   [inputs.sql]
+    # if true, plugin client writes it's own metrics
+    enable_metrics = false
+
     # SQL driver, must be on of: "pgx", "mysql", "sqlserver", "oracle", "clickhouse"
     driver = "pgx"
 

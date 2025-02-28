@@ -1,0 +1,45 @@
+[settings]
+  id = "test.pipeline.http"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    wait_for_delivery = true
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.http.labelheaders]
+    uri = "x-uri"
+  [inputs.http.parser]
+    type = "json"
+    split_array = false
+
+[[processors]]
+  [processors.http]
+    host = "https://jsonplaceholder.typicode.com/posts"
+    method = "POST"
+#    path_label = "uri"
+    retry_attempts = 3
+    retry_after = "1s"
+    tls_enable = true
+    response_body_to = "typicode.response"
+    request_body_from = "payload"
+    [processors.http.serializer]
+      type = "json"
+      data_only = false
+    [processors.http.parser]
+      type = "json"
+      split_array = true
+
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false

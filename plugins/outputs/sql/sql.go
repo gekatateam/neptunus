@@ -12,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
@@ -22,6 +23,7 @@ const tablePlaceholder = ":table_name"
 
 type Sql struct {
 	*core.BaseOutput `mapstructure:"-"`
+	EnableMetrics    bool          `mapstructure:"enable_metrics"`
 	Dsn              string        `mapstructure:"dsn"`
 	Driver           string        `mapstructure:"driver"`
 	ConnsMaxIdleTime time.Duration `mapstructure:"conns_max_idle_time"`
@@ -52,10 +54,6 @@ func (o *Sql) Init() error {
 	if len(o.Driver) == 0 {
 		return errors.New("driver required")
 	}
-
-	// if len(o.Columns) == 0 {
-	// 	return errors.New("columns mapping required")
-	// }
 
 	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
 		return errors.New("onPush.query or onPush.file requred")
@@ -127,6 +125,11 @@ func (o *Sql) Run() {
 	clearTicker := time.NewTicker(time.Minute)
 	if o.IdleTimeout == 0 {
 		clearTicker.Stop()
+	}
+
+	if o.EnableMetrics {
+		dbstats.RegisterDB(o.Pipeline, o.Alias, o.Driver, o.db)
+		defer dbstats.UnregisterDB(o.Pipeline, o.Alias, o.Driver)
 	}
 
 MAIN_LOOP:

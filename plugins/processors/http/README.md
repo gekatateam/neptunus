@@ -1,13 +1,15 @@
-# Http Output Plugin
+# Http Processor Plugin
 
-The `http` output plugin writes events using HTTP client to configured host, but request path depends on event routing key. This plugin requires serializer.
+The `http` processor plugin performs HTTP requests for each event. This plugin requires parser and serializer.
 
-Plugin creates one requester per each unique event routing key, with personal batch controller. By the way, HTTP client shares between requesters.
+Unlike [HTTP output](../../outputs/http/README.md), this plugin uses configured label as a request path (it's optional, btw), not event routing key.
+
+Please note, that in multiline configuration HTTP client is shared between processors in set.
 
 # Configuration
 ```toml
-[[outputs]]
-  [outputs.http]
+[[processors]]
+  [processors.http]
     # target host, required
     host = "http://localhost:9100"
 
@@ -26,19 +28,17 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # zero means no limit
     max_idle_conns = 10
 
-    # time after which inactive requesters will be closed
-    # if configured value a zero, idle requesters will never be closed
-    # if configured value less than 1m but not zero, it will be set to 1m
-    idle_timeout = "1h"
-
     # result codes, means request performed successfully
     success_codes = [ 200, 201, 204 ]
 
-    # interval between events buffer flushes if buffer length less than it's capacity
-    batch_interval = "5s"
+    # label, which value will be used as a request path, if configured
+    path_label = "request_uri"
 
-    # events buffer size
-    batch_buffer = 100    
+    # field, which content will be used as a request body after serialization, if configured
+    request_body_from = "path.to.request.field"
+
+    # field, that will be added to event with response body after parsing, if configured
+    response_body_to = "path.to.response.field"
 
     # maximum number of attempts to execute request
     # before events will be marked as failed
@@ -67,18 +67,20 @@ Plugin creates one requester per each unique event routing key, with personal ba
 
     # a "header -> label" map
     # if event label exists, it will be added as a request header
-    # ONLY FIRST EVENT IN BATCH USED
-    [outputs.http.headerlabels]
+    [processors.http.headerlabels]
       custom_header = "my_label_name"
 
     # a "param -> field" map
     # if event field exists, it will be added as a request urlparam
     # target field must not be a map, but slices allowed, if slice not contains maps
-    # ONLY FIRST EVENT IN BATCH USED
-    [outputs.http.paramfields]
+    [processors.http.paramfields]
       custom_param = "my.field.path"
 
-    [outputs.http.serializer]
+    [processors.http.serializer]
       type = "json"
       data_only = true
+
+    [processors.http.parser]
+      type = "json"
+      split_array = true
 ```

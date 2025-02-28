@@ -125,6 +125,8 @@ func (p *Pipeline) Config() *config.Pipeline {
 	return p.config
 }
 
+// Pipeline Close() MUST be called only if pipeline build failed.
+// After successfull Run(), each plugin will be closed dy it's unit.
 func (p *Pipeline) Close() error {
 	for _, k := range p.keepers {
 		k.Close()
@@ -353,7 +355,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 	wg.Wait()
 
-	p.Close()
+	for _, k := range p.keepers {
+		k.Close()
+	}
+
 	p.log.Info("pipeline stopped")
 	p.state = StateStopped
 }

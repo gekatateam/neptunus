@@ -6,6 +6,7 @@
 
 [[inputs]]
   [inputs.sql]
+    enable_metrics = true
     driver = "pgx"
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
     interval = "2s"

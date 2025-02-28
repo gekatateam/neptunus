@@ -36,6 +36,8 @@ var roEventMethods = map[string]*starlark.Builtin{
 
 	// tags methods
 	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
+
+	"getErrors": starlark.NewBuiltin("getErrors", getErrors), // f() List[String]
 }
 
 var woEventMethods = map[string]*starlark.Builtin{
@@ -61,21 +63,11 @@ var woEventMethods = map[string]*starlark.Builtin{
 	"delTag": starlark.NewBuiltin("delTag", delTag), // f(tag String)
 }
 
-//type builtinFunc func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
-
 func getId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
-	// }
-
 	return starlark.String(b.Receiver().(*Event).event.Id), nil
 }
 
 func setId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var id string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &id); err != nil {
 		return starlark.None, err
@@ -86,18 +78,10 @@ func setId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs 
 }
 
 func getRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
-	// }
-
 	return starlark.String(b.Receiver().(*Event).event.RoutingKey), nil
 }
 
 func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var rk string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &rk); err != nil {
 		return starlark.None, err
@@ -108,18 +92,10 @@ func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 }
 
 func getTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
-	// }
-
 	return startime.Time(b.Receiver().(*Event).event.Timestamp), nil
 }
 
 func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var rawTs starlark.Value
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &rawTs); err != nil {
 		return starlark.None, err
@@ -135,10 +111,6 @@ func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, 
 }
 
 func setLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var key, value string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 2, &key, &value); err != nil {
 		return starlark.None, err
@@ -149,10 +121,6 @@ func setLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 }
 
 func getLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var key string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &key); err != nil {
 		return starlark.None, err
@@ -166,10 +134,6 @@ func getLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 }
 
 func delLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var key string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &key); err != nil {
 		return starlark.None, err
@@ -180,10 +144,6 @@ func delLabel(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 }
 
 func getField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var key string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &key); err != nil {
 		return starlark.None, err
@@ -198,10 +158,6 @@ func getField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 }
 
 func setField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var key string
 	var value starlark.Value
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 2, &key, &value); err != nil {
@@ -221,10 +177,6 @@ func setField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 }
 
 func delField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var key string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &key); err != nil {
 		return starlark.None, err
@@ -235,10 +187,6 @@ func delField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 }
 
 func addTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var tag string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &tag); err != nil {
 		return starlark.None, err
@@ -249,10 +197,6 @@ func addTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 }
 
 func delTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var tag string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &tag); err != nil {
 		return starlark.None, err
@@ -263,10 +207,6 @@ func delTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 }
 
 func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	// if len(kwargs) > 0 {
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept keyword arguments", b.Name())
-	// }
-
 	var tag string
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &tag); err != nil {
 		return starlark.None, err
@@ -275,11 +215,17 @@ func hasTag(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs
 	return starlark.Bool(b.Receiver().(*Event).event.HasTag(tag)), nil
 }
 
-func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []starlark.Tuple) (starlark.Value, error) {
-	// if len(args) > 0 || len(kwargs) > 0 { // less checks goes faster
-	// 	return starlark.None, fmt.Errorf("%v: method does not accept arguments", b.Name())
-	// }
+func getErrors(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []starlark.Tuple) (starlark.Value, error) {
+	errs := make([]starlark.Value, 0)
+	for _, err := range b.Receiver().(*Event).event.Errors {
+		errs = append(errs, starlark.String(err.Error()))
+	}
 
+	return starlark.NewList(errs), nil
+}
+
+// lint:ignore U1000 reserved for better days
+func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []starlark.Tuple) (starlark.Value, error) {
 	return &Event{event: b.Receiver().(*Event).event.Clone()}, nil
 }
 

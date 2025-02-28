@@ -15,6 +15,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
+	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
@@ -38,6 +39,7 @@ var txIsolationLevels = map[string]sql.IsolationLevel{
 
 type Sql struct {
 	*core.BaseInput  `mapstructure:"-"`
+	EnableMetrics    bool          `mapstructure:"enable_metrics"`
 	Dsn              string        `mapstructure:"dsn"`
 	Driver           string        `mapstructure:"driver"`
 	ConnsMaxIdleTime time.Duration `mapstructure:"conns_max_idle_time"`
@@ -175,6 +177,11 @@ func (i *Sql) Close() error {
 }
 
 func (i *Sql) Run() {
+	if i.EnableMetrics {
+		dbstats.RegisterDB(i.Pipeline, i.Alias, i.Driver, i.db)
+		defer dbstats.UnregisterDB(i.Pipeline, i.Alias, i.Driver)
+	}
+
 	if i.Interval > 0 {
 		ticker := time.NewTicker(i.Interval)
 		for {
