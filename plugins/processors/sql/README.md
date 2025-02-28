@@ -25,7 +25,7 @@ Drivers use plugin TLS configuration.
     # datasource service name in selected driver format
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
 
-    # if true, one SQL client is shared among the processors in set
+    # if true, one SQL client is shared between processors in set
     # otherwise, each plugin uses a personal client
     shared = true
 

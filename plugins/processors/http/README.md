@@ -1,6 +1,6 @@
 # Http Processor Plugin
 
-The `http` performs HTTP requests for each event. This plugin requires parser and serializer.
+The `http` processor plugin performs HTTP requests for each event. This plugin requires parser and serializer.
 
 Unlike [HTTP output](../../outputs/http/README.md), this plugin uses configured label as a request path (it's optional, btw), not event routing key.
 
