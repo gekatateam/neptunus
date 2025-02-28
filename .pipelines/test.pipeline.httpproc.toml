@@ -1,42 +1,41 @@
 [settings]
-  id = "test.pipeline.httpout"
+  id = "test.pipeline.http"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
-
-[[keykeepers]]
-  [keykeepers.env]
 
 [[inputs]]
   [inputs.http]
     address = ":9100"
     max_connections = 10
-    query_params_to = "."
     wait_for_delivery = true
     tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.http.labelheaders]
+    uri = "x-uri"
   [inputs.http.parser]
     type = "json"
     split_array = false
 
 [[processors]]
-  [processors.rk.mapping]
-    "/httpout-test-final" = [ "/httpout-test-out" ]
-    "/httpout-test-out" = [ "/httpout-test-in" ]
-
-[[outputs]]
-  [outputs.http]
-    host = "http://localhost:9100"
+  [processors.http]
+    host = "https://jsonplaceholder.typicode.com/posts"
+    method = "POST"
+#    path_label = "uri"
     retry_attempts = 3
     retry_after = "1s"
-    batch_interval = "1s"
-    [outputs.http.serializer]
+    tls_enable = true
+    response_body_to = "typicode.response"
+    request_body_from = "payload"
+    [processors.http.serializer]
       type = "json"
       data_only = false
-    [outputs.http.filters.glob]
-      routing_key = [ "/httpout-test-out" ]
+    [processors.http.parser]
+      type = "json"
+      split_array = true
+
 
 [[outputs]]
   [outputs.log]
@@ -44,5 +43,3 @@
     [outputs.log.serializer]
       type = "json"
       data_only = false
-    [outputs.log.filters.glob]
-      routing_key = [ "/httpout-test-final" ]

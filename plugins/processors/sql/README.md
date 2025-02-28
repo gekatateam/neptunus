@@ -2,7 +2,7 @@
 
 The `sql` processor plugin performs SQL query using incoming events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
 
-An event routing key may be used as a table name using `table_placeholder` parameter.
+An event label may be used as a table name using `table_placeholder` parameter.
 
 If query returns rows, it will be added to event.
 
@@ -38,9 +38,12 @@ Drivers use plugin TLS configuration.
     # queries execution timeout
     query_timeout = "10s"
 
-    # a placeholder in query, which will be replaced by event routing key
+    # a placeholder in query, which will be replaced by configured label
     # that may be useful if target table is partitioned
     table_placeholder = ":table_name"
+
+    # label, which value will be used as a table name, if configured
+    table_label = "table_name"
 
     # maximum number of attempts to execute query
     # before event will be marked as failed

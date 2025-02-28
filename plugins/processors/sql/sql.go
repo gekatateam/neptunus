@@ -34,6 +34,7 @@ type Sql struct {
 	QueryTimeout        time.Duration `mapstructure:"query_timeout"`
 
 	TablePlaceholder string            `mapstructure:"table_placeholder"`
+	TableLabel       string            `mapstructure:"table_label"`
 	OnEvent          csql.QueryInfo    `mapstructure:"on_event"`
 	Columns          map[string]string `mapstructure:"columns"`
 	Fields           map[string]string `mapstructure:"fields"`
@@ -124,6 +125,25 @@ func (p *Sql) Run() {
 			rawArgs[column] = value
 		}
 
+		var tableName string
+		if len(p.TableLabel) > 0 {
+			label, ok := e.GetLabel(p.TableLabel)
+			if !ok {
+				p.Log.Error("query preparation failed",
+					"error", fmt.Errorf("event does not contains %v label", p.TableLabel),
+					slog.Group("event",
+						"id", e.Id,
+						"key", e.RoutingKey,
+					),
+				)
+				e.StackError(fmt.Errorf("event does not contains %v label", p.TableLabel))
+				p.Out <- e
+				p.Observe(metrics.EventFailed, time.Since(now))
+				continue
+			}
+			tableName = label
+		}
+
 		fetchedRows := make(map[string][]any)
 
 		err := p.Retryer.Do("exec query", p.Log, func() error {
@@ -132,7 +152,7 @@ func (p *Sql) Run() {
 
 			// after init tests, error normally does not occur here
 			query, args, err := csql.BindNamed(
-				strings.Replace(p.OnEvent.Query, p.TablePlaceholder, e.RoutingKey, 1),
+				strings.Replace(p.OnEvent.Query, p.TablePlaceholder, tableName, 1),
 				rawArgs, p.db)
 			if err != nil {
 				return fmt.Errorf("query binding failed: %w", err)
