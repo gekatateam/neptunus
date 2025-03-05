@@ -200,7 +200,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if err := event.SetField(i.QueryParamsTo, params); err != nil {
 				i.Log.Warn("failed set query params to event",
-					"error", fmt.Errorf("at %v: %w", i.QueryParamsTo, err),
+					"error", err,
 					slog.Group("event",
 						"id", event.Id,
 						"key", event.RoutingKey,

@@ -192,7 +192,7 @@ func (p *Http) Run() {
 			path = label
 		}
 
-		respBody, err := p.perform(p.baseUrl.JoinPath(path).String(), values, reqBody, header)
+		respBody, err := p.perform(p.baseUrl.JoinPath(path), values, reqBody, header)
 		if err != nil {
 			p.Log.Error("request failed",
 				"error", err,
@@ -231,13 +231,13 @@ func (p *Http) Run() {
 
 			if err := e.SetField(p.ResponseBodyTo, result); err != nil {
 				p.Log.Error("response processing failed",
-					"error", fmt.Errorf("error set response data to %v: %w", p.ResponseBodyTo, err),
+					"error", fmt.Errorf("error set response data: %w", err),
 					slog.Group("event",
 						"id", e.Id,
 						"key", e.RoutingKey,
 					),
 				)
-				e.StackError(fmt.Errorf("error set response data to %v: %w", p.ResponseBodyTo, err))
+				e.StackError(fmt.Errorf("error set response data: %w", err))
 				p.Out <- e
 				p.Observe(metrics.EventFailed, time.Since(now))
 				continue
@@ -255,17 +255,13 @@ func (p *Http) Run() {
 	}
 }
 
-func (p *Http) perform(uri string, params url.Values, body []byte, header http.Header) ([]byte, error) {
-	url, err := url.ParseRequestURI(uri)
-	if err != nil {
-		return nil, err
-	}
-	url.RawQuery = params.Encode()
+func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http.Header) ([]byte, error) {
+	uri.RawQuery = params.Encode()
 
 	var rawResponse []byte
 
-	err = p.Retryer.Do("perform query", p.Log, func() error {
-		req, err := http.NewRequest(p.Method, url.String(), bytes.NewReader(bytes.Clone(body)))
+	err := p.Retryer.Do("perform query", p.Log, func() error {
+		req, err := http.NewRequest(p.Method, uri.String(), bytes.NewReader(bytes.Clone(body)))
 		if err != nil {
 			return err
 		}

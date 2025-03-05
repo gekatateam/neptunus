@@ -2,7 +2,6 @@ package line
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -14,10 +13,6 @@ type Rk struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Mapping             map[string][]string `mapstructure:"mapping"`
 	index               map[string]string
-
-	in  <-chan *core.Event
-	out chan<- *core.Event
-	log *slog.Logger
 }
 
 func (p *Rk) Init() error {

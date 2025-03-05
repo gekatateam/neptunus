@@ -66,17 +66,13 @@ func (e *Event) Duty() int32 {
 }
 
 func (e *Event) GetField(key string) (any, error) {
-	val, err := mappath.Get(e.Data, key)
-	if err != nil {
-		return nil, mappath.ErrNoSuchField
-	}
-	return val, nil
+	return mappath.Get(e.Data, key)
 }
 
 func (e *Event) SetField(key string, value any) error {
 	p, err := mappath.Put(e.Data, key, value)
 	if err != nil {
-		return mappath.ErrInvalidPath
+		return err
 	}
 	e.Data = p
 	return nil
@@ -85,7 +81,7 @@ func (e *Event) SetField(key string, value any) error {
 func (e *Event) DeleteField(key string) error {
 	p, err := mappath.Delete(e.Data, key)
 	if err != nil {
-		return mappath.ErrNoSuchField
+		return err
 	}
 	e.Data = p
 	return nil

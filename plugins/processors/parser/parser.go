@@ -130,7 +130,7 @@ MAIN_LOOP:
 							"field", p.To,
 						),
 					)
-					e.StackError(fmt.Errorf("error set to field %v: %v", p.To, err))
+					e.StackError(fmt.Errorf("error set field: %w", err))
 					e.AddTag("::parser_processing_failed")
 					p.Out <- e
 					p.Observe(metrics.EventFailed, time.Since(now))

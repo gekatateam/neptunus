@@ -70,11 +70,12 @@ func run(cCtx *cli.Context) error {
 
 	if err := s.StartAll(); err != nil {
 		var pipelineErr *xerrors.Errorlist
-		if errors.As(err, &pipelineErr) {
-			if cfg.Engine.FailFast {
-				return err
-			}
-		} else {
+		// any other error means that app must die
+		if !errors.As(err, &pipelineErr) {
+			return err
+		}
+
+		if cfg.Engine.FailFast {
 			return err
 		}
 	}

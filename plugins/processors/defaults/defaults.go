@@ -46,7 +46,7 @@ func (p *Defaults) Run() {
 							"field", k,
 						),
 					)
-					e.StackError(fmt.Errorf("error set field %v", k))
+					e.StackError(fmt.Errorf("error set field: %w", err))
 					e.AddTag("::defaults_processing_failed")
 					hasError = true
 				}

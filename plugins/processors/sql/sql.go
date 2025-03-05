@@ -203,7 +203,7 @@ func (p *Sql) Run() {
 			if val, ok := fetchedRows[column]; ok {
 				if err := e.SetField(field, any(val)); err != nil {
 					p.Log.Warn("set field failed",
-						"error", fmt.Errorf("%v: %w", field, err),
+						"error", fmt.Errorf("set field failed: %w", err),
 						slog.Group("event",
 							"id", e.Id,
 							"key", e.RoutingKey,
