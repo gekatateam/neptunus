@@ -84,7 +84,7 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 	LABEL_OUT_OF_RANGE_IGNORED:
 
 		if err = e.SetField(p.path, field); err != nil {
-			return fmt.Errorf("from label: set field failed: %v: %w", p.path, err)
+			return fmt.Errorf("from label: set field failed: %w", err)
 		}
 	case fromField:
 		rawField, getErr := e.GetField(p.path)
@@ -132,7 +132,7 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 	FIELD_OUT_OF_RANGE_IGNORED:
 
 		if err = e.SetField(p.path, field); err != nil {
-			return fmt.Errorf("from field: set field failed: %v: %w", p.path, err)
+			return fmt.Errorf("from field: set field failed: %w", err)
 		}
 	default:
 		panic(fmt.Errorf("unexpected from type: %v", p.from))

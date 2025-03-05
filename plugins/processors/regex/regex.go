@@ -2,6 +2,7 @@ package regex
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"time"
 
@@ -92,10 +93,15 @@ func (p *Regex) process(e *core.Event) {
 
 		for i, name := range rex.SubexpNames() {
 			if i != 0 && name != "" {
-				// because a named capture cannot contain a dot in it's name
-				// like "(?P<path.to.key>[a-z]+)" (it's a compilation error)
-				// no error is possible here
-				e.SetField(name, match[i])
+				if err := e.SetField(name, match[i]); err != nil {
+					p.Log.Warn("set field failed",
+						"error", err,
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+						),
+					)
+				}
 			}
 		}
 	}
