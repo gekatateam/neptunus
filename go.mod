@@ -79,7 +79,7 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.23.1
 	github.com/elastic/go-elasticsearch/v8 v8.11.1
 	github.com/elastic/go-lumber v0.1.1
-	github.com/gekatateam/mappath v1.0.0
+	github.com/gekatateam/mappath v1.1.0
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/go-task/slim-sprig/v3 v3.0.0
