@@ -9,6 +9,7 @@
 
 [engine]
   storage = "fs"
+  fail_fast = false
   [engine.fs]
     directory = ".pipelines"
     extention = "toml"

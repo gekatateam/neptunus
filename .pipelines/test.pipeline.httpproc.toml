@@ -1,5 +1,5 @@
 [settings]
-  id = "test.pipeline.http"
+  id = "test.pipeline.httpproc"
   lines = 1
   run = true
   buffer = 1_000
