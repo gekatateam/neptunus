@@ -161,11 +161,11 @@ def process(event):
 			}
 
 			if test.event.Duty() > 0 {
-				t.Fatal("incoming metric not delivered")
+				t.Fatal("incoming event not delivered")
 			}
 
 			if duty > 0 {
-				t.Fatal("outgoing metric not delivered")
+				t.Fatal("outgoing event not delivered")
 			}
 		})
 	}

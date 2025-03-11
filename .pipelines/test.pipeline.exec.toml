@@ -1,19 +1,17 @@
 [settings]
   id = "test.pipeline.exec"
-  lines = 1
+  lines = 3
   run = false
   buffer = 1_000
 
 [[inputs]]
-  [inputs.httpl]
-    address = ":9100"
-    max_connections = 10
-    tls_enable = false
-    tls_key_file = '.testcerts\server-key.pem'
-    tls_cert_file = '.testcerts\server-cert.pem'
-    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
-  [inputs.httpl.parser]
-    type = "json"
+  [inputs.cronjob]
+    [[inputs.cronjob.jobs]]
+      name = "healthcheck.notify"
+      schedule = "@every 10s"
+
+[[processors]]
+  [processors.line]
 
 [[processors]]
   [processors.starlark]

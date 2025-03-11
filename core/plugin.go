@@ -82,6 +82,11 @@ type SetId interface {
 	SetId(id uint64)
 }
 
+// processor that need it's line number must implement this interface
+type SetLine interface {
+	SetLine(line int)
+}
+
 // core plugins
 // used in core units only
 type Fusion interface {

@@ -11,19 +11,21 @@ import (
 
 type Line struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	Line                int    `mapstructure:"::line"`
 	Label               string `mapstructure:"label"`
 
 	line string
 }
 
 func (p *Line) Init() error {
-	p.line = strconv.Itoa(p.Line)
 	return nil
 }
 
 func (p *Line) Close() error {
 	return nil
+}
+
+func (p *Line) SetLine(line int) {
+	p.line = strconv.Itoa(line)
 }
 
 func (p *Line) Run() {
