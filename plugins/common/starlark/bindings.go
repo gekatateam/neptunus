@@ -38,6 +38,8 @@ var roEventMethods = map[string]*starlark.Builtin{
 	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
 
 	"getErrors": starlark.NewBuiltin("getErrors", getErrors), // f() List[String]
+
+	"getUuid": starlark.NewBuiltin("getUuid", getUuid), // f() String
 }
 
 var woEventMethods = map[string]*starlark.Builtin{
@@ -222,6 +224,10 @@ func getErrors(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []st
 	}
 
 	return starlark.NewList(errs), nil
+}
+
+func getUuid(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	return starlark.String(b.Receiver().(*Event).event.UUID.String()), nil
 }
 
 // lint:ignore U1000 reserved for better days

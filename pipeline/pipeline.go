@@ -553,7 +553,9 @@ func (p *Pipeline) configureProcessors() error {
 					idNeedy.SetId(processorCfg.Id())
 				}
 
-				processorCfg["::line"] = i
+				if lineNeedy, ok := processor.(core.SetLine); ok {
+					lineNeedy.SetLine(i)
+				}
 
 				baseField := reflect.ValueOf(processor).Elem().FieldByName(core.KindProcessor)
 				if baseField.IsValid() && baseField.CanSet() {
@@ -594,7 +596,7 @@ func (p *Pipeline) configureProcessors() error {
 
 func (p *Pipeline) configureInputs() error {
 	if len(p.config.Inputs) == 0 {
-		return errors.New("at leats one input required")
+		return errors.New("at least one input required")
 	}
 
 	for index, inputs := range p.config.Inputs {

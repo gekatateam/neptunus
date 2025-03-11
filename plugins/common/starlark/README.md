@@ -21,6 +21,7 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `delTag(tag String)` - delete tag from event
  - `hasTag(tag String) (ok Bool)` - check if event has tag
  - `getErrors() (e List[String])` - get event errors
+ - `getUuid() (uuid String)` - get event UUID
 
 Also, you can create a new event using `newEvent(key String) (event Event)` builtin function.
 

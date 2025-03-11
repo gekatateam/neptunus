@@ -84,9 +84,11 @@ func (p *Starlark) Run() {
 	}
 }
 
+// check if origin event in returned list
+// if it's not, drop it
 func (p *Starlark) markAsDone(e *core.Event, events []*core.Event) {
 	for _, v := range events {
-		if v == e {
+		if v.UUID == e.UUID {
 			return
 		}
 	}

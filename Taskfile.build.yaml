@@ -25,7 +25,20 @@ tasks:
         NEPTUNUS_BUILD_GOOS: windows
         NEPTUNUS_BUILD_GOARCH: amd64
 
+  darwin-arm64:
+    desc: Build darwin/arm64 binary
+    cmds:
+    - task: generics:build
+      vars:
+        NEPTUNUS_BUILD_GOOS: darwin
+        NEPTUNUS_BUILD_GOARCH: arm64
+
   docker:
     desc: Build docker image
     cmds:
     - task: generics:docker
+
+  tests:
+    desc: Run tests
+    cmds:
+    - go test ./... -v

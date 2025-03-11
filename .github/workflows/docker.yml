@@ -14,10 +14,10 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
 
-      - name: Setup Go 1.21.x
+      - name: Setup Go 1.24.x
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21.x'
+          go-version: '1.24.x'
 
       - name: Install go tools
         run: |

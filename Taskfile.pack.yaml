@@ -19,3 +19,11 @@ tasks:
       vars:
         NEPTUNUS_BUILD_GOOS: windows
         NEPTUNUS_BUILD_GOARCH: amd64
+
+  darwin-arm64:
+    desc: Create darwin/arm64 tar.gz
+    cmds:
+    - task: generics:tar
+      vars:
+        NEPTUNUS_BUILD_GOOS: darwin
+        NEPTUNUS_BUILD_GOARCH: arm64
