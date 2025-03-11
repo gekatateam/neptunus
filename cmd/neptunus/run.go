@@ -7,12 +7,17 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"strconv"
+	"strings"
 
 	"sync"
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/pbnjay/memory"
 	"github.com/urfave/cli/v2"
+	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
@@ -31,6 +36,10 @@ func run(cCtx *cli.Context) error {
 
 	if err := logger.Init(cfg.Common); err != nil {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
+	}
+
+	if err := SetRuntimeParameters(&cfg.Common); err != nil {
+		return fmt.Errorf("runtime params set error: %w", err)
 	}
 
 	quit := make(chan os.Signal, 1)
@@ -108,6 +117,43 @@ func run(cCtx *cli.Context) error {
 
 	wg.Wait()
 	logger.Default.Info("we're done here")
+
+	return nil
+}
+
+func SetRuntimeParameters(config *config.Common) error {
+	if len(config.GCPercent) > 0 {
+		gcPercent, err := strconv.Atoi(strings.TrimSuffix(config.GCPercent, "%"))
+		if err != nil {
+			return err
+		}
+
+		debug.SetGCPercent(gcPercent)
+		logger.Default.Info(fmt.Sprintf("GC percent is set to %v", config.GCPercent))
+	}
+
+	if len(config.MemLimit) > 0 {
+		if strings.HasSuffix(config.MemLimit, "%") {
+			memLimitPercent, err := strconv.ParseUint(strings.TrimSuffix(config.MemLimit, "%"), 10, 0)
+			if err != nil {
+				return err
+			}
+
+			memLimit := memory.TotalMemory() * memLimitPercent / 100
+			debug.SetMemoryLimit(int64(memLimit))
+			logger.Default.Info(fmt.Sprintf("memory limit is set to %v", datasize.Size(memLimit)))
+
+			return nil
+		}
+
+		memLimit, err := datasize.Parse(config.MemLimit)
+		if err != nil {
+			return err
+		}
+
+		debug.SetMemoryLimit(int64(memLimit.Bytes()))
+		logger.Default.Info(fmt.Sprintf("memory limit is set to %v", memLimit))
+	}
 
 	return nil
 }

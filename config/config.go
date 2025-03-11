@@ -38,6 +38,8 @@ type Common struct {
 	LogFormat string            `toml:"log_format" yaml:"log_format" json:"log_format"`
 	LogFields map[string]string `toml:"log_fields" yaml:"log_fields" json:"log_fields"`
 	HttpPort  string            `toml:"http_port"  yaml:"http_port"  json:"http_port"`
+	GCPercent string            `toml:"gcpercent"  yaml:"gcpercent"  json:"gcpercent"`
+	MemLimit  string            `toml:"memlimit"   yaml:"memlimit"   json:"memlimit"`
 }
 
 type Engine struct {
