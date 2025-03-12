@@ -39,7 +39,7 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
 
-	if err := SetRuntimeParameters(&cfg.Common.Runtime); err != nil {
+	if err := SetRuntimeParameters(&cfg.Runtime); err != nil {
 		return fmt.Errorf("runtime params set error: %w", err)
 	}
 

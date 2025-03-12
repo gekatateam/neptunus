@@ -29,8 +29,9 @@ var (
 )
 
 type Config struct {
-	Common Common `toml:"common" yaml:"common" json:"common"`
-	Engine Engine `toml:"engine" yaml:"engine" json:"engine"`
+	Common  Common  `toml:"common"  yaml:"common"  json:"common"`
+	Runtime Runtime `toml:"runtime" yaml:"runtime" json:"runtime"`
+	Engine  Engine  `toml:"engine"  yaml:"engine"  json:"engine"`
 }
 
 type Common struct {
@@ -38,7 +39,6 @@ type Common struct {
 	LogFormat string            `toml:"log_format" yaml:"log_format" json:"log_format"`
 	LogFields map[string]string `toml:"log_fields" yaml:"log_fields" json:"log_fields"`
 	HttpPort  string            `toml:"http_port"  yaml:"http_port"  json:"http_port"`
-	Runtime   Runtime           `toml:"runtime"    yaml:"runtime"    json:"runtime"`
 }
 
 type Runtime struct {
