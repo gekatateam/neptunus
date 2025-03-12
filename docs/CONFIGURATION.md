@@ -37,6 +37,7 @@ Here is a common part example:
   gcpercent = "50%"
   memlimit = "70%"
   maxthreads = 10000
+  maxprocs = 4
 ```
 
 **Engine** section used for pipelines engine settings:
