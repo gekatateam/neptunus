@@ -6,20 +6,13 @@ Neptunus configuration files is written using `json`, `yaml` or `toml`.
 
 The daemon part configures Neptunus app and pipelines engine.
 
+You can also use environment variables in daemon config with `${MY_VAR}` syntax. Please note than replacement occurs before file parsing.
+
 **Common** section used for low-level settings:
  - **log_level**: Logging level, global setting for all application, accepts `debug`, `info`, `warn` and `error`.
  - **log_format**: Logging format, supports `pretty`, `logfmt` and `json` formats.
  - **http_port**: Address for HTTP api server. See more in [API doc](API.md).
  - **log_fields**: A map of fields, that will be added to each log entry.
- - **runtime**:
-   - **gcpercent**: [Garbage collection target percentage](https://pkg.go.dev/runtime/debug#SetGCPercent). Only used if not empty, value must be a percentage, e.g. `25%` or `75%`.
-   - **memlimit**: [Soft memory limit](https://pkg.go.dev/runtime/debug#SetMemoryLimit). Only used if not empty, value can be a percentage from available memory (e.g. `25%` or `75%`) or an absolute (for example, `1GiB` or `512MiB`).
-   - **maxthreads**: [The maximum number of operating system threads that the Go program can use](https://pkg.go.dev/runtime/debug#SetMaxThreads). Only used if greater than zero, integer value.
-   - **maxprocs**: [The maximum number of CPUs that can be executing simultaneously](https://pkg.go.dev/runtime#GOMAXPROCS). Only used if greater than zero, integer value.
-
-`Runtime` settings may help in ephemeral runtimes, like Kubernetes with [VPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/#scaling-workloads-vertically), where you can't directly set your app resources and limits.
-
-You can also use environment variables in daemon config with `${MY_VAR}` syntax. Please note than replacement occurs before file parsing.
 
 Here is a common part example:
 ```toml
@@ -31,10 +24,19 @@ Here is a common part example:
     stage = "dev"
     dc = "east-01"
     host = "${HOSTNAME}"
-  [common.runtime]
-    gcpercent = "50%"
-    memlimit = "70%"
-    maxthreads = 10000
+```
+
+**Runtime** settings may help in ephemeral runtimes, like Kubernetes with [VPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/#scaling-workloads-vertically), where you can't directly set your app resources and limits:
+ - **gcpercent**: [Garbage collection target percentage](https://pkg.go.dev/runtime/debug#SetGCPercent). Only used if not empty, value must be a percentage, e.g. `25%` or `75%`.
+ - **memlimit**: [Soft memory limit](https://pkg.go.dev/runtime/debug#SetMemoryLimit). Only used if not empty, value can be a percentage from available memory (e.g. `25%` or `75%`) or an absolute (for example, `1GiB` or `512MiB`).
+ - **maxthreads**: [The maximum number of operating system threads that the Go program can use](https://pkg.go.dev/runtime/debug#SetMaxThreads). Only used if greater than zero, integer value.
+ - **maxprocs**: [The maximum number of CPUs that can be executing simultaneously](https://pkg.go.dev/runtime#GOMAXPROCS). Only used if greater than zero, integer value.
+
+```toml
+[runtime]
+  gcpercent = "50%"
+  memlimit = "70%"
+  maxthreads = 10000
 ```
 
 **Engine** section used for pipelines engine settings:
