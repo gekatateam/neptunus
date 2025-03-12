@@ -2,12 +2,15 @@
   log_level = "info"
   log_format = "logfmt"
   http_port = ":9601"
-  gcpercent = "75%"
-  memlimit = "1%"
-    [common.log_fields]
-      runner = "local"
-      dc = "east-01"
-      host = "${COMPUTERNAME}"
+  [common.runtime]
+    gcpercent = "75%"
+    memlimit = "1%"
+    maxthreads = 100
+    maxprocs = 4
+  [common.log_fields]
+    runner = "local"
+    dc = "east-01"
+    host = "${COMPUTERNAME}"
 
 [engine]
   storage = "fs"

@@ -38,8 +38,14 @@ type Common struct {
 	LogFormat string            `toml:"log_format" yaml:"log_format" json:"log_format"`
 	LogFields map[string]string `toml:"log_fields" yaml:"log_fields" json:"log_fields"`
 	HttpPort  string            `toml:"http_port"  yaml:"http_port"  json:"http_port"`
-	GCPercent string            `toml:"gcpercent"  yaml:"gcpercent"  json:"gcpercent"`
-	MemLimit  string            `toml:"memlimit"   yaml:"memlimit"   json:"memlimit"`
+	Runtime   Runtime           `toml:"runtime"    yaml:"runtime"    json:"runtime"`
+}
+
+type Runtime struct {
+	GCPercent  string `toml:"gcpercent"   yaml:"gcpercent"   json:"gcpercent"`
+	MemLimit   string `toml:"memlimit"    yaml:"memlimit"    json:"memlimit"`
+	MaxThreads int    `toml:"maxthreads"  yaml:"maxthreads"  json:"maxthreads"`
+	MaxProcs   int    `toml:"maxprocs"    yaml:"maxprocs"    json:"maxprocs"`
 }
 
 type Engine struct {

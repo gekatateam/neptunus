@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("logger initialization failed: %v", err.Error())
 	}
 
-	if err := SetRuntimeParameters(&cfg.Common); err != nil {
+	if err := SetRuntimeParameters(&cfg.Common.Runtime); err != nil {
 		return fmt.Errorf("runtime params set error: %w", err)
 	}
 
@@ -121,7 +122,7 @@ func run(cCtx *cli.Context) error {
 	return nil
 }
 
-func SetRuntimeParameters(config *config.Common) error {
+func SetRuntimeParameters(config *config.Runtime) error {
 	if len(config.GCPercent) > 0 {
 		gcPercent, err := strconv.Atoi(strings.TrimSuffix(config.GCPercent, "%"))
 		if err != nil {
@@ -133,26 +134,35 @@ func SetRuntimeParameters(config *config.Common) error {
 	}
 
 	if len(config.MemLimit) > 0 {
+		var memLimit uint64
 		if strings.HasSuffix(config.MemLimit, "%") {
 			memLimitPercent, err := strconv.ParseUint(strings.TrimSuffix(config.MemLimit, "%"), 10, 0)
 			if err != nil {
 				return err
 			}
 
-			memLimit := memory.TotalMemory() * memLimitPercent / 100
-			debug.SetMemoryLimit(int64(memLimit))
-			logger.Default.Info(fmt.Sprintf("memory limit is set to %v", datasize.Size(memLimit)))
+			memLimit = memory.TotalMemory() * memLimitPercent / 100
+		} else {
+			size, err := datasize.Parse(config.MemLimit)
+			if err != nil {
+				return err
+			}
 
-			return nil
+			memLimit = size.Bytes()
 		}
 
-		memLimit, err := datasize.Parse(config.MemLimit)
-		if err != nil {
-			return err
-		}
+		debug.SetMemoryLimit(int64(memLimit))
+		logger.Default.Info(fmt.Sprintf("memory limit is set to %v", datasize.Size(memLimit)))
+	}
 
-		debug.SetMemoryLimit(int64(memLimit.Bytes()))
-		logger.Default.Info(fmt.Sprintf("memory limit is set to %v", memLimit))
+	if config.MaxThreads > 0 {
+		debug.SetMaxThreads(config.MaxThreads)
+		logger.Default.Info(fmt.Sprintf("max threads number is set to %v", config.MaxThreads))
+	}
+
+	if config.MaxProcs > 0 {
+		runtime.GOMAXPROCS(config.MaxProcs)
+		logger.Default.Info(fmt.Sprintf("max procs number is set to %v", config.MaxProcs))
 	}
 
 	return nil
