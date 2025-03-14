@@ -576,6 +576,17 @@ Labels:
  - **group_id** - consumer group
  - **client_id** - kafka client ID
 
+#### Gauge `plugin_kafka_reader_delay`
+Reader current delay in milliseconds (delta between message read time and message timestamp)
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)
+ - **topic** - kafka topic name
+ - **partition** - partition number
+ - **group_id** - consumer group
+ - **client_id** - kafka client ID
+
 #### Gauge `plugin_kafka_reader_commit_queue_capacity`
 Reader internal commit queue capacity
 
