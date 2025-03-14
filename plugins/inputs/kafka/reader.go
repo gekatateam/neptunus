@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -28,6 +29,7 @@ type topicReader struct {
 
 	enableMetrics bool
 	labelHeaders  map[string]string
+	delay         atomic.Int64
 
 	reader          *kafka.Reader
 	commitSemaphore chan struct{}
@@ -49,13 +51,13 @@ func (r *topicReader) Run(rCtx context.Context) {
 				ReaderStats:         r.reader.Stats(),
 				CommitQueueLenght:   len(r.commitSemaphore),
 				CommitQueueCapacity: cap(r.commitSemaphore),
+				Delay:               r.loadAndResetDelay(),
 			}
 		})
 		defer kafkastats.UnregisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.partition, r.groupId, r.clientId)
 	}
 
 	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v spawned", r.topic, r.partition))
-
 FETCH_LOOP:
 	for {
 		msg, err := r.reader.FetchMessage(rCtx)
@@ -83,6 +85,7 @@ FETCH_LOOP:
 			continue FETCH_LOOP
 		}
 
+		r.delay.Store(time.Since(msg.Time).Milliseconds())
 		r.Log.Debug("message fetched",
 			"topic", msg.Topic,
 			"offset", strconv.FormatInt(msg.Offset, 10),
@@ -169,6 +172,11 @@ FETCH_LOOP:
 	} else {
 		r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v closed", r.topic, r.partition))
 	}
+}
+
+func (r *topicReader) loadAndResetDelay() int64 {
+	defer r.delay.Store(0)
+	return r.delay.Load()
 }
 
 type trackedMessage struct {

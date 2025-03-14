@@ -23,6 +23,7 @@ var (
 
 	kafkaReaderOffset              *prometheus.GaugeVec
 	kafkaReaderLag                 *prometheus.GaugeVec
+	kafkaReaderDelay               *prometheus.GaugeVec
 	kafkaReaderCommitQueueCapacity *prometheus.GaugeVec
 	kafkaReaderCommitQueueLength   *prometheus.GaugeVec
 
@@ -105,6 +106,13 @@ func init() {
 		prometheus.GaugeOpts{
 			Name: "plugin_kafka_reader_lag",
 			Help: "Reader current lag",
+		},
+		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
+	)
+	kafkaReaderDelay = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "plugin_kafka_reader_delay",
+			Help: "Reader current delay in milliseconds",
 		},
 		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
 	)
@@ -308,6 +316,7 @@ type ReaderStats struct {
 	kafka.ReaderStats
 	CommitQueueLenght   int
 	CommitQueueCapacity int
+	Delay               int64
 }
 
 type readerDescriptor struct {
@@ -379,6 +388,11 @@ func (c *kafkaReaderCollector) collect() {
 			desc.topic, stats.Partition,
 			desc.groupId, desc.clientId,
 		).Set(float64(stats.Lag))
+		kafkaReaderDelay.WithLabelValues(
+			desc.pipeline, desc.pluginName,
+			desc.topic, stats.Partition,
+			desc.groupId, desc.clientId,
+		).Set(float64(stats.Delay))
 		kafkaReaderCommitQueueCapacity.WithLabelValues(
 			desc.pipeline, desc.pluginName,
 			desc.topic, stats.Partition,
@@ -529,6 +543,12 @@ func RegisterKafkaReader(pipeline, pluginName, topic, partition, groupId, client
 		prometheus.MustRegister(kafkaReaderErrorsCount)
 		prometheus.MustRegister(kafkaReaderFetchesCount)
 		prometheus.MustRegister(kafkaReaderTimeoutsCount)
+
+		prometheus.MustRegister(kafkaReaderOffset)
+		prometheus.MustRegister(kafkaReaderLag)
+		prometheus.MustRegister(kafkaReaderDelay)
+		prometheus.MustRegister(kafkaReaderCommitQueueCapacity)
+		prometheus.MustRegister(kafkaReaderCommitQueueLength)
 
 		prometheus.MustRegister(kafkaReaderDialSecondsCount)
 		prometheus.MustRegister(kafkaReaderDialSecondsSum)

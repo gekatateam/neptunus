@@ -27,7 +27,7 @@ func Http(cfg config.Common) (*httpServer, error) {
 
 	mux := chi.NewRouter()
 	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/debug/pprof/*", pprof.Index)
+	mux.HandleFunc("/debug/pprof*", pprof.Index)
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
