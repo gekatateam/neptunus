@@ -98,6 +98,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/sijms/go-ora/v2 v2.8.23
+	github.com/thanhpk/randstr v1.0.6
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09

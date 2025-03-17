@@ -1,11 +1,14 @@
 package rabbitmq
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/thanhpk/randstr"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
@@ -34,6 +37,11 @@ type RabbitMQ struct {
 
 	config amqp.Config
 	conn   *amqp.Connection
+
+	fetchCtx   context.Context
+	cancelFunc context.CancelFunc
+
+	parser core.Parser
 }
 
 type Exchange struct {
@@ -47,15 +55,15 @@ type Exchange struct {
 type Queue struct {
 	Name        string            `mapstructure:"name"`
 	Durable     bool              `mapstructure:"durable"`
-	AutoDelete  bool              `mapstructure:"auto_delete"`
-	Exclusive   bool              `mapstructure:"exclusive"` // if true, random suffix will be added to queue
-	Bindings    []Binding         `mapstructure:"bindings"`
+	AutoDelete  bool              `mapstructure:"auto_delete"` // if true, random suffix will be added to queue
+	Exclusive   bool              `mapstructure:"exclusive"`   // if true, random suffix will be added to queue
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
 	ConsumeArgs map[string]string `mapstructure:"consume_args"`
+	Bindings    []Binding         `mapstructure:"bindings"`
 }
 
 type Binding struct {
-	Exchange    string            `mapstructure:"exchange"`
+	BindTo      string            `mapstructure:"bind_to"`
 	BindingKey  string            `mapstructure:"binding_key"`
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
 }
@@ -91,31 +99,180 @@ func (i *RabbitMQ) Init() error {
 		TLSClientConfig: tlsConfig,
 	}
 
+	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
+	if err := i.validateDeclarations(); err != nil {
+		return err
+	}
+
+	return i.connect()
+}
+
+func (i *RabbitMQ) SetParser(p core.Parser) {
+	i.parser = p
+}
+
+func (i *RabbitMQ) Close() error {
+	i.cancelFunc()
+	return i.conn.Close()
+}
+
+func (i *RabbitMQ) Run() {
+CONNECT_LOOP:
+	for {
+		select {
+		case <- i.fetchCtx.Done():
+			i.Log.Info("context cancelled, closing consumers")
+		default:
+			queues, err := i.declareAndBind()
+			if err != nil {
+				i.Log.Error("declarations failed",
+					"error", err,
+				)
+				time.Sleep(i.DialTimeout)
+
+				if err := i.connect(); err != nil {
+					i.Log.Error("connection failed",
+						"error", err,
+					)
+					continue CONNECT_LOOP
+				}
+			}
+
+			for _, queue := range queues {
+				
+			}
+		}
+	}
+}
+
+func (i *RabbitMQ) connect() error {
 	conn, err := amqp.DialConfig(i.Brokers[rand.IntN(len(i.Brokers))], i.config)
 	if err != nil {
 		return err
 	}
 
 	i.conn = conn
-	return i.declareAndBind()
+	return nil
 }
 
-func (i *RabbitMQ) Close() error
-func (i *RabbitMQ) Run()
+func (i *RabbitMQ) validateDeclarations() error {
+	exchanges := make(map[string]Exchange, len(i.Exchanges))
+	for _, exchange := range i.Exchanges {
+		if _, ok := exchanges[exchange.Name]; ok {
+			return fmt.Errorf("exchange duplicate declaration: %v", exchange.Name)
+		}
 
-func (i *RabbitMQ) declareAndBind() error {
+		switch exchange.Type {
+		case amqp.ExchangeDirect, amqp.ExchangeFanout, amqp.ExchangeHeaders, amqp.ExchangeTopic:
+		default:
+			return fmt.Errorf("exchange %v unknowh type: %v; expected one of: %v, %v, %v, %v",
+				exchange.Name, exchange.Type, amqp.ExchangeDirect, amqp.ExchangeFanout, amqp.ExchangeHeaders, amqp.ExchangeTopic)
+		}
 
+		exchanges[exchange.Name] = exchange
+	}
+
+	queues := make(map[string]Queue, len(i.Queues))
+	for _, queue := range i.Queues {
+		if _, ok := queues[queue.Name]; ok {
+			return fmt.Errorf("queue duplicate declaration: %v", queue.Name)
+		}
+		queues[queue.Name] = queue
+
+		for _, binding := range queue.Bindings {
+			if _, ok := exchanges[binding.BindTo]; !ok {
+				return fmt.Errorf("found binding to undeclared exchange: %v; queue: %v, key: %v",
+					binding.BindTo, queue.Name, binding.BindingKey)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
+	ch, err := i.conn.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain channel: %w", err)
+	}
+	defer ch.Close()
+
+	for _, exchange := range i.Exchanges {
+		args := make(amqp.Table, len(exchange.DeclareArgs))
+		for k, v := range exchange.DeclareArgs {
+			args[k] = v
+		}
+		err := ch.ExchangeDeclare(
+			exchange.Name,
+			exchange.Type,
+			exchange.Durable,
+			exchange.AutoDelete,
+			false, // internal
+			false, // noWait
+			args,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("exchange %v declaration failed: %w", exchange.Name, err)
+		}
+	}
+
+	var consumeReadyQueues []Queue
+	for _, queue := range i.Queues {
+		if queue.Exclusive || queue.AutoDelete {
+			queue.Name += randstr.Base62(7)
+		}
+
+		args := make(amqp.Table, len(queue.DeclareArgs))
+		for k, v := range queue.DeclareArgs {
+			args[k] = v
+		}
+		q, err := ch.QueueDeclare(
+			queue.Name,
+			queue.Durable,
+			queue.AutoDelete,
+			queue.Exclusive,
+			false, // noWait
+			args,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("queue %v declaration failed: %w", queue.Name, err)
+		}
+
+		queue.Name = q.Name
+		for _, binding := range queue.Bindings {
+			args := make(amqp.Table, len(binding.DeclareArgs))
+			for k, v := range binding.DeclareArgs {
+				args[k] = v
+			}
+			err := ch.QueueBind(
+				queue.Name,
+				binding.BindingKey,
+				binding.BindTo,
+				false, // noWait
+				args,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("binding declaration %v to %v with key %v failed: %w",
+					queue.Name, binding.BindTo, binding.BindingKey, err)
+			}
+		}
+
+		consumeReadyQueues = append(consumeReadyQueues, queue)
+	}
+
+	return consumeReadyQueues, nil
 }
 
 func init() {
 	plugins.AddInput("rabbitmq", func() core.Input {
 		return &RabbitMQ{
-			VHost:           "/",
-			ConsumerTag:     "neptunus.rabbitmq.input",
-			ConnectionName:  "neptunus.rabbitmq.input",
-			DialTimeout:     10 * time.Second,
-			Ider:            &ider.Ider{},
-			TLSClientConfig: &pkgtls.TLSClientConfig{},
+			VHost:             "/",
+			ConsumerTag:       "neptunus.rabbitmq.input",
+			ConnectionName:    "neptunus.rabbitmq.input",
+			DialTimeout:       10 * time.Second,
+			HeartbeatInterval: 10 * time.Second,
+			Ider:              &ider.Ider{},
+			TLSClientConfig:   &pkgtls.TLSClientConfig{},
 		}
 	})
 }

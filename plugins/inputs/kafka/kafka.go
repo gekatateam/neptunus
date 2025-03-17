@@ -53,7 +53,6 @@ type Kafka struct {
 
 	fetchCtx   context.Context
 	cancelFunc context.CancelFunc
-	wg         *sync.WaitGroup
 
 	parser core.Parser
 }
@@ -86,7 +85,6 @@ func (i *Kafka) Init() (err error) {
 	}
 
 	i.Topics = slices.Compact(i.Topics)
-	i.wg = &sync.WaitGroup{}
 
 	var m sasl.Mechanism
 	switch i.SASL.Mechanism {
