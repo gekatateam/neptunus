@@ -32,6 +32,9 @@ If commit queue is full, fetching is suspended until at least one message is com
     # expected format - "type:path"
     id_from = "field:path.to.id"
 
+    # if true, incoming message timestamp will be used as event timestamp
+    keep_timestamp = false
+
     # determines from whence the consumer group should begin consuming
     # when it finds a partition without a committed offset, "first" or "last"
     start_offset = "last"

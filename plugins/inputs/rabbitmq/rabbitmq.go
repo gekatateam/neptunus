@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -24,6 +25,7 @@ type RabbitMQ struct {
 	ConnectionName    string            `mapstructure:"connection_name"`
 	Username          string            `mapstructure:"username"`
 	Password          string            `mapstructure:"password"`
+	KeepTimestamp     bool              `mapstructure:"keep_timestamp"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	HeartbeatInterval time.Duration     `mapstructure:"heartbeat_interval"`
 	PrefetchCount     int               `mapstructure:"prefetch_count"`
@@ -57,6 +59,7 @@ type Queue struct {
 	Durable     bool              `mapstructure:"durable"`
 	AutoDelete  bool              `mapstructure:"auto_delete"` // if true, random suffix will be added to queue
 	Exclusive   bool              `mapstructure:"exclusive"`   // if true, random suffix will be added to queue
+	Requeue     bool              `mapstructure:"requeue"`
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
 	ConsumeArgs map[string]string `mapstructure:"consume_args"`
 	Bindings    []Binding         `mapstructure:"bindings"`
@@ -67,6 +70,7 @@ type Binding struct {
 	BindingKey  string            `mapstructure:"binding_key"`
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
 }
+
 
 func (i *RabbitMQ) Init() error {
 	if len(i.Brokers) == 0 {
@@ -86,10 +90,14 @@ func (i *RabbitMQ) Init() error {
 		return err
 	}
 
+	if err := i.validateDeclarations(); err != nil {
+		return err
+	}
+
 	i.config = amqp.Config{
 		Vhost: i.VHost,
 		SASL: []amqp.Authentication{
-			&amqp.AMQPlainAuth{
+			&amqp.PlainAuth{
 				Username: i.Username,
 				Password: i.Password,
 			},
@@ -100,9 +108,6 @@ func (i *RabbitMQ) Init() error {
 	}
 
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
-	if err := i.validateDeclarations(); err != nil {
-		return err
-	}
 
 	return i.connect()
 }
@@ -117,32 +122,82 @@ func (i *RabbitMQ) Close() error {
 }
 
 func (i *RabbitMQ) Run() {
+	wg := &sync.WaitGroup{}
+
 CONNECT_LOOP:
 	for {
 		select {
-		case <- i.fetchCtx.Done():
-			i.Log.Info("context cancelled, closing consumers")
+		case <-i.fetchCtx.Done():
+			i.Log.Info("context cancelled, consumers closed")
+			break CONNECT_LOOP
 		default:
-			queues, err := i.declareAndBind()
-			if err != nil {
-				i.Log.Error("declarations failed",
+		}
+
+		queues, err := i.declareAndBind()
+		if err != nil {
+			i.Log.Error("declarations failed",
+				"error", err,
+			)
+			time.Sleep(i.DialTimeout)
+
+			if err := i.connect(); err != nil {
+				i.Log.Error("connection failed",
 					"error", err,
 				)
-				time.Sleep(i.DialTimeout)
-
-				if err := i.connect(); err != nil {
-					i.Log.Error("connection failed",
-						"error", err,
-					)
-					continue CONNECT_LOOP
-				}
-			}
-
-			for _, queue := range queues {
-				
+				continue CONNECT_LOOP
 			}
 		}
+
+		for _, queue := range queues {
+			ch, err := i.conn.Channel()
+			if err != nil {
+				i.Log.Error(fmt.Sprintf("cannot obtain amqp channel for queue: %v", queue.Name),
+					"error", err,
+				)
+				continue
+			}
+
+			if err := ch.Qos(i.PrefetchCount, 0, false); err != nil {
+				i.Log.Error(fmt.Sprintf("cannot set channel QoS for queue: %v", queue.Name),
+					"error", err,
+				)
+				ch.Close()
+				continue
+			}
+
+			args := make(amqp.Table, len(queue.ConsumeArgs))
+			for k, v := range queue.ConsumeArgs {
+				args[k] = v
+			}
+			deliveries, err := ch.ConsumeWithContext(
+				i.fetchCtx,
+				queue.Name,
+				i.ConsumerTag,
+				false, // autoAck
+				queue.Exclusive,
+				false, // noLocal
+				false, // noWait
+				args,
+			)
+
+			if err != nil {
+				i.Log.Error(fmt.Sprintf("cannot obtain delivery chan for queue: %v", queue.Name),
+					"error", err,
+				)
+				ch.Close()
+				continue
+			}
+
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				// run consumer and acker
+			}()
+		}
+
+		wg.Wait() // this Wait() for CONNECT_LOOP blocking
 	}
+	wg.Wait()
 }
 
 func (i *RabbitMQ) connect() error {

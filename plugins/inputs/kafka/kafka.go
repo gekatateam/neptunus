@@ -33,6 +33,7 @@ type Kafka struct {
 	GroupBalancer        string            `mapstructure:"group_balancer"`
 	Rack                 string            `mapstructure:"rack"`
 	Topics               []string          `mapstructure:"topics"`
+	KeepTimestamp        bool              `mapstructure:"keep_timestamp"`
 	DialTimeout          time.Duration     `mapstructure:"dial_timeout"`
 	SessionTimeout       time.Duration     `mapstructure:"session_timeout"`
 	RebalanceTimeout     time.Duration     `mapstructure:"rebalance_timeout"`
@@ -244,9 +245,9 @@ GENERATION_LOOP:
 						clientId:      i.ClientId,
 						enableMetrics: i.EnableMetrics,
 						labelHeaders:  i.LabelHeaders,
+						keepTimestamp: i.KeepTimestamp,
 						parser:        i.parser,
 						ider:          i.Ider,
-						out:           i.Out,
 
 						commitSemaphore: semCh,
 						fetchCh:         fetchCh,

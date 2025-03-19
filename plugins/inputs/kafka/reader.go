@@ -28,6 +28,7 @@ type topicReader struct {
 	clientId  string
 
 	enableMetrics bool
+	keepTimestamp bool
 	labelHeaders  map[string]string
 	delay         atomic.Int64
 
@@ -39,7 +40,6 @@ type topicReader struct {
 	exitCh   chan struct{}
 	doneCh   chan struct{}
 
-	out    chan<- *core.Event
 	parser core.Parser
 	ider   *ider.Ider
 }
@@ -134,6 +134,10 @@ FETCH_LOOP:
 				}
 			}
 
+			if r.keepTimestamp {
+				e.Timestamp = msg.Time
+			}
+
 			e.AddHook(func() {
 				r.commitCh <- commitMessage{
 					partition: msg.Partition,
@@ -142,7 +146,7 @@ FETCH_LOOP:
 			})
 
 			r.ider.Apply(e)
-			r.out <- e
+			r.Out <- e
 			r.Log.Debug("event accepted",
 				slog.Group("event",
 					"id", e.Id,
