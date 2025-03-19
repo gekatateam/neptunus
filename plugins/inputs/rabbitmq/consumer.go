@@ -98,6 +98,10 @@ CONSUME_LOOP:
 				e.Timestamp = msg.Timestamp
 			}
 
+			if len(msg.MessageId) > 0 {
+				e.Id = msg.MessageId
+			}
+
 			e.AddHook(func() {
 				c.ackCh <- msg.DeliveryTag
 			})
@@ -164,12 +168,13 @@ func (a *acker) Run() {
 			}
 
 			if delivered {
+				a.log.Debug(fmt.Sprintf("trying to ack tag: %v", dTag))
 				if err := d.Ack(false); err != nil {
 					a.log.Error(fmt.Sprintf("ack failed for tag: %v", dTag),
 						msgLogAttrs(d.Delivery, "error", err, "queue", a.queue.Name)...,
 					)
 				}
-				
+
 				delete(a.acks, dTag)
 				_ = <-a.ackSemaphore //lint:ignore S1005 explicitly indicates reading from the channel, not waiting
 			}

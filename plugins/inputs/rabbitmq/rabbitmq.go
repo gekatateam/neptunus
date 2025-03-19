@@ -52,6 +52,8 @@ type Exchange struct {
 	Durable     bool              `mapstructure:"durable"`
 	AutoDelete  bool              `mapstructure:"auto_delete"`
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
+
+	declareArgs amqp.Table
 }
 
 type Queue struct {
@@ -63,14 +65,18 @@ type Queue struct {
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
 	ConsumeArgs map[string]string `mapstructure:"consume_args"`
 	Bindings    []Binding         `mapstructure:"bindings"`
+
+	declareArgs amqp.Table
+	consumeArgs amqp.Table
 }
 
 type Binding struct {
 	BindTo      string            `mapstructure:"bind_to"`
 	BindingKey  string            `mapstructure:"binding_key"`
 	DeclareArgs map[string]string `mapstructure:"declare_args"`
-}
 
+	declareArgs amqp.Table
+}
 
 func (i *RabbitMQ) Init() error {
 	if len(i.Brokers) == 0 {
@@ -90,7 +96,7 @@ func (i *RabbitMQ) Init() error {
 		return err
 	}
 
-	if err := i.validateDeclarations(); err != nil {
+	if err := i.ValidateDeclarations(); err != nil {
 		return err
 	}
 
@@ -165,10 +171,6 @@ CONNECT_LOOP:
 				continue
 			}
 
-			args := make(amqp.Table, len(queue.ConsumeArgs))
-			for k, v := range queue.ConsumeArgs {
-				args[k] = v
-			}
 			deliveries, err := ch.ConsumeWithContext(
 				i.fetchCtx,
 				queue.Name,
@@ -177,7 +179,7 @@ CONNECT_LOOP:
 				queue.Exclusive,
 				false, // noLocal
 				false, // noWait
-				args,
+				queue.consumeArgs,
 			)
 
 			if err != nil {
@@ -190,7 +192,10 @@ CONNECT_LOOP:
 
 			wg.Add(2)
 			go func() {
-				defer wg.Done()
+				defer func() {
+					ch.Close()
+					wg.Done()
+				}()
 				// run consumer and acker
 			}()
 		}
@@ -210,9 +215,9 @@ func (i *RabbitMQ) connect() error {
 	return nil
 }
 
-func (i *RabbitMQ) validateDeclarations() error {
+func (i *RabbitMQ) ValidateDeclarations() error {
 	exchanges := make(map[string]Exchange, len(i.Exchanges))
-	for _, exchange := range i.Exchanges {
+	for j, exchange := range i.Exchanges {
 		if _, ok := exchanges[exchange.Name]; ok {
 			return fmt.Errorf("exchange duplicate declaration: %v", exchange.Name)
 		}
@@ -224,21 +229,58 @@ func (i *RabbitMQ) validateDeclarations() error {
 				exchange.Name, exchange.Type, amqp.ExchangeDirect, amqp.ExchangeFanout, amqp.ExchangeHeaders, amqp.ExchangeTopic)
 		}
 
+		declareArgs := make(amqp.Table, len(exchange.DeclareArgs))
+		for k, v := range exchange.DeclareArgs {
+			declareArgs[k] = v
+		}
+		if err := declareArgs.Validate(); err != nil {
+			return fmt.Errorf("exchange %v declare args validation error: %w", exchange.Name, err)
+		}
+		i.Exchanges[j].declareArgs = declareArgs
+
 		exchanges[exchange.Name] = exchange
 	}
 
 	queues := make(map[string]Queue, len(i.Queues))
-	for _, queue := range i.Queues {
+	for j, queue := range i.Queues {
 		if _, ok := queues[queue.Name]; ok {
 			return fmt.Errorf("queue duplicate declaration: %v", queue.Name)
 		}
-		queues[queue.Name] = queue
 
-		for _, binding := range queue.Bindings {
+		declareArgs := make(amqp.Table, len(queue.DeclareArgs))
+		for k, v := range queue.DeclareArgs {
+			declareArgs[k] = v
+		}
+		if err := declareArgs.Validate(); err != nil {
+			return fmt.Errorf("queue %v declare args validation error: %w", queue.Name, err)
+		}
+		i.Queues[j].declareArgs = declareArgs
+
+		consumeArgs := make(amqp.Table, len(queue.ConsumeArgs))
+		for k, v := range queue.ConsumeArgs {
+			consumeArgs[k] = v
+		}
+		if err := consumeArgs.Validate(); err != nil {
+			return fmt.Errorf("queue %v consume args validation error: %w", queue.Name, err)
+		}
+		i.Queues[j].consumeArgs = consumeArgs
+
+		queues[queue.Name] = queue
+		for k, binding := range queue.Bindings {
 			if _, ok := exchanges[binding.BindTo]; !ok {
 				return fmt.Errorf("found binding to undeclared exchange: %v; queue: %v, key: %v",
 					binding.BindTo, queue.Name, binding.BindingKey)
 			}
+
+			declareArgs := make(amqp.Table, len(binding.DeclareArgs))
+			for k, v := range binding.DeclareArgs {
+				declareArgs[k] = v
+			}
+			if err := declareArgs.Validate(); err != nil {
+				return fmt.Errorf("queue %v binding to %v with key %v declare args validation error: %w",
+					queue.Name, binding.BindTo, binding.BindingKey)
+			}
+			i.Queues[j].Bindings[k].declareArgs = declareArgs
 		}
 	}
 
@@ -253,10 +295,6 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 	defer ch.Close()
 
 	for _, exchange := range i.Exchanges {
-		args := make(amqp.Table, len(exchange.DeclareArgs))
-		for k, v := range exchange.DeclareArgs {
-			args[k] = v
-		}
 		err := ch.ExchangeDeclare(
 			exchange.Name,
 			exchange.Type,
@@ -264,7 +302,7 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 			exchange.AutoDelete,
 			false, // internal
 			false, // noWait
-			args,
+			exchange.declareArgs,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("exchange %v declaration failed: %w", exchange.Name, err)
@@ -277,17 +315,13 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 			queue.Name += randstr.Base62(7)
 		}
 
-		args := make(amqp.Table, len(queue.DeclareArgs))
-		for k, v := range queue.DeclareArgs {
-			args[k] = v
-		}
 		q, err := ch.QueueDeclare(
 			queue.Name,
 			queue.Durable,
 			queue.AutoDelete,
 			queue.Exclusive,
 			false, // noWait
-			args,
+			queue.declareArgs,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("queue %v declaration failed: %w", queue.Name, err)
@@ -295,16 +329,12 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 
 		queue.Name = q.Name
 		for _, binding := range queue.Bindings {
-			args := make(amqp.Table, len(binding.DeclareArgs))
-			for k, v := range binding.DeclareArgs {
-				args[k] = v
-			}
 			err := ch.QueueBind(
 				queue.Name,
 				binding.BindingKey,
 				binding.BindTo,
 				false, // noWait
-				args,
+				binding.declareArgs,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("binding declaration %v to %v with key %v failed: %w",
