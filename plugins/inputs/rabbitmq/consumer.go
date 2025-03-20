@@ -25,7 +25,7 @@ type consumer struct {
 	keepTimestamp bool
 	labelHeaders  map[string]string
 
-	ider         ider.Ider
+	ider         *ider.Ider
 	parser       core.Parser
 	queue        Queue
 	input        <-chan amqp.Delivery
@@ -146,10 +146,10 @@ func (a *acker) Run() {
 	for {
 		select {
 		case msg := <-a.fetchCh: // message consumed
-			a.log.Debug(fmt.Sprintf("accepted msg with delivery tag: %v", msg.DeliveryTag))
+			a.log.Debug(fmt.Sprintf("accepted msg with delivery tag: %v from queue: %v", msg.DeliveryTag, a.queue.Name))
 			a.acks[msg.DeliveryTag] = &msg
 		case dTag := <-a.ackCh: // an event delivered
-			a.log.Debug(fmt.Sprintf("got delivered tag: %v", dTag))
+			a.log.Debug(fmt.Sprintf("got delivered tag: %v from queue: %v", dTag, a.queue.Name))
 			delivered := false
 
 			// mark message as delivered
@@ -168,11 +168,13 @@ func (a *acker) Run() {
 			}
 
 			if delivered {
-				a.log.Debug(fmt.Sprintf("trying to ack tag: %v", dTag))
+				a.log.Debug(fmt.Sprintf("trying to ack tag: %v from queue: %v", dTag, a.queue.Name))
 				if err := d.Ack(false); err != nil {
-					a.log.Error(fmt.Sprintf("ack failed for tag: %v", dTag),
+					a.log.Error(fmt.Sprintf("ack failed for tag: %v from queue: %v", dTag, a.queue.Name),
 						msgLogAttrs(d.Delivery, "error", err, "queue", a.queue.Name)...,
 					)
+				} else {
+					a.log.Debug(fmt.Sprintf("tag acked: %v from queue: %v", dTag, a.queue.Name))
 				}
 
 				delete(a.acks, dTag)

@@ -47,33 +47,33 @@ type RabbitMQ struct {
 }
 
 type Exchange struct {
-	Name        string            `mapstructure:"name"`
-	Type        string            `mapstructure:"type"`
-	Durable     bool              `mapstructure:"durable"`
-	AutoDelete  bool              `mapstructure:"auto_delete"`
-	DeclareArgs map[string]string `mapstructure:"declare_args"`
+	Name        string         `mapstructure:"name"`
+	Type        string         `mapstructure:"type"`
+	Durable     bool           `mapstructure:"durable"`
+	AutoDelete  bool           `mapstructure:"auto_delete"`
+	DeclareArgs map[string]any `mapstructure:"declare_args"`
 
 	declareArgs amqp.Table
 }
 
 type Queue struct {
-	Name        string            `mapstructure:"name"`
-	Durable     bool              `mapstructure:"durable"`
-	AutoDelete  bool              `mapstructure:"auto_delete"` // if true, random suffix will be added to queue
-	Exclusive   bool              `mapstructure:"exclusive"`   // if true, random suffix will be added to queue
-	Requeue     bool              `mapstructure:"requeue"`
-	DeclareArgs map[string]string `mapstructure:"declare_args"`
-	ConsumeArgs map[string]string `mapstructure:"consume_args"`
-	Bindings    []Binding         `mapstructure:"bindings"`
+	Name        string         `mapstructure:"name"`
+	Durable     bool           `mapstructure:"durable"`
+	AutoDelete  bool           `mapstructure:"auto_delete"` // if true, random suffix will be added to queue
+	Exclusive   bool           `mapstructure:"exclusive"`   // if true, random suffix will be added to queue
+	Requeue     bool           `mapstructure:"requeue"`
+	DeclareArgs map[string]any `mapstructure:"declare_args"`
+	ConsumeArgs map[string]any `mapstructure:"consume_args"`
+	Bindings    []Binding      `mapstructure:"bindings"`
 
 	declareArgs amqp.Table
 	consumeArgs amqp.Table
 }
 
 type Binding struct {
-	BindTo      string            `mapstructure:"bind_to"`
-	BindingKey  string            `mapstructure:"binding_key"`
-	DeclareArgs map[string]string `mapstructure:"declare_args"`
+	BindTo      string         `mapstructure:"bind_to"`
+	BindingKey  string         `mapstructure:"binding_key"`
+	DeclareArgs map[string]any `mapstructure:"declare_args"`
 
 	declareArgs amqp.Table
 }
@@ -190,16 +190,53 @@ CONNECT_LOOP:
 				continue
 			}
 
+			var (
+				ackSemaphore = make(chan struct{}, i.MaxUndelivered)
+				fetchCh      = make(chan trackedDelivery)
+				ackCh        = make(chan uint64)
+				exitCh       = make(chan struct{})
+				doneCh       = make(chan struct{})
+			)
+
+			consumer := &consumer{
+				BaseInput:     i.BaseInput,
+				keepTimestamp: i.KeepTimestamp,
+				labelHeaders:  i.LabelHeaders,
+				ider:          i.Ider,
+				parser:        i.parser,
+				queue:         queue,
+				input:         deliveries,
+				ackSemaphore:  ackSemaphore,
+				ackCh:         ackCh,
+				fetchCh:       fetchCh,
+				exitCh:        exitCh,
+				doneCh:        doneCh,
+			}
+
+			acker := &acker{
+				acks:             make(map[uint64]*trackedDelivery, i.MaxUndelivered),
+				queue:            queue,
+				ackSemaphore:     ackSemaphore,
+				exitIfQueueEmpty: false,
+				ackCh:            ackCh,
+				fetchCh:          fetchCh,
+				exitCh:           exitCh,
+				doneCh:           doneCh,
+				log:              i.Log,
+			}
+
 			wg.Add(2)
 			go func() {
-				defer func() {
-					ch.Close()
-					wg.Done()
-				}()
-				// run consumer and acker
+				defer ch.Close()
+				defer wg.Done()
+				consumer.Run()
+			}()
+
+			go func() {
+				defer wg.Done()
+				acker.Run()
 			}()
 		}
-
 		wg.Wait() // this Wait() for CONNECT_LOOP blocking
 	}
 	wg.Wait()
@@ -278,7 +315,7 @@ func (i *RabbitMQ) ValidateDeclarations() error {
 			}
 			if err := declareArgs.Validate(); err != nil {
 				return fmt.Errorf("queue %v binding to %v with key %v declare args validation error: %w",
-					queue.Name, binding.BindTo, binding.BindingKey)
+					queue.Name, binding.BindTo, binding.BindingKey, err)
 			}
 			i.Queues[j].Bindings[k].declareArgs = declareArgs
 		}
@@ -307,12 +344,14 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 		if err != nil {
 			return nil, fmt.Errorf("exchange %v declaration failed: %w", exchange.Name, err)
 		}
+
+		i.Log.Debug(fmt.Sprintf("exchange %v declared", exchange.Name))
 	}
 
 	var consumeReadyQueues []Queue
 	for _, queue := range i.Queues {
 		if queue.Exclusive || queue.AutoDelete {
-			queue.Name += randstr.Base62(7)
+			queue.Name += "-" + randstr.Base62(7)
 		}
 
 		q, err := ch.QueueDeclare(
@@ -327,6 +366,8 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 			return nil, fmt.Errorf("queue %v declaration failed: %w", queue.Name, err)
 		}
 
+		i.Log.Debug(fmt.Sprintf("queue %v declared", queue.Name))
+
 		queue.Name = q.Name
 		for _, binding := range queue.Bindings {
 			err := ch.QueueBind(
@@ -340,6 +381,9 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 				return nil, fmt.Errorf("binding declaration %v to %v with key %v failed: %w",
 					queue.Name, binding.BindTo, binding.BindingKey, err)
 			}
+
+			i.Log.Debug(fmt.Sprintf("binding %v to %v with key %v declared",
+				queue.Name, binding.BindTo, binding.BindingKey))
 		}
 
 		consumeReadyQueues = append(consumeReadyQueues, queue)
@@ -356,6 +400,7 @@ func init() {
 			ConnectionName:    "neptunus.rabbitmq.input",
 			DialTimeout:       10 * time.Second,
 			HeartbeatInterval: 10 * time.Second,
+			MaxUndelivered:    100,
 			Ider:              &ider.Ider{},
 			TLSClientConfig:   &pkgtls.TLSClientConfig{},
 		}
