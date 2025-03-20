@@ -47,6 +47,26 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
     # maximum length of internal unacked messages queue
     max_undelivered = 10
 
+    # if configured, an event id will be set by data from path
+    # expected format - "type:path"
+    id_from = "field:path.to.id"
+
+    ## TLS configuration
+    # if true, TLS client will be used
+    # broker address scheme must be set to `amqps`
+    tls_enable = false
+    # trusted root certificates for server
+    tls_ca_file = "/etc/neptunus/ca.pem"
+    # used for TLS client certificate authentication
+    tls_key_file = "/etc/neptunus/key.pem"
+    tls_cert_file = "/etc/neptunus/cert.pem"
+    # minimum TLS version, not limited by default
+    tls_min_version = "TLS12"
+    # send the specified TLS server name via SNI
+    tls_server_name = "exmple.svc.local"
+    # use TLS but skip chain & host verification
+    tls_insecure_skip_verify = false
+
     # list of of the exchanges to declare
     # if unset, no exchanges will be declared
     [[inputs.rabbitmq.exchanges]]
