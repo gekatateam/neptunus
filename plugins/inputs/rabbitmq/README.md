@@ -101,8 +101,8 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       # and will be deleted when the connection closes
       exclusive = false
 
-      # if true, queue this message to be delivered to a consumer on a different channel
-      # after message rejection on parser error
+      # if true, rejected message will be queued to be delivered to a consumer 
+      # on a different channel
       requeue = false
 
       # queue declaration optional arguments
