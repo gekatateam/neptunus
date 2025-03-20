@@ -2,7 +2,7 @@
 
 The `kafka` input plugin reads from Kafka and passes each message to configured parser. This plugin requires parser.
 
-Each reader uses its own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
+Each reader uses it's own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
 
 A message is marked as ready to commit if all of its events hooks are called, if parser returned zero events, or if parsing ended with an error.
 
