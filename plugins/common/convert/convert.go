@@ -7,6 +7,10 @@ import (
 )
 
 func AnyToString(v any) (string, error) {
+	if t, ok := v.(fmt.Stringer); ok {
+		return t.String(), nil
+	}
+
 	switch t := v.(type) {
 	case string:
 		return t, nil

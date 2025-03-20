@@ -23,6 +23,7 @@ type consumer struct {
 	*core.BaseInput
 
 	keepTimestamp bool
+	keepMessageId bool
 	labelHeaders  map[string]string
 
 	ider         *ider.Ider
@@ -85,7 +86,7 @@ CONSUME_LOOP:
 				if h, ok := msg.Headers[header]; ok {
 					val, err := convert.AnyToString(h)
 					if err != nil {
-						c.Log.Error(fmt.Sprintf("cannot convert header %v:%v to string", header, h),
+						c.Log.Warn(fmt.Sprintf("cannot convert header %v:%v to string", header, h),
 							msgLogAttrs(msg, "error", err, "queue", c.queue.Name)...,
 						)
 						continue
@@ -98,7 +99,7 @@ CONSUME_LOOP:
 				e.Timestamp = msg.Timestamp
 			}
 
-			if len(msg.MessageId) > 0 {
+			if c.keepMessageId && len(msg.MessageId) > 0 {
 				e.Id = msg.MessageId
 			}
 
@@ -170,7 +171,7 @@ func (a *acker) Run() {
 			if delivered {
 				a.log.Debug(fmt.Sprintf("trying to ack tag: %v from queue: %v", dTag, a.queue.Name))
 				if err := d.Ack(false); err != nil {
-					a.log.Error(fmt.Sprintf("ack failed for tag: %v from queue: %v", dTag, a.queue.Name),
+					a.log.Error(fmt.Sprintf("ack failed for tag: %v", dTag),
 						msgLogAttrs(d.Delivery, "error", err, "queue", a.queue.Name)...,
 					)
 				} else {
