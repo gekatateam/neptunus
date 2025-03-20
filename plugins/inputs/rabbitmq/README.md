@@ -82,7 +82,7 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       exclusive = false
 
       # if true, queue this message to be delivered to a consumer on a different channel
-      # after message reject on parser error
+      # after message rejection on parser error
       requeue = false
 
       # queue declaration optional arguments
