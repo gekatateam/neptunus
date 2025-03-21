@@ -88,6 +88,7 @@ func (p *Sql) Init() error {
 	}
 
 	if err := p.db.Ping(); err != nil {
+		defer p.db.Close()
 		return err
 	}
 
@@ -99,6 +100,7 @@ func (p *Sql) Init() error {
 	if _, _, err := csql.BindNamed(
 		strings.Replace(p.OnEvent.Query, p.TablePlaceholder, "TEST_TABLE_NAME", 1),
 		testArgs, p.db); err != nil {
+		defer p.db.Close()
 		return fmt.Errorf("query test binding failed: %w", err)
 	}
 

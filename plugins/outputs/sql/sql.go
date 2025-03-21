@@ -95,6 +95,7 @@ func (o *Sql) Init() error {
 	db.DB.SetMaxOpenConns(o.ConnsMaxOpen)
 
 	if err := db.Ping(); err != nil {
+		defer db.Close()
 		return err
 	}
 	o.db = db
@@ -107,11 +108,13 @@ func (o *Sql) Init() error {
 	if _, _, err := csql.BindNamed(
 		strings.Replace(o.OnPush.Query, o.TablePlaceholder, "TEST_TABLE_NAME", 1),
 		testArgs, o.db); err != nil {
+		defer o.db.Close()
 		return fmt.Errorf("query test binding failed: %w", err)
 	}
 
 	if len(o.OnInit.Query) > 0 {
 		if err := o.init(); err != nil {
+			defer o.db.Close()
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
 	}

@@ -73,7 +73,7 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       # exchange name
       name = "neptunus.rabbitmq.exchange.fanout"
 
-      # exchange type; "direct", "fanout", "topic" or "header"
+      # exchange type, "direct", "fanout", "topic" or "header"
       type = "fanout"
 
       # https://www.rabbitmq.com/docs/exchanges#durability
@@ -81,15 +81,16 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       durable = false
       auto_delete = false
 
-      # exchange declaration optional arguments
-      [[inputs.rabbitmq.exchanges.declare_args]]
-        alternate-exchange = "alter-ae"
+      # optional declaration arguments
+      declare_args = { alternate-exchange = "alter-ae" }
 
-    # list of of the queues to declare and to consume from
+    # list of the queues to declare and to consume from
     # at least one queue required
     [[inputs.rabbitmq.queues]]
       # queue name
       # if queue is auto-deleted or exclusive, plugin adds random suffix to configured name
+      # this suffix is always seven base62-characters long and appends to name with a dash
+      # for example - `neptunus.rabbitmq.events.1-xCKg2kJ`
       name = "neptunus.rabbitmq.events.1"
 
       # https://www.rabbitmq.com/docs/queues#durability
@@ -105,17 +106,13 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       # on a different channel
       requeue = false
 
-      # queue declaration optional arguments
-      [[inputs.rabbitmq.queues.declare_args]]
-        "x-message-ttl" = 60000
-        "x-max-length"  = 10
+      # optional declaration arguments
+      declare_args = { "x-message-ttl" = 60000, "x-max-length" = 10 }
 
-      # queue optional consumer arguments with specific semantics for the queue or server
-      [[inputs.rabbitmq.queues.consume_args]]
-        "x-message-ttl" = 60000
-        "x-max-length"  = 10
+      # optional consumer arguments with specific semantics for the queue or server
+      consume_args = { "x-message-ttl" = 60000, "x-max-length" = 10 }
 
-      # map of queue optional bindings
+      # optional list of queue bindings
       [[inputs.rabbitmq.queues.bindings]]
         # exchange name to bind
         # must be declared in `exchanges` list
@@ -124,9 +121,8 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
         # binding routing key
         binding_key = "#"
 
-        # map of binding optional arguments
-        [[inputs.rabbitmq.queues.bindings.declare_args]]
-          "x-dead-letter-exchange" = "dlq"
+        # optional binding arguments
+        declare_args = { "x-dead-letter-exchange" = "dlq" }
 
     # a "label name -> header" map
     # if message header exists, it will be saved as configured label

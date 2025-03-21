@@ -43,6 +43,7 @@ type RabbitMQ struct {
 
 	fetchCtx   context.Context
 	cancelFunc context.CancelFunc
+	doneCh     chan struct{}
 
 	parser core.Parser
 }
@@ -108,6 +109,7 @@ func (i *RabbitMQ) Init() error {
 	}
 
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
+	i.doneCh = make(chan struct{})
 
 	return i.connect()
 }
@@ -118,6 +120,8 @@ func (i *RabbitMQ) SetParser(p core.Parser) {
 
 func (i *RabbitMQ) Close() error {
 	i.cancelFunc()
+	<-i.doneCh
+	i.parser.Close()
 	return i.conn.Close()
 }
 
@@ -235,6 +239,8 @@ CONNECT_LOOP:
 		wg.Wait() // this Wait() for CONNECT_LOOP blocking
 	}
 	wg.Wait()
+
+	i.doneCh <- struct{}{}
 }
 
 func (i *RabbitMQ) ValidateDeclarations() error {
