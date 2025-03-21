@@ -123,7 +123,6 @@ func (p *Converter) Run() {
 					),
 				)
 				e.StackError(err)
-				e.AddTag("::converter_processing_failed")
 				hasError = true
 			}
 		}

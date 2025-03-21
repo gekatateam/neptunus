@@ -195,7 +195,6 @@ func (p *Sql) Run() {
 				),
 			)
 			e.StackError(err)
-			e.AddTag("::sql_processing_failed")
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue

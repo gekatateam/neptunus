@@ -87,7 +87,6 @@ MAIN_LOOP:
 				),
 			)
 			e.StackError(err)
-			e.AddTag("::parser_processing_failed")
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue // continue with error if parsing failed
@@ -131,7 +130,6 @@ MAIN_LOOP:
 						),
 					)
 					e.StackError(fmt.Errorf("error set field: %w", err))
-					e.AddTag("::parser_processing_failed")
 					p.Out <- e
 					p.Observe(metrics.EventFailed, time.Since(now))
 					continue MAIN_LOOP // continue main loop with error if set failed
