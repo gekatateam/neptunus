@@ -81,6 +81,9 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       durable = false
       auto_delete = false
 
+      # if true, passive declaration will be used (exchange must be already exists)
+      passive = false
+
       # optional declaration arguments
       declare_args = { alternate-exchange = "alter-ae" }
 
@@ -105,6 +108,9 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
       # if true, rejected message will be queued to be delivered to a consumer 
       # on a different channel
       requeue = false
+
+      # if true, passive declaration will be used (queue must be already exists)
+      passive = false
 
       # optional declaration arguments
       declare_args = { "x-message-ttl" = 60000, "x-max-length" = 10 }

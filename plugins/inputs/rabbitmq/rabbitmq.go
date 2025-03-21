@@ -53,6 +53,7 @@ type Exchange struct {
 	Type        string     `mapstructure:"type"`
 	Durable     bool       `mapstructure:"durable"`
 	AutoDelete  bool       `mapstructure:"auto_delete"`
+	Passive     bool       `mapstructure:"passive"`
 	DeclareArgs amqp.Table `mapstructure:"declare_args"`
 }
 
@@ -62,6 +63,7 @@ type Queue struct {
 	AutoDelete  bool       `mapstructure:"auto_delete"` // if true, random suffix will be added to queue
 	Exclusive   bool       `mapstructure:"exclusive"`   // if true, random suffix will be added to queue
 	Requeue     bool       `mapstructure:"requeue"`
+	Passive     bool       `mapstructure:"passive"`
 	DeclareArgs amqp.Table `mapstructure:"declare_args"`
 	ConsumeArgs amqp.Table `mapstructure:"consume_args"`
 	Bindings    []Binding  `mapstructure:"bindings"`
@@ -312,15 +314,29 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 	defer ch.Close()
 
 	for _, exchange := range i.Exchanges {
-		err := ch.ExchangeDeclare(
-			exchange.Name,
-			exchange.Type,
-			exchange.Durable,
-			exchange.AutoDelete,
-			false, // internal
-			false, // noWait
-			exchange.DeclareArgs,
-		)
+		var err error
+		if exchange.Passive {
+			err = ch.ExchangeDeclarePassive(
+				exchange.Name,
+				exchange.Type,
+				exchange.Durable,
+				exchange.AutoDelete,
+				false, // internal
+				false, // noWait
+				exchange.DeclareArgs,
+			)
+		} else {
+			err = ch.ExchangeDeclare(
+				exchange.Name,
+				exchange.Type,
+				exchange.Durable,
+				exchange.AutoDelete,
+				false, // internal
+				false, // noWait
+				exchange.DeclareArgs,
+			)
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("exchange %v declaration failed: %w", exchange.Name, err)
 		}
@@ -334,14 +350,28 @@ func (i *RabbitMQ) declareAndBind() ([]Queue, error) {
 			queue.Name += "-" + randstr.Base62(7)
 		}
 
-		q, err := ch.QueueDeclare(
-			queue.Name,
-			queue.Durable,
-			queue.AutoDelete,
-			queue.Exclusive,
-			false, // noWait
-			queue.DeclareArgs,
-		)
+		var q amqp.Queue
+		var err error
+		if queue.Passive {
+			q, err = ch.QueueDeclarePassive(
+				queue.Name,
+				queue.Durable,
+				queue.AutoDelete,
+				queue.Exclusive,
+				false, // noWait
+				queue.DeclareArgs,
+			)
+		} else {
+			q, err = ch.QueueDeclare(
+				queue.Name,
+				queue.Durable,
+				queue.AutoDelete,
+				queue.Exclusive,
+				false, // noWait
+				queue.DeclareArgs,
+			)
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("queue %v declaration failed: %w", queue.Name, err)
 		}
