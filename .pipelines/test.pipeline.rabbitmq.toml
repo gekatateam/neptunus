@@ -31,6 +31,10 @@
   [inputs.rabbitmq.parser]
     type = "json"
 
+[[processors]]
+  [processors.through]
+    sleep = "10s"
+
 [[outputs]]
   [outputs.log]
     level = "warn"
