@@ -9,6 +9,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/http"
 	_ "github.com/gekatateam/neptunus/plugins/processors/line"
 	_ "github.com/gekatateam/neptunus/plugins/processors/log"
+	_ "github.com/gekatateam/neptunus/plugins/processors/ollama"
 	_ "github.com/gekatateam/neptunus/plugins/processors/parser"
 	_ "github.com/gekatateam/neptunus/plugins/processors/regex"
 	_ "github.com/gekatateam/neptunus/plugins/processors/rk"

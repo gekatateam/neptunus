@@ -3,9 +3,12 @@ module github.com/gekatateam/neptunus
 go 1.24.1
 
 require (
+	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/google/uuid v1.6.0
-	google.golang.org/grpc v1.60.1
-	google.golang.org/protobuf v1.33.0
+	github.com/tmc/langchaingo v0.1.13
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	google.golang.org/grpc v1.64.0
+	google.golang.org/protobuf v1.34.1
 )
 
 require (
@@ -13,6 +16,7 @@ require (
 	github.com/ClickHouse/ch-go v0.61.5 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-playground/validator/v10 v10.22.0 // indirect
@@ -32,13 +36,15 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	go.opentelemetry.io/otel v1.24.0 // indirect
-	go.opentelemetry.io/otel/trace v1.24.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
+	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+	go.opentelemetry.io/otel v1.26.0 // indirect
+	go.opentelemetry.io/otel/trace v1.26.0 // indirect
+	golang.org/x/crypto v0.29.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 )
 
 require (
@@ -48,10 +54,8 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.3.0
-	github.com/fatih/color v1.16.0 // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/fatih/color v1.17.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -66,9 +70,9 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/xrash/smetrics v0.0.0-20231213231151-1d8dd44e695e // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240604185151-ef581f913117 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
@@ -100,7 +104,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09
-	golang.org/x/net v0.22.0
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/net v0.25.0
+	golang.org/x/sys v0.27.0 // indirect
 	kythe.io v0.0.64
 )
