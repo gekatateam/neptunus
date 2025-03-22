@@ -86,6 +86,7 @@ func run(cCtx *cli.Context) error {
 		}
 
 		if cfg.Engine.FailFast {
+			s.StopAll() // stop already running pipelines before exit
 			return err
 		}
 	}
