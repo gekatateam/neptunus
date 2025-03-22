@@ -54,6 +54,14 @@ func (p *Ollama) Init() error {
 		return fmt.Errorf("response_to field is required")
 	}
 
+	if p.SystemPrompt == "" {
+		return fmt.Errorf("system_prompt field is required")
+	}
+
+	if p.MaxTokens == 0 {
+		p.MaxTokens = 4096
+	}
+
 	// Set defaults
 	if p.BaseURL == "" {
 		p.BaseURL = "http://localhost:11434"
@@ -72,7 +80,7 @@ func (p *Ollama) Init() error {
 		ollama.WithServerURL(p.BaseURL),
 		ollama.WithModel(p.Model),
 		ollama.WithKeepAlive("5m"),
-		ollama.WithRunnerNumCtx(20000),
+		ollama.WithRunnerNumCtx(p.MaxTokens),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Ollama client: %w", err)
@@ -138,7 +146,9 @@ func (p *Ollama) Run() {
 		if p.MaxTokens > 0 {
 			opts = append(opts, llms.WithMaxTokens(p.MaxTokens))
 		}
-		//opts = append(opts, llms.WithJSONMode())
+		if p.JSONMode {
+			opts = append(opts, llms.WithJSONMode())
+		}
 
 		content := []llms.MessageContent{
 			llms.TextParts(llms.ChatMessageTypeSystem, p.SystemPrompt),
