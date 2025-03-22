@@ -2,6 +2,8 @@ package rabbitmq
 
 import (
 	"errors"
+	"fmt"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -22,6 +24,7 @@ type RabbitMQ struct {
 	ConnectionName    string            `mapstructure:"connection_name"`
 	Username          string            `mapstructure:"username"`
 	Password          string            `mapstructure:"password"`
+	DeliveryMode      string            `mapstructure:"delivery_mode"`
 	KeepTimestamp     bool              `mapstructure:"keep_timestamp"`
 	KeepMessageId     bool              `mapstructure:"keep_message_id"`
 	RoutingLabel      string            `mapstructure:"routing_label"`
@@ -37,6 +40,7 @@ type RabbitMQ struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
+	dMode  uint8
 	config amqp.Config
 	conn   *amqp.Connection
 	mu     *sync.Mutex
@@ -48,6 +52,15 @@ type RabbitMQ struct {
 func (o *RabbitMQ) Init() error {
 	if len(o.Brokers) == 0 {
 		return errors.New("at least one broker address required")
+	}
+
+	switch o.DeliveryMode {
+	case "persistent":
+		o.dMode = amqp.Persistent
+	case "transient":
+		o.dMode = amqp.Transient
+	default:
+		return fmt.Errorf("unknown delivery mode: %v; expected one of: persistent, transient", o.DeliveryMode)
 	}
 
 	tlsConfig, err := o.TLSClientConfig.Config()
@@ -67,7 +80,10 @@ func (o *RabbitMQ) Init() error {
 		Heartbeat:       o.HeartbeatInterval,
 		TLSClientConfig: tlsConfig,
 	}
-	panic("not implemented")
+
+	o.producersPool = pool.New(o.newProducer)
+
+	return o.connect()
 }
 
 func (o *RabbitMQ) Close() error {
@@ -100,11 +116,53 @@ MAIN_LOOP:
 	}
 }
 
+func (o *RabbitMQ) newProducer(exchange string) pool.Runner[*core.Event] {
+	return &producer{
+		BaseOutput:    o.BaseOutput,
+		keepTimestamp: o.KeepTimestamp,
+		keepMessageId: o.KeepMessageId,
+		routingLabel:  o.RoutingLabel,
+		typeLabel:     o.TypeLabel,
+		mandatory:     o.Mandatory,
+		immediate:     o.Immediate,
+		dMode:         o.dMode,
+		headerLabels:  o.HeaderLabels,
+		ser:           o.ser,
+		channelFunc:   o.channel,
+		input:         make(chan *core.Event),
+		lastWrite:     time.Now(),
+	}
+}
+
+func (o *RabbitMQ) connect() error {
+	conn, err := amqp.DialConfig(o.Brokers[rand.IntN(len(o.Brokers))], o.config)
+	if err != nil {
+		return err
+	}
+
+	o.conn = conn
+	return nil
+}
+
+func (o *RabbitMQ) channel() (*amqp.Channel, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.conn.IsClosed() {
+		if err := o.connect(); err != nil {
+			return nil, err
+		}
+	}
+
+	return o.conn.Channel()
+}
+
 func init() {
 	plugins.AddOutput("rabbitmq", func() core.Output {
 		return &RabbitMQ{
-			VHost: "/",
+			VHost:             "/",
 			ConnectionName:    "neptunus.rabbitmq.output",
+			DeliveryMode:      "persistent",
 			DialTimeout:       10 * time.Second,
 			HeartbeatInterval: 10 * time.Second,
 			Batcher: &batcher.Batcher[*core.Event]{
