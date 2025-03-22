@@ -2,11 +2,14 @@ package llm
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -44,8 +47,106 @@ type LLM struct {
 	KeepAlive string `mapstructure:"keep_alive"`
 	// api_key for llm
 	ApiKey string `mapstructure:"api_key"`
+	// save_csv_path for llm
+	SaveCSVPath string `mapstructure:"save_csv_path"`
+	// max file size for csv to rotate
+	MaxFileSize int64 `mapstructure:"max_csv_size"`
 	// ollama client
 	client llms.Model
+}
+
+// SaveCSV saves the LLM prompt, response, and metadata to a CSV file
+func (p *LLM) SaveCSV(systemprompt, prompt, response, model string) error {
+	if p.SaveCSVPath == "" {
+		p.Log.Debug("SaveCSV called but save_csv_path not configured, skipping")
+		return nil
+	}
+
+	// Get directory and base filename
+	dir := filepath.Dir(p.SaveCSVPath)
+	baseFileName := filepath.Base(p.SaveCSVPath)
+	ext := filepath.Ext(baseFileName)
+	nameWithoutExt := strings.TrimSuffix(baseFileName, ext)
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// Check if file exists and its size
+	currentPath := p.SaveCSVPath
+	suffix := 0
+	for {
+		fileInfo, err := os.Stat(currentPath)
+		// If file doesn't exist or is small enough, use this path
+		if os.IsNotExist(err) || (err == nil && fileInfo.Size() < p.MaxFileSize) {
+			break
+		}
+
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to get file info: %w", err)
+		}
+
+		// If file exists and is too large, increment suffix
+		currentPath = filepath.Join(dir, fmt.Sprintf("%s.%d%s", nameWithoutExt, suffix, ext))
+		suffix++
+	}
+	if currentPath != p.SaveCSVPath {
+		p.Log.Debug("rotating CSV file",
+			"old_path", p.SaveCSVPath,
+			"new_path", currentPath,
+		)
+		err := os.Rename(p.SaveCSVPath, currentPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Open file in append mode or create if doesn't exist
+	file, err := os.OpenFile(p.SaveCSVPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open CSV file: %w", err)
+	}
+	defer file.Close()
+
+	// Create CSV writer
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Check if file is empty to write header
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// If file is empty, write header
+	if fileInfo.Size() == 0 {
+		header := []string{"timestamp", "model", "system_prompt", "prompt", "response", "llm_type"}
+		if err := writer.Write(header); err != nil {
+			return fmt.Errorf("failed to write CSV header: %w", err)
+		}
+	}
+
+	// Write the record
+	record := []string{
+		time.Now().Format(time.RFC3339),
+		p.Model,
+		systemprompt,
+		prompt,
+		response,
+		p.LLMType,
+	}
+
+	if err := writer.Write(record); err != nil {
+		return fmt.Errorf("failed to write CSV record: %w", err)
+	}
+
+	p.Log.Debug("saved LLM interaction to CSV",
+		"path", p.SaveCSVPath,
+		"model", p.Model,
+	)
+
+	return nil
 }
 
 // Start begins the LLM processor
@@ -88,6 +189,10 @@ func (p *LLM) Init() error {
 
 	if p.KeepAlive == "" {
 		p.KeepAlive = "5m"
+	}
+
+	if p.MaxFileSize == 0 {
+		p.MaxFileSize = 50 * 1024 * 1024
 	}
 
 	// Initialize LLM client
@@ -247,6 +352,14 @@ func (p *LLM) Run() {
 		)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
+
+		if p.SaveCSVPath != "" {
+			if err := p.SaveCSV(p.SystemPrompt, prompt, completion.Choices[0].Content, p.Model); err != nil {
+				p.Log.Error("save CSV failed",
+					"error", err,
+				)
+			}
+		}
 	}
 }
 
