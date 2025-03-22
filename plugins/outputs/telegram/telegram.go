@@ -4,6 +4,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/pkg/errors"
 	"log/slog"
@@ -15,8 +16,10 @@ type Telegram struct {
 	Token            string  `mapstructure:"api_token"`
 	ChatIDs          []int64 `mapstructure:"chat_ids"`
 	FromField        string  `mapstructure:"from_field"`
-	bot              *tgbotapi.BotAPI
-	ser              core.Serializer
+	*retryer.Retryer `mapstructure:",squash"`
+	//requestersPool   *pool.Pool[*core.Event]
+	bot *tgbotapi.BotAPI
+	ser core.Serializer
 }
 
 func (o *Telegram) Init() error {
@@ -63,9 +66,25 @@ func (o *Telegram) Run() {
 			continue
 		}
 
+		if len(event) == 0 {
+			o.Log.Info("event is empty",
+				slog.Group("event",
+					"id", e.Id,
+					"key", e.RoutingKey,
+				),
+			)
+			o.Done <- e
+			o.Observe(metrics.EventRejected, time.Since(now))
+			continue
+		}
+
 		for _, chatID := range o.ChatIDs {
 			msg := tgbotapi.NewMessage(chatID, string(event))
-			_, err := o.bot.Send(msg)
+			err := o.Retryer.Do("send telegram message", o.Log, func() error {
+				_, err := o.bot.Send(msg)
+				return err
+			})
+
 			if err != nil {
 				o.Log.Error("send message failed",
 					"error", err,
@@ -85,6 +104,11 @@ func (o *Telegram) Run() {
 
 func init() {
 	plugins.AddOutput("telegram", func() core.Output {
-		return &Telegram{}
+		return &Telegram{
+			Retryer: &retryer.Retryer{
+				RetryAttempts: 0,
+				RetryAfter:    5 * time.Second,
+			},
+		}
 	})
 }
