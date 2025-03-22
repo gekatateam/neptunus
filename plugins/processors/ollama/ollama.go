@@ -37,7 +37,7 @@ type Ollama struct {
 	// JSONMode to enable JSON output
 	JSONMode bool `mapstructure:"json_mode"`
 	// ollama client
-	client llms.LLM
+	client llms.Model
 }
 
 // Start begins the Ollama processor
