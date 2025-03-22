@@ -1,4 +1,4 @@
-package ollama
+package llm
 
 import (
 	"context"
@@ -11,14 +11,18 @@ import (
 	"time"
 
 	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/googleai"
 	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/llms/openai"
 	"golang.org/x/exp/slog"
 )
 
-// Ollama processor integrates with Ollama for language model processing
-type Ollama struct {
+// LLM processor integrates with LLM for language model processing
+type LLM struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	// BaseURL for the Ollama API
+	// Engine LLM to use, support ollama, google, openai
+	LLMType string `mapstructure:"llm_type"`
+	// BaseURL for the LLM API
 	BaseURL string `mapstructure:"base_url"`
 	// Model to use for generation
 	Model string `mapstructure:"model"`
@@ -36,12 +40,19 @@ type Ollama struct {
 	SystemPrompt string `mapstructure:"system_prompt"`
 	// JSONMode to enable JSON output
 	JSONMode bool `mapstructure:"json_mode"`
+	// KeepAlive controls how long the model will stay loaded into memory following the request
+	KeepAlive string `mapstructure:"keep_alive"`
+	// api_key for llm
+	ApiKey string `mapstructure:"api_key"`
 	// ollama client
 	client llms.Model
 }
 
-// Start begins the Ollama processor
-func (p *Ollama) Init() error {
+// Start begins the LLM processor
+func (p *LLM) Init() error {
+	if p.LLMType == "" {
+		return fmt.Errorf("llm_type is required, support ollama, google, openai")
+	}
 	if p.Model == "" {
 		return fmt.Errorf("model is required")
 	}
@@ -72,18 +83,47 @@ func (p *Ollama) Init() error {
 	}
 
 	if p.Temperature == 0 {
-		p.Temperature = 0.7
+		p.Temperature = 0.5
 	}
 
-	// Initialize Ollama client
-	client, err := ollama.New(
-		ollama.WithServerURL(p.BaseURL),
-		ollama.WithModel(p.Model),
-		ollama.WithKeepAlive("5m"),
-		ollama.WithRunnerNumCtx(p.MaxTokens),
-	)
+	if p.KeepAlive == "" {
+		p.KeepAlive = "5m"
+	}
+
+	// Initialize LLM client
+	var client llms.Model
+	var err error
+	switch p.LLMType {
+	case "ollama":
+		client, err = ollama.New(
+			ollama.WithServerURL(p.BaseURL),
+			ollama.WithModel(p.Model),
+			ollama.WithKeepAlive(p.KeepAlive),
+			ollama.WithRunnerNumCtx(p.MaxTokens),
+		)
+		break
+	case "google":
+		client, err = googleai.New(context.Background(),
+			googleai.WithAPIKey(p.ApiKey),
+			googleai.WithDefaultModel(p.Model),
+			googleai.WithDefaultMaxTokens(p.MaxTokens),
+			googleai.WithDefaultTemperature(p.Temperature),
+			googleai.WithDefaultEmbeddingModel("embedding-001"),
+			googleai.WithDefaultCandidateCount(1),
+			googleai.WithDefaultTopK(3),
+			googleai.WithDefaultTopP(0.95),
+			googleai.WithHarmThreshold(googleai.HarmBlockNone),
+		)
+		break
+	case "openai":
+		client, err = openai.New(
+			openai.WithBaseURL(p.BaseURL),
+			openai.WithModel(p.Model),
+			openai.WithToken(p.ApiKey),
+		)
+	}
 	if err != nil {
-		return fmt.Errorf("failed to initialize Ollama client: %w", err)
+		return fmt.Errorf("failed to initialize LLM client: %w", err)
 	}
 	p.client = client
 
@@ -91,7 +131,7 @@ func (p *Ollama) Init() error {
 }
 
 // Stop the processor
-func (p *Ollama) Close() error {
+func (p *LLM) Close() error {
 	return nil
 }
 
@@ -121,7 +161,7 @@ func GetJSONData(s string) (map[string]interface{}, error) {
 }
 
 // Process events from input channel
-func (p *Ollama) Run() {
+func (p *LLM) Run() {
 	for e := range p.In {
 		now := time.Now()
 
@@ -155,13 +195,13 @@ func (p *Ollama) Run() {
 			llms.TextParts(llms.ChatMessageTypeHuman, prompt),
 		}
 
-		// Call Ollama
+		// Call LLM
 		completion, err := p.client.GenerateContent(ctx, content,
 			opts...,
 		)
 		cancel()
 		if err != nil {
-			p.handleError(e, now, fmt.Errorf("Ollama API call failed: %w", err))
+			p.handleError(e, now, fmt.Errorf("LLM API call failed: %w", err))
 			continue
 		}
 
@@ -191,6 +231,14 @@ func (p *Ollama) Run() {
 			}
 		}
 
+		e.SetLabel("SystemPrompt", p.SystemPrompt)
+		e.SetLabel("UserPrompt", prompt)
+		e.SetLabel("Response", completion.Choices[0].Content)
+		info, err := toString(completion.Choices[0].GenerationInfo)
+		if err == nil {
+			e.SetLabel("GenerationInfo", info)
+		}
+
 		p.Log.Debug("event processed",
 			slog.Group("event",
 				"id", e.Id,
@@ -203,8 +251,8 @@ func (p *Ollama) Run() {
 }
 
 // handleError processes errors in a uniform way
-func (p *Ollama) handleError(e *core.Event, startTime time.Time, err error) {
-	p.Log.Error("Ollama processor error",
+func (p *LLM) handleError(e *core.Event, startTime time.Time, err error) {
+	p.Log.Error("LLM processor error",
 		"error", err,
 		slog.Group("event",
 			"id", e.Id,
@@ -217,7 +265,7 @@ func (p *Ollama) handleError(e *core.Event, startTime time.Time, err error) {
 }
 
 // Observe metrics
-func (p *Ollama) Observe(status metrics.EventStatus, duration time.Duration) {
+func (p *LLM) Observe(status metrics.EventStatus, duration time.Duration) {
 	// Implement metrics observation based on your metrics package
 	// This is a placeholder
 }
@@ -238,9 +286,8 @@ func toString(value interface{}) (string, error) {
 
 // Register the processor
 func init() {
-	plugins.AddProcessor("ollama", func() core.Processor {
-		return &Ollama{
-			Temperature:    0.7,
+	plugins.AddProcessor("llm", func() core.Processor {
+		return &LLM{
 			TimeoutSeconds: 30,
 		}
 	})
