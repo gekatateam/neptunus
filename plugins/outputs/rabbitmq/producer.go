@@ -12,6 +12,11 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
+type eventPublishing struct {
+	pub        amqp.Publishing
+	routingKey string
+}
+
 type producer struct {
 	*core.BaseOutput
 
@@ -22,6 +27,7 @@ type producer struct {
 	keepMessageId bool
 	routingLabel  string
 	typeLabel     string
+	applicationId string
 	mandatory     bool
 	immediate     bool
 	dMode         uint8
@@ -53,10 +59,11 @@ func (p *producer) Run() {
 		if len(buf) == 0 {
 			return
 		}
-		now := time.Now()
 
-		pubs := make([]amqp.Publishing, 0, len(buf))
+		pubs := make([]eventPublishing, 0, len(buf))
+		events := make([]*core.Event, 0, len(buf))
 		for _, e := range buf {
+			now := time.Now()
 			event, err := p.ser.Serialize(e)
 			if err != nil {
 				p.Log.Error("serialization failed, event skipped",
@@ -70,18 +77,51 @@ func (p *producer) Run() {
 				p.Observe(metrics.EventFailed, time.Since(now))
 				continue
 			}
+
+			pub := eventPublishing{
+				pub: amqp.Publishing{
+					DeliveryMode: p.dMode,
+					AppId:        p.applicationId,
+					Body:         event,
+				},
+			}
+
+			if p.keepTimestamp {
+				pub.pub.Timestamp = e.Timestamp
+			}
+
+			if p.keepMessageId {
+				pub.pub.MessageId = e.Id
+			}
+
+			if len(p.typeLabel) > 0 {
+				label, ok := e.GetLabel(p.typeLabel)
+				if !ok {
+					p.Log.Warn("event does not contains msgType label",
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+						),
+					)
+				} else {
+					pub.pub.Type = label
+				}
+			}
+
+			if len(p.routingLabel) > 0 {
+				label, ok := e.GetLabel(p.routingLabel)
+				if !ok {
+					p.Log.Warn("event does not contains routingKey label",
+						slog.Group("event",
+							"id", e.Id,
+							"key", e.RoutingKey,
+						),
+					)
+				} else {
+					pub.routingKey = label
+				}
+			}
 		}
 
-
-
-
-
-
-
-
-
-
-
-		
 	})
 }

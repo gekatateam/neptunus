@@ -22,6 +22,7 @@ type RabbitMQ struct {
 	Brokers           []string          `mapstructure:"brokers"`
 	VHost             string            `mapstructure:"vhost"`
 	ConnectionName    string            `mapstructure:"connection_name"`
+	ApplicationId     string            `mapstructure:"application_id"`
 	Username          string            `mapstructure:"username"`
 	Password          string            `mapstructure:"password"`
 	DeliveryMode      string            `mapstructure:"delivery_mode"`
@@ -123,6 +124,7 @@ func (o *RabbitMQ) newProducer(exchange string) pool.Runner[*core.Event] {
 		keepMessageId: o.KeepMessageId,
 		routingLabel:  o.RoutingLabel,
 		typeLabel:     o.TypeLabel,
+		applicationId: o.ApplicationId,
 		mandatory:     o.Mandatory,
 		immediate:     o.Immediate,
 		dMode:         o.dMode,
@@ -162,6 +164,7 @@ func init() {
 		return &RabbitMQ{
 			VHost:             "/",
 			ConnectionName:    "neptunus.rabbitmq.output",
+			ApplicationId:     "neptunus.rabbitmq.output",
 			DeliveryMode:      "persistent",
 			DialTimeout:       10 * time.Second,
 			HeartbeatInterval: 10 * time.Second,
