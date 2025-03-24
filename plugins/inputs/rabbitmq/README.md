@@ -10,7 +10,6 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
 ```toml
 [[inputs]]
   [inputs.rabbitmq]
-
     # list of RabbitMQ cluster nodes
     # if multiple brokers are specified a random broker will be selected 
     # anytime a connection is established

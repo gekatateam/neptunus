@@ -12,6 +12,8 @@ func AnyToString(v any) (string, error) {
 	}
 
 	switch t := v.(type) {
+	case []byte:
+		return string(t), nil
 	case string:
 		return t, nil
 	case int:

@@ -27,7 +27,7 @@ type eventPublishing struct {
 	dur        time.Duration
 }
 
-type producer struct {
+type publisher struct {
 	*core.BaseOutput
 
 	exchange  string
@@ -51,21 +51,21 @@ type producer struct {
 	*retryer.Retryer
 }
 
-func (p *producer) Push(e *core.Event) {
+func (p *publisher) Push(e *core.Event) {
 	p.input <- e
 }
 
-func (p *producer) LastWrite() time.Time {
+func (p *publisher) LastWrite() time.Time {
 	return p.lastWrite
 }
 
-func (p *producer) Close() error {
+func (p *publisher) Close() error {
 	close(p.input)
 	return nil
 }
 
-func (p *producer) Run() {
-	p.Log.Info(fmt.Sprintf("producer for exchange %v spawned", p.exchange))
+func (p *publisher) Run() {
+	p.Log.Info(fmt.Sprintf("publisher for exchange %v spawned", p.exchange))
 	p.lastWrite = time.Now()
 
 	p.Batcher.Run(p.input, func(buf []*core.Event) {
@@ -181,10 +181,10 @@ func (p *producer) Run() {
 	})
 
 	p.channel.Close()
-	p.Log.Info(fmt.Sprintf("producer for exchange %v closed", p.exchange))
+	p.Log.Info(fmt.Sprintf("publisher for exchange %v closed", p.exchange))
 }
 
-func (p *producer) produce(pubs []eventPublishing) ([]eventPublishing, error) {
+func (p *publisher) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 	err := p.Retryer.Do("obtain channel and produce", p.Log, func() error {
 		if p.channel == nil || p.channel.IsClosed() {
 			channel, err := p.channelFunc()

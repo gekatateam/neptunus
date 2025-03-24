@@ -48,8 +48,8 @@ type RabbitMQ struct {
 	conn   *amqp.Connection
 	mu     *sync.Mutex
 
-	producersPool *pool.Pool[*core.Event]
-	ser           core.Serializer
+	publishersPool *pool.Pool[*core.Event]
+	ser            core.Serializer
 }
 
 func (o *RabbitMQ) Init() error {
@@ -71,6 +71,10 @@ func (o *RabbitMQ) Init() error {
 		return err
 	}
 
+	if o.IdleTimeout < time.Minute {
+		o.IdleTimeout = time.Minute
+	}
+
 	o.config = amqp.Config{
 		Vhost: o.VHost,
 		SASL: []amqp.Authentication{
@@ -84,7 +88,7 @@ func (o *RabbitMQ) Init() error {
 		TLSClientConfig: tlsConfig,
 	}
 
-	o.producersPool = pool.New(o.newProducer)
+	o.publishersPool = pool.New(o.newPublisher)
 	o.mu = &sync.Mutex{}
 
 	return o.connect()
@@ -96,7 +100,7 @@ func (o *RabbitMQ) SetSerializer(s core.Serializer) {
 
 func (o *RabbitMQ) Close() error {
 	o.ser.Close()
-	o.producersPool.Close()
+	o.publishersPool.Close()
 	return o.conn.Close()
 }
 
@@ -114,19 +118,19 @@ MAIN_LOOP:
 				clearTicker.Stop()
 				break MAIN_LOOP
 			}
-			o.producersPool.Get(e.RoutingKey).Push(e)
+			o.publishersPool.Get(e.RoutingKey).Push(e)
 		case <-clearTicker.C:
-			for _, exchange := range o.producersPool.Keys() {
-				if time.Since(o.producersPool.Get(exchange).LastWrite()) > o.IdleTimeout {
-					o.producersPool.Remove(exchange)
+			for _, exchange := range o.publishersPool.Keys() {
+				if time.Since(o.publishersPool.Get(exchange).LastWrite()) > o.IdleTimeout {
+					o.publishersPool.Remove(exchange)
 				}
 			}
 		}
 	}
 }
 
-func (o *RabbitMQ) newProducer(exchange string) pool.Runner[*core.Event] {
-	return &producer{
+func (o *RabbitMQ) newPublisher(exchange string) pool.Runner[*core.Event] {
+	return &publisher{
 		BaseOutput:    o.BaseOutput,
 		Retryer:       o.Retryer,
 		Batcher:       o.Batcher,
@@ -175,6 +179,7 @@ func init() {
 			ConnectionName:    "neptunus.rabbitmq.output",
 			ApplicationId:     "neptunus.rabbitmq.output",
 			DeliveryMode:      "persistent",
+			IdleTimeout:       time.Hour,
 			DialTimeout:       10 * time.Second,
 			HeartbeatInterval: 10 * time.Second,
 			Batcher: &batcher.Batcher[*core.Event]{
