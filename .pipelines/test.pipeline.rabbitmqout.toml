@@ -22,6 +22,6 @@
     brokers = [ "amqp://localhost:5672" ]
     username = "user"
     password = "bitnami"
-    retry_attempts = 10
+    retry_attempts = 0
   [outputs.rabbitmq.serializer]
     type = "json"
