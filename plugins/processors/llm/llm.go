@@ -43,6 +43,8 @@ type LLM struct {
 	SystemPrompt string `mapstructure:"system_prompt"`
 	// JSONMode to enable JSON output
 	JSONMode bool `mapstructure:"json_mode"`
+	// Get data from raw output JSON key to output
+	JSONModeGetKey string `mapstructure:"json_mode_get_key"`
 	// KeepAlive controls how long the model will stay loaded into memory following the request
 	KeepAlive string `mapstructure:"keep_alive"`
 	// api_key for llm
@@ -316,15 +318,32 @@ func (p *LLM) Run() {
 		}
 
 		if p.JSONMode {
-			it, err := GetJSONData(completion.Choices[0].Content)
-			if err != nil {
-				p.handleError(e, now, fmt.Errorf("failed to parse JSON response: %w", err))
-				continue
-			}
-			it = FlattenMap(it)
-			for k, v := range it {
-				if err := e.SetField(k, v); err != nil {
-					p.handleError(e, now, fmt.Errorf("failed to set response field '%s': %w", k, err))
+			data := strings.TrimPrefix(completion.Choices[0].Content, "```json")
+			data = strings.TrimSuffix(data, "```")
+
+			if p.JSONModeGetKey != "" {
+				it, err := GetJSONData(data)
+				if err != nil {
+					p.handleError(e, now, fmt.Errorf("failed to parse JSON data: %w", err))
+					continue
+				}
+				if out, ok := it[p.JSONModeGetKey]; ok {
+					bData, err := json.Marshal(out)
+					if err != nil {
+						p.handleError(e, now, fmt.Errorf("failed to marshal value '%s': %w", p.ResponseTo, err))
+						continue
+					}
+					if err := e.SetField(p.ResponseTo, bData); err != nil {
+						p.handleError(e, now, fmt.Errorf("failed to set response field '%s': %w", p.ResponseTo, err))
+						continue
+					}
+				} else {
+					p.handleError(e, now, fmt.Errorf("fialed to get JSON key %s, %w", p.JSONModeGetKey, err))
+					continue
+				}
+			} else {
+				if err := e.SetField(p.ResponseTo, data); err != nil {
+					p.handleError(e, now, fmt.Errorf("failed to set response field '%s': %w", p.ResponseTo, err))
 					continue
 				}
 			}
