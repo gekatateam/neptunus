@@ -38,6 +38,7 @@ type RabbitMQ struct {
 	*ider.Ider              `mapstructure:",squash"`
 	*pkgtls.TLSClientConfig `mapstructure:",squash"`
 
+	cTag   string
 	config amqp.Config
 	conn   *amqp.Connection
 
@@ -96,6 +97,8 @@ func (i *RabbitMQ) Init() error {
 	if err := i.ValidateDeclarations(); err != nil {
 		return err
 	}
+
+	i.cTag = i.ConsumerTag + "-" + randstr.Base62(7)
 
 	i.config = amqp.Config{
 		Vhost: i.VHost,
@@ -174,7 +177,7 @@ CONNECT_LOOP:
 			deliveries, err := ch.ConsumeWithContext(
 				i.fetchCtx,
 				queue.Name,
-				i.ConsumerTag,
+				i.cTag,
 				false, // autoAck
 				queue.Exclusive,
 				false, // noLocal

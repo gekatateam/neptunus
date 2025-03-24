@@ -201,11 +201,11 @@ func (p *publisher) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 		}
 
 		hasErrorOrUnacked := false
-		acks := make(map[uint64]*eventPublishing, len(pubs))
+		acks := make(map[uint64]int, len(pubs))
 
 		for i, pub := range pubs {
 			if pub.err != nil {
-				acks[p.channel.GetNextPublishSeqNo()] = &pub
+				acks[p.channel.GetNextPublishSeqNo()] = i
 
 				err := p.channel.PublishWithContext(
 					context.Background(), // context is not honoured
@@ -219,6 +219,9 @@ func (p *publisher) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 				if err != nil {
 					pubs[i].err = err
 					hasErrorOrUnacked = true
+					p.Log.Error("message publish failed",
+						"error", pub.err,
+					)
 				} else {
 					pubs[i].err = nil
 				}
@@ -233,8 +236,9 @@ func (p *publisher) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 			}
 
 			if !c.Ack {
-				acks[c.DeliveryTag].err = ErrNotACKed
+				pubs[acks[c.DeliveryTag]].err = ErrNotACKed
 				hasErrorOrUnacked = true
+				p.Log.Debug(fmt.Sprintf("unACKed tag: %v", c.DeliveryTag))
 			}
 
 			delete(acks, c.DeliveryTag)

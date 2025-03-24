@@ -19,6 +19,8 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
     vhost = "/"
 
     # https://www.rabbitmq.com/docs/consumers#consumer-tags
+    # seven base62-characters long random suffix with dash will be appended on init
+    # e.g. `neptunus.rabbitmq.input-95Th48s`
     consumer_tag = "neptunus.rabbitmq.input"
 
     # https://www.rabbitmq.com/docs/connections#client-provided-names

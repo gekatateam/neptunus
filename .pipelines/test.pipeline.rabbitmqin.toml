@@ -22,9 +22,24 @@
       [[inputs.rabbitmq.queues.bindings]]
         bind_to = "neptunus.rabbitmq.exchange.fanout"
         binding_key = "#"
-    [[inputs.rabbitmq.queues]]
-      name = "neptunus.rabbitmq.events.2"
+  [inputs.rabbitmq.parser]
+    type = "json"
+
+[[inputs]]
+  [inputs.rabbitmq]
+    brokers = [ "amqp://localhost:5672" ]
+    username = "user"
+    password = "bitnami"
+    prefetch_count = 10
+    max_undelivered = 10
+    [[inputs.rabbitmq.exchanges]]
+      name = "neptunus.rabbitmq.exchange.fanout"
+      type = "fanout"
       auto_delete = true
+    [[inputs.rabbitmq.queues]]
+      name = "neptunus.rabbitmq.events.1"
+      auto_delete = true
+      declare_args = { "x-message-ttl" = 60000, "x-max-length" = 10 }
       [[inputs.rabbitmq.queues.bindings]]
         bind_to = "neptunus.rabbitmq.exchange.fanout"
         binding_key = "#"

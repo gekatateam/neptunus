@@ -62,6 +62,8 @@ Each event will be serialized into a individual message, `batch_*` settings cont
 
     # maximum number of attempts to send a batch of messages
     # before events will be marked as failed
+    # 
+    # unACKed messages also cause a retry
     retry_attempts = 0 # zero for endless attempts
 
     # interval between retries to (re-)send a batch of messages
