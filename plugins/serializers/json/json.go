@@ -71,7 +71,6 @@ func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 					"key", e.RoutingKey,
 				),
 			)
-			e.AddTag("::json_serialization_failed")
 			s.Observe(metrics.EventFailed, time.Since(now))
 			now = time.Now()
 			continue
@@ -108,7 +107,6 @@ func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 					"key", e.RoutingKey,
 				),
 			)
-			e.AddTag("::json_serialization_failed")
 			s.Observe(metrics.EventFailed, time.Since(now))
 			now = time.Now()
 			continue
@@ -123,7 +121,6 @@ func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 					"key", e.RoutingKey,
 				),
 			)
-			e.AddTag("::json_serialization_failed")
 			s.Observe(metrics.EventFailed, time.Since(now))
 			now = time.Now()
 			sErr = err

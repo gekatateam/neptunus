@@ -154,18 +154,20 @@ func (i *Sql) Init() error {
 	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
 
 	if err := db.Ping(); err != nil {
+		defer db.Close()
 		return err
 	}
 	i.db = db
 
-	i.stopCh = make(chan struct{})
-	i.doneCh = make(chan struct{})
-
 	if len(i.OnInit.Query) > 0 {
 		if err := i.init(); err != nil {
+			defer i.db.Close()
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
 	}
+
+	i.stopCh = make(chan struct{})
+	i.doneCh = make(chan struct{})
 
 	return nil
 }
