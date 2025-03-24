@@ -163,7 +163,7 @@ func (p *LLM) Init() error {
 	}
 
 	if p.ResponseTo == "" {
-		return fmt.Errorf("response_to field is required")
+		p.ResponseTo = "llm.output"
 	}
 
 	if p.SystemPrompt == "" {
