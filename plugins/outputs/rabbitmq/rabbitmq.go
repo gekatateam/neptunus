@@ -85,12 +85,18 @@ func (o *RabbitMQ) Init() error {
 	}
 
 	o.producersPool = pool.New(o.newProducer)
+	o.mu = &sync.Mutex{}
 
 	return o.connect()
 }
 
+func (o *RabbitMQ) SetSerializer(s core.Serializer) {
+	o.ser = s
+}
+
 func (o *RabbitMQ) Close() error {
 	o.ser.Close()
+	o.producersPool.Close()
 	return o.conn.Close()
 }
 
@@ -122,6 +128,8 @@ MAIN_LOOP:
 func (o *RabbitMQ) newProducer(exchange string) pool.Runner[*core.Event] {
 	return &producer{
 		BaseOutput:    o.BaseOutput,
+		Retryer:       o.Retryer,
+		Batcher:       o.Batcher,
 		keepTimestamp: o.KeepTimestamp,
 		keepMessageId: o.KeepMessageId,
 		routingLabel:  o.RoutingLabel,
@@ -133,6 +141,7 @@ func (o *RabbitMQ) newProducer(exchange string) pool.Runner[*core.Event] {
 		channelFunc:   o.channel,
 		input:         make(chan *core.Event),
 		lastWrite:     time.Now(),
+		exchange:      exchange,
 	}
 }
 

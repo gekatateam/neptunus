@@ -15,11 +15,14 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
+var (
+	ErrNotACKed = errors.New("not ACKed by broker")
+)
+
 type eventPublishing struct {
 	pub        amqp.Publishing
 	event      *core.Event
 	routingKey string
-	published  bool
 	err        error
 	dur        time.Duration
 }
@@ -27,6 +30,7 @@ type eventPublishing struct {
 type producer struct {
 	*core.BaseOutput
 
+	exchange  string
 	input     chan *core.Event
 	lastWrite time.Time
 
@@ -61,6 +65,9 @@ func (p *producer) Close() error {
 }
 
 func (p *producer) Run() {
+	p.Log.Info(fmt.Sprintf("producer for exchange %v spawned", p.exchange))
+	p.lastWrite = time.Now()
+
 	p.Batcher.Run(p.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
@@ -83,11 +90,20 @@ func (p *producer) Run() {
 				continue
 			}
 
+			headers := make(amqp.Table, len(p.headerLabels))
+			for header, label := range p.headerLabels {
+				if v, ok := e.GetLabel(label); ok {
+					headers[header] = v
+				}
+			}
+
 			pub := eventPublishing{
 				event: e,
+				err:   ErrNotACKed,
 				pub: amqp.Publishing{
 					DeliveryMode: p.dMode,
 					AppId:        p.applicationId,
+					Headers:      headers,
 					Body:         event,
 				},
 			}
@@ -137,8 +153,35 @@ func (p *producer) Run() {
 			return
 		}
 
-		err := p.produce(pubs)
+		now := time.Now()
+		pubs, _ = p.produce(pubs)
+		dur := durationPerEvent(time.Since(now), len(pubs))
+
+		for _, pub := range pubs {
+			p.Done <- pub.event
+			if pub.err != nil {
+				p.Log.Error("event produce failed",
+					"error", pub.err,
+					slog.Group("event",
+						"id", pub.event.Id,
+						"key", pub.event.RoutingKey,
+					),
+				)
+				p.Observe(metrics.EventFailed, pub.dur+dur)
+			} else {
+				p.Log.Debug("event produced",
+					slog.Group("event",
+						"id", pub.event.Id,
+						"key", pub.event.RoutingKey,
+					),
+				)
+				p.Observe(metrics.EventAccepted, pub.dur+dur)
+			}
+		}
 	})
+
+	p.channel.Close()
+	p.Log.Info(fmt.Sprintf("producer for exchange %v closed", p.exchange))
 }
 
 func (p *producer) produce(pubs []eventPublishing) ([]eventPublishing, error) {
@@ -161,7 +204,7 @@ func (p *producer) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 		acks := make(map[uint64]*eventPublishing, len(pubs))
 
 		for i, pub := range pubs {
-			if !pub.published || pub.err != nil {
+			if pub.err != nil {
 				acks[p.channel.GetNextPublishSeqNo()] = &pub
 
 				err := p.channel.PublishWithContext(
@@ -183,8 +226,14 @@ func (p *producer) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 		}
 
 		for c := range p.confirm {
-			acks[c.DeliveryTag].published = c.Ack
+			// normally, if acks is empty, it means than channel is already closed, but, you know
+			// it is always better to check
+			if len(acks) == 0 {
+				break
+			}
+
 			if !c.Ack {
+				acks[c.DeliveryTag].err = ErrNotACKed
 				hasErrorOrUnacked = true
 			}
 
@@ -203,4 +252,8 @@ func (p *producer) produce(pubs []eventPublishing) ([]eventPublishing, error) {
 	})
 
 	return pubs, err
+}
+
+func durationPerEvent(totalTime time.Duration, batchSize int) time.Duration {
+	return time.Duration(int64(totalTime) / int64(batchSize))
 }

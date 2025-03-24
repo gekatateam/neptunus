@@ -1,7 +1,7 @@
 [settings]
-  id = "test.pipeline.rabbitmq"
+  id = "test.pipeline.rabbitmqin"
   lines = 5
-  run = true
+  run = false
   buffer = 5
 
 [[inputs]]
