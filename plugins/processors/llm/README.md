@@ -23,7 +23,8 @@ This processor allows you to send prompts to language models and capture their r
     # Field name to get prompt from, required
     prompt_from = "message.content"
 
-    # Field name to store response, required
+    # Field name to store response
+    # Default: "llm.output"
     response_to = "message.response"
 
     # Controls randomness (0.0-1.0)
@@ -45,6 +46,10 @@ This processor allows you to send prompts to language models and capture their r
     # Default: false
     json_mode = false
 
+    # Extract a specific key from JSON output
+    # Only used when json_mode is true
+    json_mode_get_key = "result"
+
     # Controls how long the model stays loaded in memory (Ollama)
     # Default: "5m"
     keep_alive = "10m"
@@ -57,8 +62,8 @@ This processor allows you to send prompts to language models and capture their r
     save_csv_path = "/path/to/llm_interactions.csv"
 
     # Maximum file size for CSV before rotation (in bytes)
-    # Default: 50MB
-    max_csv_size = 104857600
+    # Default: 50MB (52,428,800 bytes)
+    max_csv_size = 52428800
 ```
 
 ## Providers
@@ -77,10 +82,14 @@ For OpenAI, set `llm_type = "openai"`, provide your API key in the `api_key` fie
 
 ## JSON Mode
 
-When `json_mode` is enabled, the processor will:
-1. Request structured JSON output from the LLM
-2. Parse the returned JSON
-3. Flatten the structure and add each key-value pair to the event
+When `json_mode` is enabled, the processor will request structured JSON output from the LLM. The response will be processed in one of two ways:
+
+1. If `json_mode_get_key` is specified, the processor will:
+   - Extract the value of the specified key from the JSON response
+   - Set this value to the `response_to` field
+
+2. If `json_mode_get_key` is not specified, the processor will:
+   - Set the entire JSON response (without the markdown code block delimiters) to the `response_to` field
 
 ## CSV Logging
 
@@ -92,7 +101,15 @@ When `save_csv_path` is configured, the processor logs all interactions to a CSV
 - response
 - llm_type
 
-The CSV file rotates when its size exceeds `max_csv_size`.
+The CSV file automatically rotates when its size exceeds `max_csv_size`.
+
+## Event Labels
+
+The processor adds the following labels to the processed event:
+- `SystemPrompt`: The system prompt used
+- `UserPrompt`: The user prompt sent to the LLM
+- `Response`: The LLM's response
+- `GenerationInfo`: Additional generation metadata (when available)
 
 ## Example Usage
 
