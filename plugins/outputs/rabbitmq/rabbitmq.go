@@ -30,12 +30,14 @@ type RabbitMQ struct {
 	KeepMessageId     bool              `mapstructure:"keep_message_id"`
 	RoutingLabel      string            `mapstructure:"routing_label"`
 	TypeLabel         string            `mapstructure:"type_label"`
-	Mandatory         bool              `mapstructure:"mandatory"`
-	Immediate         bool              `mapstructure:"immediate"`
 	IdleTimeout       time.Duration     `mapstructure:"idle_timeout"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
 	HeartbeatInterval time.Duration     `mapstructure:"heartbeat_interval"`
 	HeaderLabels      map[string]string `mapstructure:"headerlabels"`
+
+	// TODO: add amqp.Return processing sometimes in future
+	// Mandatory         bool              `mapstructure:"mandatory"`
+	// Immediate         bool              `mapstructure:"immediate"`
 
 	*pkgtls.TLSClientConfig       `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
@@ -125,8 +127,6 @@ func (o *RabbitMQ) newProducer(exchange string) pool.Runner[*core.Event] {
 		routingLabel:  o.RoutingLabel,
 		typeLabel:     o.TypeLabel,
 		applicationId: o.ApplicationId,
-		mandatory:     o.Mandatory,
-		immediate:     o.Immediate,
 		dMode:         o.dMode,
 		headerLabels:  o.HeaderLabels,
 		ser:           o.ser,
