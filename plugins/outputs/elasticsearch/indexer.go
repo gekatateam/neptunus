@@ -27,7 +27,6 @@ const defaultBufferSize = 4096
 type indexer struct {
 	*core.BaseOutput
 
-	lastWrite    time.Time
 	pipeline     string
 	dataOnly     bool
 	operation    string
@@ -51,10 +50,6 @@ func (i *indexer) Close() error {
 	return nil
 }
 
-func (i *indexer) LastWrite() time.Time {
-	return i.lastWrite
-}
-
 func (i *indexer) Push(e *core.Event) {
 	i.input <- e
 }
@@ -72,7 +67,6 @@ func (i *indexer) Run() {
 			body       *esopensearch.BulkBody = &esopensearch.BulkBody{Buffer: bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
 			req        *esapi.BulkRequest     = &esapi.BulkRequest{Pipeline: i.pipeline}
 		)
-		i.lastWrite = now
 
 		for _, e := range buf {
 			var (

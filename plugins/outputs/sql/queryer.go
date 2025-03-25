@@ -20,7 +20,6 @@ type querier struct {
 	columns map[string]string
 
 	tableName string
-	lastWrite time.Time
 	query     string
 	timeout   time.Duration
 
@@ -40,7 +39,6 @@ func (q *querier) Run() {
 		}
 
 		now := time.Now()
-		q.lastWrite = now
 
 		rawArgs := make([]map[string]any, len(buf))
 		for i, e := range buf {
@@ -98,10 +96,6 @@ func (q *querier) Run() {
 
 func (q *querier) Push(e *core.Event) {
 	q.input <- e
-}
-
-func (q *querier) LastWrite() time.Time {
-	return q.lastWrite
 }
 
 func (q *querier) Close() error {

@@ -19,9 +19,8 @@ import (
 type requester struct {
 	*core.BaseOutput
 
-	lastWrite time.Time
-	uri       string
-	method    string
+	uri    string
+	method string
 
 	successCodes map[int]struct{}
 	headerlabels map[string]string
@@ -43,7 +42,6 @@ func (r *requester) Run() {
 			return
 		}
 		now := time.Now()
-		r.lastWrite = now
 
 		header := make(http.Header)
 		for k, v := range r.headerlabels {
@@ -119,10 +117,6 @@ func (r *requester) Run() {
 
 func (r *requester) Push(e *core.Event) {
 	r.input <- e
-}
-
-func (r *requester) LastWrite() time.Time {
-	return r.lastWrite
 }
 
 func (r *requester) Close() error {

@@ -146,7 +146,7 @@ MAIN_LOOP:
 			o.queryersPool.Get(e.RoutingKey).Push(e)
 		case <-clearTicker.C:
 			for _, key := range o.queryersPool.Keys() {
-				if time.Since(o.queryersPool.Get(key).LastWrite()) > o.IdleTimeout {
+				if time.Since(o.queryersPool.LastWrite(key)) > o.IdleTimeout {
 					o.queryersPool.Remove(key)
 				}
 			}
@@ -175,7 +175,6 @@ func (o *Sql) newQueryer(key string) pool.Runner[*core.Event] {
 		db:         o.db,
 		query:      strings.Replace(o.OnPush.Query, o.TablePlaceholder, key, 1),
 		columns:    o.Columns,
-		lastWrite:  time.Now(),
 		tableName:  key,
 		timeout:    o.QueryTimeout,
 		input:      make(chan *core.Event),
