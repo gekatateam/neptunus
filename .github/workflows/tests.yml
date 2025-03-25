@@ -20,6 +20,6 @@ jobs:
         run: |
           go install github.com/go-task/task/v3/cmd/task@latest
       
-      - name: Build and pack binaries
+      - name: Run tests
         run: |
           task -v build:tests

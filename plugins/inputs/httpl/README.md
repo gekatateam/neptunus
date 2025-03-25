@@ -28,6 +28,11 @@ This plugin produce events with routing key as request path, `server` label with
     # maximum duration before timing out write of the response
     write_timeout = "10s"
 
+    # optional basic auth credentials
+    # if both set, requests with wrong credentials will be rejected with `401 Unauthorized`
+    basic_isername = "user"
+    basic_password = "pass"
+
     # if true, server waits for events to be delivered
     # before responding to a client
     wait_for_delivery = false

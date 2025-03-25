@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.http"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
@@ -11,6 +11,8 @@
     query_params_to = "."
     wait_for_delivery = true
     tls_enable = false
+    basic_username = "user"
+    basic_password = "pass"
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
