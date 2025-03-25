@@ -28,11 +28,17 @@ jobs:
         run: |
           task -v \
             build:linux-amd64 \
+            build:linux-arm64 \
             build:windows-amd64 \
+            build:windows-arm64 \
+            build:darwin-amd64 \
             build:darwin-arm64 \
             build:notice \
             pack:linux-amd64 \
+            pack:linux-arm64 \
             pack:windows-amd64 \
+            pack:windows-arm64 \
+            pack:darwin-amd64 \
             pack:darwin-arm64
 
       - name: Upload artifacts

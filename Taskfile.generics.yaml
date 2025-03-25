@@ -6,12 +6,13 @@ tasks:
     requires:
       vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
     cmds:
-    - platforms: [ linux/amd64, darwin/arm64 ]
+    - platforms: [ linux, darwin ]
       cmd: |
         mkdir -p {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
-    - platforms: [ windows/amd64 ]
+    - platforms: [ windows ]
       cmd: |
-        powershell New-Item -ItemType Directory -Force -Path {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
+        powershell New-Item -ItemType Directory -Force \
+        -Path {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
     - cmd: |
         export GOOS="{{ .NEPTUNUS_BUILD_GOOS }}"
         export GOARCH="{{ .NEPTUNUS_BUILD_GOARCH }}"
@@ -19,6 +20,8 @@ tasks:
           -ldflags="-X main.Version={{ .NEPTUNUS_BUILD_VERSION }}" \
           -o {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} \
           ./cmd/neptunus
+    status:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus{{ exeExt }}
 
   tar:
     internal: true
@@ -33,6 +36,8 @@ tasks:
         -czvf {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz \
         -C {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} neptunus \
         -C ../../{{ .NEPTUNUS_BUILD_DIR }} NOTICE.txt
+    status:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz
 
   zip:
     internal: true
@@ -42,30 +47,33 @@ tasks:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
     cmds:
-    - platforms: [ linux/amd64, darwin/arm64 ]
+    - platforms: [ linux, darwin ]
       cmd: |
         zip \
         -rj \
         {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
         {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe \
         {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
-    - platforms: [ windows/amd64 ]
+    - platforms: [ windows ]
       cmd: |
         powershell Compress-Archive \
-        -DestinationPath {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
+        -DestinationPath \ {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
         -Path \
         {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus.exe, \
         {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+    status:
+    - test -f {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip
+
 
   notice:
     internal: true
     requires:
       vars: [ NEPTUNUS_BUILD_DIR ]
     cmds:
-    - platforms: [ linux/amd64, darwin/arm64 ]
+    - platforms: [ linux, darwin ]
       cmd: |
         mkdir -p {{ .NEPTUNUS_BUILD_DIR }}
-    - platforms: [ windows/amd64 ]
+    - platforms: [ windows ]
       cmd: |
         powershell New-Item -ItemType Directory -Force -Path {{ .NEPTUNUS_BUILD_DIR }}
     - cmd: |
@@ -76,18 +84,19 @@ tasks:
           -noticeTemplate '.github/NOTICE.txt.tmpl' \
           -noticeOut '{{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt'   
 
-  docker:
+  container:
     internal: true
     requires:
-      vars: [ NEPTUNUS_BUILD_VERSION ]
+      vars: [ NEPTUNUS_BUILD_VERSION, NEPTUNUS_CONTAINER_TOOL ]
     cmds:
     - |
-      docker build \
+      {{ .NEPTUNUS_CONTAINER_TOOL }} build \
         --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
         -t ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }} \
         .
     status:
-    - docker inspect --type=image ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }}
+    - |
+      {{ .NEPTUNUS_CONTAINER_TOOL }} inspect --type=image ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }}
 
   cleanup:
     internal: true
@@ -95,9 +104,9 @@ tasks:
       vars: [ NEPTUNUS_BUILD_DIR ]
     prompt: '{{ .NEPTUNUS_BUILD_DIR }}/ directory will be deleted. Do you want to continue?'
     cmds:
-    - platforms: [ linux/amd64, darwin/arm64 ]
+    - platforms: [ linux, darwin ]
       cmd: |
         rm -rf {{ .NEPTUNUS_BUILD_DIR }}
-    - platforms: [ windows/amd64 ]
+    - platforms: [ windows ]
       cmd: |
-        powershell Remove-Item -LiteralPath {{ .NEPTUNUS_BUILD_DIR }} -Force -Recurse
+        powershell Remove-Item -LiteralPath {{ .NEPTUNUS_BUILD_DIR }} -Force -Recurse | $null
