@@ -289,7 +289,7 @@ func (p *LLM) Run() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.TimeoutSeconds)*time.Second)
 
 		// Prepare generation options
-		opts := []llms.CallOption{}
+		var opts []llms.CallOption
 		if p.MaxTokens > 0 {
 			opts = append(opts, llms.WithMaxTokens(p.MaxTokens))
 		}
