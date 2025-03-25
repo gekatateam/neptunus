@@ -22,14 +22,19 @@ tasks:
     - task: generics:cleanup
 
   all:
-    desc: Build and pack all artifacts
+    desc: Build and pack all binaries
     cmds:
     - task: build:tests
     - task: build:linux-amd64
+    - task: build:linux-arm64
     - task: build:windows-amd64
+    - task: build:windows-arm64
+    - task: build:darwin-amd64
     - task: build:darwin-arm64
     - task: build:notice
-    - task: build:docker
     - task: pack:linux-amd64
+    - task: pack:linux-arm64
     - task: pack:windows-amd64
+    - task: pack:windows-arm64
+    - task: pack:darwin-amd64
     - task: pack:darwin-arm64

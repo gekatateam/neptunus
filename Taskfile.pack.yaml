@@ -12,12 +12,36 @@ tasks:
         NEPTUNUS_BUILD_GOOS: linux
         NEPTUNUS_BUILD_GOARCH: amd64
 
+  linux-arm64:
+    desc: Create linux/arm64 tar.gz
+    cmds:
+    - task: generics:tar
+      vars:
+        NEPTUNUS_BUILD_GOOS: linux
+        NEPTUNUS_BUILD_GOARCH: arm64
+
   windows-amd64:
     desc: Create windows/amd64 zip
     cmds:
     - task: generics:zip
       vars:
         NEPTUNUS_BUILD_GOOS: windows
+        NEPTUNUS_BUILD_GOARCH: amd64
+
+  windows-arm64:
+    desc: Create windows/arm64 zip
+    cmds:
+    - task: generics:zip
+      vars:
+        NEPTUNUS_BUILD_GOOS: windows
+        NEPTUNUS_BUILD_GOARCH: arm64
+
+  darwin-amd64:
+    desc: Create darwin/amd64 tar.gz
+    cmds:
+    - task: generics:tar
+      vars:
+        NEPTUNUS_BUILD_GOOS: darwin
         NEPTUNUS_BUILD_GOARCH: amd64
 
   darwin-arm64:

@@ -17,12 +17,36 @@ tasks:
         NEPTUNUS_BUILD_GOOS: linux
         NEPTUNUS_BUILD_GOARCH: amd64
 
+  linux-arm64:
+    desc: Build linux/arm64 binary
+    cmds:
+    - task: generics:build
+      vars:
+        NEPTUNUS_BUILD_GOOS: linux
+        NEPTUNUS_BUILD_GOARCH: arm64
+
   windows-amd64:
     desc: Build windows/amd64 binary
     cmds:
     - task: generics:build
       vars:
         NEPTUNUS_BUILD_GOOS: windows
+        NEPTUNUS_BUILD_GOARCH: amd64
+
+  windows-arm64:
+    desc: Build windows/arm64 binary
+    cmds:
+    - task: generics:build
+      vars:
+        NEPTUNUS_BUILD_GOOS: windows
+        NEPTUNUS_BUILD_GOARCH: arm64
+
+  darwin-amd64:
+    desc: Build darwin/amd64 binary
+    cmds:
+    - task: generics:build
+      vars:
+        NEPTUNUS_BUILD_GOOS: darwin
         NEPTUNUS_BUILD_GOARCH: amd64
 
   darwin-arm64:
@@ -34,9 +58,18 @@ tasks:
         NEPTUNUS_BUILD_GOARCH: arm64
 
   docker:
-    desc: Build docker image
+    desc: Build container image using docker
     cmds:
-    - task: generics:docker
+    - task: generics:container
+      vars:
+        NEPTUNUS_CONTAINER_TOOL: docker
+
+  podman:
+    desc: Build container image using podman
+    cmds:
+    - task: generics:container
+      vars:
+        NEPTUNUS_CONTAINER_TOOL: podman
 
   tests:
     desc: Run tests
