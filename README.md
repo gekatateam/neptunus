@@ -39,3 +39,14 @@ neptunus test --config config.toml
 ```
 neptunus pipeline --help
 ```
+
+# How to build
+This project uses [Taskfile](https://taskfile.dev/) as a build tool. Out-of-the-box there is three os-platform combinations: `windows/amd64`, `linux/amd64` and `darwin/arm64`. You can add more in [builds](./Taskfile.build.yaml) and [packs](./Taskfile.pack.yaml) tasks if you need. All tasks should be cross-platform, but you need to know that it tested on Windows and Linux (Ubuntu 22.04) only.
+
+Then, follow simple steps:
+1. Install [Taskfile](https://github.com/go-task/task) and [go-licence-detector](https://github.com/elastic/go-licence-detector)
+2. Run `task build:{{ OS }}-{{ PLATFORM }}`
+3. Run `task build:notice`
+4. Run `task pack:{{ OS }}-{{ PLATFORM }}` (this is optional, btw)
+5. Run `task build:docker` if you need docker image
+6. Finally, run `task cleanup` to remove build artifacts from file system

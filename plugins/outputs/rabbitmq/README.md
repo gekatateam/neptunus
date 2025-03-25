@@ -42,8 +42,8 @@ Each event will be serialized into a individual message, `batch_*` settings cont
     # optional label name, which value will be used as message type
     type_label = "event_type"
 
-    # time after which inactive producers will be closed
-    # if configured value a zero, idle producers will never be closed
+    # time after which inactive publishers will be closed
+    # if configured value a zero, idle publishers will never be closed
     # if configured value less than 1m but not zero, it will be set to 1m
     idle_timeout = "1h"
 

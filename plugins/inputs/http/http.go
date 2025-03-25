@@ -17,6 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	basic "github.com/gekatateam/neptunus/plugins/common/http"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
@@ -36,6 +37,7 @@ type Http struct {
 	MaxConnections  int               `mapstructure:"max_connections"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 
+	*basic.BasicAuth        `mapstructure:",squash"`
 	*ider.Ider              `mapstructure:",squash"`
 	*pkgtls.TLSServerConfig `mapstructure:",squash"`
 
@@ -91,11 +93,17 @@ func (i *Http) Init() error {
 
 	i.listener = listener
 	mux := http.NewServeMux()
-	if i.EnableMetrics {
-		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, i))
-	} else {
-		mux.Handle("/", i)
+
+	var handler http.Handler = i
+	if i.BasicAuth.Init() {
+		handler = i.BasicAuth.Handler(handler)
 	}
+
+	if i.EnableMetrics {
+		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, handler)
+	}
+
+	mux.Handle("/", handler)
 
 	i.server = &http.Server{
 		ReadTimeout:  i.ReadTimeout,
@@ -180,6 +188,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		event.SetLabel("server", i.Address)
 		event.SetLabel("sender", r.RemoteAddr)
 		event.SetLabel("method", r.Method)
+		event.SetLabel("username", i.Username)
 
 		for k, v := range i.LabelHeaders {
 			h := r.Header.Get(v)
@@ -245,6 +254,7 @@ func init() {
 			WriteTimeout:    10 * time.Second,
 			MaxConnections:  0,
 			AllowedMethods:  []string{"POST", "PUT"},
+			BasicAuth:       &basic.BasicAuth{},
 			Ider:            &ider.Ider{},
 			TLSServerConfig: &pkgtls.TLSServerConfig{},
 		}

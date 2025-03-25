@@ -111,8 +111,10 @@ func (i *RabbitMQ) Init() error {
 		Dial:            amqp.DefaultDial(i.DialTimeout),
 		Heartbeat:       i.HeartbeatInterval,
 		TLSClientConfig: tlsConfig,
+		Properties:      amqp.NewConnectionProperties(),
 	}
 
+	i.config.Properties.SetClientConnectionName(i.ConnectionName)
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
 	i.doneCh = make(chan struct{})
 

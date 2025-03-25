@@ -86,8 +86,10 @@ func (o *RabbitMQ) Init() error {
 		Dial:            amqp.DefaultDial(o.DialTimeout),
 		Heartbeat:       o.HeartbeatInterval,
 		TLSClientConfig: tlsConfig,
+		Properties:      amqp.NewConnectionProperties(),
 	}
 
+	o.config.Properties.SetClientConnectionName(o.ConnectionName)
 	o.publishersPool = pool.New(o.newPublisher)
 	o.mu = &sync.Mutex{}
 
