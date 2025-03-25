@@ -54,7 +54,6 @@ func (f *Starlark) Run() {
 				),
 			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
-			e.AddTag("::starlark_filtering_failed")
 			f.Rej <- e
 			f.Observe(metrics.EventRejected, time.Since(now))
 			continue
@@ -70,7 +69,6 @@ func (f *Starlark) Run() {
 				),
 			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
-			e.AddTag("::starlark_filtering_failed")
 			f.Rej <- e
 			f.Observe(metrics.EventRejected, time.Since(now))
 			continue

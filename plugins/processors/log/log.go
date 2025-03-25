@@ -51,7 +51,6 @@ func (p *Log) Run() {
 				),
 			)
 			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
-			e.AddTag("::log_processing_failed")
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue

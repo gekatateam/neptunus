@@ -8,5 +8,6 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/inputs/http"
 	_ "github.com/gekatateam/neptunus/plugins/inputs/httpl"
 	_ "github.com/gekatateam/neptunus/plugins/inputs/kafka"
+	_ "github.com/gekatateam/neptunus/plugins/inputs/rabbitmq"
 	_ "github.com/gekatateam/neptunus/plugins/inputs/sql"
 )

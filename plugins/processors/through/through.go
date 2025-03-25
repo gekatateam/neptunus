@@ -10,6 +10,7 @@ import (
 
 type Through struct {
 	*core.BaseProcessor `mapstructure:"-"`
+	Sleep               time.Duration `mapstructure:"sleep"`
 }
 
 func (p *Through) Init() error {
@@ -23,6 +24,11 @@ func (p *Through) Close() error {
 func (p *Through) Run() {
 	for e := range p.In {
 		now := time.Now()
+
+		if p.Sleep > 0 {
+			time.Sleep(p.Sleep)
+		}
+
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}

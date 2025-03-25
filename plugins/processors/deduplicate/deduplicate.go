@@ -85,6 +85,7 @@ func (p *Deduplicate) Init() error {
 	}
 
 	if err := p.client.Ping(context.Background()).Err(); err != nil {
+		defer p.client.Close()
 		return err
 	}
 

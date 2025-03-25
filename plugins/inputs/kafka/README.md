@@ -2,7 +2,7 @@
 
 The `kafka` input plugin reads from Kafka and passes each message to configured parser. This plugin requires parser.
 
-Each reader uses its own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
+Each reader uses it's own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
 
 A message is marked as ready to commit if all of its events hooks are called, if parser returned zero events, or if parsing ended with an error.
 
@@ -31,6 +31,9 @@ If commit queue is full, fetching is suspended until at least one message is com
     # if configured, an event id will be set by data from path
     # expected format - "type:path"
     id_from = "field:path.to.id"
+
+    # if true, incoming message timestamp will be used as event timestamp
+    keep_timestamp = false
 
     # determines from whence the consumer group should begin consuming
     # when it finds a partition without a committed offset, "first" or "last"

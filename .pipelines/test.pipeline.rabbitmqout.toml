@@ -1,0 +1,27 @@
+[settings]
+  id = "test.pipeline.rabbitmqout"
+  lines = 5
+  run = true
+  buffer = 5
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    wait_for_delivery = true
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.http.parser]
+    type = "json"
+    split_array = true
+
+[[outputs]]
+  [outputs.rabbitmq]
+    brokers = [ "amqp://localhost:5672" ]
+    username = "user"
+    password = "bitnami"
+    retry_attempts = 0
+  [outputs.rabbitmq.serializer]
+    type = "json"

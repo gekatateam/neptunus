@@ -90,7 +90,6 @@ func (p *Template) Run() {
 					),
 				)
 				e.StackError(err)
-				e.AddTag("::template_processing_failed")
 				hasError = true
 			} else {
 				e.Id = p.buf.String()
@@ -108,7 +107,6 @@ func (p *Template) Run() {
 					),
 				)
 				e.StackError(err)
-				e.AddTag("::template_processing_failed")
 				hasError = true
 			} else {
 				e.RoutingKey = p.buf.String()
@@ -126,7 +124,6 @@ func (p *Template) Run() {
 					),
 				)
 				e.StackError(err)
-				e.AddTag("::template_processing_failed")
 				hasError = true
 			} else {
 				e.SetLabel(label, p.buf.String())
@@ -144,7 +141,6 @@ func (p *Template) Run() {
 					),
 				)
 				e.StackError(err)
-				e.AddTag("::template_processing_failed")
 				hasError = true
 			} else {
 				if err := e.SetField(field, p.buf.String()); err != nil {
@@ -157,7 +153,6 @@ func (p *Template) Run() {
 						),
 					)
 					e.StackError(err)
-					e.AddTag("::template_processing_failed")
 					hasError = true
 				}
 			}
