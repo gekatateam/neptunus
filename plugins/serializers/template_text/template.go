@@ -75,7 +75,6 @@ func (t *TemplateText) parseBatch(events ...*core.Event) ([]byte, error) {
 					"key", e.RoutingKey,
 				),
 			)
-			e.AddTag("::template_serialization_failed")
 			t.Observe(metrics.EventFailed, time.Since(now))
 		} else {
 			t.Log.Debug("event processed",

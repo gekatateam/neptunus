@@ -11,7 +11,7 @@
   gcpercent = "75%"
   memlimit = "1%"
   maxthreads = 100
-  maxprocs = 4
+  maxprocs = 16
 
 [engine]
   storage = "fs"

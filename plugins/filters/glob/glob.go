@@ -94,7 +94,7 @@ func (f *Glob) match(e *core.Event) bool {
 
 	// check labels
 	for key, globs := range f.labels {
-		// if event hasn't label, reject it
+		// if event doesn't have label, reject it
 		label, ok := e.GetLabel(key)
 		if !ok {
 			return false
@@ -107,7 +107,7 @@ func (f *Glob) match(e *core.Event) bool {
 
 	// check fields
 	for key, globs := range f.fields {
-		// if event hasn't field, reject it
+		// if event doesn't have field, reject it
 		fieldRaw, err := e.GetField(key)
 		if err != nil {
 			return false

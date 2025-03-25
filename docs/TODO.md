@@ -12,14 +12,14 @@
 
 ## Inputs
  - [x] Kafka
- - [ ] AMQP
+ - [x] AMQP
  - [x] ~~PostgreSQL~~ Sql should be used instead
  - [x] gRPC stream
 
 ## Outputs
 With batching and buffering
  - [x] Kafka
- - [ ] AMQP
+ - [x] AMQP
  - [x] Elasticsearch
  - [x] SQL
  - [x] gRPC stream
