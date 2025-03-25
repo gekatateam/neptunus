@@ -123,7 +123,7 @@ MAIN_LOOP:
 			o.publishersPool.Get(e.RoutingKey).Push(e)
 		case <-clearTicker.C:
 			for _, exchange := range o.publishersPool.Keys() {
-				if time.Since(o.publishersPool.Get(exchange).LastWrite()) > o.IdleTimeout {
+				if time.Since(o.publishersPool.LastWrite(exchange)) > o.IdleTimeout {
 					o.publishersPool.Remove(exchange)
 				}
 			}
@@ -146,7 +146,6 @@ func (o *RabbitMQ) newPublisher(exchange string) pool.Runner[*core.Event] {
 		ser:           o.ser,
 		channelFunc:   o.channel,
 		input:         make(chan *core.Event),
-		lastWrite:     time.Now(),
 		exchange:      exchange,
 	}
 }

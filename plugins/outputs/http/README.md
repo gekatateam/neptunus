@@ -38,6 +38,7 @@ Plugin creates one requester per each unique event routing key, with personal ba
     batch_interval = "5s"
 
     # events buffer size
+    # this plugin uses all events serialization result as a request body
     batch_buffer = 100    
 
     # maximum number of attempts to execute request

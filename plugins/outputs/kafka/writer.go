@@ -30,8 +30,6 @@ type topicWriter struct {
 	keyLabel          string
 	headerLabels      map[string]string
 
-	lastWrite time.Time
-
 	input  chan *core.Event
 	writer *kafka.Writer
 	ser    core.Serializer
@@ -45,10 +43,6 @@ func (w *topicWriter) Close() error {
 	return nil
 }
 
-func (w *topicWriter) LastWrite() time.Time {
-	return w.lastWrite
-}
-
 func (w *topicWriter) Push(e *core.Event) {
 	w.input <- e
 }
@@ -59,13 +53,11 @@ func (w *topicWriter) Run() {
 		defer kafkastats.UnregisterKafkaWriter(w.Pipeline, w.Alias, w.writer.Topic, w.clientId)
 	}
 	w.Log.Info(fmt.Sprintf("producer for topic %v spawned", w.writer.Topic))
-	w.lastWrite = time.Now()
 
 	w.Batcher.Run(w.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
 		}
-		w.lastWrite = time.Now()
 
 		messages := []kafka.Message{}
 		readyEvents := make(map[uuid.UUID]*eventMsgStatus)

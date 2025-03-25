@@ -30,9 +30,8 @@ type eventPublishing struct {
 type publisher struct {
 	*core.BaseOutput
 
-	exchange  string
-	input     chan *core.Event
-	lastWrite time.Time
+	exchange string
+	input    chan *core.Event
 
 	keepTimestamp bool
 	keepMessageId bool
@@ -55,10 +54,6 @@ func (p *publisher) Push(e *core.Event) {
 	p.input <- e
 }
 
-func (p *publisher) LastWrite() time.Time {
-	return p.lastWrite
-}
-
 func (p *publisher) Close() error {
 	close(p.input)
 	return nil
@@ -66,7 +61,6 @@ func (p *publisher) Close() error {
 
 func (p *publisher) Run() {
 	p.Log.Info(fmt.Sprintf("publisher for exchange %v spawned", p.exchange))
-	p.lastWrite = time.Now()
 
 	p.Batcher.Run(p.input, func(buf []*core.Event) {
 		if len(buf) == 0 {

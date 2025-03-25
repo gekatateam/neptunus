@@ -113,7 +113,7 @@ MAIN_LOOP:
 			o.requestersPool.Get(o.uriFromRoutingKey(e.RoutingKey)).Push(e)
 		case <-clearTicker.C:
 			for _, pipeline := range o.requestersPool.Keys() {
-				if time.Since(o.requestersPool.Get(pipeline).LastWrite()) > o.IdleTimeout {
+				if time.Since(o.requestersPool.LastWrite(pipeline)) > o.IdleTimeout {
 					o.requestersPool.Remove(pipeline)
 				}
 			}
@@ -131,7 +131,6 @@ func (o *Http) Close() error {
 func (o *Http) newRequester(uri string) pool.Runner[*core.Event] {
 	return &requester{
 		BaseOutput:   o.BaseOutput,
-		lastWrite:    time.Now(),
 		uri:          uri,
 		method:       o.Method,
 		successCodes: o.successCodes,

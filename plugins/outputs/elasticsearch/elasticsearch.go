@@ -114,7 +114,7 @@ MAIN_LOOP:
 			o.indexersPool.Get(o.pipeline(e)).Push(e)
 		case <-clearTicker.C:
 			for _, pipeline := range o.indexersPool.Keys() {
-				if time.Since(o.indexersPool.Get(pipeline).LastWrite()) > o.IdleTimeout {
+				if time.Since(o.indexersPool.LastWrite(pipeline)) > o.IdleTimeout {
 					o.indexersPool.Remove(pipeline)
 				}
 			}
@@ -131,7 +131,6 @@ func (o *Elasticsearch) Close() error {
 func (o *Elasticsearch) newIndexer(pipeline string) pool.Runner[*core.Event] {
 	return &indexer{
 		BaseOutput:   o.BaseOutput,
-		lastWrite:    time.Now(),
 		pipeline:     pipeline,
 		dataOnly:     o.DataOnly,
 		operation:    o.Operation,

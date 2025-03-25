@@ -89,7 +89,6 @@ func (o *Kafka) Init() error {
 			partitionLabel:    o.PartitionLabel,
 			keyLabel:          o.KeyLabel,
 			headerLabels:      o.HeaderLabels,
-			lastWrite:         time.Now(),
 			input:             make(chan *core.Event),
 			writer:            func() *kafka.Writer { w, _ := o.newWriter(topic); return w }(),
 			Batcher:           o.Batcher,
@@ -226,7 +225,7 @@ MAIN_LOOP:
 			o.writersPool.Get(e.RoutingKey).Push(e)
 		case <-clearTicker.C:
 			for _, topic := range o.writersPool.Keys() {
-				if time.Since(o.writersPool.Get(topic).LastWrite()) > o.IdleTimeout {
+				if time.Since(o.writersPool.LastWrite(topic)) > o.IdleTimeout {
 					o.writersPool.Remove(topic)
 				}
 			}
