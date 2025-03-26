@@ -19,14 +19,10 @@
   [processors.starlark]
     code = '''
 def process(event):
-    return error("error one")
-    '''
-
-[[processors]]
-  [processors.starlark]
-    code = '''
-def process(event):
-    return error("error two")
+    event.setField("null", None)
+    if event.getField("null") == None:
+        event.setField("result", "null found")
+    return event
     '''
 
 [[outputs]]
