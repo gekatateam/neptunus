@@ -247,6 +247,10 @@ func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []s
 // time.Duration <-> starlark.Duration
 
 func toStarlarkValue(goValue any) (starlark.Value, error) {
+	if goValue == nil {
+		return starlark.None, nil
+	}
+
 	v := reflect.ValueOf(goValue)
 	switch v.Kind() {
 	case reflect.String:
@@ -303,6 +307,8 @@ func toStarlarkValue(goValue any) (starlark.Value, error) {
 
 func toGoValue(starValue starlark.Value) (any, error) {
 	switch v := starValue.(type) {
+	case starlark.NoneType:
+		return nil, nil
 	case starlark.String:
 		return string(v), nil
 	case starlark.Bool:
