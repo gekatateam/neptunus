@@ -16,7 +16,6 @@ import (
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pbnjay/memory"
 	"github.com/urfave/cli/v2"
 	"kythe.io/kythe/go/util/datasize"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/gekatateam/neptunus/pipeline/api"
 	"github.com/gekatateam/neptunus/pipeline/service"
 	xerrors "github.com/gekatateam/neptunus/pkg/errors"
+	"github.com/gekatateam/neptunus/pkg/memory"
 	"github.com/gekatateam/neptunus/server"
 )
 
@@ -137,6 +137,11 @@ func SetRuntimeParameters(config *config.Runtime) error {
 	if len(config.MemLimit) > 0 {
 		var memLimit uint64
 		if strings.HasSuffix(config.MemLimit, "%") {
+			if memory.TotalMemory() == 0 {
+				logger.Default.Warn("unable to set percentage memory limit on current system")
+				return nil
+			}
+
 			memLimitPercent, err := strconv.ParseUint(strings.TrimSuffix(config.MemLimit, "%"), 10, 0)
 			if err != nil {
 				return err
