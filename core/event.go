@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gekatateam/mappath"
+	"maps"
 )
 
 type Event struct {
@@ -100,6 +101,7 @@ func (e *Event) Clone() *Event {
 		Tags:       make([]string, len(e.Tags)),
 		Labels:     make(map[string]string, len(e.Labels)),
 		Data:       mappath.Clone(e.Data),
+		Errors:     e.Errors,
 	}
 
 	if e.tracker != nil {
@@ -107,9 +109,7 @@ func (e *Event) Clone() *Event {
 	}
 
 	copy(event.Tags, e.Tags)
-	for k, v := range e.Labels {
-		event.Labels[k] = v
-	}
+	maps.Copy(event.Labels, e.Labels)
 
 	return event
 }
