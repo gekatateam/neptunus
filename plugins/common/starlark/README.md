@@ -28,6 +28,7 @@ Also, you can create a new event using `newEvent(key String) (event Event)` buil
 The other new type - `error` - represents Golang **error** type. New error may be created through `error(text String) (error Error)` function. Processing of this type depends on plugins.
 
 ## Type conversions
+ - Golang nil <-> Starlark None
  - Golang string <-> Starlark String
  - Golang int -> Starlark Int -> Golang int64
  - Golang uint -> Starlark Int -> Golang uint64

@@ -34,6 +34,10 @@ COPY <<-EOT /etc/neptunus/conf/config.toml
       [common.log_fields]
         runner = "local"
 
+    [runtime]
+      gcpercent = "75%"
+      memlimit = "75%"
+
     [engine]
       storage = "fs"
       [engine.fs]
