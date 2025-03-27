@@ -36,7 +36,7 @@ func (r *statusRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
-func HttpServerMiddleware(pipeline string, pluginName string, next http.Handler) http.Handler {
+func HttpServerMiddleware(pipeline string, pluginName string, pathsConfigured bool, next http.Handler) http.Handler {
 	httpServerMetricsRegister.Do(func() {
 		prometheus.MustRegister(httpServerRequestsSummary)
 	})
@@ -51,8 +51,15 @@ func HttpServerMiddleware(pipeline string, pluginName string, next http.Handler)
 
 		next.ServeHTTP(s, r)
 
+		var path string
+		if pathsConfigured {
+			path = r.Pattern
+		} else {
+			path = r.URL.Path
+		}
+
 		httpServerRequestsSummary.WithLabelValues(
-			pipeline, pluginName, r.URL.Path, r.Method, strconv.Itoa(s.Status),
+			pipeline, pluginName, path, r.Method, strconv.Itoa(s.Status),
 		).Observe(floatSeconds(begin))
 	})
 }

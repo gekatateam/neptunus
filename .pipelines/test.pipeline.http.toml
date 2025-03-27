@@ -1,15 +1,19 @@
 [settings]
   id = "test.pipeline.http"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
   [inputs.http]
+    enable_metrics = true
     address = ":9100"
     max_connections = 10
     query_params_to = "."
     wait_for_delivery = true
+    paths = [ "/http.input/{uid}/push", "/http.input/{id}/put" ]
+    path_values = [ "uid", "id" ]
+    id_from = "label:id"
     tls_enable = false
     basic_username = "user"
     basic_password = "pass"

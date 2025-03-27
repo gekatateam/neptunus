@@ -28,14 +28,12 @@ func (b *BasicAuth) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if len(auth) == 0 {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("credentials not provided"))
+			http.Error(w, "credentials not provided", http.StatusUnauthorized)
 			return
 		}
 
 		if b.encoded != strings.TrimPrefix(auth, "Basic ") {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("invalid credentials"))
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
 
