@@ -16,6 +16,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
 	basic "github.com/gekatateam/neptunus/plugins/common/http"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
@@ -29,6 +30,8 @@ type Http struct {
 	*core.BaseInput `mapstructure:"-"`
 	EnableMetrics   bool              `mapstructure:"enable_metrics"`
 	Address         string            `mapstructure:"address"`
+	Paths           []string          `mapstructure:"paths"`
+	PathValues      []string          `mapstructure:"path_values"`
 	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
 	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
@@ -100,10 +103,19 @@ func (i *Http) Init() error {
 	}
 
 	if i.EnableMetrics {
-		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, handler)
+		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, len(i.Paths) > 0, handler)
 	}
 
-	mux.Handle("/", handler)
+	if len(i.Paths) > 0 {
+		for _, path := range slices.Unique(i.Paths) {
+			mux.Handle(path, handler)
+		}
+		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, true, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "page not found", http.StatusNotFound)
+		})))
+	} else {
+		mux.Handle("/", handler)
+	}
 
 	i.server = &http.Server{
 		ReadTimeout:  i.ReadTimeout,
@@ -174,7 +186,14 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	e, err := i.parser.Parse(buf.Bytes(), r.URL.Path)
+	var path string
+	if len(i.Paths) > 0 {
+		path = r.Pattern
+	} else {
+		path = r.URL.Path
+	}
+
+	e, err := i.parser.Parse(buf.Bytes(), path)
 	if err != nil {
 		i.Log.Error("parser error",
 			"error", err,
@@ -189,6 +208,12 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		event.SetLabel("sender", r.RemoteAddr)
 		event.SetLabel("method", r.Method)
 		event.SetLabel("username", i.Username)
+
+		for _, key := range i.PathValues {
+			if val := r.PathValue(key); len(val) > 0 {
+				event.SetLabel(key, val)
+			}
+		}
 
 		for k, v := range i.LabelHeaders {
 			h := r.Header.Get(v)
@@ -208,7 +233,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if err := event.SetField(i.QueryParamsTo, params); err != nil {
-				i.Log.Warn("failed set query params to event",
+				i.Log.Warn("set query params to event failed",
 					"error", err,
 					slog.Group("event",
 						"id", event.Id,
