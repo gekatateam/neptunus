@@ -56,7 +56,12 @@ func (p *Log) Run() {
 			continue
 		}
 
-		p.logFunc(string(event))
+		p.logFunc(string(event),
+			slog.Group("event",
+				"id", e.Id,
+				"key", e.RoutingKey,
+			),
+		)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}

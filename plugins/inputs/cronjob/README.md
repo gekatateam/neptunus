@@ -18,8 +18,11 @@ Job `schedule` param accepts expression in [used library format](https://pkg.go.
       name = "partition.create"
       # job schedule
       schedule = "0 0 0 * * *"
+      # if true, job is forced at startup
+      force = false
 
     [[inputs.cronjob.jobs]]
       name = "healthcheck.notify"
       schedule = "@every 10s"
+      force_run = true
 ```
