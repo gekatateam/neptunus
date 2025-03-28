@@ -260,13 +260,15 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 
 	var rawResponse []byte
 
-	err := p.Retryer.Do("perform query", p.Log, func() error {
+	err := p.Retryer.Do("perform request", p.Log, func() error {
 		req, err := http.NewRequest(p.Method, uri.String(), bytes.NewReader(bytes.Clone(body)))
 		if err != nil {
 			return err
 		}
 
 		req.Header = header
+
+		p.Log.Debug(fmt.Sprintf("request body: %v; request headers: %v; request query: %v", string(body), header, uri.RawQuery))
 
 		res, err := p.client.Do(req)
 		if err != nil {
