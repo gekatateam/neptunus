@@ -12,6 +12,7 @@ type Job struct {
 	*core.BaseInput `mapstructure:"-"`
 	Name            string `mapstructure:"name"`
 	Schedule        string `mapstructure:"schedule"`
+	Force           bool   `mapstructure:"force"`
 }
 
 func (j *Job) Run() {

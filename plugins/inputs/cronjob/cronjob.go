@@ -46,6 +46,12 @@ func (i *Cronjob) Close() error {
 }
 
 func (i *Cronjob) Run() {
+	for _, j := range i.Jobs {
+		if j.Force {
+			j.Run()
+		}
+	}
+
 	i.cron.Run()
 }
 
