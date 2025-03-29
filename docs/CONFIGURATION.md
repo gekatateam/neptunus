@@ -154,6 +154,14 @@ Settings example:
   buffer = 1_000
 ```
 
+### Vars
+This section is intended for storing general parameters that can be used via [`self` keykeeper](../plugins/core/self/). Well, `settings` block is also available:
+```toml
+[vars]
+  max_connections = 10
+  log_level = "info"
+```
+
 ### Plugins
 
 There are three types of first-order plugins:

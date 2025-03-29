@@ -18,6 +18,7 @@ import (
 
 	"github.com/gekatateam/neptunus/plugins/core/broadcast"
 	"github.com/gekatateam/neptunus/plugins/core/fusion"
+	"github.com/gekatateam/neptunus/plugins/core/self"
 
 	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
@@ -385,6 +386,10 @@ func (p *Pipeline) configureKeykeepers() error {
 				return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v keykeeper", alias, plugin)
 			}
 			p.aliases[alias] = struct{}{}
+
+			if self, ok := keykeeper.(*self.Self); ok {
+				self.SetConfig(p.config)
+			}
 
 			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName(core.KindKeykeeper)
 			if baseField.IsValid() && baseField.CanSet() {

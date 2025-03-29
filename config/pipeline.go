@@ -12,11 +12,12 @@ import (
 
 // TODO: rewrite to structs
 type Pipeline struct {
-	Settings   PipeSettings `toml:"settings"   yaml:"settings"   json:"settings"`
-	Inputs     []PluginSet  `toml:"inputs"     yaml:"inputs"     json:"inputs"`
-	Processors []PluginSet  `toml:"processors" yaml:"processors" json:"processors"`
-	Outputs    []PluginSet  `toml:"outputs"    yaml:"outputs"    json:"outputs"`
-	Keykeepers []PluginSet  `toml:"keykeepers" yaml:"keykeepers" json:"keykeepers"`
+	Settings   PipeSettings   `toml:"settings"   yaml:"settings"   json:"settings"`
+	Vars       map[string]any `toml:"vars"       yaml:"vars"       json:"vars"`
+	Inputs     []PluginSet    `toml:"inputs"     yaml:"inputs"     json:"inputs"`
+	Processors []PluginSet    `toml:"processors" yaml:"processors" json:"processors"`
+	Outputs    []PluginSet    `toml:"outputs"    yaml:"outputs"    json:"outputs"`
+	Keykeepers []PluginSet    `toml:"keykeepers" yaml:"keykeepers" json:"keykeepers"`
 }
 
 type PipeSettings struct {
@@ -141,7 +142,9 @@ func (p Plugin) Filters() PluginSet {
 }
 
 func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
-	pipeline := Pipeline{}
+	pipeline := Pipeline{
+		Vars: make(map[string]any),
+	}
 
 	switch format {
 	case ".toml":

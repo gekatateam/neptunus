@@ -4,6 +4,13 @@
   run = true
   buffer = 1_000
 
+[vars]
+  log_level = "info"
+
+[[keykeepers]]
+  [keykeepers.self]
+    alias = "self"
+
 [[inputs]]
   [inputs.cronjob]
     location = "UTC"
@@ -13,7 +20,7 @@
       schedule = "0 0 0 * * *"
     # this job generates healthcheck
     [[inputs.cronjob.jobs]]
-      name = "healthcheck.notify"
+      name = "@{self:settings.id}"
       schedule = "@every 30s"
       force = true
 
@@ -37,7 +44,7 @@ def process(event):
 
 [[processors]]
   [processors.log]
-    level = "info"
+    level = "@{self:vars.log_level}"
     [processors.log.serializer]
       type = "json"
       data_only = false
