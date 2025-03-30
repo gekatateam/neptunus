@@ -24,5 +24,5 @@ Job `schedule` param accepts expression in [used library format](https://pkg.go.
     [[inputs.cronjob.jobs]]
       name = "healthcheck.notify"
       schedule = "@every 10s"
-      force_run = true
+      force = true
 ```
