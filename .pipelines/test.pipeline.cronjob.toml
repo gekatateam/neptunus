@@ -17,7 +17,8 @@
     # this job is used to create table partitions
     [[inputs.cronjob.jobs]]
       name = "partition.create"
-      schedule = "0 0 0 * * *"
+      schedule = "@every 30s"
+      force = true
     # this job generates healthcheck
     [[inputs.cronjob.jobs]]
       name = "@{self:settings.id}"
@@ -28,6 +29,10 @@
   [processors.starlark]
     code = '''
 load("time.star", "time")
+load("yaml.star", "yaml")
+load("fs.star",   "fs")
+
+taskfile = yaml.loads(fs.readFile("Taskfile.yaml"))
 
 def process(event):
     events = []
@@ -35,6 +40,7 @@ def process(event):
     for i in range(6):
       t = time.now() + time.hour * 24 * i
       e = newEvent("expeditions_" + t.format("2006_01_02"))
+      e.setField("taskfile", taskfile["tasks"]["all"]["cmds"])
       events.append(e)
 
     return events

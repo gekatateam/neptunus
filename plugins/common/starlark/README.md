@@ -65,16 +65,24 @@ def process(event):
 
 ### Embedded
 
-Three embedded modules are supported:
+List of embedded modules:
  - **[time](https://pkg.go.dev/go.starlark.net/lib/time)** - provides time-related constants and functions
  - **[math](https://pkg.go.dev/go.starlark.net/lib/math)** - provides basic constants and mathematical functions
  - **[json](https://pkg.go.dev/go.starlark.net/lib/json)** - utilities for converting Starlark values to/from JSON strings
+ - **[yaml](https://github.com/qri-io/starlib/tree/master/encoding/yaml)** - provides functions for working with yaml data
+ - **[base64](https://github.com/qri-io/starlib/tree/master/encoding/base64)** - base64 encoding & decoding functions, often used to represent binary as text
+ - **[csv](https://github.com/qri-io/starlib/tree/master/encoding/csv)** - reads comma-separated values
+ - **[fs](../../../pkg/starlarkfs/)** - implements `os.ReadFile` and `os.ReadDir` functions
 
 For import, call the `load()` function, after which a module functions and variables will become available for use via module struct:
 ```python
-load("math.star", "math")
-load("time.star", "time")
-load("json.star", "json")
+load("math.star",   "math")
+load("time.star",   "time")
+load("json.star",   "json")
+load("yaml.star",   "yaml")
+load("base64.star", "base64")
+load("csv.star",    "csv")
+load("fs.star",     "fs")
 
 print(time.now())
 ```

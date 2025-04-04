@@ -11,6 +11,12 @@ import (
 	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 	"go.starlark.net/starlarkstruct"
+
+	"github.com/qri-io/starlib/encoding/base64"
+	"github.com/qri-io/starlib/encoding/csv"
+	"github.com/qri-io/starlib/encoding/yaml"
+
+	"github.com/gekatateam/neptunus/pkg/starlarkfs"
 )
 
 type Starlark struct {
@@ -58,6 +64,10 @@ SCRIPT_LOADED:
 		},
 		Load: func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
 			switch module {
+			case "fs.star":
+				return starlark.StringDict{
+					"fs": starlarkfs.Module,
+				}, nil
 			case "math.star":
 				return starlark.StringDict{
 					"math": math.Module,
@@ -70,6 +80,12 @@ SCRIPT_LOADED:
 				return starlark.StringDict{
 					"json": json.Module,
 				}, nil
+			case "yaml.star":
+				return yaml.LoadModule()
+			case "csv.star":
+				return csv.LoadModule()
+			case "base64.star":
+				return base64.LoadModule()
 			default:
 				script, err := os.ReadFile(module)
 				if err != nil {
