@@ -322,7 +322,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting broadcaster")
 	bcastUnit, bcastChs, chansStats := unit.NewBroadcast(&p.config.Settings, p.log, broadcast.New(&core.BaseCore{
 		Alias:    "broadcast::processors",
-		Plugin:   "fusion",
+		Plugin:   "broadcast",
 		Pipeline: p.config.Settings.Id,
 		Log: p.log.With(slog.Group("output",
 			"plugin", "fusion",

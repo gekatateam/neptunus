@@ -39,6 +39,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 require (
@@ -92,6 +93,7 @@ require (
 	github.com/naoina/toml v0.1.1
 	github.com/opensearch-project/opensearch-go/v3 v3.0.0
 	github.com/prometheus/client_golang v1.18.0
+	github.com/qri-io/starlib v0.5.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/robfig/cron/v3 v3.0.1
