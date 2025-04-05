@@ -1,6 +1,7 @@
 package opensearch
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -83,6 +84,12 @@ func (o *Opensearch) Init() error {
 	})
 	if err != nil {
 		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), o.RequestTimeout)
+	defer cancel()
+	if _, err := client.Info(ctx, nil); err != nil {
+		return fmt.Errorf("cluster info request failed: %w", err)
 	}
 
 	o.client = client

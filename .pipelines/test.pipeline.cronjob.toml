@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.cronjob"
-  lines = 1
+  lines = 5
   run = true
   buffer = 1_000
 
@@ -32,7 +32,10 @@ load("time.star", "time")
 load("yaml.star", "yaml")
 load("fs.star",   "fs")
 
-taskfile = yaml.loads(fs.readFile("Taskfile.yaml"))
+taskfile = {}
+
+if True:
+    taskfile = yaml.loads(fs.readFile("Taskfile.yaml"))
 
 def process(event):
     events = []

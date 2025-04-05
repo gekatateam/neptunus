@@ -11,6 +11,7 @@ import (
 	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 	"go.starlark.net/starlarkstruct"
+	"go.starlark.net/syntax"
 
 	"github.com/qri-io/starlib/encoding/base64"
 	"github.com/qri-io/starlib/encoding/csv"
@@ -58,6 +59,13 @@ SCRIPT_LOADED:
 		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
 	}
 
+	opts := &syntax.FileOptions{
+		Set:             false,
+		While:           true,
+		TopLevelControl: true,
+		GlobalReassign:  true,
+	}
+
 	p.thread = &starlark.Thread{
 		Print: func(_ *starlark.Thread, msg string) {
 			p.log.Debug(fmt.Sprintf("from starlark: %v", msg))
@@ -92,7 +100,7 @@ SCRIPT_LOADED:
 					return nil, err
 				}
 
-				entries, err := starlark.ExecFile(thread, module, script, builtins)
+				entries, err := starlark.ExecFileOptions(opts, thread, module, script, builtins)
 				if err != nil {
 					return nil, err
 				}
@@ -102,7 +110,7 @@ SCRIPT_LOADED:
 		},
 	}
 
-	_, program, err := starlark.SourceProgram(p.File, p.Code, builtins.Has)
+	_, program, err := starlark.SourceProgramOptions(opts, p.File, p.Code, builtins.Has)
 	if err != nil {
 		return fmt.Errorf("compilation failed: %v", err)
 	}
