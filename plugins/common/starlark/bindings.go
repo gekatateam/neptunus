@@ -230,7 +230,7 @@ func getUuid(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwarg
 	return starlark.String(b.Receiver().(*Event).event.UUID.String()), nil
 }
 
-// lint:ignore U1000 reserved for better days
+//lint:ignore U1000 reserved for better days
 func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []starlark.Tuple) (starlark.Value, error) {
 	return &Event{event: b.Receiver().(*Event).event.Clone()}, nil
 }
