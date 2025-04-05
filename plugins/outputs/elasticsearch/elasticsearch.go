@@ -91,6 +91,10 @@ func (o *Elasticsearch) Init() error {
 		return err
 	}
 
+	if _, err := client.Info(); err != nil {
+		return fmt.Errorf("cluster info request failed: %w", err)
+	}
+
 	o.client = client
 	o.indexersPool = pool.New(o.newIndexer)
 
