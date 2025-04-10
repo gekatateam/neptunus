@@ -2,7 +2,6 @@ package logger
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 
@@ -59,7 +58,7 @@ func Init(cfg config.Common) error {
 }
 
 func Mock() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 func attrReplacer(_ []string, a slog.Attr) slog.Attr {
