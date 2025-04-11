@@ -67,6 +67,8 @@ github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
+github.com/gekatateam/dynamic-level-handler v1.0.1 h1:/qvJYCuuXPegbuxDXjZLWhXsAEAxjn9W62MDzpLUD3o=
+github.com/gekatateam/dynamic-level-handler v1.0.1/go.mod h1:ByHkezyEmR1w/KchN2GCXzHMgqMP09N5NndJPCrLg2s=
 github.com/gekatateam/mappath v1.1.0 h1:2Kjx9GBlI+4uP/gqjJBEYWy+SEj3ACBJjKKYVKw58V8=
 github.com/gekatateam/mappath v1.1.0/go.mod h1:00xrIGNBwvYM8BUvUhrs0xW9tIt3EEmmzb0S5uBZOJ0=
 github.com/go-chi/chi/v5 v5.2.1 h1:KOIHODQj58PmL80G2Eak4WdvUzjSJSm0vG72crDCqb8=

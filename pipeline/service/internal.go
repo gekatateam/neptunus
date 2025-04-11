@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"sync"
 
+	dynamic "github.com/gekatateam/dynamic-level-handler"
+
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
@@ -241,11 +243,12 @@ func (m *internalService) Delete(id string) error {
 }
 
 func (m *internalService) createPipeline(pipeCfg *config.Pipeline) *pipeline.Pipeline {
-	return pipeline.New(pipeCfg, logger.Default.With(
-		slog.Group("pipeline",
-			"id", pipeCfg.Settings.Id,
-		),
+	log := logger.Default.With(slog.Group("pipeline",
+		"id", pipeCfg.Settings.Id,
 	))
+	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(pipeCfg.Settings.LogLevel))
+
+	return pipeline.New(pipeCfg, log)
 }
 
 func (m *internalService) runPipeline(pipeUnit pipeUnit) error {

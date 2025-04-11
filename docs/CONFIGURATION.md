@@ -140,7 +140,8 @@ Pipeline settings are not directly related to event processing, these parameters
  - **lines** - Number of parallel streams of pipeline processors. It can be useful in cases, when events are consumed and produced faster than they are transformed in one stream. 
  - **run** - Should engine starts pipeline at daemon startup.
  - **buffer** - Buffer size of channels connecting a plugins.
- - **consistency** - Pipeline consistency mode; `soft` by default, `hard` mode will be added in future releases;
+ - **consistency** - Pipeline consistency mode; `soft` by default, `hard` mode will be added in future releases.
+ - **log_level** - Pipeline log level. Overrides application log level setting for concrete pipeline and it's plugins.
 
 > [!IMPORTANT]
 > Processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of channels buffers overflow). You should test it first before use it in production.  
@@ -340,3 +341,5 @@ outputs:
 This also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
 
 An alias can be assigned to each plugin - this will affect logs and metrics. Each alias must be unique.
+
+Also, you can override concrete plugin log level using `log_level` parameter. It overrides pipeline (if configured) and application level.

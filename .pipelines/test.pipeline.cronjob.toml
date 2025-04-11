@@ -3,9 +3,7 @@
   lines = 5
   run = true
   buffer = 1_000
-
-[vars]
-  log_level = "info"
+  log_level = "warn"
 
 [[keykeepers]]
   [keykeepers.self]
@@ -18,7 +16,7 @@
     [[inputs.cronjob.jobs]]
       name = "partition.create"
       schedule = "@every 30s"
-      force = true
+      force = false
     # this job generates healthcheck
     [[inputs.cronjob.jobs]]
       name = "@{self:settings.id}"
@@ -48,12 +46,11 @@ def process(event):
 
     return events
     '''
-  [processors.starlark.filters.glob]
-    routing_key = [ "cronjob.partition.create" ]
 
 [[processors]]
   [processors.log]
-    level = "@{self:vars.log_level}"
+    log_level = "debug"
+    level = "debug"
     [processors.log.serializer]
       type = "json"
       data_only = false
@@ -64,5 +61,3 @@ def process(event):
     [outputs.log.serializer]
       type = "json"
       data_only = false
-  [outputs.log.filters.glob]
-    routing_key = [ "cronjob.healthcheck.notify" ]
