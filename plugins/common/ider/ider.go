@@ -16,8 +16,8 @@ const (
 )
 
 var sources = map[string]struct{}{
-	"label": {},
-	"field": {},
+	label: {},
+	field: {},
 }
 
 var idConfigPattern = regexp.MustCompile(`^([a-z]+):([\w-\.]+)$`)

@@ -26,6 +26,7 @@ type PipeSettings struct {
 	Run         bool   `toml:"run"         yaml:"run"         json:"run"`
 	Buffer      int    `toml:"buffer"      yaml:"buffer"      json:"buffer"`
 	Consistency string `toml:"consistency" yaml:"consistency" json:"consistency"`
+	LogLevel    string `toml:"log_level"   yaml:"log_level"   json:"log_level"`
 }
 
 type PluginSet map[string]Plugin

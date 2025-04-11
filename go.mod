@@ -3,6 +3,7 @@ module github.com/gekatateam/neptunus
 go 1.24.1
 
 require (
+	github.com/gekatateam/dynamic-level-handler v1.0.1
 	github.com/google/uuid v1.6.0
 	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6

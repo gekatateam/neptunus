@@ -9,9 +9,12 @@ import (
 	"regexp"
 	"sync"
 
+	dynamic "github.com/gekatateam/dynamic-level-handler"
+
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/core/unit"
+	"github.com/gekatateam/neptunus/logger"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
@@ -267,7 +270,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 		Alias:    "fusion::inputs",
 		Plugin:   "fusion",
 		Pipeline: p.config.Settings.Id,
-		Log: p.log.With(slog.Group("output",
+		Log: p.log.With(slog.Group("core",
 			"plugin", "fusion",
 			"name", "fusion::inputs",
 		)),
@@ -304,7 +307,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 			Alias:    "fusion::processors",
 			Plugin:   "fusion",
 			Pipeline: p.config.Settings.Id,
-			Log: p.log.With(slog.Group("output",
+			Log: p.log.With(slog.Group("core",
 				"plugin", "fusion",
 				"name", "fusion::processors",
 			)),
@@ -324,8 +327,8 @@ func (p *Pipeline) Run(ctx context.Context) {
 		Alias:    "broadcast::processors",
 		Plugin:   "broadcast",
 		Pipeline: p.config.Settings.Id,
-		Log: p.log.With(slog.Group("output",
-			"plugin", "fusion",
+		Log: p.log.With(slog.Group("core",
+			"plugin", "broadcast",
 			"name", "broadcast::processors",
 		)),
 		Obs: metrics.ObserveCoreSummary,
@@ -391,16 +394,19 @@ func (p *Pipeline) configureKeykeepers() error {
 				self.SetConfig(p.config)
 			}
 
+			log := p.log.With(slog.Group("keykeeper",
+				"plugin", plugin,
+				"name", alias,
+			))
+			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(keeperCfg.LogLevel()))
+
 			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName(core.KindKeykeeper)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseKeykeeper{
 					Alias:    alias,
 					Plugin:   plugin,
 					Pipeline: p.config.Settings.Id,
-					Log: p.log.With(slog.Group("keykeeper",
-						"plugin", plugin,
-						"name", alias,
-					)),
+					Log:      log,
 				}))
 			} else {
 				return fmt.Errorf("%v keykeeper plugin does not contains BaseKeykeeper", plugin)
@@ -473,17 +479,20 @@ func (p *Pipeline) configureOutputs() error {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
+			log := p.log.With(slog.Group("output",
+				"plugin", plugin,
+				"name", alias,
+			))
+			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(outputCfg.LogLevel()))
+
 			baseField := reflect.ValueOf(output).Elem().FieldByName(core.KindOutput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseOutput{
 					Alias:    alias,
 					Plugin:   plugin,
 					Pipeline: p.config.Settings.Id,
-					Log: p.log.With(slog.Group("output",
-						"plugin", plugin,
-						"name", alias,
-					)),
-					Obs: metrics.ObserveOutputSummary,
+					Log:      log,
+					Obs:      metrics.ObserveOutputSummary,
 				}))
 			} else {
 				return fmt.Errorf("%v output plugin does not contains BaseOutput", plugin)
@@ -566,17 +575,20 @@ func (p *Pipeline) configureProcessors() error {
 					lineNeedy.SetLine(i)
 				}
 
+				log := p.log.With(slog.Group("processor",
+					"plugin", plugin,
+					"name", alias,
+				))
+				dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(processorCfg.LogLevel()))
+
 				baseField := reflect.ValueOf(processor).Elem().FieldByName(core.KindProcessor)
 				if baseField.IsValid() && baseField.CanSet() {
 					baseField.Set(reflect.ValueOf(&core.BaseProcessor{
 						Alias:    alias,
 						Plugin:   plugin,
 						Pipeline: p.config.Settings.Id,
-						Log: p.log.With(slog.Group("processor",
-							"plugin", plugin,
-							"name", alias,
-						)),
-						Obs: metrics.ObserveProcessorSummary,
+						Log:      log,
+						Obs:      metrics.ObserveProcessorSummary,
 					}))
 				} else {
 					return fmt.Errorf("%v processor plugin does not contains BaseProcessor", plugin)
@@ -656,17 +668,20 @@ func (p *Pipeline) configureInputs() error {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
+			log := p.log.With(slog.Group("input",
+				"plugin", plugin,
+				"name", alias,
+			))
+			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(inputCfg.LogLevel()))
+
 			baseField := reflect.ValueOf(input).Elem().FieldByName(core.KindInput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseInput{
 					Alias:    alias,
 					Plugin:   plugin,
 					Pipeline: p.config.Settings.Id,
-					Log: p.log.With(slog.Group("input",
-						"plugin", plugin,
-						"name", alias,
-					)),
-					Obs: metrics.ObserveInputSummary,
+					Log:      log,
+					Obs:      metrics.ObserveInputSummary,
 				}))
 			} else {
 				return fmt.Errorf("%v input plugin does not contains BaseInput", plugin)
@@ -740,6 +755,12 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			idNeedy.SetId(filterCfg.Id())
 		}
 
+		log := p.log.With(slog.Group("filter",
+			"plugin", plugin,
+			"name", alias,
+		))
+		dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(filterCfg.LogLevel()))
+
 		baseField := reflect.ValueOf(filter).Elem().FieldByName(core.KindFilter)
 		if baseField.IsValid() && baseField.CanSet() {
 			baseField.Set(reflect.ValueOf(&core.BaseFilter{
@@ -747,11 +768,8 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 				Plugin:   plugin,
 				Pipeline: p.config.Settings.Id,
 				Reverse:  filterCfg.Reverse(),
-				Log: p.log.With(slog.Group("filter",
-					"plugin", plugin,
-					"name", alias,
-				)),
-				Obs: metrics.ObserveFilterSummary,
+				Log:      log,
+				Obs:      metrics.ObserveFilterSummary,
 			}))
 		} else {
 			return nil, fmt.Errorf("%v filter plugin does not contains BaseInput", plugin)
@@ -792,17 +810,20 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		idNeedy.SetId(parserCfg.Id())
 	}
 
+	log := p.log.With(slog.Group("parser",
+		"plugin", plugin,
+		"name", alias,
+	))
+	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(parserCfg.LogLevel()))
+
 	baseField := reflect.ValueOf(parser).Elem().FieldByName(core.KindParser)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseParser{
 			Alias:    alias,
 			Plugin:   plugin,
 			Pipeline: p.config.Settings.Id,
-			Log: p.log.With(slog.Group("parser",
-				"plugin", plugin,
-				"name", alias,
-			)),
-			Obs: metrics.ObserveParserSummary,
+			Log:      log,
+			Obs:      metrics.ObserveParserSummary,
 		}))
 	} else {
 		return nil, fmt.Errorf("%v parser plugin does not contains BaseParser", plugin)
@@ -841,17 +862,20 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		idNeedy.SetId(serCfg.Id())
 	}
 
+	log := p.log.With(slog.Group("serializer",
+		"plugin", plugin,
+		"name", alias,
+	))
+	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(serCfg.LogLevel()))
+
 	baseField := reflect.ValueOf(serializer).Elem().FieldByName(core.KindSerializer)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseSerializer{
 			Alias:    alias,
 			Plugin:   plugin,
 			Pipeline: p.config.Settings.Id,
-			Log: p.log.With(slog.Group("serializer",
-				"plugin", plugin,
-				"name", alias,
-			)),
-			Obs: metrics.ObserveSerializerSummary,
+			Log:      log,
+			Obs:      metrics.ObserveSerializerSummary,
 		}))
 	} else {
 		return nil, fmt.Errorf("%v serializer plugin does not contains BaseSerializer", plugin)
