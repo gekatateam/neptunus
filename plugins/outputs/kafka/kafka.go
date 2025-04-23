@@ -45,7 +45,7 @@ type Kafka struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
-	writersPool *pool.Pool[*core.Event]
+	writersPool *pool.Pool[*core.Event, string]
 
 	ser core.Serializer
 }

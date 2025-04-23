@@ -48,7 +48,7 @@ type RabbitMQ struct {
 	conn   *amqp.Connection
 	mu     *sync.Mutex
 
-	publishersPool *pool.Pool[*core.Event]
+	publishersPool *pool.Pool[*core.Event, string]
 	ser            core.Serializer
 }
 

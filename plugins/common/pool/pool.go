@@ -11,23 +11,23 @@ type Runner[T any] interface {
 	Close() error
 }
 
-type Pool[T any] struct {
-	runners   map[string]Runner[T]
-	lastWrite map[string]time.Time
-	new       func(key string) Runner[T]
+type Pool[T any, K comparable] struct {
+	runners   map[K]Runner[T]
+	lastWrite map[K]time.Time
+	new       func(key K) Runner[T]
 	wg        *sync.WaitGroup
 }
 
-func New[T any](new func(key string) Runner[T]) *Pool[T] {
-	return &Pool[T]{
-		runners:   make(map[string]Runner[T]),
-		lastWrite: make(map[string]time.Time),
+func New[T any, K comparable](new func(key K) Runner[T]) *Pool[T, K] {
+	return &Pool[T, K]{
+		runners:   make(map[K]Runner[T]),
+		lastWrite: make(map[K]time.Time),
 		wg:        &sync.WaitGroup{},
 		new:       new,
 	}
 }
 
-func (p *Pool[T]) Get(key string) Runner[T] {
+func (p *Pool[T, K]) Get(key K) Runner[T] {
 	if runner, ok := p.runners[key]; ok {
 		p.lastWrite[key] = time.Now()
 		return runner
@@ -46,26 +46,26 @@ func (p *Pool[T]) Get(key string) Runner[T] {
 	return runner
 }
 
-func (p *Pool[T]) Keys() []string {
-	var keys []string
+func (p *Pool[T, K]) Keys() []K {
+	var keys []K
 	for k := range p.runners {
 		keys = append(keys, k)
 	}
 	return keys
 }
 
-func (p *Pool[T]) LastWrite(key string) time.Time {
+func (p *Pool[T, K]) LastWrite(key K) time.Time {
 	return p.lastWrite[key]
 }
 
-func (p *Pool[T]) Remove(key string) {
+func (p *Pool[T, K]) Remove(key K) {
 	if runner, ok := p.runners[key]; ok {
 		runner.Close()
 		delete(p.runners, key)
 	}
 }
 
-func (p *Pool[T]) Close() error {
+func (p *Pool[T, K]) Close() error {
 	for key, runner := range p.runners {
 		runner.Close()
 		delete(p.runners, key)

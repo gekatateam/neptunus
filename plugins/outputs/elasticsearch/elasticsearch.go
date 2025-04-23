@@ -39,7 +39,7 @@ type Elasticsearch struct {
 	*retryer.Retryer              `mapstructure:",squash"`
 
 	client       *elasticsearch.Client
-	indexersPool *pool.Pool[*core.Event]
+	indexersPool *pool.Pool[*core.Event, string]
 }
 
 func (o *Elasticsearch) Init() error {

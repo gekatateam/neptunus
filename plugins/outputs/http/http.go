@@ -31,7 +31,7 @@ type Http struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
-	requestersPool *pool.Pool[*core.Event]
+	requestersPool *pool.Pool[*core.Event, url.URL]
 	successCodes   map[int]struct{}
 	providedUri    *url.URL
 
@@ -128,10 +128,9 @@ func (o *Http) Close() error {
 	return nil
 }
 
-func (o *Http) newRequester(uri string) pool.Runner[*core.Event] {
+func (o *Http) newRequester(uri url.URL) pool.Runner[*core.Event] {
 	return &requester{
 		BaseOutput:   o.BaseOutput,
-		uri:          uri,
 		method:       o.Method,
 		successCodes: o.successCodes,
 		headerlabels: o.Headerlabels,
@@ -141,11 +140,12 @@ func (o *Http) newRequester(uri string) pool.Runner[*core.Event] {
 		Batcher:      o.Batcher,
 		Retryer:      o.Retryer,
 		input:        make(chan *core.Event),
+		uri:          &uri,
 	}
 }
 
-func (o *Http) uriFromRoutingKey(rk string) string {
-	return o.providedUri.JoinPath(rk).String()
+func (o *Http) uriFromRoutingKey(rk string) url.URL {
+	return *o.providedUri.JoinPath(rk)
 }
 
 func init() {

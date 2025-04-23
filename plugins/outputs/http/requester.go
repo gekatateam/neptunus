@@ -19,7 +19,7 @@ import (
 type requester struct {
 	*core.BaseOutput
 
-	uri    string
+	uri    *url.URL
 	method string
 
 	successCodes map[int]struct{}
@@ -156,23 +156,18 @@ func (r *requester) unpackQueryValues(e *core.Event) (url.Values, error) {
 	return values, nil
 }
 
-func (r *requester) perform(uri string, params url.Values, body []byte, header http.Header) error {
-	url, err := url.ParseRequestURI(uri)
-	if err != nil {
-		return err
-	}
-
-	url.RawQuery = params.Encode()
+func (r *requester) perform(uri *url.URL, params url.Values, body []byte, header http.Header) error {
+	uri.RawQuery = params.Encode()
 
 	return r.Retryer.Do("perform request", r.Log, func() error {
-		req, err := http.NewRequest(r.method, url.String(), bytes.NewReader(bytes.Clone(body)))
+		req, err := http.NewRequest(r.method, uri.String(), bytes.NewReader(bytes.Clone(body)))
 		if err != nil {
 			return err
 		}
 
 		req.Header = header
 
-		r.Log.Debug(fmt.Sprintf("request body: %v; request headers: %v; request query: %v", string(body), header, url.RawQuery))
+		r.Log.Debug(fmt.Sprintf("request body: %v; request headers: %v; request query: %v", string(body), header, uri.RawQuery))
 
 		res, err := r.client.Do(req)
 		if err != nil {
