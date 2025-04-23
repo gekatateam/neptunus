@@ -42,7 +42,7 @@ type Sql struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
-	queryersPool *pool.Pool[*core.Event]
+	queryersPool *pool.Pool[*core.Event, string]
 	db           *sqlx.DB
 }
 

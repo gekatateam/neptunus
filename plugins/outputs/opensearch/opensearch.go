@@ -37,7 +37,7 @@ type Opensearch struct {
 	*retryer.Retryer              `mapstructure:",squash"`
 
 	client       *opensearchapi.Client
-	indexersPool *pool.Pool[*core.Event]
+	indexersPool *pool.Pool[*core.Event, string]
 }
 
 func (o *Opensearch) Init() error {
