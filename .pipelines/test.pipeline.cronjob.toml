@@ -27,13 +27,14 @@
   [processors.starlark]
     code = '''
 load("time.star", "time")
+load("date.star", "date")
 load("yaml.star", "yaml")
 load("fs.star",   "fs")
 
 taskfile = {}
 
 if True:
-    taskfile = yaml.loads(fs.readFile("Taskfile.yaml"))
+    taskfile = yaml.loads(fs.read_file("Taskfile.yaml"))
 
 def process(event):
     events = []
@@ -42,6 +43,8 @@ def process(event):
       t = time.now() + time.hour * 24 * i
       e = newEvent("expeditions_" + t.format("2006_01_02"))
       e.setField("taskfile", taskfile["tasks"]["all"]["cmds"])
+      e.setField("weekday", date.weekday_of(t))
+      e.setField("month", date.month_of(t))
       events.append(e)
 
     return events

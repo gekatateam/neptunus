@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 )
@@ -98,14 +99,9 @@ func getTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, 
 }
 
 func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	var rawTs starlark.Value
-	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &rawTs); err != nil {
+	var ts startime.Time
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &ts); err != nil {
 		return starlark.None, err
-	}
-
-	ts, ok := rawTs.(startime.Time)
-	if !ok {
-		return starlark.None, errors.New("method accepts Time only")
 	}
 
 	b.Receiver().(*Event).event.Timestamp = time.Time(ts)
@@ -361,6 +357,10 @@ func toGoValue(starValue starlark.Value) (any, error) {
 		return time.Time(v), nil
 	case startime.Duration:
 		return time.Duration(v), nil
+	case starlarkdate.Month:
+		return v.String(), nil
+	case starlarkdate.Weekday:
+		return v.String(), nil
 	}
 
 	return nil, fmt.Errorf("%v is not representable as event data value", starValue.Type())
