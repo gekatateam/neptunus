@@ -1,5 +1,12 @@
 package starlarkfs
 
+/*Package starlarkfs implements os.ReadFile and os.ReadDir functions in Starlark
+
+- `read_file(filename String) String` returns specified file content as string
+- `read_dir(path String) List[String]` returns list of dir entries
+
+*/
+
 import (
 	"os"
 
@@ -10,14 +17,14 @@ import (
 var Module = &starlarkstruct.Module{
 	Name: "fs",
 	Members: starlark.StringDict{
-		"readFile": starlark.NewBuiltin("readFile", ReadFile),
-		"readDir":  starlark.NewBuiltin("readDir", ReadDir),
+		"read_file": starlark.NewBuiltin("read_file", ReadFile),
+		"read_dir":  starlark.NewBuiltin("read_dir", ReadDir),
 	},
 }
 
 func ReadFile(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	var filename string
-	if err := starlark.UnpackPositionalArgs("readFile", args, kwargs, 1, &filename); err != nil {
+	if err := starlark.UnpackPositionalArgs("read_file", args, kwargs, 1, &filename); err != nil {
 		return starlark.None, err
 	}
 
@@ -31,7 +38,7 @@ func ReadFile(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwar
 
 func ReadDir(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	var path string
-	if err := starlark.UnpackPositionalArgs("readDir", args, kwargs, 1, &path); err != nil {
+	if err := starlark.UnpackPositionalArgs("read_dir", args, kwargs, 1, &path); err != nil {
 		return starlark.None, err
 	}
 
