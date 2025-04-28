@@ -1,6 +1,6 @@
 # Configuration
 
-Neptunus configuration files is written using `json`, `yaml` or `toml`.
+Neptunus configuration files are written using `json`, `yaml`, or `toml`.
 
 ## Daemon
 
@@ -11,7 +11,7 @@ You can also use environment variables in daemon config with `${MY_VAR}` syntax.
 **Common** section used for low-level settings:
  - **log_level**: Logging level, global setting for all application, accepts `debug`, `info`, `warn` and `error`.
  - **log_format**: Logging format, supports `pretty`, `logfmt` and `json` formats.
- - **http_port**: Address for HTTP api server. See more in [API doc](API.md).
+ - **http_port**: Address for the HTTP API server. See more in the [API documentation](API.md).
  - **log_fields**: A map of fields, that will be added to each log entry.
 
 Here is a common part example:
@@ -48,7 +48,7 @@ Here is a common part example:
 
 FS storage uses the file system to load, save and update pipelines:
  - **directory**: Path to the directory where the pipelines files are stored.
- - **extention**: Files with which extension to use. New files will be created with the specified extension, existing files with a different extension will be ignored.
+ - **extension**: File extension to use. New files will be created with the specified extension, and existing files with a different extension will be ignored.
 
 This is a default storage for the engine:
 ```toml
@@ -136,15 +136,15 @@ Typical pipeline consists of at least one input, at least one output and, not ne
 > Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). A form in which the configuration is stored depends on a storage.
 
 Pipeline settings are not directly related to event processing, these parameters are needed for the engine:
- - **id** - Pipeline identificator. Must be unique within a storage.
- - **lines** - Number of parallel streams of pipeline processors. It can be useful in cases, when events are consumed and produced faster than they are transformed in one stream. 
+ - **id** - Pipeline identifier. Must be unique within a storage.
+ - **lines** - Number of parallel streams of pipeline processors. This can be useful in cases where events are consumed and produced faster than they are transformed in a single stream.
  - **run** - Should engine starts pipeline at daemon startup.
  - **buffer** - Buffer size of channels connecting a plugins.
  - **consistency** - Pipeline consistency mode; `soft` by default, `hard` mode will be added in future releases.
  - **log_level** - Pipeline log level. Overrides application log level setting for concrete pipeline and it's plugins.
 
 > [!IMPORTANT]
-> Processors scaling can reduce performance if the lines cumulatively process events faster than outputs send them (because of channels buffers overflow). You should test it first before use it in production.  
+> Processors scaling can reduce performance if the lines cumulatively process events faster than outputs can send them (due to channels buffer overflow). You should test this thoroughly before using it in production.  
 
 Settings example:
 ```toml
