@@ -72,7 +72,8 @@ List of embedded modules:
  - **[yaml](https://github.com/qri-io/starlib/tree/master/encoding/yaml)** - provides functions for working with yaml data
  - **[base64](https://github.com/qri-io/starlib/tree/master/encoding/base64)** - base64 encoding & decoding functions, often used to represent binary as text
  - **[csv](https://github.com/qri-io/starlib/tree/master/encoding/csv)** - reads comma-separated values
- - **[fs](../../../pkg/starlarkfs/)** - implements `os.ReadFile` and `os.ReadDir` functions
+ - **[fs](../../../pkg/starlarkfs/)** - implements `os.Read_file` and `os.Read_dir` functions
+ - **[date](../../../pkg/starlarkdate/)** - expands `time` module with months and weekdays
 
 For import, call the `load()` function, after which a module functions and variables will become available for use via module struct:
 ```python
