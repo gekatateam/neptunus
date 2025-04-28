@@ -1,10 +1,10 @@
 # Neptunus data model
 
 The Neptunus engine works with events - single data frames. An event is a structure with seven main fields:
- - **Id** - unique ID of an event, which is usually generated when an event is created and may be replaced by data from request body, message, etc.
+ - **Id** - unique ID of an event, which is usually generated when an event is created and may be replaced by data from a request body, message, etc.
  - **Timestamp** - the time an event was created.
  - **Routing key** - an event key, which should be used for events routing inside a pipeline and in outer world; usually it is a queue/topic name, URL path, etc.
- - **Labels** - an event metadata map, which are used for routing with routing key; think of this as an event headers.
+ - **Labels** - an event metadata map, which is used for routing with the routing key; think of this as event headers.
  - **Tags** - list of **unique** event attributes, which also can be used for routing.
  - **Errors** - list of errors occurring in a pipeline; plugins add errors to an event if something goes wrong.
  - **Data** - an event payload, map or slice, that is filling by parsers; it is essentially the body of an event.
@@ -64,14 +64,14 @@ There are a few corner cases:
  - if `GetField(".")` is called, method returns event data as is.
  - if `DeleteField(".")` is called, event data sets to `nil`.
  - if `SetField(".", value)` is called:
-   - if an event data is `nil` - event data will be set from `value` arg;
-   - if an event data and `value` arg is `map[string]any` - `value` map will be merged to event data;
-   - if an event data and `value` arg is `[]any` - `value` slice will be appended to event data;
-   - otherwise, an error returns.
+   - if the event data is `nil` - the event data will be set from the `value` argument;
+   - if the event data and `value` argument are `map[string]any` - the `value` map will be merged into the event data;
+   - if the event data and `value` argument are `[]any` - the `value` slice will be appended to the event data;
+   - otherwise, an error is returned.
 
 ## Delivery Control
 
-You can add a delivery hooks for each event using `AddHook(hook func())` method. Each call adds new hook to tracker. Tracker creates with duty counter equal `1` at creation stage. That counter changes in two cases:
+You can add delivery hooks for each event using the `AddHook(hook func())` method. Each call adds a new hook to the tracker. The tracker is created with a duty counter equal to `1` at the creation stage. That counter changes in two cases:
  - it increases when an event is cloned using corresponding method; cloned events shares tracker.
  - it decreases when an event `Done()` method calls.
 
