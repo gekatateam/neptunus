@@ -99,14 +99,9 @@ func getTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, 
 }
 
 func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	var rawTs starlark.Value
-	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &rawTs); err != nil {
+	var ts startime.Time
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &ts); err != nil {
 		return starlark.None, err
-	}
-
-	ts, ok := rawTs.(startime.Time)
-	if !ok {
-		return starlark.None, errors.New("method accepts Time only")
 	}
 
 	b.Receiver().(*Event).event.Timestamp = time.Time(ts)
