@@ -17,6 +17,7 @@ import (
 	"github.com/qri-io/starlib/encoding/csv"
 	"github.com/qri-io/starlib/encoding/yaml"
 
+	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 	"github.com/gekatateam/neptunus/pkg/starlarkfs"
 )
 
@@ -83,6 +84,10 @@ SCRIPT_LOADED:
 			case "time.star":
 				return starlark.StringDict{
 					"time": startime.Module,
+				}, nil
+			case "date.star":
+				return starlark.StringDict{
+					"date": starlarkdate.Module,
 				}, nil
 			case "json.star":
 				return starlark.StringDict{

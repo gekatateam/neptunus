@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 )
@@ -361,6 +362,10 @@ func toGoValue(starValue starlark.Value) (any, error) {
 		return time.Time(v), nil
 	case startime.Duration:
 		return time.Duration(v), nil
+	case starlarkdate.Month:
+		return v.String(), nil
+	case starlarkdate.Weekday:
+		return v.String(), nil
 	}
 
 	return nil, fmt.Errorf("%v is not representable as event data value", starValue.Type())
