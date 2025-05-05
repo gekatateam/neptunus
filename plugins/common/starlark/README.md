@@ -22,10 +22,25 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `hasTag(tag String) (ok Bool)` - check if event has tag
  - `getErrors() (e List[String])` - get event errors
  - `getUuid() (uuid String)` - get event UUID
+ - `shareTracker(receiver Event)` - share tracker vith another event; **if receiver already has a tracker, method panics**
 
 Also, you can create a new event using `newEvent(key String) (event Event)` builtin function.
 
 The other new type - `error` - represents Golang **error** type. New error may be created through `error(text String) (error Error)` function. Processing of this type depends on plugins.
+
+You can handle runtime errors using `handle` func, that accepts starlark `Callable`. `handle` returns `error` or passed lambda result, if no error occured:
+```python
+load("date.star", "date")
+
+def process(event):
+    result = handle(lambda: date.parse_weekday(event.getField("weekday")))
+    if type(result) == "error":
+        print("parsing failed: {}".format(result))
+    else:
+        event.setField("expected", date.weekday_of(event.getTimestamp) == result)
+
+    return event
+```
 
 ## Type conversions
  - Golang nil <-> Starlark None
@@ -79,6 +94,7 @@ For import, call the `load()` function, after which a module functions and varia
 ```python
 load("math.star",   "math")
 load("time.star",   "time")
+load("date.star",   "date")
 load("json.star",   "json")
 load("yaml.star",   "yaml")
 load("base64.star", "base64")

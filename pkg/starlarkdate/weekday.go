@@ -1,6 +1,7 @@
 package starlarkdate
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -58,7 +59,7 @@ func ParseWeekday(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, 
 
 	weekday, ok := weekdays[strings.ToLower(w)]
 	if !ok {
-		return Weekday(-1), nil
+		return starlark.None, fmt.Errorf("unknown weekday: %v", w)
 	}
 
 	return weekday, nil
