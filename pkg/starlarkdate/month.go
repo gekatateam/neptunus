@@ -1,6 +1,7 @@
 package starlarkdate
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -63,7 +64,7 @@ func ParseMonth(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kw
 
 	month, ok := months[strings.ToLower(m)]
 	if !ok {
-		return Month(0), nil
+		return starlark.None, fmt.Errorf("unknown month: %v", m)
 	}
 
 	return month, nil

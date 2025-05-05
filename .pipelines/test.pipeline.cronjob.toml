@@ -25,6 +25,7 @@
 
 [[processors]]
   [processors.starlark]
+    log_level = "debug"
     code = '''
 load("time.star", "time")
 load("date.star", "date")
@@ -40,12 +41,20 @@ def process(event):
     events = []
 
     for i in range(6):
-      t = time.now() + time.hour * 24 * i
-      e = newEvent("expeditions_" + t.format("2006_01_02"))
-      e.setField("taskfile", taskfile["tasks"]["all"]["cmds"])
-      e.setField("weekday", date.weekday_of(t))
-      e.setField("month", date.month_of(t))
-      events.append(e)
+        t = time.now() + time.hour * 24 * i
+        e = newEvent("expeditions_" + t.format("2006_01_02"))
+        e.setField("taskfile", taskfile["tasks"]["all"]["cmds"])
+        e.setField("weekday", date.weekday_of(t))
+        e.setField("month", date.month_of(t))
+        event.shareTracker(e)
+
+        result = handle(lambda: date.parse_weekday("tuesday"))
+        if type(result) == "error":
+            print("parsing failed: {}".format(result))
+        else:
+            e.setField("expected", date.weekday_of(event.getTimestamp()) == result)
+
+        events.append(e)
 
     return events
     '''

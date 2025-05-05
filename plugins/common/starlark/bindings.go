@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 	startime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
@@ -64,6 +65,9 @@ var woEventMethods = map[string]*starlark.Builtin{
 	// tags methods
 	"addTag": starlark.NewBuiltin("addTag", addTag), // f(tag String)
 	"delTag": starlark.NewBuiltin("delTag", delTag), // f(tag String)
+
+	// tracker methods
+	"shareTracker": starlark.NewBuiltin("shareTracker", shareTracker), // f(event Event)
 }
 
 func getId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -231,6 +235,16 @@ func cloneEvent(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []s
 	return &Event{event: b.Receiver().(*Event).event.Clone()}, nil
 }
 
+func shareTracker(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var receiver *Event
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &receiver); err != nil {
+		return starlark.None, err
+	}
+
+	core.ShareTracker(b.Receiver().(*Event).event, receiver.event)
+	return starlark.None, nil
+}
+
 // event data types mapping
 // string <-> starlark.String; starlark.String(T) <-> string(starlark.String)
 // bool <-> starlark.Bool; starlark.Bool(T) <-> bool(starlark.Bool)
@@ -324,7 +338,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 	case *starlark.List:
 		iter := v.Iterate()
 		defer iter.Done()
-		var slice []any
+		slice := make([]any, 0, v.Len())
 		var starValue starlark.Value
 		for iter.Next(&starValue) {
 			goValue, err := toGoValue(starValue)

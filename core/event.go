@@ -2,6 +2,7 @@ package core
 
 import (
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -129,19 +130,12 @@ func (e *Event) DeleteLabel(key string) {
 }
 
 func (e *Event) HasTag(tag string) bool {
-	for _, v := range e.Tags {
-		if v == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.Tags, tag)
 }
 
 func (e *Event) AddTag(tag string) {
-	for _, v := range e.Tags {
-		if v == tag {
-			return
-		}
+	if slices.Contains(e.Tags, tag) {
+		return
 	}
 	e.Tags = append(e.Tags, tag)
 }
@@ -158,5 +152,16 @@ func (e *Event) DeleteTag(tag string) {
 	if index > -1 {
 		e.Tags[index] = e.Tags[len(e.Tags)-1]
 		e.Tags = e.Tags[:len(e.Tags)-1]
+	}
+}
+
+func ShareTracker(from, to *Event) {
+	if to.tracker != nil {
+		panic("receiver already has a tracker")
+	}
+
+	if t := from.tracker; t != nil {
+		t.Increace()
+		to.tracker = t
 	}
 }

@@ -58,6 +58,7 @@ SCRIPT_LOADED:
 		"newEvent": starlark.NewBuiltin("newEvent", newEvent),
 		"error":    starlark.NewBuiltin("error", newError),
 		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
+		"handle":   starlark.NewBuiltin("handle", handle),
 	}
 
 	opts := &syntax.FileOptions{

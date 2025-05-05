@@ -113,7 +113,7 @@ func unpack(starValue starlark.Value) ([]*core.Event, error) {
 			events = append(events, r...)
 		}
 		return events, nil
-	case *starlark.NoneType:
+	case starlark.NoneType:
 		return events, nil
 	}
 

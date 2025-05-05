@@ -36,3 +36,17 @@ func newError(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 
 	return Error(msg), nil
 }
+
+// handle accepts Callable and wrap occured err into Error
+func handle(thread *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var fn starlark.Callable
+	if err := starlark.UnpackPositionalArgs("handle", args, kwargs, 1, &fn); err != nil {
+		return nil, err
+	}
+
+	result, err := starlark.Call(thread, fn, nil, nil)
+	if err != nil {
+		return Error(err.Error()), nil
+	}
+	return result, nil
+}
