@@ -8,6 +8,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/convert"
 )
 
 type Stats struct {
@@ -158,8 +159,8 @@ func (p *Stats) Observe(e *core.Event) {
 			continue // if event has no field, skip it
 		}
 
-		fv, ok := convert(f)
-		if !ok {
+		fv, err := convert.AnyToFloat(f)
+		if err != nil {
 			continue // if field is not a number, skip it
 		}
 
@@ -172,37 +173,6 @@ func (p *Stats) Observe(e *core.Event) {
 		}
 
 		p.cache.observe(m, fv)
-	}
-}
-
-func convert(value any) (float64, bool) {
-	switch v := value.(type) {
-	case float64:
-		return v, true
-	case float32:
-		return float64(v), true
-	case int:
-		return float64(v), true
-	case int8:
-		return float64(v), true
-	case int16:
-		return float64(v), true
-	case int32:
-		return float64(v), true
-	case int64:
-		return float64(v), true
-	case uint:
-		return float64(v), true
-	case uint8:
-		return float64(v), true
-	case uint16:
-		return float64(v), true
-	case uint32:
-		return float64(v), true
-	case uint64:
-		return float64(v), true
-	default:
-		return 0, false
 	}
 }
 

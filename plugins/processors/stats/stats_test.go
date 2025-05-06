@@ -129,17 +129,6 @@ func TestStats(t *testing.T) {
 						"uri": "/users/111",
 					},
 				},
-				{ // this event has NaN duration field type, it must be ignored
-					Labels: map[string]string{
-						"code":   "500",
-						"proto":  "HTTP/1.0",
-						"client": "1.2.3.4",
-					},
-					Data: map[string]any{
-						"duration": "45",
-						"uri":      "/users/111",
-					},
-				},
 			},
 			expectEvents: map[uint64]map[string]float64{
 				7803659511733462090: {

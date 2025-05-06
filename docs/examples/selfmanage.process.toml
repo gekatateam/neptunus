@@ -1,0 +1,54 @@
+[settings]
+  id = "selfmanage.process"
+  lines = 1
+  run = false
+  buffer = 1
+
+
+[[inputs]]
+  [inputs.rabbitmq]
+    brokers         = [ "amqp://rabbit-1:5672", "amqp://rabbit-2:5672", "amqp://rabbit-3:5672" ]
+    username        = "user"
+    password        = "pass"
+    prefetch_count  = 10
+    max_undelivered = 10
+    [[inputs.rabbitmq.exchanges]]
+      name        = "neptunus.events.pipeline"
+      type        = "fanout"
+      auto_delete = true
+    [[inputs.rabbitmq.queues]]
+      name         = "neptunus.events.pipeline"
+      auto_delete  = true
+      declare_args = { "x-message-ttl" = 60000, "x-max-length" = 10 }
+      [[inputs.rabbitmq.queues.bindings]]
+        bind_to     = "neptunus.events.pipeline"
+        binding_key = "#"
+  [inputs.rabbitmq.parser]
+    type = "json"
+
+
+[[processors]]
+  [processors.template.labels]
+    request-uri = '/pipelines/{{ .GetField "id" }}/{{ .GetField "action" }}'
+
+[[processors]]
+  [processors.http]
+    host             = "https://localhost:9600/api/v1"
+    method           = "POST"
+    path_label       = "request-uri"
+    retry_attempts   = 3
+    retry_after      = "1s"
+    response_body_to = "api.response"
+    [processors.http.serializer]
+      type = "json"
+    [processors.http.parser]
+      type = "json"
+      split_array = true
+
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type      = "json"
+      data_only = false

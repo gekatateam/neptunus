@@ -1,0 +1,52 @@
+[settings]
+  id = "trxn-outbox.consume"
+  lines = 5
+  run = true
+  buffer = 1000
+
+
+[[inputs]]
+  [inputs.kafka]
+    enable_metrics    = true
+    client_id         = "kafka-trxn-outbox"
+    group_id          = "neptunus.kafka.outbox"
+    start_offset      = "first"
+    brokers           = ["kafka-1.local:9092", "kafka-2.local:9092", "kafka-3.local:9092"]
+    topics            = [ "neptunus.kafka.outbox" ]
+    commit_interval   = "20s"
+    max_uncommitted   = 1_000
+  [inputs.kafka.sasl]
+    mechanism = "plain"
+    username  = "user"
+    password  = "pass"
+  [inputs.kafka.parser]
+    type  = "plain"
+    field = "message"
+
+
+[[processors]]
+  [processors.template]
+    routing_key = 'polling_table'
+    [processors.template.fields]
+      timestamp = '{{ .Timestamp.Format "2006-01-02T15:04:05.999999999Z07:00" }}'
+      uid       = '{{ .Id }}'
+      processed = 'false'
+
+
+[[outputs]]
+  [outputs.sql]
+    enable_metrics = true
+    driver = "pgx"
+    dsn = "postgres://pguser:pgpass@db-host:5432/my-db"
+    batch_buffer = 200
+    [outputs.sql.columns]
+      timestamp = "timestamp"
+      uid       = "uid"
+      message   = "message"
+      processed = "processed"
+    [outputs.sql.on_push]
+      query = '''
+INSERT INTO :table_name (TIMESTAMP, UID, MESSAGE, PROCESSED)
+VALUES (:timestamp, :uid, :message, :processed)
+ON CONFLICT DO NOTHING;
+'''

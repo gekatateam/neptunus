@@ -1,4 +1,4 @@
-package copy
+package clone
 
 import (
 	"time"
@@ -12,10 +12,14 @@ type Clone struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	RoutingKey          string            `mapstructure:"routing_key"`
 	SaveTimestamp       bool              `mapstructure:"save_timestamp"`
+	Count               int               `mapstructure:"count"`
 	Labels              map[string]string `mapstructure:"labels"`
 }
 
 func (p *Clone) Init() error {
+	if p.Count <= 0 {
+		p.Count = 1
+	}
 	return nil
 }
 
@@ -25,29 +29,33 @@ func (p *Clone) Close() error {
 
 func (p *Clone) Run() {
 	for e := range p.In {
-		now := time.Now()
+		for range p.Count {
+			now := time.Now()
 
-		copy := e.Clone()
-		if len(p.RoutingKey) > 0 {
-			copy.RoutingKey = p.RoutingKey
+			cloned := e.Clone()
+			if len(p.RoutingKey) > 0 {
+				cloned.RoutingKey = p.RoutingKey
+			}
+
+			for k, v := range p.Labels {
+				cloned.SetLabel(k, v)
+			}
+
+			if p.SaveTimestamp {
+				cloned.Timestamp = e.Timestamp
+			}
+
+			p.Out <- e
+			p.Out <- cloned
+			p.Observe(metrics.EventAccepted, time.Since(now))
 		}
-
-		for k, v := range p.Labels {
-			copy.SetLabel(k, v)
-		}
-
-		if p.SaveTimestamp {
-			copy.Timestamp = e.Timestamp
-		}
-
-		p.Out <- e
-		p.Out <- copy
-		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 
 func init() {
 	plugins.AddProcessor("clone", func() core.Processor {
-		return &Clone{}
+		return &Clone{
+			Count: 1,
+		}
 	})
 }

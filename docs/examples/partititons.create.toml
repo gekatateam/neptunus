@@ -1,0 +1,44 @@
+[settings]
+  id = "partititons.create"
+  lines = 1
+  run = true
+  buffer = 1
+
+
+[[inputs]]
+  [inputs.cronjob]
+    location = "UTC"
+    [[inputs.cronjob.jobs]]
+      name     = "partition.create"
+      schedule = "0 0 0 * * *"
+
+
+[[processors]]
+  [processors.starlark]
+    code = '''
+load("time.star", "time")
+
+def process(event):
+    events = []
+
+    for i in range(6):
+      t = time.now() + time.hour * 24 * i
+      e = newEvent("expeditions_" + t.format("2006_01_02"))
+      events.append(e)
+
+    return events
+    '''
+
+
+[[outputs]]
+  [outputs.sql]
+    driver = "pgx"
+    dsn    = "postgres://pguser:pgpass@db-host:5432/my-db"
+    buffer = 1
+    [outputs.sql.on_push]
+      query = '''
+CREATE TABLE IF NOT EXISTS :table_name (
+	COLUMN_1 TEXT
+	, COLUMN_2 TEXT
+);
+'''

@@ -1,0 +1,52 @@
+[settings]
+  id = "trxn-outbox.process"
+  lines = 5
+  run = true
+  buffer = 1000
+
+
+[[inputs]]
+  [inputs.sql]
+    enable_metrics    = true
+    driver            = "pgx"
+    dsn               = "postgres://pguser:pgpass@db-host:5432/my-db"
+    wait_for_delivery = true
+    transactional     = true
+    [inputs.sql.keep_values]
+      last = [ "timestamp" ]
+      all  = [ "uid" ]
+    [inputs.sql.on_init]
+      query = '''
+SELECT TIMESTAMP, UID, MESSAGE, PROCESSED FROM POLLING_TABLE
+WHERE PROCESSED IS NOT TRUE
+ORDER BY TIMESTAMP ASC
+LIMIT 1;
+      '''
+    [inputs.sql.on_poll]
+      query = '''
+SELECT TIMESTAMP, UID, MESSAGE, PROCESSED FROM POLLING_TABLE
+WHERE PROCESSED IS NOT TRUE
+AND TIMESTAMP >= :timestamp
+ORDER BY TIMESTAMP ASC
+LIMIT 200
+FOR UPDATE SKIP LOCKED;
+      '''
+    [inputs.sql.on_done]
+      query = '''
+UPDATE POLLING_TABLE
+SET PROCESSED = TRUE
+WHERE ID IN (:id)
+AND TIMESTAMP >= :timestamp;
+      '''
+
+# ------
+# processing logic here
+# ------
+
+[[processors]]
+  [processors.log]
+    log_level = "debug"
+    level = "debug"
+    [processors.log.serializer]
+      type = "json"
+      data_only = false
