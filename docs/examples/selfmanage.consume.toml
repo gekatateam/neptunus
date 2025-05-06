@@ -1,0 +1,43 @@
+[settings]
+  id = "selfmanage.consume"
+  lines = 1
+  run = false
+  buffer = 1
+
+
+[[inputs]]
+  [inputs.http]
+    enable_metrics    = true
+    address           = ":9100"
+    max_connections   = 10
+    query_params_to   = "."
+    wait_for_delivery = true
+    paths             = [ "/pipelines/{id}/stop", "/pipelines/{id}/start" ]
+    methods           = [ "POST" ]
+    path_values       = [ "id" ]
+    basic_username    = "user"
+    basic_password    = "pass"
+  [inputs.http.parser]
+    type = "json"
+
+
+[[processors]]
+  [processors.template.fields]
+    id     = '{{ .GetLabel "id" }}'
+    action = '{{ with $x := split "/" .RoutingKey }}{{ $x._3 }}{{ end }}'
+
+[[processors]]
+  [processors.rk.mapping]
+    "neptunus.events.pipeline" = [ "/pipelines/{id}/stop", "/pipelines/{id}/start" ]
+
+
+[[outputs]]
+  [outputs.rabbitmq]
+    brokers        = [ "amqp://rabbit-1:5672", "amqp://rabbit-2:5672", "amqp://rabbit-3:5672" ]
+    username       = "user"
+    password       = "pass"
+    retry_attempts = 0
+    idle_timeout   = "90s"
+  [outputs.rabbitmq.serializer]
+    type      = "json"
+    data_only = true
