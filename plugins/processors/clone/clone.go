@@ -1,4 +1,4 @@
-package cloned
+package clone
 
 import (
 	"time"
