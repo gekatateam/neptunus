@@ -115,10 +115,14 @@ func (i *RabbitMQ) Init() error {
 	}
 
 	i.config.Properties.SetClientConnectionName(i.ConnectionName)
+	if err := i.connect(); err != nil {
+		return err
+	}
+
 	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
 	i.doneCh = make(chan struct{})
 
-	return i.connect()
+	return nil
 }
 
 func (i *RabbitMQ) SetParser(p core.Parser) {

@@ -79,9 +79,10 @@ func (p *Http) Init() error {
 	p.client = clientStorage.CompareAndStore(p.id, &http.Client{
 		Timeout: p.Timeout,
 		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			IdleConnTimeout: p.IdleConnTimeout,
-			MaxIdleConns:    p.MaxIdleConns,
+			TLSClientConfig:   tlsConfig,
+			IdleConnTimeout:   p.IdleConnTimeout,
+			MaxIdleConns:      p.MaxIdleConns,
+			ForceAttemptHTTP2: tlsConfig != nil,
 		},
 	})
 
