@@ -81,9 +81,10 @@ func (o *Http) Init() error {
 	o.client = &http.Client{
 		Timeout: o.Timeout,
 		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			IdleConnTimeout: o.IdleConnTimeout,
-			MaxIdleConns:    o.MaxIdleConns,
+			TLSClientConfig:   tlsConfig,
+			IdleConnTimeout:   o.IdleConnTimeout,
+			MaxIdleConns:      o.MaxIdleConns,
+			ForceAttemptHTTP2: tlsConfig != nil,
 		},
 	}
 
