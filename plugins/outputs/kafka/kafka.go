@@ -65,7 +65,7 @@ func (o *Kafka) Init() error {
 		o.IdleTimeout = time.Minute
 	}
 
-	if o.Batcher.Buffer < 0 {
+	if o.Batcher.Buffer <= 0 {
 		o.Batcher.Buffer = 1
 	}
 
