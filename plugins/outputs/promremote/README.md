@@ -6,7 +6,7 @@ This plugin uses event model from [stats processor](../../processors/stats/):
  - each event must have `::name` label - which is used in `__name__` metric label
  - each event must have `stats` field, and it's type must be `map[string]number` where `number` - value, that can be converted to `float64`
 
-For each event, the plugin creates as many metrics as the number of keys contained in the `stats` field that were successfully converted to `float64`.
+For each event, plugin creates as many metrics as the number of keys contained in the `stats` field that were successfully converted to `float64`.
 
 Each metric name creates as `::name` label plus `_%stats subkey%`.
 
