@@ -1,6 +1,6 @@
 # Stats Processor Plugin
 
-The `stats` processor calculates count, sum, average, min, max,histograms with configured `buckets` and stores field last value as gauge for each configured field and produces it as an event every `period`.
+The `stats` processor calculates count, sum, average, min, max, cummulative histograms with configured `buckets` and stores field last value as gauge for each configured field and produces it as an event every `period`.
 
 Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field cannot be converted to a number, field stats will not updated.
 
