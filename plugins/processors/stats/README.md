@@ -54,7 +54,7 @@ This is the format of stats event:
     labels = [ "::line", "region" ]
 
     # histogram buckets; each value will be added to outgoing event as `le` label
-    # +Inf bucket will be added automatically as math.MaxFloat64
+    # `+Inf` bucket will be added automatically as `math.MaxFloat64`
     # if you don't need histograms, set this parameter to empty list for better performance
     buckets = [ 0.1, 0.3, 0.5, 0.7, 1.0, 2.0, 5.0, 10.0 ]
 

@@ -12,7 +12,7 @@ Each metric name creates as `%::name label value%_%stats subkey%`. All dots repl
 
 Metric labels takes from event labels, excluding configured `ignore_labels`. 
 
-Metric timestamp takes from events timestamp.
+Metric timestamp takes from event timestamp.
 
 For example, with event:
 ```json
