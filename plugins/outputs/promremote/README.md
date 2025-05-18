@@ -66,7 +66,6 @@ traffic.now_avg{::line="3", region="US/California"} 11.9 1692991768912
     batch_interval = "5s"
 
     # events buffer size
-    # this plugin uses all events serialization result as a request body
     batch_buffer = 100    
 
     # maximum number of attempts to execute request

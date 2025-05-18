@@ -17,7 +17,7 @@ This is the format of stats event:
     "::line": "3",
     "region": "US/California",
     "::type": "metric", # <- internal label
-    "::name": "path.to.one" # <- field name
+    "::name": "traffic.now" # <- field name
   },
   "data": { # <- event data
     "stats": { 
