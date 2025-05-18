@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/golang/snappy"
@@ -90,7 +91,7 @@ func (o *Promremote) Run() {
 		}
 		now := time.Now()
 
-		body, err := o.marshal(buf)
+		body, err := o.Marshal(buf)
 		if err != nil {
 			for _, e := range buf {
 				o.Done <- e
@@ -116,7 +117,7 @@ func (o *Promremote) Run() {
 
 		totalBefore := time.Since(now)
 		now = time.Now() // reset now() to measure time spent on the request
-		err = o.write(body, header)
+		err = o.write(snappy.Encode(nil, body), header)
 		totalAfter := time.Since(now)
 
 		for i, e := range buf {
@@ -148,7 +149,7 @@ func (o *Promremote) Close() error {
 	return nil
 }
 
-func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
+func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 	// preallocate slice with at least events count * typical stats count capacity
 	series := make([]prompb.TimeSeries, 0, len(buf)*typicalStatsCount)
 
@@ -163,6 +164,7 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 			)
 			continue
 		}
+		name = strings.ReplaceAll(name, ".", "_")
 
 		rawStats, err := e.GetField("stats")
 		if err != nil {
@@ -241,7 +243,7 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 
 	o.Log.Debug(fmt.Sprintf("prompb.WriteRequest: %v", r.String()))
 
-	return snappy.Encode(nil, body), nil
+	return body, nil
 }
 
 func (o *Promremote) write(body []byte, header http.Header) error {

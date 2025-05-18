@@ -40,7 +40,7 @@ extdata = {
 def process(event):
     extdata["counter"] = extdata["counter"] + 1
 
-    event.setField("counter", extdata["counter"])
+    event.setField("counter.stats", extdata["counter"])
 
     return event
     '''
@@ -50,9 +50,9 @@ def process(event):
     mode = "shared"
     period = "10s"
     routing_key = "neptunus.generated.metric"
-    labels = [ "schedule", "::line" ]
+    labels = [ "schedule" ]
     [processors.stats.fields]
-      "counter" = ["count", "sum", "avg", "gauge", "max", "min"]
+      "counter.stats" = ["count", "sum", "avg", "gauge", "max", "min"]
 
 [[processors]]
   [processors.log]

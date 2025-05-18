@@ -8,7 +8,7 @@ This plugin uses event model from [stats processor](../../processors/stats/):
 
 For each event, plugin creates as many metrics as the number of keys contained in the `stats` field that were successfully converted to `float64`.
 
-Each metric name creates as `%::name label value%_%stats subkey%`.
+Each metric name creates as `%::name label value%_%stats subkey%`. All dots replaces with underscope.
 
 Metric labels takes from event labels, excluding configured `ignore_labels`. 
 
@@ -39,9 +39,9 @@ For example, with event:
 
 metrics will be:
 ```
-traffic.now_count{::line="3", region="US/California"} 11.0 1692991768912
-traffic.now_sum{::line="3", region="US/California"} 125.0 1692991768912
-traffic.now_avg{::line="3", region="US/California"} 11.9 1692991768912
+traffic_now_count{::line="3", region="US/California"} 11.0 1692991768912
+traffic_now_sum{::line="3", region="US/California"} 125.0 1692991768912
+traffic_now_avg{::line="3", region="US/California"} 11.9 1692991768912
 ```
 
 # Configuration
