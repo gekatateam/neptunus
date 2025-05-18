@@ -8,11 +8,11 @@ This plugin uses event model from [stats processor](../../processors/stats/):
 
 For each event, plugin creates as many metrics as the number of keys contained in the `stats` field that were successfully converted to `float64`.
 
-Each metric name creates as `::name` label plus `_%stats subkey%`.
+Each metric name creates as `%::name label value%_%stats subkey%`.
 
 Metric labels takes from event labels, excluding configured `ignore_labels`. 
 
-Metrics timestamp takes from events timestamp.
+Metric timestamp takes from events timestamp.
 
 For example, with event:
 ```json
