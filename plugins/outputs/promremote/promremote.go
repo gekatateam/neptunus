@@ -186,6 +186,17 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 			continue
 		}
 
+		commonLabels := make([]prompb.Label, 0, len(e.Labels))
+		for k, v := range e.Labels {
+			// add label only if it is not in ignore list
+			if _, ok := o.ignore[k]; !ok {
+				commonLabels = append(commonLabels, prompb.Label{
+					Name:  k,
+					Value: v,
+				})
+			}
+		}
+
 		for k, v := range stats {
 			val, err := convert.AnyToFloat(v)
 			if err != nil {
@@ -204,17 +215,8 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 				Value:     val,
 			}
 
-			labels := make([]prompb.Label, 0, len(e.Labels))
-			for k, v := range e.Labels {
-				// add label only if it is not in ignore list
-				if _, ok := o.ignore[k]; !ok {
-					labels = append(labels, prompb.Label{
-						Name:  k,
-						Value: v,
-					})
-				}
-			}
-
+			labels := make([]prompb.Label, len(commonLabels), len(commonLabels)+1)
+			copy(labels, commonLabels)
 			labels = append(labels, prompb.Label{
 				Name:  "__name__",
 				Value: name + "_" + k,

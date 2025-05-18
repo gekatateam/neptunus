@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.promremote"
-  lines = 1
+  lines = 5
   run = true
   buffer = 1_000
   log_level = "warn"
@@ -50,7 +50,7 @@ def process(event):
     mode = "shared"
     period = "10s"
     routing_key = "neptunus.generated.metric"
-    labels = [ "schedule" ]
+    labels = [ "schedule", "::line" ]
     [processors.stats.fields]
       "counter" = ["count", "sum", "avg", "gauge", "max", "min"]
 
@@ -67,6 +67,6 @@ def process(event):
 [[outputs]]
   [outputs.promremote]
     host = "http://localhost:8428/api/v1/write"
-    ignore_labels = [ "::type", "::name", "::line" ]
+    ignore_labels = [ "::type", "::name" ]
     [outputs.promremote.filters.glob]
       routing_key = [ "neptunus.generated.metric" ]
