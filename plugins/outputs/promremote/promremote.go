@@ -186,7 +186,6 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 			continue
 		}
 
-		samples := make([]prompb.Sample, 0, len(stats))
 		for k, v := range stats {
 			val, err := convert.AnyToFloat(v)
 			if err != nil {
@@ -199,11 +198,11 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 				continue
 			}
 
-			samples = append(samples, prompb.Sample{
-				// Timestamp for remote write should be in milliseconds
-				Timestamp: e.Timestamp.UnixMilli() / int64(time.Millisecond),
+			sample := prompb.Sample{
+				// Timestamp for remote write must be in milliseconds
+				Timestamp: e.Timestamp.UnixMilli(),
 				Value:     val,
-			})
+			}
 
 			labels := make([]prompb.Label, 0, len(e.Labels))
 			for k, v := range e.Labels {
@@ -223,7 +222,7 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 
 			series = append(series, prompb.TimeSeries{
 				Labels:  labels,
-				Samples: samples,
+				Samples: []prompb.Sample{sample},
 			})
 		}
 	}
@@ -237,6 +236,8 @@ func (o *Promremote) marshal(buf []*core.Event) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	o.Log.Debug(fmt.Sprintf("prompb.WriteRequest: %v", r.String()))
 
 	return snappy.Encode(nil, body), nil
 }
