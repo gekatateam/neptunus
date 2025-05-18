@@ -49,13 +49,12 @@ func (m *metric) observe(value float64) {
 	m.Value.Gauge = value
 
 	// fill buckets
-	for le, bucket := range m.Value.Buckets {
+	for le, count := range m.Value.Buckets {
 		if value <= le {
-			if bucket+value == math.MaxFloat64 {
-				m.Value.Buckets[le] = value
-			} else {
-				m.Value.Buckets[le] = bucket + value
+			if count+1 == math.MaxFloat64 {
+				m.Value.Buckets[le] = 0
 			}
+			m.Value.Buckets[le] += 1
 		}
 	}
 
