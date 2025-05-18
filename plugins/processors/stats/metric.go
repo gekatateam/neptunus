@@ -6,12 +6,13 @@ import (
 )
 
 var statsMap = map[string]bool{
-	"count": true,
-	"sum":   true,
-	"gauge": true,
-	"avg":   true,
-	"min":   true,
-	"max":   true,
+	"count":     true,
+	"sum":       true,
+	"gauge":     true,
+	"avg":       true,
+	"min":       true,
+	"max":       true,
+	"histogram": true,
 }
 
 type metric struct {
@@ -47,6 +48,17 @@ func (m *metric) observe(value float64) {
 	// save gauge
 	m.Value.Gauge = value
 
+	// fill buckets
+	for le, bucket := range m.Value.Buckets {
+		if value <= le {
+			if bucket+value == math.MaxFloat64 {
+				m.Value.Buckets[le] = value
+			} else {
+				m.Value.Buckets[le] = bucket + value
+			}
+		}
+	}
+
 	// avg, min and max calc
 	if m.Observed {
 		if value < m.Value.Min {
@@ -58,7 +70,7 @@ func (m *metric) observe(value float64) {
 		}
 
 		m.Value.count2 += 1
-		// new average = old average * (n-1)/n + new value /n
+		// new average = (old average) * (n-1) / n + (new value) / n
 		m.Value.Avg = m.Value.Avg*(m.Value.count2-1)/m.Value.count2 + value/m.Value.count2
 	} else {
 		m.Value.Avg = value
@@ -69,7 +81,7 @@ func (m *metric) observe(value float64) {
 	}
 }
 
-// count, sum and gauge are not reset
+// count, sum gauge and histogram are not reset
 func (m *metric) reset() {
 	m.Observed = false
 	m.Value.count2 = 0
@@ -89,22 +101,24 @@ type metricLabel struct {
 }
 
 type metricValue struct {
-	Count  float64
-	Sum    float64
-	Gauge  float64
-	Avg    float64
-	Min    float64
-	Max    float64
-	count2 float64 // count for moving average
+	Count   float64
+	Sum     float64
+	Gauge   float64
+	Avg     float64
+	Min     float64
+	Max     float64
+	count2  float64 // count for moving average
+	Buckets map[float64]float64
 }
 
 type metricStats struct {
-	Count bool
-	Sum   bool
-	Gauge bool
-	Avg   bool
-	Min   bool
-	Max   bool
+	Count     bool
+	Sum       bool
+	Gauge     bool
+	Avg       bool
+	Min       bool
+	Max       bool
+	Histogram bool
 }
 
 func stats(stats []string) metricStats {
@@ -123,6 +137,8 @@ func stats(stats []string) metricStats {
 			s.Min = true
 		case "max":
 			s.Max = true
+		case "histogram":
+			s.Histogram = true
 		}
 	}
 	return s

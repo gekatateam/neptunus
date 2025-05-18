@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.promremote"
-  lines = 5
+  lines = 1
   run = true
   buffer = 1_000
   log_level = "warn"
@@ -14,17 +14,7 @@
     location = "UTC"
     [[inputs.cronjob.jobs]]
       name = "@{self:settings.id}"
-      schedule = "@every 10s"
-      force = true
-
-    [[inputs.cronjob.jobs]]
-      name = "@{self:settings.id}"
-      schedule = "@every 20s"
-      force = true
-
-    [[inputs.cronjob.jobs]]
-      name = "@{self:settings.id}"
-      schedule = "@every 30s"
+      schedule = "@every 5s"
       force = true
 
 [[processors]]
@@ -34,11 +24,11 @@
   [processors.starlark]
     code = '''
 extdata = {
-    "counter": 0,
+    "counter": 0.0,
 }
 
 def process(event):
-    extdata["counter"] = extdata["counter"] + 1
+    extdata["counter"] = extdata["counter"] + 0.1
 
     event.setField("counter.stats", extdata["counter"])
 
@@ -48,11 +38,11 @@ def process(event):
 [[processors]]
   [processors.stats]
     mode = "shared"
-    period = "10s"
+    period = "15s"
     routing_key = "neptunus.generated.metric"
     labels = [ "schedule" ]
     [processors.stats.fields]
-      "counter.stats" = ["count", "sum", "avg", "gauge", "max", "min"]
+      "counter.stats" = ["count", "sum", "avg", "gauge", "max", "min", "histogram"]
 
 [[processors]]
   [processors.log]

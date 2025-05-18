@@ -53,13 +53,17 @@ This is the format of stats event:
     # labels of incoming events by which metrics will be grouped
     labels = [ "::line", "region" ]
 
+    # histogram buckets
+    # +Inf bucket will be added automatically as math.MaxFloat64
+    buckets = [ 0.1, 0.3, 0.5, 0.7, 1.0, 2.0, 5.0, 10.0 ]
+
     # if true, consumed events will be dropped after stats collection
     drop_origin = false
 
     # "fields" is a "field path -> stats" map
-    # plugin expects: "count", "sum", "gauge", "avg", "min", "max"
+    # plugin expects: "count", "sum", "gauge", "avg", "min", "max", "histogram"
     # any other value or an empty list will cause an error
     [processors.stats.fields]
-      "measurements.count" = ["count", "sum", "avg"]
+      "measurements.count" = ["count", "sum", "avg", "histogram"]
       temperature = ["gauge", "max", "min"]
 ```
