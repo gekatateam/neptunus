@@ -2,7 +2,10 @@ package stats
 
 import (
 	"fmt"
+	"maps"
+	"math"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -12,25 +15,33 @@ import (
 )
 
 type Stats struct {
-	id                  uint64
 	*core.BaseProcessor `mapstructure:"-"`
 	Period              time.Duration       `mapstructure:"period"`
 	Mode                string              `mapstructure:"mode"`
 	RoutingKey          string              `mapstructure:"routing_key"`
 	Labels              []string            `mapstructure:"labels"`
+	Buckets             []float64           `mapstructure:"buckets"`
 	DropOrigin          bool                `mapstructure:"drop_origin"`
 	Fields              map[string][]string `mapstructure:"fields"`
 
-	cache  cache
-	fields map[string]metricStats
+	id      uint64
+	cache   cache
+	fields  map[string]metricStats
+	buckets map[float64]float64
 }
 
 func (p *Stats) Init() error {
-	p.fields = make(map[string]metricStats)
+	p.fields = make(map[string]metricStats, len(p.Fields))
+	p.buckets = make(map[float64]float64, len(p.Buckets)+1)
 	p.Labels = slices.Compact(p.Labels)
 
 	if p.Period < time.Second {
 		p.Period = time.Second
+	}
+
+	p.buckets[math.MaxFloat64] = 0 // +Inf bucket
+	for _, v := range p.Buckets {
+		p.buckets[v] = 0
 	}
 
 	switch p.Mode {
@@ -134,6 +145,29 @@ func (p *Stats) Flush() {
 		}
 
 		ch <- e
+
+		if m.Stats.Histogram {
+			for le, bucket := range m.Value.Buckets {
+				e := core.NewEvent(p.RoutingKey)
+				e.Timestamp = now
+
+				e.SetLabel("::type", "metric")
+				e.SetLabel("::name", m.Descr.Name)
+				if le == math.MaxFloat64 {
+					e.SetLabel("le", "+Inf")
+				} else {
+					e.SetLabel("le", strconv.FormatFloat(le, 'f', -1, 64))
+				}
+
+				for _, label := range m.Descr.Labels {
+					e.SetLabel(label.Key, label.Value)
+				}
+
+				e.SetField("stats.bucket", bucket)
+
+				ch <- e
+			}
+		}
 	})
 }
 
@@ -170,6 +204,9 @@ func (p *Stats) Observe(e *core.Event) {
 				Name:   field,
 				Labels: labels, // previously saved labels shares here
 			},
+			Value: metricValue{
+				Buckets: maps.Clone(p.buckets),
+			},
 		}
 
 		p.cache.observe(m, fv)
@@ -182,6 +219,7 @@ func init() {
 			Period:     time.Minute,
 			RoutingKey: "neptunus.generated.metric",
 			Mode:       "shared",
+			Buckets:    []float64{0.1, 0.3, 0.5, 0.7, 1.0, 2.0, 5.0, 10.0},
 		}
 	})
 }

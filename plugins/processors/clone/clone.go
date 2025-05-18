@@ -29,9 +29,9 @@ func (p *Clone) Close() error {
 
 func (p *Clone) Run() {
 	for e := range p.In {
-		for range p.Count {
-			now := time.Now()
+		now := time.Now()
 
+		for range p.Count {
 			cloned := e.Clone()
 			if len(p.RoutingKey) > 0 {
 				cloned.RoutingKey = p.RoutingKey
@@ -45,10 +45,11 @@ func (p *Clone) Run() {
 				cloned.Timestamp = e.Timestamp
 			}
 
-			p.Out <- e
 			p.Out <- cloned
-			p.Observe(metrics.EventAccepted, time.Since(now))
 		}
+
+		p.Out <- e
+		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
 

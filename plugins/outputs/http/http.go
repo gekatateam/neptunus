@@ -59,7 +59,7 @@ func (o *Http) Init() error {
 
 	o.providedUri = url
 
-	if o.Batcher.Buffer < 0 {
+	if o.Batcher.Buffer <= 0 {
 		o.Batcher.Buffer = 1
 	}
 
