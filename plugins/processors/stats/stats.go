@@ -34,12 +34,12 @@ func (p *Stats) Init() error {
 	p.fields = make(map[string]metricStats, len(p.Fields))
 	p.buckets = make(map[float64]float64, len(p.Buckets)+1)
 	p.Labels = slices.Compact(p.Labels)
-	p.Buckets = append(p.Buckets, math.MaxFloat64) // +Inf bucket
 
 	if p.Period < time.Second {
 		p.Period = time.Second
 	}
 
+	p.buckets[math.MaxFloat64] = 0 // +Inf bucket
 	for _, v := range p.Buckets {
 		p.buckets[v] = 0
 	}
