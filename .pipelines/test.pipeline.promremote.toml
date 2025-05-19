@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.promremote"
-  lines = 1
+  lines = 5
   run = true
   buffer = 1_000
   log_level = "warn"
@@ -30,6 +30,7 @@ extdata = {
 def process(event):
     extdata["counter"] = extdata["counter"] + 0.1
 
+    event.setLabel("forTest", "true")
     event.setField("counter.stats", extdata["counter"])
 
     return event
@@ -40,7 +41,7 @@ def process(event):
     mode = "shared"
     period = "15s"
     routing_key = "neptunus.generated.metric"
-    labels = [ "schedule" ]
+    labels = [ "schedule", "forTest" ]
     [processors.stats.fields]
       "counter.stats" = ["count", "sum", "avg", "gauge", "max", "min", "histogram"]
 
@@ -56,7 +57,8 @@ def process(event):
 
 [[outputs]]
   [outputs.promremote]
-    host = "http://localhost:8428/api/v1/write"
+    host = "http://localhost:9090/api/v1/write"
     ignore_labels = [ "::type", "::name" ]
+    retry_attempts = 1
     [outputs.promremote.filters.glob]
       routing_key = [ "neptunus.generated.metric" ]
