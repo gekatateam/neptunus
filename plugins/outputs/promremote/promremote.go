@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
+const typicalStatsCount = 3
+
 // basic headers for prometheus remotewrite protocol
 var basicHeaders http.Header = http.Header{
 	"X-Prometheus-Remote-Write-Version": []string{"0.1.0"},
@@ -30,14 +33,13 @@ var basicHeaders http.Header = http.Header{
 	"Content-Type":                      []string{"application/x-protobuf"},
 }
 
-const typicalStatsCount = 3
-
 type Promremote struct {
 	*core.BaseOutput `mapstructure:"-"`
 	Host             string            `mapstructure:"host"`
 	Timeout          time.Duration     `mapstructure:"timeout"`
 	IdleConnTimeout  time.Duration     `mapstructure:"idle_conn_timeout"`
 	IgnoreLabels     []string          `mapstructure:"ignore_labels"`
+	StatsPerEvent    int               `mapstructure:"stats_per_event"`
 	Headerlabels     map[string]string `mapstructure:"headerlabels"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
@@ -51,6 +53,10 @@ type Promremote struct {
 func (o *Promremote) Init() error {
 	if len(o.Host) == 0 {
 		return errors.New("host required")
+	}
+
+	if o.StatsPerEvent <= 0 {
+		o.StatsPerEvent = typicalStatsCount
 	}
 
 	_, err := url.ParseRequestURI(o.Host)
@@ -150,9 +156,8 @@ func (o *Promremote) Close() error {
 }
 
 func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
-	// preallocate slice with at least events count * typical stats count capacity
-	series := make([]prompb.TimeSeries, 0, len(buf)*typicalStatsCount)
-
+	// preallocate slice with at least events count * stats count
+	series := make([]prompb.TimeSeries, 0, len(buf)*o.StatsPerEvent)
 	for _, e := range buf {
 		name, ok := e.GetLabel("::name")
 		if !ok {
@@ -224,6 +229,9 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 				Value: name + "_" + k,
 			})
 
+			// prometheus requires sorted labels
+			slices.SortFunc(labels, compareLabels)
+
 			series = append(series, prompb.TimeSeries{
 				Labels:  labels,
 				Samples: []prompb.Sample{sample},
@@ -293,12 +301,25 @@ func durationPerEvent(totalBefore, totalAfter time.Duration, batchSize, i int) t
 	return each
 }
 
+func compareLabels(a, b prompb.Label) int {
+	if a.Name < b.Name {
+		return -1
+	}
+
+	if a.Name > b.Name {
+		return 1
+	}
+
+	return 0
+}
+
 func init() {
 	plugins.AddOutput("promremote", func() core.Output {
 		return &Promremote{
 			Timeout:         10 * time.Second,
 			IdleConnTimeout: 1 * time.Minute,
 			IgnoreLabels:    []string{"::type", "::name"},
+			StatsPerEvent:   typicalStatsCount,
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,

@@ -62,6 +62,10 @@ traffic_now_avg{::line="3", region="US/California"} 11.9 1692991768912
     # list of event labels, that will be ignored
     ignore_labels = [ "::type", "::name" ]
 
+    # average stats in one event
+    # more accurate value helps to avoid unnecessary allocations
+    stats_per_event = 3
+
     # interval between events buffer flushes if buffer length less than it's capacity
     batch_interval = "5s"
 

@@ -1,0 +1,30 @@
+[settings]
+  id = "test.pipeline.memory"
+  lines = 1
+  run = false
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.cronjob]
+    location = "UTC"
+    [[inputs.cronjob.jobs]]
+      name = "test.pipeline.memory"
+      schedule = "@every 15s"
+      force = true
+
+[[processors]]
+  [processors.clone]
+    routing_key = "/dropme"
+    save_timestamp = false
+    count = 500
+
+[[outputs]]
+  [outputs.http]
+    host = "http://localhost:9100"
+    retry_attempts = 3
+    retry_after = "1s"
+    batch_interval = "1s"
+    batch_size = 1000
+    [outputs.http.serializer]
+      type = "json"
+      data_only = false

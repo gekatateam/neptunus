@@ -32,12 +32,12 @@ func (b *Batcher[T]) Run(in <-chan T, flushFn func(buf []T)) {
 			buf = append(buf, e)
 			if len(buf) == b.Buffer { // buffer is full
 				flushFn(buf)
-				buf = nil
+				buf = make([]T, 0, b.Buffer)
 				ticker.Reset(b.Interval)
 			}
 		case <-ticker.C:
 			flushFn(buf)
-			buf = nil
+			buf = make([]T, 0, b.Buffer)
 		}
 	}
 }
