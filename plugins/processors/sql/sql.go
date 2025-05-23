@@ -24,8 +24,10 @@ const tablePlaceholder = ":table_name"
 type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	EnableMetrics       bool          `mapstructure:"enable_metrics"`
-	Dsn                 string        `mapstructure:"dsn"`
 	Driver              string        `mapstructure:"driver"`
+	Dsn                 string        `mapstructure:"dsn"`
+	Username            string        `mapstructure:"username"`
+	Password            string        `mapstructure:"password"`
 	Shared              bool          `mapstructure:"shared"`
 	ConnsMaxIdleTime    time.Duration `mapstructure:"conns_max_idle_time"`
 	ConnsMaxLifetime    time.Duration `mapstructure:"conns_max_life_time"`
@@ -72,7 +74,7 @@ func (p *Sql) Init() error {
 		return err
 	}
 
-	db, err := csql.OpenDB(p.Driver, p.Dsn, tlsConfig)
+	db, err := csql.OpenDB(p.Driver, p.Dsn, p.Username, p.Password, tlsConfig)
 	if err != nil {
 		return err
 	}

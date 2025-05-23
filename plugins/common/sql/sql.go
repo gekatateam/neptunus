@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/jmoiron/sqlx"
@@ -18,7 +19,7 @@ import (
 	ora "github.com/sijms/go-ora/v2"
 )
 
-func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
+func OpenDB(driverName, dsn, user, pass string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 	var db *sql.DB
 
 	switch driverName {
@@ -28,12 +29,22 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 			return nil, fmt.Errorf("%v: %w", driverName, err)
 		}
 
+		if len(user) > 0 && len(pass) > 0 {
+			cfg.User = user
+			cfg.Password = pass
+		}
+
 		cfg.TLSConfig = tlsConfig
 		db = pgxstd.OpenDB(*cfg)
 	case "mysql":
 		cfg, err := mysql.ParseDSN(dsn)
 		if err != nil {
 			return nil, fmt.Errorf("%v: %w", driverName, err)
+		}
+
+		if len(user) > 0 && len(pass) > 0 {
+			cfg.User = user
+			cfg.Passwd = pass
 		}
 
 		cfg.TLS = tlsConfig
@@ -49,6 +60,11 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 			return nil, fmt.Errorf("%v: %w", driverName, err)
 		}
 
+		if len(user) > 0 && len(pass) > 0 {
+			cfg.Auth.Username = user
+			cfg.Auth.Password = pass
+		}
+
 		cfg.TLS = tlsConfig
 		db = clickhouse.OpenDB(cfg)
 	case "sqlserver":
@@ -57,11 +73,25 @@ func OpenDB(driverName, dsn string, tlsConfig *tls.Config) (*sqlx.DB, error) {
 			return nil, fmt.Errorf("%v: %w", driverName, err)
 		}
 
+		if len(user) > 0 && len(pass) > 0 {
+			cfg.User = user
+			cfg.Password = pass
+		}
+
 		cfg.TLSConfig = tlsConfig
 		db = sql.OpenDB(mssql.NewConnectorConfig(cfg))
 	case "oracle", "ora", "goracle":
+		u, err := url.Parse(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("%v: %w", driverName, err)
+		}
+
+		if len(user) > 0 && len(pass) > 0 {
+			u.User = url.UserPassword(user, pass)
+		}
+
 		driverName = "ora" // https://github.com/jmoiron/sqlx/blob/master/bind.go#L27
-		oraConnector := ora.NewConnector(dsn).(*ora.OracleConnector)
+		oraConnector := ora.NewConnector(u.String()).(*ora.OracleConnector)
 		oraConnector.WithTLSConfig(tlsConfig)
 		db = sql.OpenDB(oraConnector)
 	default:

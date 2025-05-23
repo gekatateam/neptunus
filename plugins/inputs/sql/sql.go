@@ -40,8 +40,10 @@ var txIsolationLevels = map[string]sql.IsolationLevel{
 type Sql struct {
 	*core.BaseInput  `mapstructure:"-"`
 	EnableMetrics    bool          `mapstructure:"enable_metrics"`
-	Dsn              string        `mapstructure:"dsn"`
 	Driver           string        `mapstructure:"driver"`
+	Dsn              string        `mapstructure:"dsn"`
+	Username         string        `mapstructure:"username"`
+	Password         string        `mapstructure:"password"`
 	ConnsMaxIdleTime time.Duration `mapstructure:"conns_max_idle_time"`
 	ConnsMaxLifetime time.Duration `mapstructure:"conns_max_life_time"`
 	ConnsMaxOpen     int           `mapstructure:"conns_max_open"`
@@ -143,7 +145,7 @@ func (i *Sql) Init() error {
 		return err
 	}
 
-	db, err := csql.OpenDB(i.Driver, i.Dsn, tlsConfig)
+	db, err := csql.OpenDB(i.Driver, i.Dsn, i.Username, i.Password, tlsConfig)
 	if err != nil {
 		return err
 	}

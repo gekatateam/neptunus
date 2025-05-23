@@ -23,7 +23,12 @@ Drivers use plugin TLS configuration.
     driver = "pgx"
 
     # datasource service name in selected driver format
-    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    dsn = "postgres://localhost:5432/postgres"
+
+    # authentication credentials
+    # if both not empty, takes precedence over ones provided in DSN
+    username = ""
+    password = ""
 
     # if true, one SQL client is shared between processors in set
     # otherwise, each plugin uses a personal client
