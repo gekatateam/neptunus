@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.promremote"
   lines = 5
-  run = true
+  run = false
   buffer = 1_000
   log_level = "warn"
 

@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.sqlout"
   lines = 5
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
@@ -24,6 +24,8 @@
     enable_metrics = true
     driver = "pgx"
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    username = "postgres"
+    password = "pguser"
     [outputs.sql.columns]
       expedition_type = "type"
       expedition_region = "region"

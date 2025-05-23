@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ### build app
-FROM golang:1.24.1 AS builder
+FROM golang:1.24.3 AS builder
 
 ARG NEPTUNUS_VERSION
 

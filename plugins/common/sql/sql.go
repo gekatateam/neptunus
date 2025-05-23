@@ -73,7 +73,7 @@ func OpenDB(driverName, dsn, user, pass string, tlsConfig *tls.Config) (*sqlx.DB
 			return nil, fmt.Errorf("%v: %w", driverName, err)
 		}
 
-		if len(user) > 0 && len(pass) > 0{
+		if len(user) > 0 && len(pass) > 0 {
 			cfg.User = user
 			cfg.Password = pass
 		}
@@ -86,7 +86,7 @@ func OpenDB(driverName, dsn, user, pass string, tlsConfig *tls.Config) (*sqlx.DB
 			return nil, fmt.Errorf("%v: %w", driverName, err)
 		}
 
-		if len(user) > 0 && len(pass) > 0{
+		if len(user) > 0 && len(pass) > 0 {
 			u.User = url.UserPassword(user, pass)
 		}
 
