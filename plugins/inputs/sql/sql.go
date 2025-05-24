@@ -91,7 +91,7 @@ func (i *Sql) Init() error {
 	}
 
 	if len(i.OnPoll.File) == 0 && len(i.OnPoll.Query) == 0 {
-		return errors.New("onPoll.query or onPoll.file requred")
+		return errors.New("onPoll.query or onPoll.file required")
 	}
 
 	if err := i.Ider.Init(); err != nil {

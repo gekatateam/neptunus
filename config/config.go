@@ -22,7 +22,7 @@ var (
 			FailFast: false,
 			File: FileStorage{
 				Directory: ".pipelines",
-				Extention: ".toml",
+				Extension: ".toml",
 			},
 		},
 	}
@@ -56,7 +56,7 @@ type Engine struct {
 
 type FileStorage struct {
 	Directory string `toml:"directory" yaml:"directory" json:"directory"`
-	Extention string `toml:"extention" yaml:"extention" json:"extention"`
+	Extension string `toml:"extension" yaml:"extension" json:"extension"`
 }
 
 func ReadConfig(file string) (*Config, error) {
@@ -86,7 +86,7 @@ func ReadConfig(file string) (*Config, error) {
 			return &config, err
 		}
 	default:
-		return &config, fmt.Errorf("unknown configuration file extention: %v", e)
+		return &config, fmt.Errorf("unknown configuration file extension: %v", e)
 	}
 
 	return &config, nil

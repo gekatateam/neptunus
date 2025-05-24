@@ -161,7 +161,7 @@ func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
 			return &pipeline, err
 		}
 	default:
-		return &pipeline, fmt.Errorf("unknown pipeline file extention: %v", format)
+		return &pipeline, fmt.Errorf("unknown pipeline file extension: %v", format)
 	}
 
 	return setPipelineDefaults(&pipeline), nil
@@ -185,7 +185,7 @@ func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unknown pipeline file extention: %v", format)
+		return nil, fmt.Errorf("unknown pipeline file extension: %v", format)
 	}
 
 	return content, nil

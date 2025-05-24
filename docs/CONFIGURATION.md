@@ -57,7 +57,7 @@ This is a default storage for the engine:
   fail_fast = false
   [engine.fs]
     directory = ".pipelines"
-    extention = "toml"
+    extension = "toml"
 ```
 
 ## Pipeline

@@ -61,7 +61,7 @@ func (a *restApi) Start() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -88,7 +88,7 @@ func (a *restApi) Stop() http.Handler {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -112,7 +112,7 @@ func (a *restApi) State() http.Handler {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -138,7 +138,7 @@ func (a *restApi) List() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -169,7 +169,7 @@ func (a *restApi) Get() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -188,7 +188,7 @@ func (a *restApi) Add() http.Handler {
 		switch {
 		case err == nil:
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -213,7 +213,7 @@ func (a *restApi) Add() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -256,7 +256,7 @@ func (a *restApi) Update() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
@@ -286,7 +286,7 @@ func (a *restApi) Delete() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
-			a.log.Error("internal error occured",
+			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
 			)
