@@ -229,7 +229,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 					continue MAIN_LOOP
 				}
 
-				stream = nil // if error occured, stream is already aborted, so we need to reopen it
+				stream = nil // if error occurred, stream is already aborted, so we need to reopen it
 				o.Log.Error("sending to bulk stream failed",
 					"error", err,
 					slog.Group("event",
@@ -242,7 +242,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 		}
 
 		if stream == nil { // stream may be dead after failed attempts
-			o.Log.Warn("summary receiving failed beacuse the stream is already dead")
+			o.Log.Warn("summary receiving failed because the stream is already dead")
 			return
 		}
 
@@ -332,7 +332,7 @@ MAIN_LOOP:
 					continue MAIN_LOOP
 				}
 
-				stream = nil // if error occured, stream is already aborted, so we need to reopen it
+				stream = nil // if error occurred, stream is already aborted, so we need to reopen it
 				o.Log.Error("sending to internal stream failed",
 					"error", err,
 					slog.Group("event",
@@ -354,7 +354,7 @@ func (o *Grpc) newInternalStream(doneCh chan<- struct{}) (common.Input_SendStrea
 		if err == nil {
 			go func() {
 				// handle cancel signal from server and close the stream
-				// it's not for gracefull shutdown, but for gracefull disconnect
+				// it's not for graceful shutdown, but for graceful disconnect
 				// from stopping server without data loss
 				// after this, client will try to reopen the stream in main loop
 				_, err := stream.Recv()

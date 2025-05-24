@@ -284,7 +284,7 @@ func (o *Promremote) write(body []byte, header http.Header) error {
 		// because concrete code (e.g. 200, 201 or 204) does not specified by spec
 		// https://prometheus.io/docs/specs/prw/remote_write_spec/#retries-backoff
 		if res.StatusCode/100 != 2 {
-			return fmt.Errorf("request result not successfull with code: %v, body: %v", res.StatusCode, string(rawBody))
+			return fmt.Errorf("request result not successful with code: %v, body: %v", res.StatusCode, string(rawBody))
 		}
 
 		return nil

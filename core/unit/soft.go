@@ -59,7 +59,7 @@ func newProcessorSoftUnit(p core.Processor, f []core.Filter, in <-chan *core.Eve
 // this function returns when the input channel is closed and read out to the end
 // in the end, it closes the outgoing channel, which is incoming for a next consumer in a pipeline
 func (u *procSoftUnit) Run() {
-	// run fliters
+	// run filters
 	// first filter will stop when its input channel - u.in - closes
 	// the input channel for the next filter is closed at the exit of the current filter goroutine
 	for _, v := range u.f {
@@ -131,7 +131,7 @@ func newOutputSoftUnit(o core.Output, f []core.Filter, in <-chan *core.Event, bu
 }
 
 func (u *outSoftUnit) Run() {
-	// run fliters
+	// run filters
 	for _, v := range u.f {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
@@ -211,7 +211,7 @@ func (u *inSoftUnit) Run() {
 		u.wg.Done()
 	}()
 
-	// run fliters
+	// run filters
 	for _, v := range u.f {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {

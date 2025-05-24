@@ -129,12 +129,12 @@ func (p *Pipeline) Config() *config.Pipeline {
 	return p.config
 }
 
-// Pipeline Close() MUST be called only if pipeline build failed.
-// After successfull Run(), each plugin will be closed dy it's unit.
+// Pipeline Close() should be called only if pipeline build failed.
+// After successful Run(), each plugin will be closed dy it's unit.
 // As usual, there is a few exclusions:
 //   - each plugin becomes available for closing only after successful Init()
 //   - as a consequence, plugins must check network connections, run init queries, etc.
-//     inside Init(), and must free all resources, if Init() failed
+//     inside Init(), and MUST free all resources, if Init() failed
 func (p *Pipeline) Close() error {
 	for _, k := range p.keepers {
 		k.Close()

@@ -287,7 +287,7 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 			p.Log.Debug(fmt.Sprintf("request performed successfully with code: %v, body: %v", res.StatusCode, string(rawBody)))
 			return nil
 		} else {
-			return fmt.Errorf("request result not successfull with code: %v, body: %v", res.StatusCode, string(rawBody))
+			return fmt.Errorf("request result not successful with code: %v, body: %v", res.StatusCode, string(rawBody))
 		}
 	})
 

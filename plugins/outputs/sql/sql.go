@@ -58,7 +58,7 @@ func (o *Sql) Init() error {
 	}
 
 	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
-		return errors.New("onPush.query or onPush.file requred")
+		return errors.New("onPush.query or onPush.file required")
 	}
 
 	if err := o.OnInit.Init(); err != nil {

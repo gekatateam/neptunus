@@ -94,7 +94,7 @@ FETCH_LOOP:
 
 		events, err := r.parser.Parse(msg.Value, r.topic)
 		if err != nil {
-			r.Log.Error("parser error, message marked as ready to be commited",
+			r.Log.Error("parser error, message marked as ready to be committed",
 				"error", err,
 				"topic", msg.Topic,
 				"offset", strconv.FormatInt(msg.Offset, 10),

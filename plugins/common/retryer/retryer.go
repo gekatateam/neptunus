@@ -17,7 +17,7 @@ func (r *Retryer) Do(action string, log *slog.Logger, tryFunc func() error) erro
 	for {
 		var err error
 		if err = tryFunc(); err == nil {
-			log.Debug(fmt.Sprintf("%v succeded on %v of %v attempt", action, attempts, r.RetryAttempts))
+			log.Debug(fmt.Sprintf("%v succeeded on %v of %v attempt", action, attempts, r.RetryAttempts))
 			return nil
 		}
 
@@ -29,7 +29,7 @@ func (r *Retryer) Do(action string, log *slog.Logger, tryFunc func() error) erro
 			attempts++
 			time.Sleep(r.RetryAfter)
 		case r.RetryAttempts > 0 && attempts >= r.RetryAttempts:
-			log.Error(fmt.Sprintf("%v failed after %v attemtps", action, attempts),
+			log.Error(fmt.Sprintf("%v failed after %v attempts", action, attempts),
 				"error", err,
 			)
 			return err

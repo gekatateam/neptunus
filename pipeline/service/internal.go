@@ -100,7 +100,7 @@ func (m *internalService) Start(id string) error {
 
 	// double-check here because pipeline buid and start stages
 	// may take a lot of time
-	// so, if several parallel calls occured, only one will go to runPipeline()
+	// so, if several parallel calls occurred, only one will go to runPipeline()
 	unit.mu.Lock()
 	defer unit.mu.Unlock()
 

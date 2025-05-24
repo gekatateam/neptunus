@@ -59,7 +59,7 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 			e.Id = label
 			return nil
 		case toLabel:
-			// doesn't make sence
+			// doesn't make sense
 			return nil
 		case toString:
 			field = label
