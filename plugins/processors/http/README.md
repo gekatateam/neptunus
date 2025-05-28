@@ -40,14 +40,14 @@ Please note, that in multiline configuration HTTP client is shared between proce
     # field, that will be added to event with response body after parsing, if configured
     response_body_to = "path.to.response.field"
 
-    # maximum number of attempts to execute request
+    # maximum number of attempts to perform request
     # before events will be marked as failed
     # 
     # only requests that ended with `success_codes`
     # will NOT be retried
     retry_attempts = 0 # zero for endless attempts
 
-    # interval between retries to execute bulk request
+    # interval between retries to perform bulk request
     retry_after = "5s"
 
     ## TLS configuration

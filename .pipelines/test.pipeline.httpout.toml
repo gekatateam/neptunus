@@ -1,8 +1,9 @@
 [settings]
   id = "test.pipeline.httpout"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
+  log_level = "debug"
 
 [[keykeepers]]
   [keykeepers.env]
@@ -28,7 +29,8 @@
 
 [[outputs]]
   [outputs.http]
-    host = "http://localhost:9100"
+    host = "http://localhost:9200"
+    fallbacks = [ "http://localhost:9300", "http://localhost:9100" ]
     retry_attempts = 3
     retry_after = "1s"
     batch_interval = "1s"
