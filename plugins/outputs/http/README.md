@@ -14,6 +14,10 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # request method, required
     method = "POST"
 
+    # list of fallback hosts
+    # if all `retry_attempts` to perform request to `host` failed, fallbacks will be used
+    fallbacks = [ "http://fallback.local:9100", "http://anotherfallback.local:9100" ]
+
     # time limit for requests made by client
     # zero means no limit
     timeout = "10s"
@@ -41,14 +45,14 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # this plugin uses all events serialization result as a request body
     batch_buffer = 100    
 
-    # maximum number of attempts to execute request
+    # maximum number of attempts to perform request
     # before events will be marked as failed
     # 
     # only requests that ended with `success_codes`
     # will NOT be retried
     retry_attempts = 0 # zero for endless attempts
 
-    # interval between retries to execute bulk request
+    # interval between retries to perform bulk request
     retry_after = "5s"
 
     ## TLS configuration

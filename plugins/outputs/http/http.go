@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -18,6 +19,7 @@ type Http struct {
 	*core.BaseOutput `mapstructure:"-"`
 	Host             string        `mapstructure:"host"`
 	Method           string        `mapstructure:"method"`
+	Fallbacks        []string      `mapstructure:"fallbacks"`
 	Timeout          time.Duration `mapstructure:"timeout"`
 	IdleConnTimeout  time.Duration `mapstructure:"idle_conn_timeout"`
 	MaxIdleConns     int           `mapstructure:"max_idle_conns"`
@@ -31,9 +33,10 @@ type Http struct {
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
-	requestersPool *pool.Pool[*core.Event, url.URL]
+	requestersPool *pool.Pool[*core.Event, string]
 	successCodes   map[int]struct{}
 	providedUri    *url.URL
+	fallbacks      []*url.URL
 
 	client *http.Client
 	ser    core.Serializer
@@ -52,12 +55,22 @@ func (o *Http) Init() error {
 		return errors.New("at least one success code required")
 	}
 
-	url, err := url.ParseRequestURI(o.Host)
+	uri, err := url.ParseRequestURI(o.Host)
 	if err != nil {
 		return err
 	}
 
-	o.providedUri = url
+	o.providedUri = uri
+
+	o.fallbacks = make([]*url.URL, 0, len(o.Fallbacks))
+	for _, f := range o.Fallbacks {
+		uri, err := url.ParseRequestURI(f)
+		if err != nil {
+			return fmt.Errorf("fallback %v: %w", f, err)
+		}
+
+		o.fallbacks = append(o.fallbacks, uri)
+	}
 
 	if o.Batcher.Buffer <= 0 {
 		o.Batcher.Buffer = 1
@@ -111,7 +124,7 @@ MAIN_LOOP:
 				clearTicker.Stop()
 				break MAIN_LOOP
 			}
-			o.requestersPool.Get(o.uriFromRoutingKey(e.RoutingKey)).Push(e)
+			o.requestersPool.Get(e.RoutingKey).Push(e)
 		case <-clearTicker.C:
 			for _, pipeline := range o.requestersPool.Keys() {
 				if time.Since(o.requestersPool.LastWrite(pipeline)) > o.IdleTimeout {
@@ -129,7 +142,7 @@ func (o *Http) Close() error {
 	return nil
 }
 
-func (o *Http) newRequester(uri url.URL) pool.Runner[*core.Event] {
+func (o *Http) newRequester(path string) pool.Runner[*core.Event] {
 	return &requester{
 		BaseOutput:   o.BaseOutput,
 		method:       o.Method,
@@ -141,12 +154,21 @@ func (o *Http) newRequester(uri url.URL) pool.Runner[*core.Event] {
 		Batcher:      o.Batcher,
 		Retryer:      o.Retryer,
 		input:        make(chan *core.Event),
-		uri:          &uri,
+		uri:          o.uriFromRoutingKey(path),
+		fallbacks:    o.fallbacksFromRoutingKey(path),
 	}
 }
 
-func (o *Http) uriFromRoutingKey(rk string) url.URL {
-	return *o.providedUri.JoinPath(rk)
+func (o *Http) uriFromRoutingKey(rk string) *url.URL {
+	return o.providedUri.JoinPath(rk)
+}
+
+func (o *Http) fallbacksFromRoutingKey(rk string) []*url.URL {
+	u := make([]*url.URL, 0, len(o.fallbacks))
+	for _, f := range o.fallbacks {
+		u = append(u, f.JoinPath(rk))
+	}
+	return u
 }
 
 func init() {

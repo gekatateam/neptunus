@@ -19,8 +19,9 @@ import (
 type requester struct {
 	*core.BaseOutput
 
-	uri    *url.URL
-	method string
+	uri       *url.URL
+	fallbacks []*url.URL
+	method    string
 
 	successCodes map[int]struct{}
 	headerlabels map[string]string
@@ -86,7 +87,7 @@ func (r *requester) Run() {
 
 		totalBefore := time.Since(now)
 		now = time.Now() // reset now() to measure time spent on the request
-		err = r.perform(r.uri, values, rawBody, header)
+		err = r.performWithFallback(values, rawBody, header)
 		totalAfter := time.Since(now)
 
 		for i, e := range buf {
@@ -156,6 +157,30 @@ func (r *requester) unpackQueryValues(e *core.Event) (url.Values, error) {
 	return values, nil
 }
 
+func (r *requester) performWithFallback(params url.Values, body []byte, header http.Header) error {
+	err := r.perform(r.uri, params, body, header)
+
+	if err != nil && len(r.fallbacks) > 0 {
+		r.Log.Warn("request failed, trying to perform to fallback",
+			"error", err,
+		)
+
+		for _, f := range r.fallbacks {
+			err = r.perform(f, params, body, header)
+			if err == nil {
+				r.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f.String()))
+				return nil
+			}
+
+			r.Log.Warn(fmt.Sprintf("request to fallback %v failed", f.String()),
+				"error", err,
+			)
+		}
+	}
+
+	return err
+}
+
 func (r *requester) perform(uri *url.URL, params url.Values, body []byte, header http.Header) error {
 	uri.RawQuery = params.Encode()
 
@@ -165,7 +190,7 @@ func (r *requester) perform(uri *url.URL, params url.Values, body []byte, header
 			return err
 		}
 
-		req.Header = header
+		req.Header = header.Clone()
 
 		r.Log.Debug(fmt.Sprintf("request body: %v; request headers: %v; request query: %v", string(body), header, uri.RawQuery))
 
