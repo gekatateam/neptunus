@@ -99,6 +99,18 @@ type metricLabel struct {
 	Value string
 }
 
+func compareLabels(a, b metricLabel) int {
+	if a.Key < b.Key {
+		return -1
+	}
+
+	if a.Key > b.Key {
+		return 1
+	}
+
+	return 0
+}
+
 type metricValue struct {
 	Count   float64
 	Sum     float64

@@ -2,7 +2,9 @@
 
 The `stats` processor calculates count, sum, average, min, max, cumulative histograms with configured `buckets` and stores field last value as gauge for each configured field and produces it as an event every `period`.
 
-Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no any configured label, event will be skipped. If incoming event has no configured field or field cannot be converted to a number, field stats will not updated.
+Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no configured field or field cannot be converted to a number, field stats will not updated.
+
+If `with_labels` configured and incoming event has no any configured label, event will be skipped. On the other hand, with `without_labels`, otherwise, plugin uses uses all event labels except the configured ones. **Only one parameter can be configured at the same time.**
 
 Stats stored as child fields in `stats` key.
 
@@ -51,7 +53,10 @@ This is the format of stats event:
     routing_key = "neptunus.generated.metric"
 
     # labels of incoming events by which metrics will be grouped
-    labels = [ "::line", "region" ]
+    with_labels = [ "::line", "region" ]
+
+    # labels of incoming events which will be ignored
+    without_labels = [ "secret_key" ]
 
     # histogram buckets; each value will be added to outgoing event as `le` label
     # `+Inf` bucket will be added automatically as `math.MaxFloat64`
