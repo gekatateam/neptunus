@@ -6,6 +6,8 @@ Neptunus is a data processing engine for consuming, transforming, and producing 
  - transform, enrich, and create new events,
  - and deliver events to consumers in various formats and protocols.
 
+It also can [collect](plugins/processors/stats) and [write](plugins/outputs/promremote) metrics, directly related to your processes.
+
 Neptunus is based on data processing pipelines - a composition of six types of plugins:
  - [Inputs](plugins/inputs/) consume events from external sources
  - [Processors](plugins/processors/) transform events
