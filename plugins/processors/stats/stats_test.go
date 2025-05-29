@@ -296,7 +296,7 @@ func TestStats_WithLabelsConfigured(t *testing.T) {
 
 			for e := range test.output {
 				labels := []label{}
-				for _, v := range test.config["labels"].([]string) {
+				for _, v := range test.config["with_labels"].([]string) {
 					l, ok := e.GetLabel(v)
 					if !ok {
 						t.Fatalf("stats event has no expected label: %v", v)
