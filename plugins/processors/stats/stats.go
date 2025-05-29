@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -19,21 +20,29 @@ type Stats struct {
 	Period              time.Duration       `mapstructure:"period"`
 	Mode                string              `mapstructure:"mode"`
 	RoutingKey          string              `mapstructure:"routing_key"`
-	Labels              []string            `mapstructure:"labels"`
+	WithLabels          []string            `mapstructure:"with_labels"`
+	WithoutLabels       []string            `mapstructure:"without_labels"`
 	Buckets             []float64           `mapstructure:"buckets"`
 	DropOrigin          bool                `mapstructure:"drop_origin"`
 	Fields              map[string][]string `mapstructure:"fields"`
 
-	id      uint64
-	cache   cache
-	fields  map[string]metricStats
-	buckets map[float64]float64
+	id         uint64
+	cache      cache
+	fields     map[string]metricStats
+	buckets    map[float64]float64
+	exLabels   map[string]struct{}
+	labelsFunc func(e *core.Event) ([]metricLabel, bool)
 }
 
 func (p *Stats) Init() error {
 	p.fields = make(map[string]metricStats, len(p.Fields))
 	p.buckets = make(map[float64]float64, len(p.Buckets)+1)
-	p.Labels = slices.Compact(p.Labels)
+	p.exLabels = make(map[string]struct{}, len(p.WithoutLabels))
+	p.WithLabels = slices.Compact(p.WithLabels)
+
+	for _, v := range p.WithoutLabels {
+		p.exLabels[v] = struct{}{}
+	}
 
 	if p.Period < time.Second {
 		p.Period = time.Second
@@ -42,6 +51,20 @@ func (p *Stats) Init() error {
 	p.buckets[math.MaxFloat64] = 0 // +Inf bucket
 	for _, v := range p.Buckets {
 		p.buckets[v] = 0
+	}
+
+	if len(p.WithLabels) > 0 && len(p.WithoutLabels) > 0 {
+		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
+	}
+
+	p.labelsFunc = p.noLabels
+
+	if len(p.WithLabels) > 0 {
+		p.labelsFunc = p.withLabels
+	}
+
+	if len(p.WithoutLabels) > 0 {
+		p.labelsFunc = p.withoutLabels
 	}
 
 	switch p.Mode {
@@ -174,17 +197,9 @@ func (p *Stats) Flush() {
 func (p *Stats) Observe(e *core.Event) {
 	// it is okay if multiple stats will store one label set
 	// because there is no race condition
-	labels := []metricLabel{}
-	for _, k := range p.Labels {
-		v, ok := e.GetLabel(k)
-		if !ok {
-			return // if event has no label, skip it
-		}
-
-		labels = append(labels, metricLabel{
-			Key:   k,
-			Value: v,
-		})
+	labels, ok := p.labelsFunc(e)
+	if !ok {
+		return
 	}
 
 	for field, stats := range p.fields {
@@ -211,6 +226,44 @@ func (p *Stats) Observe(e *core.Event) {
 
 		p.cache.observe(m, fv)
 	}
+}
+
+func (p *Stats) noLabels(e *core.Event) ([]metricLabel, bool) {
+	return make([]metricLabel, 0, 0), true
+}
+
+func (p *Stats) withLabels(e *core.Event) ([]metricLabel, bool) {
+	labels := make([]metricLabel, 0, len(p.WithLabels))
+	for _, k := range p.WithLabels {
+		v, ok := e.GetLabel(k)
+		if !ok {
+			return nil, false
+		}
+
+		labels = append(labels, metricLabel{
+			Key:   k,
+			Value: v,
+		})
+	}
+
+	return labels, true
+}
+
+func (p *Stats) withoutLabels(e *core.Event) ([]metricLabel, bool) {
+	labels := make([]metricLabel, 0, len(e.Labels))
+	for k, v := range e.Labels {
+		if _, ok := p.exLabels[k]; ok {
+			continue
+		}
+
+		labels = append(labels, metricLabel{
+			Key:   k,
+			Value: v,
+		})
+	}
+
+	slices.SortFunc(labels, compareLabels)
+	return labels, true
 }
 
 func init() {
