@@ -23,6 +23,7 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `getErrors() (e List[String])` - get event errors
  - `getUuid() (uuid String)` - get event UUID
  - `shareTracker(receiver Event)` - share tracker with another event; **if receiver already has a tracker, method panics**
+ - `shareUUID(receiver Event)` - share UUID with another event
 
 Also, you can create a new event using `newEvent(key String) (event Event)` builtin function.
 
