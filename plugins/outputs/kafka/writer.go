@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +14,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
@@ -68,10 +68,7 @@ func (w *topicWriter) Run() {
 			if err != nil {
 				w.Log.Error("serialization failed, event skipped",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				w.Done <- e
 				w.Observe(metrics.EventFailed, time.Since(now))
@@ -132,18 +129,12 @@ func (w *topicWriter) Run() {
 			if e.error != nil {
 				w.Log.Error("event produce failed",
 					"error", e.error,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e.Event),
 				)
 				w.Observe(metrics.EventFailed, e.spentTime)
 			} else {
 				w.Log.Debug("event produced",
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e.Event),
 				)
 				w.Observe(metrics.EventAccepted, e.spentTime)
 			}

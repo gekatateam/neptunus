@@ -18,6 +18,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	basic "github.com/gekatateam/neptunus/plugins/common/http"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
@@ -235,10 +236,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err := event.SetField(i.QueryParamsTo, params); err != nil {
 				i.Log.Warn("set query params to event failed",
 					"error", err,
-					slog.Group("event",
-						"id", event.Id,
-						"key", event.RoutingKey,
-					),
+					elog.EventGroup(event),
 				)
 			}
 		}
@@ -251,10 +249,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		i.Ider.Apply(event)
 		i.Out <- event
 		i.Log.Debug("event accepted",
-			slog.Group("event",
-				"id", event.Id,
-				"key", event.RoutingKey,
-			),
+			elog.EventGroup(event),
 		)
 		i.Observe(metrics.EventAccepted, time.Since(now))
 		now = time.Now()

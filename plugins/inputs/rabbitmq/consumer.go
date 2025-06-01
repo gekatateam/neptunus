@@ -11,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 )
 
@@ -110,10 +111,7 @@ CONSUME_LOOP:
 			c.ider.Apply(e)
 			c.Out <- e
 			c.Log.Debug("event accepted",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			c.Observe(metrics.EventAccepted, time.Since(now))
 			now = time.Now()

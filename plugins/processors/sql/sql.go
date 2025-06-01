@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
@@ -135,10 +135,7 @@ func (p *Sql) Run() {
 			if !ok {
 				p.Log.Error("query preparation failed",
 					"error", fmt.Errorf("event does not contains %v label", p.TableLabel),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(fmt.Errorf("event does not contains %v label", p.TableLabel))
 				p.Out <- e
@@ -191,10 +188,7 @@ func (p *Sql) Run() {
 		if err != nil {
 			p.Log.Error("sql exec failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(err)
 			p.Out <- e
@@ -207,10 +201,7 @@ func (p *Sql) Run() {
 				if err := e.SetField(field, any(val)); err != nil {
 					p.Log.Warn("set field failed",
 						"error", fmt.Errorf("set field failed: %w", err),
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
+						elog.EventGroup(e),
 					)
 				}
 			}

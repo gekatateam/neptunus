@@ -3,7 +3,6 @@ package deduplicate
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
@@ -108,10 +108,7 @@ func (p *Deduplicate) Run() {
 		key, ok := e.GetLabel(p.IdempotencyKey)
 		if !ok {
 			p.Log.Debug("event has no configured label, skipped",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			p.Out <- e
 			p.Observe(metrics.EventAccepted, time.Since(now))
@@ -133,10 +130,7 @@ func (p *Deduplicate) Run() {
 		if err != nil {
 			p.Log.Error("redis cmd exec failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(err)
 			p.Out <- e
@@ -146,10 +140,7 @@ func (p *Deduplicate) Run() {
 
 		if !unique {
 			p.Log.Debug("duplicate event found",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.SetLabel("::duplicate", "true")
 		}

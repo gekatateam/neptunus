@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -11,6 +10,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 )
@@ -73,18 +73,12 @@ func (q *querier) Run() {
 			if err != nil {
 				q.Log.Error("event query execution failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				q.Observe(metrics.EventFailed, timePerEvent)
 			} else {
 				q.Log.Debug("event query executed successfully",
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				q.Observe(metrics.EventAccepted, timePerEvent)
 			}

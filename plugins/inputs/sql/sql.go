@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
@@ -311,10 +311,7 @@ func (i *Sql) poll() {
 		i.Ider.Apply(e)
 		i.Out <- e
 		i.Log.Debug("event accepted",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
+			elog.EventGroup(e),
 		)
 		i.Observe(metrics.EventAccepted, time.Since(now))
 		now = time.Now()

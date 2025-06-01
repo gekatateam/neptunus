@@ -3,7 +3,6 @@ package starlark
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"go.starlark.net/starlark"
@@ -11,6 +10,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	common "github.com/gekatateam/neptunus/plugins/common/starlark"
 )
 
@@ -48,10 +48,7 @@ func (f *Starlark) Run() {
 		if err != nil {
 			f.Log.Error("exec failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
 			f.Rej <- e
@@ -63,10 +60,7 @@ func (f *Starlark) Run() {
 		if err != nil {
 			f.Log.Error("exec failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(fmt.Errorf("exec failed: %v", err))
 			f.Rej <- e

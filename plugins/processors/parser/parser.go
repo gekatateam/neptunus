@@ -3,12 +3,12 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 )
 
@@ -81,10 +81,7 @@ MAIN_LOOP:
 		if err != nil {
 			p.Log.Error("parsing failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(err)
 			p.Out <- e
@@ -122,12 +119,8 @@ MAIN_LOOP:
 				if err := event.SetField(p.To, donor.Data); err != nil {
 					p.Drop <- event // drop cloned event
 					p.Log.Error("error set field",
-						"error", err,
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-							"field", p.To,
-						),
+						"error", fmt.Errorf("%v: %w", p.To, err),
+						elog.EventGroup(e),
 					)
 					e.StackError(fmt.Errorf("error set field: %w", err))
 					p.Out <- e

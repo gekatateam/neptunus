@@ -1,12 +1,12 @@
 package drop
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Drop struct {
@@ -26,10 +26,7 @@ func (p *Drop) Run() {
 		now := time.Now()
 		p.Drop <- e
 		p.Log.Debug("event dropped",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
+			elog.EventGroup(e),
 		)
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	basic "github.com/gekatateam/neptunus/plugins/common/http"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
@@ -197,10 +198,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			i.Ider.Apply(event)
 			i.Out <- event
 			i.Log.Debug("event accepted",
-				slog.Group("event",
-					"id", event.Id,
-					"key", event.RoutingKey,
-				),
+				elog.EventGroup(event),
 			)
 			events++
 			i.Observe(metrics.EventAccepted, time.Since(now))

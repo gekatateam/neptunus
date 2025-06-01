@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -12,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
@@ -74,10 +74,7 @@ func (p *publisher) Run() {
 			if err != nil {
 				p.Log.Error("serialization failed, event skipped",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				p.Done <- e
 				p.Observe(metrics.EventFailed, time.Since(now))
@@ -114,10 +111,7 @@ func (p *publisher) Run() {
 				label, ok := e.GetLabel(p.typeLabel)
 				if !ok {
 					p.Log.Warn("event does not contains msgType label",
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
+						elog.EventGroup(e),
 					)
 				} else {
 					pub.pub.Type = label
@@ -128,10 +122,7 @@ func (p *publisher) Run() {
 				label, ok := e.GetLabel(p.routingLabel)
 				if !ok {
 					p.Log.Warn("event does not contains routingKey label",
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
+						elog.EventGroup(e),
 					)
 				} else {
 					pub.routingKey = label
@@ -156,18 +147,12 @@ func (p *publisher) Run() {
 			if pub.err != nil {
 				p.Log.Error("event produce failed",
 					"error", pub.err,
-					slog.Group("event",
-						"id", pub.event.Id,
-						"key", pub.event.RoutingKey,
-					),
+					elog.EventGroup(pub.event),
 				)
 				p.Observe(metrics.EventFailed, pub.dur+dur)
 			} else {
 				p.Log.Debug("event produced",
-					slog.Group("event",
-						"id", pub.event.Id,
-						"key", pub.event.RoutingKey,
-					),
+					elog.EventGroup(pub.event),
 				)
 				p.Observe(metrics.EventAccepted, pub.dur+dur)
 			}

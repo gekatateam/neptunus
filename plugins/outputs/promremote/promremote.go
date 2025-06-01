@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -20,6 +19,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
@@ -103,10 +103,7 @@ func (o *Promremote) Run() {
 				o.Done <- e
 				o.Log.Error("batch marshal failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				o.Observe(metrics.EventFailed, time.Since(now))
 				now = time.Now()
@@ -131,18 +128,12 @@ func (o *Promremote) Run() {
 			if err != nil {
 				o.Log.Error("event processing failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				o.Observe(metrics.EventFailed, durationPerEvent(totalBefore, totalAfter, len(buf), i))
 			} else {
 				o.Log.Debug("event processed",
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				o.Observe(metrics.EventAccepted, durationPerEvent(totalBefore, totalAfter, len(buf), i))
 			}
@@ -162,10 +153,7 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 		name, ok := e.GetLabel("::name")
 		if !ok {
 			o.Log.Warn("event has no ::name label, event skipped",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			continue
 		}
@@ -174,10 +162,7 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 		rawStats, err := e.GetField("stats")
 		if err != nil {
 			o.Log.Warn("event has no stats field, event skipped",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			continue
 		}
@@ -185,10 +170,7 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 		stats, ok := rawStats.(map[string]any)
 		if !ok {
 			o.Log.Warn("event has stats field, but it is not a map, event skipped",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			continue
 		}
@@ -208,10 +190,7 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 			val, err := convert.AnyToFloat(v)
 			if err != nil {
 				o.Log.Warn(fmt.Sprintf("cannot convert stats.%v to float, field skipped", k),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				continue
 			}

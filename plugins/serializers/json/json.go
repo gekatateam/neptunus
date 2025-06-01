@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -12,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Json struct {
@@ -66,10 +66,7 @@ func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 		if err != nil {
 			s.Log.Error("serialization failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			s.Observe(metrics.EventFailed, time.Since(now))
 			now = time.Now()
@@ -102,10 +99,7 @@ func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 		if sErr != nil {
 			s.Log.Error("one of previous serialization failed",
 				"error", sErr,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			s.Observe(metrics.EventFailed, time.Since(now))
 			now = time.Now()
@@ -116,10 +110,7 @@ func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 		if err != nil {
 			s.Log.Error("serialization failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			s.Observe(metrics.EventFailed, time.Since(now))
 			now = time.Now()

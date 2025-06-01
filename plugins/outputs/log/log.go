@@ -2,12 +2,12 @@ package log
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Log struct {
@@ -45,10 +45,7 @@ func (o *Log) Run() {
 		if err != nil {
 			o.Log.Error("serialization failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
@@ -56,10 +53,8 @@ func (o *Log) Run() {
 		}
 
 		o.logFunc(string(event),
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			))
+			elog.EventGroup(e),
+		)
 		o.Done <- e
 		o.Observe(metrics.EventAccepted, time.Since(now))
 	}

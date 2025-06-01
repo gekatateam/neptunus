@@ -2,7 +2,7 @@ package template
 
 import (
 	"bytes"
-	"log/slog"
+	"fmt"
 	"text/template"
 	"time"
 
@@ -11,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	cte "github.com/gekatateam/neptunus/plugins/common/template"
 )
 
@@ -84,10 +85,7 @@ func (p *Template) Run() {
 			if err := p.id.Execute(p.buf, te); err != nil {
 				p.Log.Error("template exec failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				hasError = true
@@ -101,10 +99,7 @@ func (p *Template) Run() {
 			if err := p.routingKey.Execute(p.buf, te); err != nil {
 				p.Log.Error("template exec failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				hasError = true
@@ -118,10 +113,7 @@ func (p *Template) Run() {
 			if err := lt.Execute(p.buf, te); err != nil {
 				p.Log.Error("template exec failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				hasError = true
@@ -135,22 +127,15 @@ func (p *Template) Run() {
 			if err := ft.Execute(p.buf, te); err != nil {
 				p.Log.Error("template exec failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				hasError = true
 			} else {
 				if err := e.SetField(field, p.buf.String()); err != nil {
 					p.Log.Error("template executed successfully, but field set failed",
-						"error", err,
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-							"field", field,
-						),
+						"error", fmt.Errorf("%v: %w", field, err),
+						elog.EventGroup(e),
 					)
 					e.StackError(err)
 					hasError = true

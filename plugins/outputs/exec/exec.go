@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Exec struct {
@@ -39,10 +39,7 @@ func (o *Exec) Run() {
 		if err != nil {
 			o.Log.Error("environment variables preparation failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
@@ -53,10 +50,7 @@ func (o *Exec) Run() {
 		if err != nil {
 			o.Log.Error("command args preparation failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
@@ -73,18 +67,12 @@ func (o *Exec) Run() {
 		if err := cmd.Run(); err != nil {
 			o.Log.Error("command execution failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Observe(metrics.EventFailed, time.Since(now))
 		} else {
 			o.Log.Debug("command execution completed",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Observe(metrics.EventAccepted, time.Since(now))
 		}

@@ -68,6 +68,8 @@ var woEventMethods = map[string]*starlark.Builtin{
 
 	// tracker methods
 	"shareTracker": starlark.NewBuiltin("shareTracker", shareTracker), // f(event Event)
+
+	"shareUUID": starlark.NewBuiltin("shareUUID", shareUUID), // f(event Event)
 }
 
 func getId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -242,6 +244,16 @@ func shareTracker(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, 
 	}
 
 	core.ShareTracker(b.Receiver().(*Event).event, receiver.event)
+	return starlark.None, nil
+}
+
+func shareUUID(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var receiver *Event
+	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &receiver); err != nil {
+		return starlark.None, err
+	}
+
+	receiver.event.UUID = b.Receiver().(*Event).event.UUID
 	return starlark.None, nil
 }
 
