@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -23,6 +22,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
@@ -160,10 +160,7 @@ func (i *Grpc) SendOne(ctx context.Context, data *common.Data) (*common.Nil, err
 	for _, e := range events {
 		i.Out <- e
 		i.Log.Debug("event accepted",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
+			elog.EventGroup(e),
 		)
 		i.Observe(metrics.EventAccepted, time.Since(now))
 		now = time.Now()
@@ -214,10 +211,7 @@ func (i *Grpc) SendBulk(stream common.Input_SendBulkServer) error {
 		for _, e := range events {
 			i.Out <- e
 			i.Log.Debug("event accepted",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			i.Observe(metrics.EventAccepted, time.Since(now))
 			now = time.Now()
@@ -280,10 +274,7 @@ func (i *Grpc) SendStream(stream common.Input_SendStreamServer) error {
 
 		i.Out <- e
 		i.Log.Debug("event accepted",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
+			elog.EventGroup(e),
 		)
 		i.Observe(metrics.EventAccepted, time.Since(now))
 	}

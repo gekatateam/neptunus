@@ -2,13 +2,13 @@ package regex
 
 import (
 	"fmt"
-	"log/slog"
 	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Regex struct {
@@ -96,10 +96,7 @@ func (p *Regex) process(e *core.Event) {
 				if err := e.SetField(name, match[i]); err != nil {
 					p.Log.Warn("set field failed",
 						"error", err,
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
+						elog.EventGroup(e),
 					)
 				}
 			}

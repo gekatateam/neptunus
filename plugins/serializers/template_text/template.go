@@ -3,7 +3,6 @@ package template_text
 import (
 	"bytes"
 	"fmt"
-	"log/slog"
 	"os"
 	"text/template"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	cte "github.com/gekatateam/neptunus/plugins/common/template"
 )
 
@@ -70,18 +70,12 @@ func (t *TemplateText) parseBatch(events ...*core.Event) ([]byte, error) {
 		if err != nil {
 			t.Log.Error("template serialization failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			t.Observe(metrics.EventFailed, time.Since(now))
 		} else {
 			t.Log.Debug("event processed",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			t.Observe(metrics.EventAccepted, time.Since(now))
 		}

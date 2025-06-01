@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"google.golang.org/grpc"
@@ -17,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
@@ -123,10 +123,7 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 		if err != nil {
 			o.Log.Error("serialization failed",
 				"error", err.Error(),
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Done <- e
 			o.Observe(metrics.EventFailed, time.Since(now))
@@ -152,19 +149,13 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 		o.Done <- e
 		if err == nil {
 			o.Log.Debug("event sent",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Observe(metrics.EventAccepted, time.Since(now))
 		} else {
 			o.Log.Error("event send failed",
 				"error", err.Error(),
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			o.Observe(metrics.EventFailed, time.Since(now))
 		}
@@ -186,10 +177,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 			if err != nil {
 				o.Log.Error("serialization failed",
 					"error", err.Error(),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				o.Done <- e
 				o.Observe(metrics.EventFailed, time.Since(now))
@@ -202,10 +190,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 					if err != nil {
 						o.Log.Error("event sending failed",
 							"error", err,
-							slog.Group("event",
-								"id", e.Id,
-								"key", e.RoutingKey,
-							),
+							elog.EventGroup(e),
 						)
 						o.Done <- e
 						o.Observe(metrics.EventFailed, time.Since(now))
@@ -219,10 +204,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 
 				if err == nil {
 					o.Log.Debug("event sent",
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
+						elog.EventGroup(e),
 					)
 					o.Done <- e
 					o.Observe(metrics.EventAccepted, time.Since(now))
@@ -232,10 +214,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 				stream = nil // if error occurred, stream is already aborted, so we need to reopen it
 				o.Log.Error("sending to bulk stream failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				time.Sleep(o.RetryAfter)
 			}
@@ -283,10 +262,7 @@ MAIN_LOOP:
 			if err != nil {
 				o.Log.Error("serialization failed",
 					"error", err.Error(),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				o.Done <- e
 				o.Observe(metrics.EventFailed, time.Since(now))
@@ -299,10 +275,7 @@ MAIN_LOOP:
 					if err != nil {
 						o.Log.Error("event sending failed",
 							"error", err,
-							slog.Group("event",
-								"id", e.Id,
-								"key", e.RoutingKey,
-							),
+							elog.EventGroup(e),
 						)
 						o.Done <- e
 						o.Observe(metrics.EventFailed, time.Since(now))
@@ -322,10 +295,7 @@ MAIN_LOOP:
 
 				if err == nil {
 					o.Log.Debug("event sent",
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-						),
+						elog.EventGroup(e),
 					)
 					o.Done <- e
 					o.Observe(metrics.EventAccepted, time.Since(now))
@@ -335,10 +305,7 @@ MAIN_LOOP:
 				stream = nil // if error occurred, stream is already aborted, so we need to reopen it
 				o.Log.Error("sending to internal stream failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				time.Sleep(o.RetryAfter)
 			}

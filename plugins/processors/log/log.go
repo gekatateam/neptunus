@@ -2,12 +2,12 @@ package log
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Log struct {
@@ -45,10 +45,7 @@ func (p *Log) Run() {
 		if err != nil {
 			p.Log.Error("event serialization failed",
 				"error", err.Error(),
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
 			p.Out <- e
@@ -57,10 +54,7 @@ func (p *Log) Run() {
 		}
 
 		p.logFunc(string(event),
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
+			elog.EventGroup(e),
 		)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))

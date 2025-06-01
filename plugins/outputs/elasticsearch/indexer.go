@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -18,6 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/esopensearch"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
@@ -83,10 +83,7 @@ func (i *indexer) Run() {
 			if err != nil {
 				i.Log.Error("event serialization failed, event skipped",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				i.Done <- e
 				i.Observe(metrics.EventFailed, time.Since(now))
@@ -120,10 +117,7 @@ func (i *indexer) Run() {
 			if opErr != nil {
 				i.Log.Error("operation serialization failed, event skipped",
 					"error", opErr,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				i.Done <- e
 				i.Observe(metrics.EventFailed, time.Since(now))
@@ -150,10 +144,7 @@ func (i *indexer) Run() {
 			for _, e := range sentEvents {
 				i.Log.Error("event send failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e.Event),
 				)
 				i.Done <- e.Event
 				i.Observe(metrics.EventFailed, e.spentTime)
@@ -167,18 +158,12 @@ func (i *indexer) Run() {
 			if errCause := v[operationtype.OperationType{Name: i.operation}].Error; errCause != nil {
 				i.Log.Error("event send failed",
 					"error", errCause.Type+": "+*errCause.Reason,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e.Event),
 				)
 				i.Observe(metrics.EventFailed, e.spentTime)
 			} else {
 				i.Log.Debug("event sent",
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e.Event),
 				)
 				i.Observe(metrics.EventAccepted, e.spentTime)
 			}

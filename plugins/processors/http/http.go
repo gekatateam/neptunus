@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
@@ -123,10 +123,7 @@ func (p *Http) Run() {
 		if err != nil {
 			p.Log.Error("query params prepation failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(err)
 			p.Out <- e
@@ -140,10 +137,7 @@ func (p *Http) Run() {
 			if err != nil {
 				p.Log.Error("request body preparation failed",
 					"error", fmt.Errorf("no such field: %v", p.RequestBodyFrom),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(fmt.Errorf("no such field: %v", p.RequestBodyFrom))
 				p.Out <- e
@@ -159,10 +153,7 @@ func (p *Http) Run() {
 			if err != nil {
 				p.Log.Error("request body preparation failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				p.Out <- e
@@ -180,10 +171,7 @@ func (p *Http) Run() {
 			if !ok {
 				p.Log.Error("request path preparation failed",
 					"error", fmt.Errorf("event does not contains %v label", p.PathLabel),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(fmt.Errorf("event does not contains %v label", p.PathLabel))
 				p.Out <- e
@@ -197,10 +185,7 @@ func (p *Http) Run() {
 		if err != nil {
 			p.Log.Error("request failed",
 				"error", err,
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			e.StackError(err)
 			p.Out <- e
@@ -213,10 +198,7 @@ func (p *Http) Run() {
 			if err != nil {
 				p.Log.Error("response processing failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				p.Out <- e
@@ -233,10 +215,7 @@ func (p *Http) Run() {
 			if err := e.SetField(p.ResponseBodyTo, result); err != nil {
 				p.Log.Error("response processing failed",
 					"error", fmt.Errorf("error set response data: %w", err),
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(fmt.Errorf("error set response data: %w", err))
 				p.Out <- e
@@ -246,10 +225,7 @@ func (p *Http) Run() {
 		}
 
 		p.Log.Debug("event processed",
-			slog.Group("event",
-				"id", e.Id,
-				"key", e.RoutingKey,
-			),
+			elog.EventGroup(e),
 		)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))

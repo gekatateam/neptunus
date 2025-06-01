@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
@@ -57,10 +57,7 @@ func (r *requester) Run() {
 			for _, e := range buf {
 				r.Log.Error("query params prepation failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				r.Done <- e
 				r.Observe(metrics.EventFailed, each)
@@ -74,10 +71,7 @@ func (r *requester) Run() {
 			for _, e := range buf {
 				r.Log.Error("event serialization failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				r.Done <- e
 				r.Observe(metrics.EventFailed, each)
@@ -95,18 +89,12 @@ func (r *requester) Run() {
 			if err != nil {
 				r.Log.Error("event processing failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				r.Observe(metrics.EventFailed, durationPerEvent(totalBefore, totalAfter, len(buf), i))
 			} else {
 				r.Log.Debug("event processed",
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				r.Observe(metrics.EventAccepted, durationPerEvent(totalBefore, totalAfter, len(buf), i))
 			}

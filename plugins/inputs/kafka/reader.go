@@ -15,6 +15,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	kafkastats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
@@ -148,10 +149,7 @@ FETCH_LOOP:
 			r.ider.Apply(e)
 			r.Out <- e
 			r.Log.Debug("event accepted",
-				slog.Group("event",
-					"id", e.Id,
-					"key", e.RoutingKey,
-				),
+				elog.EventGroup(e),
 			)
 			r.Observe(metrics.EventAccepted, time.Since(now))
 			now = time.Now()

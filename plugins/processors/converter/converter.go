@@ -2,13 +2,13 @@ package converter
 
 import (
 	"fmt"
-	"log/slog"
 	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 var targetObjectPattern = regexp.MustCompile(`^((label|field):)?([\w-\.]+)$`)
@@ -117,10 +117,7 @@ func (p *Converter) Run() {
 			if err := p.converter.Convert(e, c); err != nil {
 				p.Log.Error("conversion failed",
 					"error", err,
-					slog.Group("event",
-						"id", e.Id,
-						"key", e.RoutingKey,
-					),
+					elog.EventGroup(e),
 				)
 				e.StackError(err)
 				hasError = true

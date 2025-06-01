@@ -2,12 +2,12 @@ package defaults
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Defaults struct {
@@ -39,12 +39,8 @@ func (p *Defaults) Run() {
 			if _, err := e.GetField(k); err != nil {
 				if err := e.SetField(k, v); err != nil {
 					p.Log.Error("error set field",
-						"error", err,
-						slog.Group("event",
-							"id", e.Id,
-							"key", e.RoutingKey,
-							"field", k,
-						),
+						"error", fmt.Errorf("%v: %w", k, err),
+						elog.EventGroup(e),
 					)
 					e.StackError(fmt.Errorf("error set field: %w", err))
 					hasError = true

@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"runtime"
 	"sync"
@@ -17,6 +16,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
@@ -144,10 +144,7 @@ func (i *Beats) Run() {
 
 					i.Out <- event
 					i.Log.Debug("event accepted",
-						slog.Group("event",
-							"id", event.Id,
-							"key", event.RoutingKey,
-						),
+						elog.EventGroup(event),
 					)
 					i.Observe(metrics.EventAccepted, time.Since(now))
 				}

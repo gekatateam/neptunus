@@ -1,11 +1,11 @@
 package cronjob
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Job struct {
@@ -23,10 +23,7 @@ func (j *Job) Run() {
 	j.Out <- e
 
 	j.Log.Debug("event produced",
-		slog.Group("event",
-			"id", e.Id,
-			"key", e.RoutingKey,
-		),
+		elog.EventGroup(e),
 	)
 	j.Observe(metrics.EventAccepted, time.Since(now))
 }
