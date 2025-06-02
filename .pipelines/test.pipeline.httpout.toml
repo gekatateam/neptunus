@@ -36,7 +36,7 @@
     batch_interval = "1s"
     [outputs.http.serializer]
       type = "json"
-      data_only = false
+      data_only = true
     [outputs.http.filters.glob]
       routing_key = [ "/httpout-test-out" ]
 

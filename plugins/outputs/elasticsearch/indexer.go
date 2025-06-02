@@ -174,11 +174,11 @@ func (i *indexer) Run() {
 }
 
 func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk.Response, error) {
-	var staticBody = b.Bytes() // cache body for retries
+	var body = b.Bytes() // cache body for retries
 	var bulkResponse *bulk.Response
 
 	return bulkResponse, i.Retryer.Do("bulk request", i.Log, func() error {
-		r.Body = bytes.NewReader(bytes.Clone(staticBody))
+		r.Body = bytes.NewReader(body)
 
 		ctx, cancel := context.WithTimeout(context.Background(), i.timeout)
 		response, err := r.Do(ctx, i.client)

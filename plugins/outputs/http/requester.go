@@ -173,7 +173,7 @@ func (r *requester) perform(uri *url.URL, params url.Values, body []byte, header
 	uri.RawQuery = params.Encode()
 
 	return r.Retryer.Do("perform request", r.Log, func() error {
-		req, err := http.NewRequest(r.method, uri.String(), bytes.NewReader(bytes.Clone(body)))
+		req, err := http.NewRequest(r.method, uri.String(), bytes.NewReader(body))
 		if err != nil {
 			return err
 		}
