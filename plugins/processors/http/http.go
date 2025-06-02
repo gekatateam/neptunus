@@ -238,7 +238,7 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 	var rawResponse []byte
 
 	err := p.Retryer.Do("perform request", p.Log, func() error {
-		req, err := http.NewRequest(p.Method, uri.String(), bytes.NewReader(bytes.Clone(body)))
+		req, err := http.NewRequest(p.Method, uri.String(), bytes.NewReader(body))
 		if err != nil {
 			return err
 		}

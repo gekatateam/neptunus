@@ -235,7 +235,7 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 
 func (o *Promremote) write(body []byte, header http.Header) error {
 	return o.Retryer.Do("write metrics batch", o.Log, func() error {
-		req, err := http.NewRequest(http.MethodPost, o.Host, bytes.NewReader(bytes.Clone(body)))
+		req, err := http.NewRequest(http.MethodPost, o.Host, bytes.NewReader(body))
 		if err != nil {
 			return err
 		}
