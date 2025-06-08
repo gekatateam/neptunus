@@ -7,6 +7,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/defaults"
 	_ "github.com/gekatateam/neptunus/plugins/processors/delete"
 	_ "github.com/gekatateam/neptunus/plugins/processors/drop"
+	_ "github.com/gekatateam/neptunus/plugins/processors/dynamic_template"
 	_ "github.com/gekatateam/neptunus/plugins/processors/http"
 	_ "github.com/gekatateam/neptunus/plugins/processors/line"
 	_ "github.com/gekatateam/neptunus/plugins/processors/log"

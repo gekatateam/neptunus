@@ -2,7 +2,7 @@
 
 The `dynamic_template` processor evaluates [Golang templates](https://pkg.go.dev/text/template) in configured labels and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) available!
 
-Unlike [template processor](../template/), this plugin does not use predefined templates.
+Unlike [template processor](../template/), this plugin does not use predefined templates. Instead, it uses **label or field content** as a template and replaces it by execution result.
 
 Plugin uses [wrapped events](../../common/template/README.md).
 

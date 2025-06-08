@@ -65,6 +65,7 @@ MAIN_LOOP:
 
 func (p *DynamicTemplate) process(e *core.Event) (allOk bool) {
 	hasError := false
+	te := cte.New(e)
 
 	for _, l := range p.Labels {
 		labelRaw, ok := e.GetLabel(l)
@@ -72,7 +73,7 @@ func (p *DynamicTemplate) process(e *core.Event) (allOk bool) {
 			continue
 		}
 
-		result, ok := p.processTemplate(e, fmt.Sprintf("label:%v", l), labelRaw)
+		result, ok := p.processTemplate(e, te, fmt.Sprintf("label:%v", l), labelRaw)
 		if !ok {
 			hasError = true
 			continue
@@ -88,7 +89,7 @@ func (p *DynamicTemplate) process(e *core.Event) (allOk bool) {
 
 		switch field := fieldRaw.(type) {
 		case string:
-			result, ok := p.processTemplate(e, fmt.Sprintf("field:%v", f), field)
+			result, ok := p.processTemplate(e, te, fmt.Sprintf("field:%v", f), field)
 			if !ok {
 				hasError = true
 				continue
@@ -104,7 +105,7 @@ func (p *DynamicTemplate) process(e *core.Event) (allOk bool) {
 					continue
 				}
 
-				result, ok := p.processTemplate(e, fmt.Sprintf("field:%v.%v", f, k), data)
+				result, ok := p.processTemplate(e, te, fmt.Sprintf("field:%v.%v", f, k), data)
 				if !ok {
 					hasError = true
 					continue
@@ -123,7 +124,7 @@ func (p *DynamicTemplate) process(e *core.Event) (allOk bool) {
 					continue
 				}
 
-				result, ok := p.processTemplate(e, fmt.Sprintf("field:%v.%v", f, i), data)
+				result, ok := p.processTemplate(e, te, fmt.Sprintf("field:%v.%v", f, i), data)
 				if !ok {
 					hasError = true
 					continue
@@ -143,7 +144,7 @@ func (p *DynamicTemplate) process(e *core.Event) (allOk bool) {
 	return !hasError
 }
 
-func (p *DynamicTemplate) processTemplate(e *core.Event, source, content string) (result string, ok bool) {
+func (p *DynamicTemplate) processTemplate(e *core.Event, te cte.TEvent, source, content string) (result string, ok bool) {
 	t, ok := cache.Get(content)
 	if !ok { // if there is no template, try to create it and put in cache
 		var err error
@@ -160,7 +161,6 @@ func (p *DynamicTemplate) processTemplate(e *core.Event, source, content string)
 		cache.Put(content, t)
 	}
 
-	te := cte.New(e)
 	if err := t.Execute(p.buf, te); err != nil {
 		p.Log.Error("template exec failed",
 			"error", fmt.Errorf("%v: %w", source, err),
