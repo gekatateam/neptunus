@@ -35,7 +35,7 @@ func (m Month) Freeze() {}
 func (m Month) Truth() starlark.Bool { return m >= 1 && m <= 12 }
 
 func (m Month) Hash() (uint32, error) {
-	return uint32(m) ^ uint32(int64(m)>>32), nil
+	return uint32(m), nil
 }
 
 func (d Month) Cmp(v starlark.Value, depth int) (int, error) {

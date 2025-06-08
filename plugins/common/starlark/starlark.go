@@ -8,7 +8,7 @@ import (
 
 	"go.starlark.net/lib/json"
 	"go.starlark.net/lib/math"
-	startime "go.starlark.net/lib/time"
+	starlarktime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 	"go.starlark.net/starlarkstruct"
 	"go.starlark.net/syntax"
@@ -16,6 +16,7 @@ import (
 	"github.com/qri-io/starlib/encoding/base64"
 	"github.com/qri-io/starlib/encoding/csv"
 	"github.com/qri-io/starlib/encoding/yaml"
+	"github.com/qri-io/starlib/re"
 
 	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 	"github.com/gekatateam/neptunus/pkg/starlarkfs"
@@ -84,7 +85,7 @@ SCRIPT_LOADED:
 				}, nil
 			case "time.star":
 				return starlark.StringDict{
-					"time": startime.Module,
+					"time": starlarktime.Module,
 				}, nil
 			case "date.star":
 				return starlark.StringDict{
@@ -100,6 +101,8 @@ SCRIPT_LOADED:
 				return csv.LoadModule()
 			case "base64.star":
 				return base64.LoadModule()
+			case "re.star":
+				return re.LoadModule()
 			default:
 				script, err := os.ReadFile(module)
 				if err != nil {
