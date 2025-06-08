@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.sqlproc"
   lines = 2
-  run = true
+  run = false
   buffer = 5
 
 [[inputs]]
