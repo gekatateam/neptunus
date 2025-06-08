@@ -92,7 +92,9 @@ func (p *Http) Init() error {
 func (p *Http) Close() error {
 	p.ser.Close()
 	p.parser.Close()
-	p.client.CloseIdleConnections()
+	if clientStorage.Leave(p.id) {
+		p.client.CloseIdleConnections()
+	}
 	return nil
 }
 
