@@ -30,7 +30,7 @@ func (w Weekday) Freeze() {}
 func (w Weekday) Truth() starlark.Bool { return w >= 0 && w <= 6 }
 
 func (w Weekday) Hash() (uint32, error) {
-	return uint32(w) ^ uint32(int64(w)>>32), nil
+	return uint32(w), nil
 }
 
 func (d Weekday) Cmp(v starlark.Value, depth int) (int, error) {
