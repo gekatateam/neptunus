@@ -27,7 +27,6 @@ type Deduplicate struct {
 }
 
 type Redis struct {
-	Shared           bool          `mapstructure:"shared"`
 	Servers          []string      `mapstructure:"servers"`
 	Username         string        `mapstructure:"username"`
 	Password         string        `mapstructure:"password"`
@@ -80,9 +79,7 @@ func (p *Deduplicate) Init() error {
 		TLSConfig:             tlsConfig,
 	})
 
-	if p.Redis.Shared {
-		p.client = clientStorage.CompareAndStore(p.id, p.client)
-	}
+	p.client = clientStorage.CompareAndStore(p.id, p.client)
 
 	if err := p.client.Ping(context.Background()).Err(); err != nil {
 		defer p.client.Close()
@@ -93,7 +90,10 @@ func (p *Deduplicate) Init() error {
 }
 
 func (p *Deduplicate) Close() error {
-	return p.client.Close()
+	if clientStorage.Leave(p.id) {
+		return p.client.Close()
+	}
+	return nil
 }
 
 func (p *Deduplicate) SetId(id uint64) {
@@ -153,7 +153,6 @@ func init() {
 	plugins.AddProcessor("deduplicate", func() core.Processor {
 		return &Deduplicate{
 			Redis: Redis{
-				Shared:           true,
 				Keyspace:         "neptunus:deduplicate",
 				ConnsMaxIdleTime: 10 * time.Minute,
 				ConnsMaxLifetime: 10 * time.Minute,

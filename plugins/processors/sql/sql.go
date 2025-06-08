@@ -28,7 +28,6 @@ type Sql struct {
 	Dsn                 string        `mapstructure:"dsn"`
 	Username            string        `mapstructure:"username"`
 	Password            string        `mapstructure:"password"`
-	Shared              bool          `mapstructure:"shared"`
 	ConnsMaxIdleTime    time.Duration `mapstructure:"conns_max_idle_time"`
 	ConnsMaxLifetime    time.Duration `mapstructure:"conns_max_life_time"`
 	ConnsMaxOpen        int           `mapstructure:"conns_max_open"`
@@ -84,10 +83,7 @@ func (p *Sql) Init() error {
 	db.DB.SetMaxIdleConns(p.ConnsMaxIdle)
 	db.DB.SetMaxOpenConns(p.ConnsMaxOpen)
 
-	p.db = db
-	if p.Shared {
-		p.db = clientStorage.CompareAndStore(p.id, db)
-	}
+	p.db = clientStorage.CompareAndStore(p.id, db)
 
 	if err := p.db.Ping(); err != nil {
 		defer p.db.Close()
@@ -212,13 +208,15 @@ func (p *Sql) Run() {
 }
 
 func (p *Sql) Close() error {
-	return p.db.Close()
+	if clientStorage.Leave(p.id) {
+		return p.db.Close()
+	}
+	return nil
 }
 
 func init() {
 	plugins.AddProcessor("sql", func() core.Processor {
 		return &Sql{
-			Shared:           true,
 			ConnsMaxIdleTime: 10 * time.Minute,
 			ConnsMaxLifetime: 10 * time.Minute,
 			ConnsMaxOpen:     2,

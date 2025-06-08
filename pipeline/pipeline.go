@@ -363,10 +363,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 	wg.Wait()
 
-	for _, k := range p.keepers {
-		k.Close()
-	}
-
+	p.Close()
 	p.log.Info("pipeline stopped")
 	p.state = StateStopped
 }

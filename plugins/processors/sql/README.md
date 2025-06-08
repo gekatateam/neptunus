@@ -30,10 +30,6 @@ Drivers use plugin TLS configuration.
     username = ""
     password = ""
 
-    # if true, one SQL client is shared between processors in set
-    # otherwise, each plugin uses a personal client
-    shared = true
-
     # database connection params - https://pkg.go.dev/database/sql#DB.SetConnMaxIdleTime
     conns_max_idle_time = "10m"
     conns_max_life_time = "10m"

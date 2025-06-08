@@ -1,0 +1,30 @@
+[settings]
+  id = "test.pipeline.dtemplate"
+  lines = 2
+  run = true
+  buffer = 5
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    query_params_to = ""
+    wait_for_delivery = false
+    tls_enable = false
+    [inputs.http.parser]
+      type = "json"
+      split_array = true
+
+[[processors]]
+ [processors.defaults.labels]
+   tmplabel = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
+
+[[processors]]
+  [processors.dynamic_template]
+      labels = [ "tmplabel" ]
+      fields = [ "annotations", "legend", "reason", "number" ]
+
+[[outputs]]
+  [outputs.log]
+    [outputs.log.serializer]
+      type = "json"

@@ -19,10 +19,6 @@ Processor adds `::duplicate` label to event with with `true` value if duplicate 
 
     # Redis connection config
     [processors.deduplicate.redis]
-      # if true, one Redis client is shared between processors in set
-      # otherwise, each plugin uses a personal client
-      shared = true
-
       # list of Redis nodes
       servers = [ "localhost:6379" ]
 
