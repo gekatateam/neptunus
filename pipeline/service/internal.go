@@ -26,7 +26,7 @@ type pipeUnit struct {
 }
 
 type internalService struct {
-	pipes *syncs.Map[string, pipeUnit]
+	pipes syncs.Map[string, pipeUnit]
 	log   *slog.Logger
 	wg    *sync.WaitGroup
 	s     pipeline.Storage
@@ -36,7 +36,7 @@ func Internal(s pipeline.Storage, log *slog.Logger) *internalService {
 	return &internalService{
 		log:   log,
 		s:     s,
-		pipes: &syncs.Map[string, pipeUnit]{},
+		pipes: syncs.New[string, pipeUnit](),
 		wg:    &sync.WaitGroup{},
 	}
 }
@@ -104,6 +104,11 @@ func (m *internalService) Start(id string) error {
 	unit.mu.Lock()
 	defer unit.mu.Unlock()
 
+	// Load() returns unit that already updated by runPipeline()
+	// it saves us from multiple runs of one pipeline, because we MUST recreate it
+	// to run with new config
+	unit, _ = m.pipes.Load(id)
+
 	switch unit.p.State() {
 	case pipeline.StateRunning:
 		return &pipeline.ConflictError{Err: errors.New("pipeline already running")}
@@ -115,7 +120,7 @@ func (m *internalService) Start(id string) error {
 		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 	}
 
-	return m.runPipeline(unit)
+	return m.runPipeline(pipeUnit{m.createPipeline(pipeCfg), unit.mu, nil})
 }
 
 func (m *internalService) Stop(id string) error {
@@ -159,7 +164,7 @@ func (m *internalService) State(id string) (string, error, error) {
 		return "", nil, &pipeline.NotFoundError{Err: errors.New("pipeline unit not found in runtime registry")}
 	}
 
-	return string(unit.p.State()), unit.p.LastError(), nil
+	return unit.p.State().String(), unit.p.LastError(), nil
 }
 
 func (m *internalService) List() ([]*config.Pipeline, error) {
@@ -253,9 +258,11 @@ func (m *internalService) createPipeline(pipeCfg *config.Pipeline) *pipeline.Pip
 
 func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	id := pipeUnit.p.Config().Settings.Id
+	m.pipes.Store(id, pipeUnit)
 	m.log.Info("building pipeline",
 		"id", id,
 	)
+
 	if err := pipeUnit.p.Build(); err != nil {
 		m.log.Error("pipeline building failed",
 			"error", err.Error(),
@@ -280,6 +287,7 @@ func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	m.wg.Add(1)
 	go func(p *pipeline.Pipeline) {
 		p.Run(ctx)
+		p.Close()
 		m.wg.Done()
 		cancel()
 	}(pipeUnit.p)
@@ -293,7 +301,7 @@ func (m *internalService) Stats() []metrics.PipelineStats {
 	m.pipes.Range(func(name string, pipe pipeUnit) bool {
 		pipesState = append(pipesState, metrics.PipelineStats{
 			Pipeline: name,
-			State:    pipeline.StateCode[pipe.p.State()],
+			State:    int(pipe.p.State()),
 			Lines:    pipe.p.Config().Settings.Lines,
 			Chans:    pipe.p.ChansStats(),
 		})

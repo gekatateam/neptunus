@@ -32,25 +32,29 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/serializers"
 )
 
-type state string
+type state int
 
-var (
-	StateCreated  state = "created"
-	StateBuilding state = "building"
-	StateStarting state = "starting"
-	StateRunning  state = "running"
-	StateStopping state = "stopping"
-	StateStopped  state = "stopped"
-
-	StateCode = map[state]int{
-		StateCreated:  1,
-		StateBuilding: 2,
-		StateStarting: 3,
-		StateRunning:  4,
-		StateStopping: 5,
-		StateStopped:  6,
-	}
+const (
+	StateCreated state = iota + 1
+	StateBuilding
+	StateStarting
+	StateRunning
+	StateStopping
+	StateStopped
 )
+
+var StateCode = map[state]string{
+	StateCreated:  "created",
+	StateBuilding: "building",
+	StateStarting: "starting",
+	StateRunning:  "running",
+	StateStopping: "stopping",
+	StateStopped:  "stopped",
+}
+
+func (s state) String() string {
+	return StateCode[s]
+}
 
 var keyConfigPattern = regexp.MustCompile(`^@{(.+):(.+)}$`)
 
@@ -168,6 +172,7 @@ func (p *Pipeline) Close() error {
 	p.outs = make([]outputSet, 0, len(p.config.Outputs))
 	p.procs = make([][]procSet, 0, p.config.Settings.Lines)
 	p.ins = make([]inputSet, 0, len(p.config.Inputs))
+	p.chansStatsFuncs = nil
 
 	return nil
 }
@@ -363,7 +368,6 @@ func (p *Pipeline) Run(ctx context.Context) {
 	}
 	wg.Wait()
 
-	p.Close()
 	p.log.Info("pipeline stopped")
 	p.state = StateStopped
 }
