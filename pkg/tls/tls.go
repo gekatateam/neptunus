@@ -158,7 +158,7 @@ func (tb *tlsConfigBuilder) MinMaxVersion(min, max string) *tlsConfigBuilder {
 }
 
 func (tb *tlsConfigBuilder) Reset() *tlsConfigBuilder {
-	tb.cfg = nil
+	tb.cfg = &tls.Config{}
 	tb.err = nil
 	return tb
 }
