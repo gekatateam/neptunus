@@ -376,7 +376,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 				return nil, err
 			}
 
-			datamap[goKey.String()] = goValue
+			datamap[string(goKey)] = goValue
 		}
 		return datamap, nil
 	case startime.Time:
