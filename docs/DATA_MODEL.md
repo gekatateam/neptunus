@@ -58,7 +58,9 @@ To get first user role, call `GetField("metadata.user.roles.0")`, to add a new f
 }
 ```
 
-These types can be used as field values: strings, integers (signed and unsigned), booleans, floating point numbers, arrays, slices and maps with string as a key. Any other types may cause errors at the serialization stage.
+It also supports negative indexes for slices that already exists. In this case, target element will be `len(slice) - |index|`. For example, you can get last element from this slice - `[0, 2, 4, 6]` - by `-1` index, because it's length is `4` and `4-1=3`.
+
+These types can be used as field values: strings, integers (signed and unsigned), booleans, floating point numbers, time, duration, arrays, slices and maps with string as a key. Any other types may cause errors at the serialization stage.
 
 There are a few corner cases:
  - if `GetField(".")` is called, method returns event data as is.
