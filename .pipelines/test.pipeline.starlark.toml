@@ -1,8 +1,12 @@
 [settings]
   id = "test.pipeline.starlark"
   lines = 5
-  run = false
+  run = true
   buffer = 1_000
+
+[[keykeepers]]
+  [keykeepers.env]
+    alias = "env"
 
 [[inputs]]
   [inputs.http]
@@ -19,18 +23,16 @@
   [processors.starlark]
     code = '''
 def process(event):
-    event.setField("null", None)
-    if event.getField("null") == None:
-        event.setField("result", "null found")
+    event.setField("thenumber", thenumber)
+    event.setField("hostname", hostname)
+    event.setField("table", table)
+
     return event
     '''
-
-[[outputs]]
-  [outputs.log]
-    level = "info"
-    [outputs.log.serializer]
-      type = "json"
-      data_only = false
+    [processors.starlark.constants]
+      thenumber = 42
+      hostname = "@{env:COMPUTERNAME}"
+      table = { a = "a", b = true }
 
 [[outputs]]
   [outputs.log]

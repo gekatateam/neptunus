@@ -35,4 +35,14 @@ def filter(event):
     else:
         return False # reject event
       '''
+
+      # script constants, for cases, when you need to provide some data
+      # to your generic script
+      # each value can be used by it's name in map
+      # each value will be converted to Starlark type by rules 
+      # described in `Type conversions` paragraph 
+      [outputs.log.filters.starlark.constants]
+        thenumber = 42
+        hostname = "@{env:COMPUTERNAME}"
+        table = { a = "a", b = true }
 ```
