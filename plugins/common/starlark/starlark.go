@@ -23,9 +23,10 @@ import (
 )
 
 type Starlark struct {
-	alias string
-	Code  string `mapstructure:"code"`
-	File  string `mapstructure:"file"`
+	alias  string
+	Code   string         `mapstructure:"code"`
+	File   string         `mapstructure:"file"`
+	Consts map[string]any `mapstructure:"constants"`
 
 	thread  *starlark.Thread
 	globals starlark.StringDict
@@ -60,6 +61,17 @@ SCRIPT_LOADED:
 		"error":    starlark.NewBuiltin("error", newError),
 		"struct":   starlark.NewBuiltin("struct", starlarkstruct.Make),
 		"handle":   starlark.NewBuiltin("handle", handle),
+	}
+
+	if len(p.Consts) > 0 {
+		for k, v := range p.Consts {
+			sv, err := toStarlarkValue(v)
+			if err != nil {
+				return fmt.Errorf("constants: %v: %w", k, err)
+			}
+
+			builtins[k] = sv
+		}
 	}
 
 	opts := &syntax.FileOptions{
