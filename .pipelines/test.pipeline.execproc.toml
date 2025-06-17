@@ -17,15 +17,17 @@
   [processors.starlark]
     code = '''
 def process(event):
-    args = [ "-Command", "echo '{}'; sleep -Seconds 20".format(event.getId()) ]
+    args = [ "-Command", "echo $env:CATCH_PHRASE" ]
     event.delField(".")
     event.setField("args", args)
+    event.setLabel("CATCH_PHRASE", "Hi, I'm Elfo")
     return event
     '''
 
 [[processors]]
   [processors.exec]
     command = "powershell.exe"
+    envs = [ "CATCH_PHRASE" ]
     args = ["args"]
 
 
