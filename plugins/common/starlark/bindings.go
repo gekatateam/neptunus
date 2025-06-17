@@ -9,7 +9,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/pkg/starlarkdate"
-	startime "go.starlark.net/lib/time"
+	starlarktime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
 )
 
@@ -101,11 +101,11 @@ func setRoutingKey(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple,
 }
 
 func getTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	return startime.Time(b.Receiver().(*Event).event.Timestamp), nil
+	return starlarktime.Time(b.Receiver().(*Event).event.Timestamp), nil
 }
 
 func setTimestamp(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	var ts startime.Time
+	var ts starlarktime.Time
 	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &ts); err != nil {
 		return starlark.None, err
 	}
@@ -281,7 +281,7 @@ func toStarlarkValue(goValue any) (starlark.Value, error) {
 		return starlark.Bool(v.Bool()), nil
 	case reflect.Int64:
 		if dur, ok := v.Interface().(time.Duration); ok {
-			return startime.Duration(dur), nil
+			return starlarktime.Duration(dur), nil
 		}
 		return starlark.MakeInt64(v.Int()), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
@@ -320,7 +320,7 @@ func toStarlarkValue(goValue any) (starlark.Value, error) {
 		return dict, nil
 	case reflect.Struct:
 		if time, ok := v.Interface().(time.Time); ok {
-			return startime.Time(time), nil
+			return starlarktime.Time(time), nil
 		}
 	}
 
@@ -379,9 +379,9 @@ func toGoValue(starValue starlark.Value) (any, error) {
 			datamap[string(goKey)] = goValue
 		}
 		return datamap, nil
-	case startime.Time:
+	case starlarktime.Time:
 		return time.Time(v), nil
-	case startime.Duration:
+	case starlarktime.Duration:
 		return time.Duration(v), nil
 	case starlarkdate.Month:
 		return v.String(), nil

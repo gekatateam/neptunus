@@ -1,0 +1,37 @@
+[settings]
+  id = "test.pipeline.execproc"
+  lines = 3
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.cronjob]
+    [[inputs.cronjob.jobs]]
+      name = "healthcheck.notify"
+      schedule = "@every 10s"
+
+[[processors]]
+  [processors.line]
+
+[[processors]]
+  [processors.starlark]
+    code = '''
+def process(event):
+    args = [ "-Command", "echo '{}'; sleep -Seconds 20".format(event.getId()) ]
+    event.delField(".")
+    event.setField("args", args)
+    return event
+    '''
+
+[[processors]]
+  [processors.exec]
+    command = "powershell.exe"
+    args = ["args"]
+
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
