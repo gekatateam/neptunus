@@ -1,0 +1,39 @@
+[settings]
+  id = "test.pipeline.execproc"
+  lines = 3
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.cronjob]
+    [[inputs.cronjob.jobs]]
+      name = "healthcheck.notify"
+      schedule = "@every 10s"
+
+[[processors]]
+  [processors.line]
+
+[[processors]]
+  [processors.starlark]
+    code = '''
+def process(event):
+    args = [ "-Command", "echo $env:CATCH_PHRASE" ]
+    event.delField(".")
+    event.setField("args", args)
+    event.setLabel("CATCH_PHRASE", "Hi, I'm Elfo")
+    return event
+    '''
+
+[[processors]]
+  [processors.exec]
+    command = "powershell.exe"
+    envs = [ "CATCH_PHRASE" ]
+    args = ["args"]
+
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
