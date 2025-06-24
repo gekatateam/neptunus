@@ -25,10 +25,10 @@ func (o *Log) Init() error {
 		o.logFunc = o.Log.Debug
 	case "info":
 		o.logFunc = o.Log.Info
-	case "warn":
-		o.logFunc = o.Log.Warn
+	case "error":
+		o.logFunc = o.Log.Error
 	default:
-		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn", o.Level)
+		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn, error", o.Level)
 	}
 
 	return nil

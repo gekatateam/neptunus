@@ -66,7 +66,7 @@ This is the format of stats event:
     # if true, consumed events will be dropped after stats collection
     drop_origin = false
 
-    # "fields" is a "field path -> stats" map
+    # "fields" is a "field path <- stats" map
     # plugin expects: "count", "sum", "gauge", "avg", "min", "max", "histogram"
     # any other value or an empty list will cause an error
     [processors.stats.fields]

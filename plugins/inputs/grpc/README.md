@@ -60,7 +60,7 @@ Plugin behavoiur depends on the procedure being called:
       inactive_transport_ping = "2h"
       inactive_transport_age = "20s"
 
-    # a "label name -> metadata" map
+    # a "label name <- metadata" map
     # if request metadata exists, it will be saved as configured label
     # used in SendOne and SendBulk procedures only
     [inputs.grpc.labelmetadata]

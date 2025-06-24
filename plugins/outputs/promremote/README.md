@@ -97,7 +97,7 @@ traffic_now_avg{::line="3", region="US/California"} 11.9 1692991768912
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # a "header -> label" map
+    # a "header <- label" map
     # if event label exists, it will be added as a request header
     # ONLY FIRST EVENT IN BATCH USED
     [outputs.promremote.headerlabels]

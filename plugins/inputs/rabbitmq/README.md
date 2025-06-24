@@ -131,7 +131,7 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
         # optional binding arguments
         declare_args = { "x-dead-letter-exchange" = "dlq" }
 
-    # a "label name -> header" map
+    # a "label name <- header" map
     # if message header exists, it will be saved as configured label
     [inputs.rabbitmq.labelheaders]
       extra-type = "msg-extra-type"

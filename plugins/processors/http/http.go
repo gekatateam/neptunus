@@ -15,12 +15,16 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/convert"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
+	"github.com/gekatateam/neptunus/plugins/common/sharedstorage"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
+
+var clientStorage = sharedstorage.New[*http.Client]()
 
 type Http struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Host                string        `mapstructure:"host"`
+	Fallbacks           []string      `mapstructure:"fallbacks"`
 	Method              string        `mapstructure:"method"`
 	Timeout             time.Duration `mapstructure:"timeout"`
 	IdleConnTimeout     time.Duration `mapstructure:"idle_conn_timeout"`
@@ -29,6 +33,7 @@ type Http struct {
 	PathLabel           string        `mapstructure:"path_label"`
 
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
+	Labelheaders map[string]string `mapstructure:"labelheaders"`
 	Paramfields  map[string]string `mapstructure:"paramfields"`
 
 	RequestBodyFrom string `mapstructure:"request_body_from"`
@@ -39,6 +44,7 @@ type Http struct {
 
 	successCodes map[int]struct{}
 	baseUrl      *url.URL
+	fallbacks    []*url.URL
 	id           uint64
 
 	client *http.Client
@@ -59,11 +65,21 @@ func (p *Http) Init() error {
 		return errors.New("at least one success code required")
 	}
 
-	url, err := url.ParseRequestURI(p.Host)
+	uri, err := url.ParseRequestURI(p.Host)
 	if err != nil {
 		return err
 	}
-	p.baseUrl = url
+	p.baseUrl = uri
+
+	p.fallbacks = make([]*url.URL, 0, len(p.Fallbacks))
+	for _, f := range p.Fallbacks {
+		uri, err := url.ParseRequestURI(f)
+		if err != nil {
+			return fmt.Errorf("fallback %v: %w", f, err)
+		}
+
+		p.fallbacks = append(p.fallbacks, uri)
+	}
 
 	successCodes := map[int]struct{}{}
 	for _, v := range p.SuccessCodes {
@@ -183,7 +199,7 @@ func (p *Http) Run() {
 			path = label
 		}
 
-		respBody, err := p.perform(p.baseUrl.JoinPath(path), values, reqBody, header)
+		respBody, respHeaders, err := p.performWithFallback(path, values, reqBody, header)
 		if err != nil {
 			p.Log.Error("request failed",
 				"error", err,
@@ -226,6 +242,13 @@ func (p *Http) Run() {
 			}
 		}
 
+		for k, v := range p.Labelheaders {
+			h := respHeaders.Get(v)
+			if len(h) > 0 {
+				e.SetLabel(k, h)
+			}
+		}
+
 		p.Log.Debug("event processed",
 			elog.EventGroup(e),
 		)
@@ -234,10 +257,35 @@ func (p *Http) Run() {
 	}
 }
 
-func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http.Header) ([]byte, error) {
+func (p *Http) performWithFallback(path string, params url.Values, body []byte, header http.Header) ([]byte, http.Header, error) {
+	rawResponse, headers, err := p.perform(p.baseUrl.JoinPath(path), params, body, header)
+
+	if err != nil && len(p.fallbacks) > 0 {
+		p.Log.Warn("request failed, trying to perform to fallback",
+			"error", err,
+		)
+
+		for _, f := range p.fallbacks {
+			rawResponse, headers, err = p.perform(f.JoinPath(path), params, body, header)
+			if err == nil {
+				p.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f.String()))
+				return rawResponse, headers, nil
+			}
+
+			p.Log.Warn(fmt.Sprintf("request to fallback %v failed", f.String()),
+				"error", err,
+			)
+		}
+	}
+
+	return rawResponse, headers, err
+}
+
+func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http.Header) ([]byte, http.Header, error) {
 	uri.RawQuery = params.Encode()
 
 	var rawResponse []byte
+	var headers http.Header
 
 	err := p.Retryer.Do("perform request", p.Log, func() error {
 		req, err := http.NewRequest(p.Method, uri.String(), bytes.NewReader(body))
@@ -260,6 +308,7 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 			return fmt.Errorf("request performed, but body reading failed: %w", err)
 		}
 		rawResponse = rawBody
+		headers = res.Header
 
 		if _, ok := p.successCodes[res.StatusCode]; ok {
 			p.Log.Debug(fmt.Sprintf("request performed successfully with code: %v, body: %v", res.StatusCode, string(rawBody)))
@@ -269,7 +318,7 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 		}
 	})
 
-	return rawResponse, err
+	return rawResponse, headers, err
 }
 
 func (r *Http) unpackQueryValues(e *core.Event) (url.Values, error) {

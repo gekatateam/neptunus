@@ -105,7 +105,7 @@ If commit queue is full, fetching is suspended until at least one message is com
       username = ""
       password = ""
 
-    # a "label name -> header" map
+    # a "label name <- header" map
     # if message header exists, it will be saved as configured label
     [inputs.kafka.labelheaders]
       length = "Content-Length"

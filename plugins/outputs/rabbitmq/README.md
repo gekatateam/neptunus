@@ -84,7 +84,7 @@ Each event will be serialized into a individual message, `batch_*` settings cont
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # a "header -> label" map
+    # a "header <- label" map
     # if event label exists, it will be added as a message header
     [outputs.rabbitmq.headerlabels]
       custom_header = "my_label_name"

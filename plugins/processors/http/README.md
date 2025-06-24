@@ -13,6 +13,10 @@ Please note, that in multiline configuration HTTP client is shared between proce
     # target host, required
     host = "http://localhost:9100"
 
+    # list of fallback hosts
+    # if all `retry_attempts` to perform request to `host` failed, fallbacks will be used
+    fallbacks = [ "http://fallback.local:9100", "http://anotherfallback.local:9100" ]
+
     # request method, required
     method = "POST"
 
@@ -65,12 +69,17 @@ Please note, that in multiline configuration HTTP client is shared between proce
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # a "header -> label" map
+    # a "header <- label" map
     # if event label exists, it will be added as a request header
     [processors.http.headerlabels]
       custom_header = "my_label_name"
 
-    # a "param -> field" map
+    # a "label <- header" map
+    # if response header exists, it will be saved as configured label
+    [processors.http.labelheaders]
+      my_label_name = "x-custom-header"
+
+    # a "param <- field" map
     # if event field exists, it will be added as a request urlparam
     # target field must not be a map, but slices allowed, if slice not contains maps
     [processors.http.paramfields]

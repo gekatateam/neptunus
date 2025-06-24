@@ -7,9 +7,9 @@ The `delete` processor deletes events labels and fields.
 [[processors]]
   [processors.delete]
 
-    // list of labels to delete
+    # list of labels to delete
     labels = [ "sender", "exchange" ]
 
-    // list of fields to delete
+    # list of fields to delete
     fields = [ "log.source", "fqdn" ]
 ```

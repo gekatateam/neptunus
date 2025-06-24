@@ -76,7 +76,7 @@ Drivers use plugin TLS configuration.
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # "push query placeholders -> event fields" mapping
+    # "push query placeholders <- event fields" mapping
     [outputs.sql.columns]
       expedition_type = "type"
       expedition_region = "region"

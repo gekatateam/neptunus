@@ -39,7 +39,7 @@ This plugin produce events with routing key as request path (or matched pattern 
 
     # optional basic auth credentials
     # if both set, requests with wrong credentials will be rejected with `401 Unauthorized`
-    basic_isername = "user"
+    basic_username = "user"
     basic_password = "pass"
 
     # allowed incoming requests methods, POST, PUT, GET
@@ -71,7 +71,7 @@ This plugin produce events with routing key as request path (or matched pattern 
     tls_min_version = "TLS12"
     tls_max_version = "TLS13"
 
-    # a "label name -> header" map
+    # a "label name <- header" map
     # if request header exists, it will be saved as configured label
     [inputs.http.labelheaders]
       length = "Content-Length"

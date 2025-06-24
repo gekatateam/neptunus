@@ -17,14 +17,14 @@ Glob syntax is similar to [standard wildcards](https://tldp.org/LDP/GNU-Linux-To
     # list of patterns, one of which an event routing key must match
     routing_key = [ "http*" ]
 
-    # "labels" is a "label name -> patterns list" map
+    # "labels" is a "label name <- patterns list" map
     [processors.through.filters.glob.labels]
       # list of patterns, one of which an event label must match
       # if label does not exists or not matched any pattern
       # event will be rejected
       sender = [ "*:8765" ]
 
-    # "fields" is a "field path -> patterns list" map
+    # "fields" is a "field path <- patterns list" map
     [processors.through.filters.glob.fields]
       # list of patterns, one of which an event field must match
       # if field does not exists, not a string or not matched any pattern

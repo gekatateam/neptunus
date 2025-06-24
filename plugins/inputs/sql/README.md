@@ -81,7 +81,7 @@ Drivers use plugin TLS configuration.
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # a "label name -> column name" map
+    # a "label name <- column name" map
     # if column exists and can be mapped to string type, it will be saved as configured label
     [inputs.sql.labelcolumns]
       event_type = "type"

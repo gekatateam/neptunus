@@ -47,7 +47,7 @@ Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `b
     tls_min_version = "TLS12"
     tls_max_version = "TLS13"
 
-    # a "label name -> metadata key" map
+    # a "label name <- metadata key" map
     # if metadata key exists, it will be saved as configured label
     [inputs.beats.labelheaders]
       beat_version = "version"

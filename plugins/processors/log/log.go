@@ -27,8 +27,10 @@ func (p *Log) Init() error {
 		p.logFunc = p.Log.Info
 	case "warn":
 		p.logFunc = p.Log.Warn
+	case "error":
+		p.logFunc = p.Log.Error
 	default:
-		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn", p.Level)
+		return fmt.Errorf("forbidden logging level: %v; expected one of: debug, info, warn, error", p.Level)
 	}
 
 	return nil

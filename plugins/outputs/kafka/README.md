@@ -115,7 +115,7 @@ Each event will be serialized into a individual message, `batch_*` settings cont
       username = ""
       password = ""
 
-    # a "header -> label" map
+    # a "header <- label" map
     # if event label exists, it will be added as a message header
     [outputs.kafka.headerlabels]
       custom_header = "my_label_name"
