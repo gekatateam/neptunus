@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.httpproc"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
@@ -21,14 +21,13 @@
 
 [[processors]]
   [processors.http]
-    host = "https://jsonplaceholder.typicode.com/posts"
-    method = "POST"
-#    path_label = "uri"
+    host = "http://localhost:9200"
+    fallbacks = [ "https://jsonplaceholder.typicode.com/posts" ]
+    method = "GET"
     retry_attempts = 3
     retry_after = "1s"
     tls_enable = true
     response_body_to = "typicode.response"
-    request_body_from = "payload"
     [processors.http.serializer]
       type = "json"
       data_only = false

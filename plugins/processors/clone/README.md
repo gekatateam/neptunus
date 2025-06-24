@@ -15,7 +15,7 @@ The `clone` processor creates clone of each event with new routing key and extra
     # clones count
     count = 1
 
-    # "labels" is a "label name -> label value" map
+    # "labels" is a "label name <- label value" map
     # if label does not exists, it will be added
     # if label already exists, it will be overwritten
     [processors.clone.labels]

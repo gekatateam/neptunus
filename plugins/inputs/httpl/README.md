@@ -30,7 +30,7 @@ This plugin produce events with routing key as request path, `server` label with
 
     # optional basic auth credentials
     # if both set, requests with wrong credentials will be rejected with `401 Unauthorized`
-    basic_isername = "user"
+    basic_username = "user"
     basic_password = "pass"
 
     # if true, server waits for events to be delivered
@@ -55,7 +55,7 @@ This plugin produce events with routing key as request path, `server` label with
     tls_min_version = "TLS12"
     tls_max_version = "TLS13"
 
-    # a "label name -> header" map
+    # a "label name <- header" map
     # if request header exists, it will be saved as configured label
     [inputs.httpl.labelheaders]
       length = "Content-Length"

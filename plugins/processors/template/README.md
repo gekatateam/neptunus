@@ -16,11 +16,11 @@ If template execution or field setting fails, event is marked as failed, but oth
     # id template
     id = '{{ .GetLabel "message_id" }}'
 
-    # "label name -> template" map
+    # "label name <- template" map
     [processors.template.labels]
       host = '{{ .GetField "client.host" }}:{{ .GetField "client.port" }}'
 
-    # "field path -> template" map
+    # "field path <- template" map
     [processors.template.fields]
       "metadata.full_address" = '{{ .GetField "address.street" }}, {{ .GetField "address.building" }}'
 ```

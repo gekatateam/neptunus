@@ -68,13 +68,13 @@ Drivers use plugin TLS configuration.
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # "query placeholders -> event fields" mapping
+    # "query placeholders <- event fields" mapping
     [processors.sql.columns]
       expedition_type = "type"
       expedition_region = "region"
       expedition_owner = "owner"
 
-    # "event fields -> query result columns" mapping
+    # "event fields <- query result columns" mapping
     # please note that each field type is always a slice
     [processors.sql.fields]
       uid = "expedition_uid"

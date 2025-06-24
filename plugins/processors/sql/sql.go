@@ -15,11 +15,14 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
+	"github.com/gekatateam/neptunus/plugins/common/sharedstorage"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
 const tablePlaceholder = ":table_name"
+
+var clientStorage = sharedstorage.New[*sqlx.DB]()
 
 type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`

@@ -76,7 +76,7 @@ Plugin can be configured for using one of three RPCs:
       # broken connections or unreachable servers
       wait_for_ready = false
 
-    # a "metadata -> label" map
+    # a "metadata <- label" map
     # if event label exists, it will be added as a call metadata
     # used in "one" mode only
     [outputs.grpc.metadatalabels]

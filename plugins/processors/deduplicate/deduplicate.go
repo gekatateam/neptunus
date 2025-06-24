@@ -13,8 +13,11 @@ import (
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
+	"github.com/gekatateam/neptunus/plugins/common/sharedstorage"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
+
+var clientStorage = sharedstorage.New[redis.UniversalClient]()
 
 type Deduplicate struct {
 	*core.BaseProcessor `mapstructure:"-"`

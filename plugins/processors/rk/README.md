@@ -5,7 +5,7 @@ The `rk` processor plugin replaces an event routing key with a new one, dependin
 ## Configuration
 ```toml
 [[processors]]
-  # "mapping" is a "new key -> old keys" map
+  # "mapping" is a "new key <- old keys" map
   # event routing key will be replaced with a new value 
   # if current key matches one in a list
   [processors.rk.mapping]

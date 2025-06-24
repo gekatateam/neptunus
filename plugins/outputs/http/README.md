@@ -70,13 +70,13 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
-    # a "header -> label" map
+    # a "header <- label" map
     # if event label exists, it will be added as a request header
     # ONLY FIRST EVENT IN BATCH USED
     [outputs.http.headerlabels]
       custom_header = "my_label_name"
 
-    # a "param -> field" map
+    # a "param <- field" map
     # if event field exists, it will be added as a request urlparam
     # target field must not be a map, but slices allowed, if slice not contains maps
     # ONLY FIRST EVENT IN BATCH USED
