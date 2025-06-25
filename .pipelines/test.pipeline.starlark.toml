@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.starlark"
   lines = 5
-  run = false
+  run = true
   buffer = 1_000
 
 [[keykeepers]]

@@ -65,7 +65,7 @@ SCRIPT_LOADED:
 
 	if len(p.Consts) > 0 {
 		for k, v := range p.Consts {
-			sv, err := toStarlarkValue(v)
+			sv, err := ToStarlarkValue(v)
 			if err != nil {
 				return fmt.Errorf("constants: %v: %w", k, err)
 			}

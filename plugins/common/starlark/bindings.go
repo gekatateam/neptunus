@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"reflect"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -21,55 +20,28 @@ func init() {
 var rwEventMethods = map[string]*starlark.Builtin{}
 
 var roEventMethods = map[string]*starlark.Builtin{
-	// id methods
-	"getId": starlark.NewBuiltin("getId", getId), // f() id String
-
-	// timestamp methods
+	"getId":        starlark.NewBuiltin("getId", getId),               // f() id String
 	"getTimestamp": starlark.NewBuiltin("getTimestamp", getTimestamp), // f() timestamp Time
-
-	// routing key methods
-	"getRK": starlark.NewBuiltin("getRK", getRoutingKey), // f() routingKey String
-
-	// labels methods
-	"getLabel": starlark.NewBuiltin("getLabel", getLabel), // f(key String) value String|None
-
-	// fields methods
-	"getField": starlark.NewBuiltin("getField", getField), // f(path String) value Value|None
-
-	// tags methods
-	"hasTag": starlark.NewBuiltin("hasTag", hasTag), // f(tag String) Bool
-
-	"getErrors": starlark.NewBuiltin("getErrors", getErrors), // f() List[String]
-
-	"getUuid": starlark.NewBuiltin("getUuid", getUuid), // f() String
+	"getRK":        starlark.NewBuiltin("getRK", getRoutingKey),       // f() routingKey String
+	"getLabel":     starlark.NewBuiltin("getLabel", getLabel),         // f(key String) value String|None
+	"getField":     starlark.NewBuiltin("getField", getField),         // f(path String) value Value|None
+	"hasTag":       starlark.NewBuiltin("hasTag", hasTag),             // f(tag String) Bool
+	"getErrors":    starlark.NewBuiltin("getErrors", getErrors),       // f() List[String]
+	"getUuid":      starlark.NewBuiltin("getUuid", getUuid),           // f() String
 }
 
 var woEventMethods = map[string]*starlark.Builtin{
-	// id methods
-	"setId": starlark.NewBuiltin("setId", setId), // f(id String)
-
-	// timestamp methods
+	"setId":        starlark.NewBuiltin("setId", setId),               // f(id String)
 	"setTimestamp": starlark.NewBuiltin("setTimestamp", setTimestamp), // f(timestamp Time)
-
-	// routing key methods
-	"setRK": starlark.NewBuiltin("setRK", setRoutingKey), // f(routingKey String)
-
-	// labels methods
-	"setLabel": starlark.NewBuiltin("setLabel", setLabel), // f(key, value String)
-	"delLabel": starlark.NewBuiltin("delLabel", delLabel), // f(key String)
-
-	// fields methods
-	"setField": starlark.NewBuiltin("setField", setField), // f(path String, value Value) Error|None
-	"delField": starlark.NewBuiltin("delField", delField), //f(path String)
-
-	// tags methods
-	"addTag": starlark.NewBuiltin("addTag", addTag), // f(tag String)
-	"delTag": starlark.NewBuiltin("delTag", delTag), // f(tag String)
-
-	// tracker methods
+	"setRK":        starlark.NewBuiltin("setRK", setRoutingKey),       // f(routingKey String)
+	"setLabel":     starlark.NewBuiltin("setLabel", setLabel),         // f(key, value String)
+	"delLabel":     starlark.NewBuiltin("delLabel", delLabel),         // f(key String)
+	"setField":     starlark.NewBuiltin("setField", setField),         // f(path String, value Value) Error|None
+	"delField":     starlark.NewBuiltin("delField", delField),         //f(path String)
+	"addTag":       starlark.NewBuiltin("addTag", addTag),             // f(tag String)
+	"delTag":       starlark.NewBuiltin("delTag", delTag),             // f(tag String)
 	"shareTracker": starlark.NewBuiltin("shareTracker", shareTracker), // f(event Event)
-
-	"shareUUID": starlark.NewBuiltin("shareUUID", shareUUID), // f(event Event)
+	"shareUUID":    starlark.NewBuiltin("shareUUID", shareUUID),       // f(event Event)
 }
 
 func getId(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -158,7 +130,7 @@ func getField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, nil
 	}
 
-	return toStarlarkValue(value)
+	return ToStarlarkValue(value)
 }
 
 func setField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -168,7 +140,7 @@ func setField(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwar
 		return starlark.None, err
 	}
 
-	goValue, err := toGoValue(value)
+	goValue, err := ToGoValue(value)
 	if err != nil {
 		return starlark.None, err
 	}
@@ -268,66 +240,72 @@ func shareUUID(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwa
 // time.Time <-> starlark.Time
 // time.Duration <-> starlark.Duration
 
-func toStarlarkValue(goValue any) (starlark.Value, error) {
+func ToStarlarkValue(goValue any) (starlark.Value, error) {
 	if goValue == nil {
 		return starlark.None, nil
 	}
 
-	v := reflect.ValueOf(goValue)
-	switch v.Kind() {
-	case reflect.String:
-		return starlark.String(v.String()), nil
-	case reflect.Bool:
-		return starlark.Bool(v.Bool()), nil
-	case reflect.Int64:
-		if dur, ok := v.Interface().(time.Duration); ok {
-			return starlarktime.Duration(dur), nil
-		}
-		return starlark.MakeInt64(v.Int()), nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
-		return starlark.MakeInt64(v.Int()), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return starlark.MakeUint64(v.Uint()), nil
-	case reflect.Float32, reflect.Float64:
-		return starlark.Float(v.Float()), nil
-	case reflect.Slice, reflect.Array:
-		length := v.Len()
-		list := make([]starlark.Value, 0, length)
-		for i := 0; i < length; i++ {
-			starValue, err := toStarlarkValue(v.Index(i).Interface())
+	switch v := goValue.(type) {
+	case string:
+		return starlark.String(v), nil
+	case bool:
+		return starlark.Bool(v), nil
+	case int:
+		return starlark.MakeInt64(int64(v)), nil
+	case int8:
+		return starlark.MakeInt64(int64(v)), nil
+	case int16:
+		return starlark.MakeInt64(int64(v)), nil
+	case int32:
+		return starlark.MakeInt64(int64(v)), nil
+	case int64:
+		return starlark.MakeInt64(v), nil
+	case uint:
+		return starlark.MakeUint64(uint64(v)), nil
+	case uint8:
+		return starlark.MakeUint64(uint64(v)), nil
+	case uint16:
+		return starlark.MakeUint64(uint64(v)), nil
+	case uint32:
+		return starlark.MakeUint64(uint64(v)), nil
+	case uint64:
+		return starlark.MakeUint64(uint64(v)), nil
+	case float32:
+		return starlark.Float(float64(v)), nil
+	case float64:
+		return starlark.Float(float64(v)), nil
+	case time.Duration:
+		return starlarktime.Duration(v), nil
+	case time.Time:
+		return starlarktime.Time(v), nil
+	case []any:
+		list := make([]starlark.Value, 0, len(v))
+		for _, elem := range v {
+			starValue, err := ToStarlarkValue(elem)
 			if err != nil {
 				return starlark.None, err
 			}
 			list = append(list, starValue)
 		}
 		return starlark.NewList(list), nil
-	case reflect.Map:
-		dict := starlark.NewDict(v.Len())
-		iter := v.MapRange()
-		for iter.Next() {
-			starKey, err := toStarlarkValue(iter.Key().Interface())
+	case map[string]any:
+		dict := starlark.NewDict(len(v))
+		for k, elem := range v {
+			starValue, err := ToStarlarkValue(elem)
 			if err != nil {
 				return starlark.None, err
 			}
-			starValue, err := toStarlarkValue(iter.Value().Interface())
-			if err != nil {
-				return starlark.None, err
-			}
-			if err = dict.SetKey(starKey, starValue); err != nil {
+			if err = dict.SetKey(starlark.String(k), starValue); err != nil {
 				return starlark.None, err
 			}
 		}
 		return dict, nil
-	case reflect.Struct:
-		if time, ok := v.Interface().(time.Time); ok {
-			return starlarktime.Time(time), nil
-		}
 	}
 
-	return starlark.None, fmt.Errorf("%v not representable in starlark", v.Kind())
+	return starlark.None, fmt.Errorf("%T not representable in starlark", goValue)
 }
 
-func toGoValue(starValue starlark.Value) (any, error) {
+func ToGoValue(starValue starlark.Value) (any, error) {
 	switch v := starValue.(type) {
 	case starlark.NoneType:
 		return nil, nil
@@ -353,7 +331,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 		slice := make([]any, 0, v.Len())
 		var starValue starlark.Value
 		for iter.Next(&starValue) {
-			goValue, err := toGoValue(starValue)
+			goValue, err := ToGoValue(starValue)
 			if err != nil {
 				return nil, err
 			}
@@ -371,7 +349,7 @@ func toGoValue(starValue starlark.Value) (any, error) {
 			// since the search is based on a known key,
 			// it is expected that the value will always be found
 			starValue, _, _ := v.Get(starKey)
-			goValue, err := toGoValue(starValue)
+			goValue, err := ToGoValue(starValue)
 			if err != nil {
 				return nil, err
 			}
