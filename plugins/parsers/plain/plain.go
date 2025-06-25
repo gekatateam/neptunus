@@ -1,7 +1,6 @@
 package plain
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -12,7 +11,7 @@ import (
 type Plain struct {
 	*core.BaseParser `mapstructure:"-"`
 	Field            string `mapstructure:"field"`
-	log              *slog.Logger
+	AsString         bool   `mapstructure:"as_string"`
 }
 
 func (p *Plain) Init() error {
@@ -26,9 +25,13 @@ func (p *Plain) Close() error {
 func (p *Plain) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	now := time.Now()
 
-	event := core.NewEventWithData(routingKey, map[string]any{
-		p.Field: string(data),
-	})
+	event := core.NewEvent(routingKey)
+	if p.AsString {
+		event.SetField(p.Field, string(data))
+	} else {
+		event.SetField(p.Field, data)
+	}
+
 	p.Observe(metrics.EventAccepted, time.Since(now))
 
 	return []*core.Event{event}, nil
@@ -37,7 +40,8 @@ func (p *Plain) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 func init() {
 	plugins.AddParser("plain", func() core.Parser {
 		return &Plain{
-			Field: "event",
+			Field:    "event",
+			AsString: true,
 		}
 	})
 }
