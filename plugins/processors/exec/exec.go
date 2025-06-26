@@ -67,6 +67,7 @@ func (p *Exec) Run() {
 		cmd.Env = append(cmd.Env, envs...)
 
 		out, err := cmd.CombinedOutput()
+		cancel()
 		var exitErr *exec.ExitError
 		if err != nil && !errors.As(err, &exitErr) {
 			p.Log.Error("command execution failed",
@@ -84,14 +85,25 @@ func (p *Exec) Run() {
 		}
 
 		if err := e.SetField(p.ExecCodeTo, exitCode); err != nil {
-			p.Log.Warn(fmt.Sprintf("set field %v failed", p.ExecCodeTo),
+			p.Log.Error(fmt.Sprintf("set field %v failed", p.ExecCodeTo),
 				"error", err,
+				elog.EventGroup(e),
 			)
+			e.StackError(err)
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
+			continue
 		}
+
 		if err := e.SetField(p.ExecOutputTo, string(out)); err != nil {
-			p.Log.Warn(fmt.Sprintf("set field %v failed", p.ExecOutputTo),
+			p.Log.Error(fmt.Sprintf("set field %v failed", p.ExecOutputTo),
 				"error", err,
+				elog.EventGroup(e),
 			)
+			e.StackError(err)
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
+			continue
 		}
 
 		p.Log.Debug("command execution completed",
@@ -99,8 +111,6 @@ func (p *Exec) Run() {
 		)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
-
-		cancel()
 	}
 }
 

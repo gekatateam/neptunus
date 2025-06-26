@@ -1,0 +1,44 @@
+[settings]
+  id = "test.pipeline.redisproc"
+  lines = 5
+  run = true
+  buffer = 1_000
+  log_level = "debug"
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.http.parser]
+    type = "json"
+
+[[processors]]
+  [processors.redis]
+    servers = [ "localhost:6379" ]
+    password = "redis"
+    retry_attempts = 1
+    conns_max_open = 5
+    conns_max_idle = 5
+    result_to = "result"
+    command = [ "hsetex", "testspace:map", "ex", 3600, "fields", "{{ keysnum }}", "{{ data }}" ]
+
+[[processors]]
+  [processors.redis]
+    servers = [ "localhost:6379" ]
+    password = "redis"
+    retry_attempts = 1
+    conns_max_open = 5
+    conns_max_idle = 5
+    result_to = "afterGet"
+    command = [ "hgetall", "testspace:map" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false

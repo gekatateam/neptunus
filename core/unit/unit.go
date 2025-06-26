@@ -1,6 +1,7 @@
 package unit
 
 import (
+	"errors"
 	"log/slog"
 	"reflect"
 	"strings"
@@ -34,7 +35,7 @@ type Unit interface {
 func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
-		panic("not implemented")
+		panic(errors.ErrUnsupported)
 	default:
 		return newProcessorSoftUnit(p, f, in, bufferSize)
 	}
@@ -54,7 +55,7 @@ func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []
 func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit Unit, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
-		panic("not implemented")
+		panic(errors.ErrUnsupported)
 	default:
 		return newOutputSoftUnit(o, f, in, bufferSize)
 	}
@@ -75,7 +76,7 @@ func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.F
 func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Filter, stop <-chan struct{}, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
-		panic("not implemented")
+		panic(errors.ErrUnsupported)
 	default:
 		return newInputSoftUnit(i, f, stop, bufferSize)
 	}
@@ -93,7 +94,7 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <-chan *core.Event, outsCount, bufferSize int) (unit Unit, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
-		panic("not implemented")
+		panic(errors.ErrUnsupported)
 	default:
 		return newBroadcastSoftUnit(b, in, outsCount, bufferSize)
 	}
@@ -111,7 +112,7 @@ func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <
 func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
-		panic("not implemented")
+		panic(errors.ErrUnsupported)
 	default:
 		return newFusionSoftUnit(f, ins, bufferSize)
 	}
