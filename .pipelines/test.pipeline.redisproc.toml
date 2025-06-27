@@ -24,7 +24,7 @@
     conns_max_open = 5
     conns_max_idle = 5
     result_to = "result"
-    command = [ "hsetex", "testspace:map", "ex", 3600, "fields", "{{ keysnum }}", "{{ data }}" ]
+    command = [ "hsetex", "testspace:map", "ex", 3600, "fields", "{{- keysnum -}}", "{{- data -}}" ]
 
 [[processors]]
   [processors.redis]

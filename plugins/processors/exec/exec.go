@@ -17,12 +17,12 @@ import (
 
 type Exec struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	Command             string        `mapstructure:"command"`
-	Timeout             time.Duration `mapstructure:"timeout"`
-	Envs                []string      `mapstructure:"envs"`
-	Args                []string      `mapstructure:"args"`
-	ExecCodeTo          string        `mapstructure:"exec_code_to"`
-	ExecOutputTo        string        `mapstructure:"exec_output_to"`
+	Command             string            `mapstructure:"command"`
+	Timeout             time.Duration     `mapstructure:"timeout"`
+	Args                []string          `mapstructure:"args"`
+	ExecCodeTo          string            `mapstructure:"exec_code_to"`
+	ExecOutputTo        string            `mapstructure:"exec_output_to"`
+	EnvLabels           map[string]string `mapstructure:"envlabels"`
 }
 
 func (p *Exec) Init() error {
@@ -121,13 +121,13 @@ func (p *Exec) Close() error {
 func (p *Exec) unpackEnvs(e *core.Event) ([]string, error) {
 	var envs []string
 
-	for _, v := range p.Envs {
+	for k, v := range p.EnvLabels {
 		label, ok := e.GetLabel(v)
 		if !ok {
 			return nil, fmt.Errorf("no such label: %v", v)
 		}
 
-		envs = append(envs, v+"="+label)
+		envs = append(envs, k+"="+label)
 	}
 
 	return envs, nil

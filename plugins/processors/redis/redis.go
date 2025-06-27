@@ -115,6 +115,10 @@ func (p *Redis) Run() {
 			continue
 		}
 
+		p.Log.Debug(fmt.Sprintf("prepared command: %v", args),
+			elog.EventGroup(e),
+		)
+
 		var result any
 		err = p.Retryer.Do("exec command", p.Log, func() error {
 			r, err := p.client.Do(context.Background(), args...).Result()

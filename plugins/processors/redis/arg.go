@@ -8,7 +8,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/convert"
 )
 
-var fieldRequest = regexp.MustCompile(`^{{\s(.+)\s}}$`)
+var fieldRequest = regexp.MustCompile(`^{{-\s(.+)\s-}}$`)
 
 type pluginArg struct {
 	isField bool
