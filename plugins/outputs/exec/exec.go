@@ -17,10 +17,10 @@ import (
 
 type Exec struct {
 	*core.BaseOutput `mapstructure:"-"`
-	Command          string        `mapstructure:"command"`
-	Timeout          time.Duration `mapstructure:"timeout"`
-	Envs             []string      `mapstructure:"envs"`
-	Args             []string      `mapstructure:"args"`
+	Command          string            `mapstructure:"command"`
+	Timeout          time.Duration     `mapstructure:"timeout"`
+	Args             []string          `mapstructure:"args"`
+	EnvLabels        map[string]string `mapstructure:"envlabels"`
 }
 
 func (o *Exec) Init() error {
@@ -63,7 +63,6 @@ func (o *Exec) Run() {
 		cmd.Env = append(cmd.Env, os.Environ()...)
 		cmd.Env = append(cmd.Env, envs...)
 
-		o.Done <- e
 		if err := cmd.Run(); err != nil {
 			o.Log.Error("command execution failed",
 				"error", err,
@@ -77,6 +76,7 @@ func (o *Exec) Run() {
 			o.Observe(metrics.EventAccepted, time.Since(now))
 		}
 
+		o.Done <- e
 		cancel()
 	}
 }
@@ -85,16 +85,16 @@ func (o *Exec) Close() error {
 	return nil
 }
 
-func (o *Exec) unpackEnvs(e *core.Event) ([]string, error) {
+func (p *Exec) unpackEnvs(e *core.Event) ([]string, error) {
 	var envs []string
 
-	for _, v := range o.Envs {
+	for k, v := range p.EnvLabels {
 		label, ok := e.GetLabel(v)
 		if !ok {
 			return nil, fmt.Errorf("no such label: %v", v)
 		}
 
-		envs = append(envs, v+"="+label)
+		envs = append(envs, k+"="+label)
 	}
 
 	return envs, nil

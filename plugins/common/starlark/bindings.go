@@ -269,11 +269,11 @@ func ToStarlarkValue(goValue any) (starlark.Value, error) {
 	case uint32:
 		return starlark.MakeUint64(uint64(v)), nil
 	case uint64:
-		return starlark.MakeUint64(uint64(v)), nil
+		return starlark.MakeUint64(v), nil
 	case float32:
-		return starlark.Float(float64(v)), nil
+		return starlark.Float(v), nil
 	case float64:
-		return starlark.Float(float64(v)), nil
+		return starlark.Float(v), nil
 	case time.Duration:
 		return starlarktime.Duration(v), nil
 	case time.Time:
