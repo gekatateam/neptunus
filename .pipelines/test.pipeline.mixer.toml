@@ -43,6 +43,7 @@ def process(event):
 
 [[processors]]
   [processors.mixer]
+    log_level = "debug"
 
 [[processors]]
   [processors.log]

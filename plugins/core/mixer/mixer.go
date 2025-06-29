@@ -1,6 +1,7 @@
 package mixer
 
 import (
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -39,8 +40,10 @@ func (p *Mixer) PutChannels(in <-chan *core.Event, out chan *core.Event) {
 }
 
 func (p *Mixer) Run() {
-	for e := range p.ins[atomic.AddInt32(&p.index, 1)] {
+	i := atomic.AddInt32(&p.index, 1)
+	for e := range p.ins[i] {
 		now := time.Now()
+		p.Log.Debug(fmt.Sprintf("event from chan %v consumed", i))
 		p.out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
