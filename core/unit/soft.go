@@ -319,7 +319,7 @@ func newMixerSoftUnit(c core.Mixer, in <-chan *core.Event, bufferSize int) (unit
 		in:  in,
 		out: out,
 	}
-	c.PutChannels(in, out)
+	c.AppendChannels(in, out)
 
 	chansStats = append(chansStats, registerChan(in, c, metrics.ChanIn, core.KindProcessor))
 

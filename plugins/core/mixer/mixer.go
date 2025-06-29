@@ -9,6 +9,8 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 )
 
+var _ core.Mixer = (*Mixer)(nil)
+
 type Mixer struct {
 	*core.BaseProcessor `mapstructure:"-"`
 
@@ -31,7 +33,7 @@ func (p *Mixer) OutChan() chan *core.Event {
 	return p.out
 }
 
-func (p *Mixer) PutChannels(in <-chan *core.Event, out chan *core.Event) {
+func (p *Mixer) AppendChannels(in <-chan *core.Event, out chan *core.Event) {
 	if p.out == nil {
 		p.out = out
 	}
