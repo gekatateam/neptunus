@@ -88,7 +88,6 @@ type SetLine interface {
 }
 
 // core plugins
-// used in core units only
 type Fusion interface {
 	SetChannels(ins []<-chan *Event, out chan<- *Event)
 	Runner
@@ -97,4 +96,10 @@ type Fusion interface {
 type Broadcast interface {
 	SetChannels(in <-chan *Event, outs []chan<- *Event)
 	Runner
+}
+
+type Mixer interface {
+	Processor
+	PutChannels(in <-chan *Event, out chan *Event)
+	OutChan() chan *Event
 }

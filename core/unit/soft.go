@@ -89,7 +89,7 @@ func (u *procSoftUnit) Run() {
 	u.p.Close()
 	close(u.drop) // close drop events channel
 
-	// then, we wait until all goruntins are finished
+	// then, we wait until all goroutines are finished
 	// and close the outgoing channel - which is the incoming channel for the next processor or output
 	u.wg.Wait()
 	close(u.out)
@@ -300,4 +300,32 @@ func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) 
 func (u *fusionSoftUnit) Run() {
 	u.c.Run()
 	close(u.out)
+}
+
+type mixerSoftUnit struct {
+	c   core.Mixer
+	in  <-chan *core.Event
+	out chan<- *core.Event
+}
+
+func newMixerSoftUnit(c core.Mixer, in <-chan *core.Event, bufferSize int) (unit *mixerSoftUnit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+	out := c.OutChan()
+	if out == nil {
+		out = make(chan *core.Event, bufferSize)
+	}
+
+	unit = &mixerSoftUnit{
+		c:   c,
+		in:  in,
+		out: out,
+	}
+	c.PutChannels(in, out)
+
+	chansStats = append(chansStats, registerChan(in, c, metrics.ChanIn, core.KindProcessor))
+
+	return unit, out, chansStats
+}
+
+func (u *mixerSoftUnit) Run() {
+	u.c.Run()
 }

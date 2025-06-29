@@ -4,7 +4,6 @@ import (
 	"github.com/gekatateam/mappath"
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/plugins"
 )
 
 type Self struct {
@@ -34,10 +33,4 @@ func (k *Self) Get(key string) (any, error) {
 
 func (k *Self) Close() error {
 	return nil
-}
-
-func init() {
-	plugins.AddKeykeeper("self", func() core.Keykeeper {
-		return &Self{}
-	})
 }

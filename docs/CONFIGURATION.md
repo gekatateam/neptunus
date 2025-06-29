@@ -156,7 +156,7 @@ Settings example:
 ```
 
 ### Vars
-This section is intended for storing general parameters that can be used via [`self` keykeeper](../plugins/core/self/). Well, `settings` block is also available:
+This section is intended for storing general parameters that can be used via [`self` keykeeper](../plugins/keykeepers/self/). Well, `settings` block is also available:
 ```toml
 [vars]
   max_connections = 10

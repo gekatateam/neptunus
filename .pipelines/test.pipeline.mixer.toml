@@ -1,0 +1,60 @@
+[settings]
+  id = "test.pipeline.mixer"
+  lines = 5
+  run = true
+  buffer = 3
+  log_level = "info"
+
+[[keykeepers]]
+  [keykeepers.self]
+    alias = "self"
+
+[[inputs]]
+  [inputs.cronjob]
+    location = "UTC"
+    # this job is used to create table partitions
+    [[inputs.cronjob.jobs]]
+      name = "partition.create"
+      schedule = "@every 30s"
+      force = true
+
+[[processors]]
+  [processors.starlark]
+    log_level = "debug"
+    code = '''
+load("time.star", "time")
+load("date.star", "date")
+load("yaml.star", "yaml")
+load("fs.star",   "fs")
+
+def process(event):
+    events = []
+
+    for i in range(30):
+        t = time.now() + time.hour * 24 * i
+        e = newEvent("expeditions_" + t.format("2006_01_02"))
+        e.setField("weekday", date.weekday_of(t))
+        e.setField("month", date.month_of(t))
+
+        events.append(e)
+
+    return events
+    '''
+
+[[processors]]
+  [processors.mixer]
+
+[[processors]]
+  [processors.log]
+    log_level = "warn"
+    level = "warn"
+    [processors.log.serializer]
+      type = "json"
+      data_only = false
+
+[[outputs]]
+  [outputs.log]
+    level = "debug"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false

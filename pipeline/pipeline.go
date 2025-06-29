@@ -133,12 +133,6 @@ func (p *Pipeline) Config() *config.Pipeline {
 	return p.config
 }
 
-// Pipeline Close() should be called only if pipeline build failed.
-// After successful Run(), each plugin will be closed dy it's unit.
-// As usual, there is a few exclusions:
-//   - each plugin becomes available for closing only after successful Init()
-//   - as a consequence, plugins must check network connections, run init queries, etc.
-//     inside Init(), and MUST free all resources, if Init() failed
 func (p *Pipeline) Close() error {
 	for _, k := range p.keepers {
 		k.Close()
@@ -293,8 +287,22 @@ func (p *Pipeline) Run(ctx context.Context) {
 		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
-			for _, processor := range p.procs[i] {
-				processorUnit, procOut, chansStats := unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput, p.config.Settings.Buffer)
+			for j, processor := range p.procs[i] {
+				var (
+					processorUnit unit.Unit
+					procOut       <-chan *core.Event
+					chansStats    []metrics.ChanStatsFunc
+				)
+
+				if mixer, ok := processor.p.(core.Mixer); ok {
+					p.log.Info(fmt.Sprintf("found mixer processor in %v position", j))
+					processorUnit, procOut, chansStats = unit.NewMixer(&p.config.Settings, p.log, mixer, procInput, p.config.Settings.Buffer)
+					goto PROC_CONFIGURED
+				}
+
+				processorUnit, procOut, chansStats = unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput, p.config.Settings.Buffer)
+			PROC_CONFIGURED:
+
 				p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 				wg.Add(1)
 				go func() {
@@ -519,6 +527,7 @@ func (p *Pipeline) configureOutputs() error {
 }
 
 func (p *Pipeline) configureProcessors() error {
+	mixers := make(map[int]core.Processor)
 	// because Go does not provide safe way to copy objects
 	// we create so much duplicate of processors sets
 	// as lines configured
@@ -601,6 +610,27 @@ func (p *Pipeline) configureProcessors() error {
 
 				if err := processor.Init(); err != nil {
 					return fmt.Errorf("%v processor initialization error: %v", plugin, err.Error())
+				}
+
+				// as a core plugin, mixer has special conditions
+				// it is always MUST be one exemplar for all lines
+				// because mixer consumes events from processors before
+				// and produces it into one output channel - for all processors after
+				if m, ok := processor.(core.Mixer); ok {
+					if index == 0 {
+						return errors.New("mixer must never be the first processor")
+					}
+
+					if index == len(p.config.Processors)-1 {
+						return errors.New("mixer must never be the last processor")
+					}
+
+					if _, ok := mixers[index]; !ok {
+						mixers[index] = m
+					}
+
+					sets = append(sets, procSet{mixers[index], nil})
+					continue
 				}
 
 				filters, err := p.configureFilters(processorCfg.Filters(), alias)
