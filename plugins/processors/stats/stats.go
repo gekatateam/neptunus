@@ -229,7 +229,7 @@ func (p *Stats) Observe(e *core.Event) {
 }
 
 func (p *Stats) noLabels(e *core.Event) ([]metricLabel, bool) {
-	return make([]metricLabel, 0, 0), true
+	return make([]metricLabel, 0), true
 }
 
 func (p *Stats) withLabels(e *core.Event) ([]metricLabel, bool) {

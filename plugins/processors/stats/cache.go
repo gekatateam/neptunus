@@ -1,7 +1,10 @@
 package stats
 
 import (
+	"context"
 	"sync"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins/common/distributor"
@@ -63,6 +66,7 @@ func (s *sharedStorage) newCache(k uint64) *sharedCache {
 
 	if cache, ok := s.s[k]; ok {
 		cache.writers++
+		cache.sem = semaphore.NewWeighted(cache.writers)
 		return cache
 	}
 
@@ -70,9 +74,10 @@ func (s *sharedStorage) newCache(k uint64) *sharedCache {
 		id:        k,
 		writers:   1,
 		cache:     newIndividualCache(),
-		distrib:   &distributor.Distributor[*core.Event]{},
+		distr:     distributor.New[*core.Event](),
 		syncPoint: 0,
-		mu:        &sync.Mutex{},
+		sem:       semaphore.NewWeighted(1),
+		wg:        &sync.WaitGroup{},
 	}
 	s.s[k] = cache
 
@@ -85,41 +90,46 @@ func newSharedCache(k uint64) *sharedCache {
 
 type sharedCache struct {
 	id      uint64
-	writers int32
+	writers int64
 
-	cache   individualCache
-	distrib *distributor.Distributor[*core.Event]
+	cache individualCache
+	distr *distributor.Distributor[*core.Event]
 
-	syncPoint int32
-	mu        *sync.Mutex
+	syncPoint int64
+	sem       *semaphore.Weighted
+	wg        *sync.WaitGroup
 }
 
 func (c *sharedCache) observe(m *metric, v float64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.sem.Acquire(context.Background(), c.writers)
+	defer c.sem.Release(c.writers)
 
 	c.cache.observe(m, v)
 }
 
 func (c *sharedCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.sem.Acquire(context.Background(), 1)
+	defer c.sem.Release(1)
 
-	c.distrib.AppendOut(out)
+	c.wg.Add(1)
+	c.distr.AppendOut(out)
 
 	c.syncPoint += 1
 	if c.syncPoint == c.writers {
 		c.flush2(flushFn)
-		c.distrib.Reset()
+		c.distr.Reset()
 		c.syncPoint = 0
+		c.wg.Add(-int(c.writers))
 	}
+
+	c.wg.Wait()
 }
 
 func (c *sharedCache) flush2(flushFn func(m *metric, out chan<- *core.Event)) {
 	out, done := make(chan *core.Event), make(chan struct{})
 
 	go func() {
-		c.distrib.Run(out)
+		c.distr.Run(out)
 		close(done)
 	}()
 
@@ -133,9 +143,11 @@ func (c *sharedCache) flush2(flushFn func(m *metric, out chan<- *core.Event)) {
 }
 
 func (c *sharedCache) clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.sem.Acquire(context.Background(), c.writers)
+	defer c.sem.Release(c.writers)
 
-	c.cache.clear()
-	ss.delete(c.id)
+	if c.syncPoint == 0 {
+		c.cache.clear()
+		ss.delete(c.id)
+	}
 }
