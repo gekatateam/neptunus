@@ -10,14 +10,14 @@ var cache = templateCache{
 	u:  0,
 	m:  make(map[string]*template.Template),
 	d:  make(map[string]time.Time),
-	mu: &sync.RWMutex{},
+	mu: &sync.Mutex{},
 }
 
 type templateCache struct {
 	u  int
 	m  map[string]*template.Template
 	d  map[string]time.Time
-	mu *sync.RWMutex
+	mu *sync.Mutex
 }
 
 func (c *templateCache) Reg() {
@@ -28,8 +28,8 @@ func (c *templateCache) Reg() {
 }
 
 func (c *templateCache) Get(key string) (*template.Template, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	t, ok := c.m[key]
 	if ok {

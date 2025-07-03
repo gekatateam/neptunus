@@ -50,7 +50,7 @@ func (p *Mixer) Run() {
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 
-	if atomic.AddInt32(&p.index, -1) == 0 {
+	if atomic.AddInt32(&p.index, -1) == -1 {
 		close(p.out)
 		p.Log.Debug("output channel closed")
 	}
