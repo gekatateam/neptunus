@@ -108,7 +108,6 @@ require (
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.starlark.net v0.0.0-20250318223901-d9371fef63fe
 	golang.org/x/net v0.39.0
-	golang.org/x/sync v0.13.0
 	golang.org/x/sys v0.32.0 // indirect
 	kythe.io v0.0.68
 )

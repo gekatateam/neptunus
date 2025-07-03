@@ -1,6 +1,6 @@
 [settings]
   id = "test.pipeline.mixer"
-  lines = 5
+  lines = 8
   run = true
   buffer = 5
   log_level = "info"
@@ -15,7 +15,7 @@
     # this job is used to create table partitions
     [[inputs.cronjob.jobs]]
       name = "partition.create"
-      schedule = "@every 30s"
+      schedule = "@every 5s"
       force = true
 
 [[processors]]
@@ -30,7 +30,7 @@ load("fs.star",   "fs")
 def process(event):
     events = []
 
-    for i in range(30):
+    for i in range(300):
         t = time.now() + time.hour * 24 * i
         e = newEvent("expeditions_" + t.format("2006_01_02"))
         e.setField("weekday", date.weekday_of(t))
@@ -49,20 +49,23 @@ def process(event):
 [[processors]]
   [processors.stats]
     mode = "shared"
+    period = "2s"
     [processors.stats.fields]
-      c = [ "gauge", "sum" ]
+      c = [ "gauge", "count", "sum" ]
 
 [[processors]]
   [processors.log]
     log_level = "warn"
-    level = "warn"
+    level = "debug"
     [processors.log.serializer]
       type = "json"
       data_only = false
 
 [[outputs]]
   [outputs.log]
-    level = "debug"
+    level = "info"
     [outputs.log.serializer]
       type = "json"
       data_only = false
+    [outputs.log.filters.glob]
+      routing_key = [ "neptunus.generated.metric" ]
