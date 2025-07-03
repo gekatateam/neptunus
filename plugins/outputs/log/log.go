@@ -25,6 +25,8 @@ func (o *Log) Init() error {
 		o.logFunc = o.Log.Debug
 	case "info":
 		o.logFunc = o.Log.Info
+	case "warn":
+		o.logFunc = o.Log.Warn
 	case "error":
 		o.logFunc = o.Log.Error
 	default:
