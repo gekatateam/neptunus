@@ -2,7 +2,7 @@
   id = "test.pipeline.mixer"
   lines = 5
   run = true
-  buffer = 3
+  buffer = 5
   log_level = "info"
 
 [[keykeepers]]
@@ -35,6 +35,7 @@ def process(event):
         e = newEvent("expeditions_" + t.format("2006_01_02"))
         e.setField("weekday", date.weekday_of(t))
         e.setField("month", date.month_of(t))
+        e.setField("c", 1)
 
         events.append(e)
 
@@ -44,6 +45,12 @@ def process(event):
 [[processors]]
   [processors.mixer]
     log_level = "debug"
+
+[[processors]]
+  [processors.stats]
+    mode = "shared"
+    [processors.stats.fields]
+      c = [ "gauge", "sum" ]
 
 [[processors]]
   [processors.log]
