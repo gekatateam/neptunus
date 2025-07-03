@@ -17,16 +17,23 @@ type Mixer struct {
 	ins []<-chan *core.Event
 	out chan *core.Event
 
-	index int32
+	ch    int32
+	index int
 }
 
 func (p *Mixer) Init() error {
+	p.ch = -1
 	p.index = -1
 	return nil
 }
 
 func (p *Mixer) Close() error {
 	return nil
+}
+
+func (p *Mixer) IncrIndex() int {
+	p.index++
+	return p.index
 }
 
 func (p *Mixer) OutChan() chan *core.Event {
@@ -42,7 +49,7 @@ func (p *Mixer) AppendChannels(in <-chan *core.Event, out chan *core.Event) {
 }
 
 func (p *Mixer) Run() {
-	i := atomic.AddInt32(&p.index, 1)
+	i := atomic.AddInt32(&p.ch, 1)
 	for e := range p.ins[i] {
 		now := time.Now()
 		p.Log.Debug(fmt.Sprintf("event from chan %v consumed", i))
@@ -50,7 +57,7 @@ func (p *Mixer) Run() {
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 
-	if atomic.AddInt32(&p.index, -1) == -1 {
+	if atomic.AddInt32(&p.ch, -1) == -1 {
 		close(p.out)
 		p.Log.Debug("output channel closed")
 	}

@@ -100,6 +100,7 @@ type Broadcast interface {
 
 type Mixer interface {
 	Processor
+	IncrIndex() int
 	AppendChannels(in <-chan *Event, out chan *Event)
 	OutChan() chan *Event
 }

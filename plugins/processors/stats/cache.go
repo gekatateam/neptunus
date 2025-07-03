@@ -1,13 +1,9 @@
 package stats
 
 import (
-	"context"
 	"sync"
 
-	"golang.org/x/sync/semaphore"
-
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/plugins/common/distributor"
 )
 
 type cache interface {
@@ -66,7 +62,6 @@ func (s *sharedStorage) newCache(k uint64) *sharedCache {
 
 	if cache, ok := s.s[k]; ok {
 		cache.writers++
-		cache.sem = semaphore.NewWeighted(cache.writers)
 		return cache
 	}
 
@@ -74,10 +69,8 @@ func (s *sharedStorage) newCache(k uint64) *sharedCache {
 		id:        k,
 		writers:   1,
 		cache:     newIndividualCache(),
-		distr:     distributor.New[*core.Event](),
 		syncPoint: 0,
-		sem:       semaphore.NewWeighted(1),
-		wg:        &sync.WaitGroup{},
+		mu:        &sync.Mutex{},
 	}
 	s.s[k] = cache
 
@@ -93,58 +86,34 @@ type sharedCache struct {
 	writers int64
 
 	cache individualCache
-	distr *distributor.Distributor[*core.Event]
 
 	syncPoint int64
-	sem       *semaphore.Weighted
-	wg        *sync.WaitGroup
+	mu        *sync.Mutex
 }
 
 func (c *sharedCache) observe(m *metric, v float64) {
-	c.sem.Acquire(context.Background(), c.writers)
-	defer c.sem.Release(c.writers)
-
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.cache.observe(m, v)
 }
 
 func (c *sharedCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event)) {
-	c.sem.Acquire(context.Background(), 1)
-	defer c.sem.Release(1)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	c.wg.Add(1)
-	c.distr.AppendOut(out)
-
-	c.syncPoint += 1
+	c.syncPoint++
 	if c.syncPoint == c.writers {
-		c.flush2(flushFn)
-		c.distr.Reset()
+		for _, m := range c.cache {
+			flushFn(m, out)
+			m.reset()
+		}
 		c.syncPoint = 0
-		c.wg.Add(-int(c.writers))
 	}
-
-	c.wg.Wait()
-}
-
-func (c *sharedCache) flush2(flushFn func(m *metric, out chan<- *core.Event)) {
-	out, done := make(chan *core.Event), make(chan struct{})
-
-	go func() {
-		c.distr.Run(out)
-		close(done)
-	}()
-
-	for _, m := range c.cache {
-		flushFn(m, out)
-		m.reset()
-	}
-
-	close(out)
-	<-done
 }
 
 func (c *sharedCache) clear() {
-	c.sem.Acquire(context.Background(), c.writers)
-	defer c.sem.Release(c.writers)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if c.syncPoint == 0 {
 		c.cache.clear()
