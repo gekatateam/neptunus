@@ -31,7 +31,9 @@ func (c *Broadcast) Run() {
 			if i == len(c.outs)-1 { // send origin event to last consumer
 				out <- e
 			} else {
-				out <- e.Clone()
+				cloned := e.Clone()
+				cloned.UUID = e.UUID // keep origin uuid for easier tracing
+				out <- cloned
 			}
 		}
 		c.Observe(metrics.EventAccepted, time.Since(now))
