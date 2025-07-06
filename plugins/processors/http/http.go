@@ -31,6 +31,7 @@ type Http struct {
 	MaxIdleConns        int           `mapstructure:"max_idle_conns"`
 	SuccessCodes        []int         `mapstructure:"success_codes"`
 	PathLabel           string        `mapstructure:"path_label"`
+	MethodLabel         string        `mapstructure:"method_label"`
 
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
 	Labelheaders map[string]string `mapstructure:"labelheaders"`
@@ -38,6 +39,7 @@ type Http struct {
 
 	RequestBodyFrom string `mapstructure:"request_body_from"`
 	ResponseBodyTo  string `mapstructure:"response_body_to"`
+	ResponseCodeTo  string `mapstructure:"response_code_to"`
 
 	*tls.TLSClientConfig `mapstructure:",squash"`
 	*retryer.Retryer     `mapstructure:",squash"`
@@ -199,7 +201,7 @@ func (p *Http) Run() {
 			path = label
 		}
 
-		respBody, respHeaders, err := p.performWithFallback(path, values, reqBody, header)
+		respBody, respHeaders, statusCode, err := p.performWithFallback(path, p.requestMethod(e), values, reqBody, header)
 		if err != nil {
 			p.Log.Error("request failed",
 				"error", err,
@@ -209,6 +211,19 @@ func (p *Http) Run() {
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue
+		}
+
+		if len(p.ResponseCodeTo) > 0 {
+			if err := e.SetField(p.ResponseCodeTo, statusCode); err != nil {
+				p.Log.Error("response processing failed",
+					"error", fmt.Errorf("error set response code: %w", err),
+					elog.EventGroup(e),
+				)
+				e.StackError(fmt.Errorf("error set response code: %w", err))
+				p.Out <- e
+				p.Observe(metrics.EventFailed, time.Since(now))
+				continue
+			}
 		}
 
 		if len(respBody) > 0 && len(p.ResponseBodyTo) > 0 {
@@ -257,8 +272,8 @@ func (p *Http) Run() {
 	}
 }
 
-func (p *Http) performWithFallback(path string, params url.Values, body []byte, header http.Header) ([]byte, http.Header, error) {
-	rawResponse, headers, err := p.perform(p.baseUrl.JoinPath(path), params, body, header)
+func (p *Http) performWithFallback(path, method string, params url.Values, body []byte, header http.Header) ([]byte, http.Header, int, error) {
+	rawResponse, headers, statusCode, err := p.perform(p.baseUrl.JoinPath(path), method, params, body, header)
 
 	if err != nil && len(p.fallbacks) > 0 {
 		p.Log.Warn("request failed, trying to perform to fallback",
@@ -266,10 +281,10 @@ func (p *Http) performWithFallback(path string, params url.Values, body []byte, 
 		)
 
 		for _, f := range p.fallbacks {
-			rawResponse, headers, err = p.perform(f.JoinPath(path), params, body, header)
+			rawResponse, headers, statusCode, err = p.perform(f.JoinPath(path), method, params, body, header)
 			if err == nil {
 				p.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f.String()))
-				return rawResponse, headers, nil
+				return rawResponse, headers, statusCode, nil
 			}
 
 			p.Log.Warn(fmt.Sprintf("request to fallback %v failed", f.String()),
@@ -278,17 +293,20 @@ func (p *Http) performWithFallback(path string, params url.Values, body []byte, 
 		}
 	}
 
-	return rawResponse, headers, err
+	return rawResponse, headers, statusCode, err
 }
 
-func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http.Header) ([]byte, http.Header, error) {
+func (p *Http) perform(uri *url.URL, method string, params url.Values, body []byte, header http.Header) ([]byte, http.Header, int, error) {
 	uri.RawQuery = params.Encode()
 
-	var rawResponse []byte
-	var headers http.Header
+	var (
+		rawResponse []byte
+		headers     http.Header
+		statusCode  int
+	)
 
 	err := p.Retryer.Do("perform request", p.Log, func() error {
-		req, err := http.NewRequest(p.Method, uri.String(), bytes.NewReader(body))
+		req, err := http.NewRequest(method, uri.String(), bytes.NewReader(body))
 		if err != nil {
 			return err
 		}
@@ -309,6 +327,7 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 		}
 		rawResponse = rawBody
 		headers = res.Header
+		statusCode = res.StatusCode
 
 		if _, ok := p.successCodes[res.StatusCode]; ok {
 			p.Log.Debug(fmt.Sprintf("request performed successfully with code: %v, body: %v", res.StatusCode, string(rawBody)))
@@ -318,13 +337,13 @@ func (p *Http) perform(uri *url.URL, params url.Values, body []byte, header http
 		}
 	})
 
-	return rawResponse, headers, err
+	return rawResponse, headers, statusCode, err
 }
 
-func (r *Http) unpackQueryValues(e *core.Event) (url.Values, error) {
+func (p *Http) unpackQueryValues(e *core.Event) (url.Values, error) {
 	values := make(url.Values)
 
-	for k, v := range r.Paramfields {
+	for k, v := range p.Paramfields {
 		field, err := e.GetField(v)
 		if err != nil {
 			continue // skip if target field not found
@@ -351,6 +370,16 @@ func (r *Http) unpackQueryValues(e *core.Event) (url.Values, error) {
 	}
 
 	return values, nil
+}
+
+func (p *Http) requestMethod(e *core.Event) string {
+	if l := p.MethodLabel; len(l) > 0 {
+		if method, ok := e.GetLabel(l); ok && len(method) > 0 {
+			return method
+		}
+		p.Log.Warn("event has no label with request method or it's empty")
+	}
+	return p.Method
 }
 
 func init() {

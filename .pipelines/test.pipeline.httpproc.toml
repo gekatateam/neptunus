@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.httpproc"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
@@ -15,6 +15,7 @@
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
   [inputs.http.labelheaders]
     uri = "x-uri"
+    method = "x-method"
   [inputs.http.parser]
     type = "json"
     split_array = false
@@ -23,17 +24,19 @@
   [processors.http]
     host = "http://localhost:9200"
     fallbacks = [ "https://jsonplaceholder.typicode.com/posts" ]
-    method = "GET"
+    method = "POST"
     retry_attempts = 3
     retry_after = "1s"
     tls_enable = true
-    response_body_to = "typicode.response"
+    method_label = "method"
+    response_body_to = "typicode.body"
+    response_code_to = "typicode.code"
     [processors.http.serializer]
       type = "json"
       data_only = false
     [processors.http.parser]
       type = "json"
-      split_array = true
+      split_array = false
 
 
 [[outputs]]

@@ -19,9 +19,10 @@ import (
 type requester struct {
 	*core.BaseOutput
 
-	uri       *url.URL
-	fallbacks []*url.URL
-	method    string
+	uri         *url.URL
+	fallbacks   []*url.URL
+	method      string
+	methodLabel string
 
 	successCodes map[int]struct{}
 	headerlabels map[string]string
@@ -81,7 +82,7 @@ func (r *requester) Run() {
 
 		totalBefore := time.Since(now)
 		now = time.Now() // reset now() to measure time spent on the request
-		err = r.performWithFallback(values, rawBody, header)
+		err = r.performWithFallback(r.requestMethod(buf[0]), values, rawBody, header)
 		totalAfter := time.Since(now)
 
 		for i, e := range buf {
@@ -145,8 +146,8 @@ func (r *requester) unpackQueryValues(e *core.Event) (url.Values, error) {
 	return values, nil
 }
 
-func (r *requester) performWithFallback(params url.Values, body []byte, header http.Header) error {
-	err := r.perform(r.uri, params, body, header)
+func (r *requester) performWithFallback(method string, params url.Values, body []byte, header http.Header) error {
+	err := r.perform(r.uri, method, params, body, header)
 
 	if err != nil && len(r.fallbacks) > 0 {
 		r.Log.Warn("request failed, trying to perform to fallback",
@@ -154,7 +155,7 @@ func (r *requester) performWithFallback(params url.Values, body []byte, header h
 		)
 
 		for _, f := range r.fallbacks {
-			err = r.perform(f, params, body, header)
+			err = r.perform(f, method, params, body, header)
 			if err == nil {
 				r.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f.String()))
 				return nil
@@ -169,11 +170,11 @@ func (r *requester) performWithFallback(params url.Values, body []byte, header h
 	return err
 }
 
-func (r *requester) perform(uri *url.URL, params url.Values, body []byte, header http.Header) error {
+func (r *requester) perform(uri *url.URL, method string, params url.Values, body []byte, header http.Header) error {
 	uri.RawQuery = params.Encode()
 
 	return r.Retryer.Do("perform request", r.Log, func() error {
-		req, err := http.NewRequest(r.method, uri.String(), bytes.NewReader(body))
+		req, err := http.NewRequest(method, uri.String(), bytes.NewReader(body))
 		if err != nil {
 			return err
 		}
@@ -206,6 +207,16 @@ func (r *requester) perform(uri *url.URL, params url.Values, body []byte, header
 			return fmt.Errorf("request result not successful with code: %v, body: %v", res.StatusCode, string(rawBody))
 		}
 	})
+}
+
+func (r *requester) requestMethod(e *core.Event) string {
+	if l := r.methodLabel; len(l) > 0 {
+		if method, ok := e.GetLabel(l); ok && len(method) > 0 {
+			return method
+		}
+		r.Log.Warn("event has no label with request method or it's empty")
+	}
+	return r.method
 }
 
 func durationPerEvent(totalBefore, totalAfter time.Duration, batchSize, i int) time.Duration {

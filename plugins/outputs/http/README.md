@@ -14,6 +14,11 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # request method, required
     method = "POST"
 
+    # label, which value will be used as a request method, if configured
+    # if not, or event has no label, `method` will be used
+    # ONLY FIRST EVENT IN BATCH USED
+    method_label = "request_method"
+
     # list of fallback hosts
     # if all `retry_attempts` to perform request to `host` failed, fallbacks will be used
     fallbacks = [ "http://fallback.local:9100", "http://anotherfallback.local:9100" ]

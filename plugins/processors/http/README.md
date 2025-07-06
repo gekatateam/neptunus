@@ -38,11 +38,18 @@ Please note, that in multiline configuration HTTP client is shared between proce
     # label, which value will be used as a request path, if configured
     path_label = "request_uri"
 
+    # label, which value will be used as a request method, if configured
+    # if not, or event has no label, `method` will be used
+    method_label = "request_method"
+
     # field, which content will be used as a request body after serialization, if configured
     request_body_from = "path.to.request.field"
 
     # field, that will be added to event with response body after parsing, if configured
-    response_body_to = "path.to.response.field"
+    response_body_to = "path.to.response.body"
+
+    # field, that will be added to event with response code, if configured
+    response_code_to = "path.to.response.code"
 
     # maximum number of attempts to perform request
     # before events will be marked as failed
