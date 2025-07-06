@@ -25,6 +25,7 @@ type Http struct {
 	MaxIdleConns     int           `mapstructure:"max_idle_conns"`
 	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
 	SuccessCodes     []int         `mapstructure:"success_codes"`
+	MethodLabel      string        `mapstructure:"method_label"`
 
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
 	Paramfields  map[string]string `mapstructure:"paramfields"`
@@ -146,6 +147,7 @@ func (o *Http) newRequester(path string) pool.Runner[*core.Event] {
 	return &requester{
 		BaseOutput:   o.BaseOutput,
 		method:       o.Method,
+		methodLabel:  o.MethodLabel,
 		successCodes: o.successCodes,
 		headerlabels: o.Headerlabels,
 		paramfields:  o.Paramfields,

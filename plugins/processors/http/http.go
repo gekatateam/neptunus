@@ -374,9 +374,10 @@ func (p *Http) unpackQueryValues(e *core.Event) (url.Values, error) {
 
 func (p *Http) requestMethod(e *core.Event) string {
 	if l := p.MethodLabel; len(l) > 0 {
-		if method, ok := e.GetLabel(l); ok {
+		if method, ok := e.GetLabel(l); ok && len(method) > 0 {
 			return method
 		}
+		p.Log.Warn("event has no label with request method or it's empty")
 	}
 	return p.Method
 }
