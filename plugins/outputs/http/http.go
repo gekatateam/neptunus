@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -25,6 +26,7 @@ type Http struct {
 	MaxIdleConns     int           `mapstructure:"max_idle_conns"`
 	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
 	SuccessCodes     []int         `mapstructure:"success_codes"`
+	SuccessBody      string        `mapstructure:"success_body"`
 	MethodLabel      string        `mapstructure:"method_label"`
 
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
@@ -36,6 +38,7 @@ type Http struct {
 
 	requestersPool *pool.Pool[*core.Event, string]
 	successCodes   map[int]struct{}
+	successBody    *regexp.Regexp
 	providedUri    *url.URL
 	fallbacks      []*url.URL
 
@@ -86,6 +89,15 @@ func (o *Http) Init() error {
 		successCodes[v] = struct{}{}
 	}
 	o.successCodes = successCodes
+
+	o.successBody = nil
+	if len(o.SuccessBody) > 0 {
+		rex, err := regexp.Compile(o.SuccessBody)
+		if err != nil {
+			return fmt.Errorf("successBody regexp: %w", err)
+		}
+		o.successBody = rex
+	}
 
 	tlsConfig, err := o.TLSClientConfig.Config()
 	if err != nil {
@@ -148,6 +160,7 @@ func (o *Http) newRequester(path string) pool.Runner[*core.Event] {
 		BaseOutput:   o.BaseOutput,
 		method:       o.Method,
 		methodLabel:  o.MethodLabel,
+		successBody:  o.successBody,
 		successCodes: o.successCodes,
 		headerlabels: o.Headerlabels,
 		paramfields:  o.Paramfields,

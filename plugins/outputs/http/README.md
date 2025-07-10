@@ -43,6 +43,10 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # result codes, means request performed successfully
     success_codes = [ 200, 201, 204 ]
 
+    # regular expression to match response body
+    # if configured, response code must be in `success_codes` OR body must match this regexp
+    success_body = ".*success but with strange code.*"
+
     # interval between events buffer flushes if buffer length less than it's capacity
     batch_interval = "5s"
 
