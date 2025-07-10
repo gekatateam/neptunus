@@ -35,6 +35,10 @@ Please note, that in multiline configuration HTTP client is shared between proce
     # result codes, means request performed successfully
     success_codes = [ 200, 201, 204 ]
 
+    # regular expression to match response body
+    # if configured, response code must be in `success_codes` OR body must match this regexp
+    success_body = ".*success but with strange code.*"
+
     # label, which value will be used as a request path, if configured
     path_label = "request_uri"
 

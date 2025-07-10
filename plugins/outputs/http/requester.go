@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -24,6 +25,7 @@ type requester struct {
 	method      string
 	methodLabel string
 
+	successBody  *regexp.Regexp
 	successCodes map[int]struct{}
 	headerlabels map[string]string
 	paramfields  map[string]string
@@ -196,14 +198,16 @@ func (r *requester) perform(uri *url.URL, method string, params url.Values, body
 			)
 		}
 
-		if len(rawBody) == 0 {
-			rawBody = []byte("<nil>")
-		}
-
 		if _, ok := r.successCodes[res.StatusCode]; ok {
 			r.Log.Debug(fmt.Sprintf("request performed successfully with code: %v, body: %v", res.StatusCode, string(rawBody)))
 			return nil
 		} else {
+			if r.successBody != nil && r.successBody.Match(rawBody) {
+				r.Log.Debug(fmt.Sprintf("request performed with code: %v, body: %v; "+
+					"but response body matches configured regexp", res.StatusCode, string(rawBody)))
+				return nil
+			}
+
 			return fmt.Errorf("request result not successful with code: %v, body: %v", res.StatusCode, string(rawBody))
 		}
 	})

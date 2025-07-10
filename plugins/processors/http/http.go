@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -30,6 +31,7 @@ type Http struct {
 	IdleConnTimeout     time.Duration `mapstructure:"idle_conn_timeout"`
 	MaxIdleConns        int           `mapstructure:"max_idle_conns"`
 	SuccessCodes        []int         `mapstructure:"success_codes"`
+	SuccessBody         string        `mapstructure:"success_body"`
 	PathLabel           string        `mapstructure:"path_label"`
 	MethodLabel         string        `mapstructure:"method_label"`
 
@@ -45,6 +47,7 @@ type Http struct {
 	*retryer.Retryer     `mapstructure:",squash"`
 
 	successCodes map[int]struct{}
+	successBody  *regexp.Regexp
 	baseUrl      *url.URL
 	fallbacks    []*url.URL
 	id           uint64
@@ -88,6 +91,15 @@ func (p *Http) Init() error {
 		successCodes[v] = struct{}{}
 	}
 	p.successCodes = successCodes
+
+	p.successBody = nil
+	if len(p.SuccessBody) > 0 {
+		rex, err := regexp.Compile(p.SuccessBody)
+		if err != nil {
+			return fmt.Errorf("successBody regexp: %w", err)
+		}
+		p.successBody = rex
+	}
 
 	tlsConfig, err := p.TLSClientConfig.Config()
 	if err != nil {
@@ -333,6 +345,12 @@ func (p *Http) perform(uri *url.URL, method string, params url.Values, body []by
 			p.Log.Debug(fmt.Sprintf("request performed successfully with code: %v, body: %v", res.StatusCode, string(rawBody)))
 			return nil
 		} else {
+			if p.successBody != nil && p.successBody.Match(rawBody) {
+				p.Log.Debug(fmt.Sprintf("request performed with code: %v, body: %v; "+
+					"but response body matches configured regexp", res.StatusCode, string(rawBody)))
+				return nil
+			}
+
 			return fmt.Errorf("request result not successful with code: %v, body: %v", res.StatusCode, string(rawBody))
 		}
 	})
