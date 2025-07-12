@@ -6,6 +6,8 @@
     runner = "local"
     dc = "east-01"
     host = "${COMPUTERNAME}"
+  [common.log_replaces]
+    'Bearer \w+' = "<BEARER TOKEN>"
 
 [runtime]
   gcpercent = "75%"
