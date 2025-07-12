@@ -3,6 +3,7 @@
   lines = 1
   run = true
   buffer = 1_000
+  log_level = "debug"
 
 [[inputs]]
   [inputs.http]
@@ -16,6 +17,7 @@
   [inputs.http.labelheaders]
     uri = "x-uri"
     method = "x-method"
+    token = "x-token"
   [inputs.http.parser]
     type = "json"
     split_array = false
@@ -29,8 +31,12 @@
     retry_after = "1s"
     tls_enable = true
     method_label = "method"
+    success_codes = [ 500 ]
+    success_body = "sunt aut"
     response_body_to = "typicode.body"
     response_code_to = "typicode.code"
+    [processors.http.headerlabels]
+      token = "token"
     [processors.http.serializer]
       type = "json"
       data_only = false

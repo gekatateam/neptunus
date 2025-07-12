@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 
 	dynamic "github.com/gekatateam/dynamic-level-handler"
 
@@ -25,14 +26,23 @@ func Init(cfg config.Common) error {
 		return err
 	}
 
+	replaces := make(map[*regexp.Regexp]string, len(cfg.LogReplaces))
+	for k, v := range cfg.LogReplaces {
+		rex, err := regexp.Compile(k)
+		if err != nil {
+			return fmt.Errorf("logReplaces: %v: %w", k, err)
+		}
+		replaces[rex] = v
+	}
+
 	opts.Level = level
 
 	switch f := cfg.LogFormat; f {
 	case "logfmt":
-		opts.ReplaceAttr = attrReplacer
+		opts.ReplaceAttr = attrReplacer(replaces)
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	case "json":
-		opts.ReplaceAttr = attrReplacer
+		opts.ReplaceAttr = attrReplacer(replaces)
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	case "pretty":
 		handler = prettylog.NewHandler(opts)
@@ -56,16 +66,24 @@ func Mock() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-func attrReplacer(_ []string, a slog.Attr) slog.Attr {
-	if a.Key == slog.TimeKey {
-		a.Key = "@timestamp"
-	}
+func attrReplacer(replaces map[*regexp.Regexp]string) func(groups []string, a slog.Attr) slog.Attr {
+	return func(_ []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey {
+			a.Key = "@timestamp"
+		}
 
-	if a.Key == slog.MessageKey {
-		a.Key = "message"
-	}
+		if a.Key == slog.MessageKey {
+			a.Key = "message"
 
-	return a
+			value := a.Value.String()
+			for rex, replace := range replaces {
+				value = rex.ReplaceAllString(value, replace)
+			}
+			a.Value = slog.StringValue(value)
+		}
+
+		return a
+	}
 }
 
 func LevelToLeveler(level string) (slog.Leveler, error) {

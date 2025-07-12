@@ -13,6 +13,7 @@ You can also use environment variables in daemon config with `${MY_VAR}` syntax.
  - **log_format**: Logging format, supports `pretty`, `logfmt` and `json` formats.
  - **http_port**: Address for the HTTP API server. See more in the [API documentation](API.md).
  - **log_fields**: A map of fields, that will be added to each log entry.
+ - **log_replaces**: A map of `regexp = replacer` pairs; all matched substrings in log message will be replaced; it may help to avoid logging sensitive data, e.g. authorization tokens.
 
 Here is a common part example:
 ```toml
@@ -24,6 +25,8 @@ Here is a common part example:
     stage = "dev"
     dc = "east-01"
     host = "${HOSTNAME}"
+  [common.log_replaces]
+    'Bearer \w+' = "<BEARER TOKEN>"
 ```
 
 **Runtime** settings may help in ephemeral runtimes, like Kubernetes with [VPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/#scaling-workloads-vertically), where you can't directly set your app resources and limits:
