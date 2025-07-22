@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package protomap.test;
+
+message Test {
+    string String = 1;
+    map<string, string> Map = 2;
+    bytes Binary = 3;
+    repeated string List = 4;
+    int32 Int = 5;
+    uint64 Uint = 6;
+    double Float = 7;
+    Inner Inner = 8;
+    map<int32, int32> IntMap = 9;
+    oneof OneOf {
+        string Type = 10;
+        double Number = 11;
+    }
+    Enum Enum = 12;
+}
+
+message Inner {
+    string Foo = 1;
+    repeated int64 List = 2;
+}
+
+enum Enum {
+    OK = 0;
+    FAILED = 1;
+}

@@ -1,0 +1,24 @@
+[settings]
+  id = "test.pipeline.http"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.http]
+    enable_metrics = true
+    address = ":9100"
+    max_connections = 10
+    wait_for_delivery = true
+    methods = [ "POST" ]
+  [inputs.http.parser]
+    type = "protobuf"
+    message = "protomap.test.Test"
+    proto_files = [ ".pipelines/payload.proto" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
