@@ -1,0 +1,45 @@
+[settings]
+  id = "test.pipeline.protobuf"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.http]
+    enable_metrics = true
+    address = ":9100"
+    max_connections = 10
+    wait_for_delivery = true
+    methods = [ "POST" ]
+  [inputs.http.parser]
+    type = "protobuf"
+    message = "protomap.test.Test"
+    proto_files = [ ".pipelines/payload.proto" ]
+
+[[processors]]
+  [processors.rk.mapping]
+    "/httpout-test-final" = [ "/httpout-test-out" ]
+    "/httpout-test-out" = [ "/httpout-test-in" ]
+
+[[outputs]]
+  [outputs.http]
+    host = "http://localhost:9200"
+    fallbacks = [ "http://localhost:9300", "http://localhost:9100" ]
+    retry_attempts = 3
+    retry_after = "1s"
+    batch_interval = "1s"
+    [outputs.http.serializer]
+    type = "protobuf"
+    message = "protomap.test.Test"
+    proto_files = [ ".pipelines/payload.proto" ]
+    [outputs.http.filters.glob]
+      routing_key = [ "/httpout-test-out" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
+    [outputs.log.filters.glob]
+      routing_key = [ "/httpout-test-final" ]
