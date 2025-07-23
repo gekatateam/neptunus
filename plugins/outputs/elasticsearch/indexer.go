@@ -16,6 +16,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/esopensearch"
@@ -57,15 +58,21 @@ func (i *indexer) Push(e *core.Event) {
 func (i *indexer) Run() {
 	i.Log.Info(fmt.Sprintf("indexer for pipeline %v spawned", i.pipeline))
 
+	body := &esopensearch.BulkBody{
+		Buffer: bytes.NewBuffer(make([]byte, 0, defaultBufferSize)),
+	}
+
 	i.Batcher.Run(i.input, func(buf []*core.Event) {
+		defer body.Reset()
+
 		if len(buf) == 0 {
 			return
 		}
+
 		var (
-			now        time.Time              = time.Now()
-			sentEvents []measurableEvent      = make([]measurableEvent, 0, len(buf))
-			body       *esopensearch.BulkBody = &esopensearch.BulkBody{Buffer: bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
-			req        *esapi.BulkRequest     = &esapi.BulkRequest{Pipeline: i.pipeline}
+			now        time.Time          = time.Now()
+			sentEvents []measurableEvent  = make([]measurableEvent, 0, len(buf))
+			req        *esapi.BulkRequest = &esapi.BulkRequest{Pipeline: i.pipeline}
 		)
 
 		for _, e := range buf {
@@ -208,7 +215,10 @@ func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk
 func (i *indexer) unmarshalBody(b *esapi.Response) (*bulk.Response, error) {
 	defer b.Body.Close()
 
-	buf := bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
+	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	defer baiscpools.BytesBuffer.Put(buf)
+	defer buf.Reset()
+
 	if _, err := buf.ReadFrom(b.Body); err != nil {
 		return nil, fmt.Errorf("response body read failed: %w", err)
 	}
