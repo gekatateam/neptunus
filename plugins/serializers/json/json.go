@@ -11,6 +11,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
@@ -58,9 +59,11 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 
 func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := bytes.NewBuffer(make([]byte, 0, 4096))
-	buf.WriteString(s.start)
+	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	defer baiscpools.BytesBuffer.Put(buf)
+	defer buf.Reset()
 
+	buf.WriteString(s.start)
 	for _, e := range events {
 		rawData, err := s.eventOrData(e)
 		if err != nil {
@@ -90,8 +93,9 @@ func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 
 func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := bytes.NewBuffer(make([]byte, 0, 4096))
-	buf.WriteString(s.start)
+	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	defer baiscpools.BytesBuffer.Put(buf)
+	defer buf.Reset()
 
 	var sErr error
 	last := len(events) - 1
