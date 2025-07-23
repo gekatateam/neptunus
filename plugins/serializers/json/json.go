@@ -97,6 +97,7 @@ func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 	defer baiscpools.BytesBuffer.Put(buf)
 	defer buf.Reset()
 
+	buf.WriteString(s.start)
 	var sErr error
 	last := len(events) - 1
 	for i, e := range events {
