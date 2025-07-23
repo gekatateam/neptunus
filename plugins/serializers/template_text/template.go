@@ -12,6 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	cte "github.com/gekatateam/neptunus/plugins/common/template"
 )
@@ -58,14 +59,16 @@ func (t *TemplateText) Init() error {
 
 func (t *TemplateText) parseBatch(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buff := bytes.NewBuffer(make([]byte, 0, 3072))
+	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	defer baiscpools.BytesBuffer.Put(buf)
+	defer buf.Reset()
 
 	te := make([]cte.TEvent, 0, len(events))
 	for _, e := range events {
 		te = append(te, cte.New(e))
 	}
 
-	err := t.template.Execute(buff, te)
+	err := t.template.Execute(buf, te)
 	for _, e := range events {
 		if err != nil {
 			t.Log.Error("template serialization failed",
@@ -81,7 +84,7 @@ func (t *TemplateText) parseBatch(events ...*core.Event) ([]byte, error) {
 		}
 		now = time.Now()
 	}
-	return buff.Bytes(), err
+	return buf.Bytes(), err
 }
 
 func init() {

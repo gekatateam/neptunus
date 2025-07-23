@@ -45,13 +45,13 @@ func (s *Protobuf) Close() error {
 
 func (s *Protobuf) Serialize(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
+	err := errors.New("protobuf serializer accepts exactly one event per call")
 
 	if len(events) == 0 {
-		return nil, errors.New("protobuf serializer accepts exactly one event per call")
+		return nil, nil
 	}
 
 	if len(events) != 1 {
-		err := errors.New("protobuf serializer accepts only one event per call")
 		for _, e := range events {
 			s.Log.Error("event serialization failed",
 				"error", err,

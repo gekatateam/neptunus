@@ -30,7 +30,6 @@ func (b *BulkBody) CreateOp(doc []byte, params BulkOp) error {
 		return fmt.Errorf("bulk.CreateOp: %w", err)
 	}
 
-	//b.WriteByte('\n')
 	b.Write(doc)
 	b.WriteByte('\n')
 	return nil
@@ -41,7 +40,6 @@ func (b *BulkBody) IndexOp(doc []byte, params BulkOp) error {
 		return fmt.Errorf("bulk.IndexOp: %w", err)
 	}
 
-	//b.WriteByte('\n')
 	b.Write(doc)
 	b.WriteByte('\n')
 	return nil

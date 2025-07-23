@@ -18,14 +18,13 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	basic "github.com/gekatateam/neptunus/plugins/common/http"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	httpstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
-
-const defaultBufferSize = 4096
 
 type Http struct {
 	*core.BaseInput `mapstructure:"-"`
@@ -176,7 +175,10 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"path", r.URL.Path,
 	)
 
-	buf := bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
+	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	defer baiscpools.BytesBuffer.Put(buf)
+	defer buf.Reset()
+
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
 		i.Log.Error("body read error",
@@ -258,7 +260,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(fmt.Sprintf("accepted events: %v", len(e))))
+	_, err = fmt.Fprintf(w, "accepted events: %v", len(e))
 	if err != nil {
 		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,

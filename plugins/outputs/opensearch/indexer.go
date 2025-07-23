@@ -52,14 +52,20 @@ func (i *indexer) Push(e *core.Event) {
 func (i *indexer) Run() {
 	i.Log.Info(fmt.Sprintf("indexer for pipeline %v spawned", i.pipeline))
 
+	body := &esopensearch.BulkBody{
+		Buffer: bytes.NewBuffer(make([]byte, 0, defaultBufferSize)),
+	}
+
 	i.Batcher.Run(i.input, func(buf []*core.Event) {
+		defer body.Reset()
+
 		if len(buf) == 0 {
 			return
 		}
+
 		var (
 			now        time.Time              = time.Now()
 			sentEvents []measurableEvent      = make([]measurableEvent, 0, len(buf))
-			body       *esopensearch.BulkBody = &esopensearch.BulkBody{Buffer: bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
 			req        *opensearchapi.BulkReq = &opensearchapi.BulkReq{Params: opensearchapi.BulkParams{Pipeline: i.pipeline}}
 		)
 
