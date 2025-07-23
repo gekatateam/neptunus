@@ -26,8 +26,6 @@ import (
 	pkgtls "github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-const defaultBufferSize = 4096
-
 type Http struct {
 	*core.BaseInput `mapstructure:"-"`
 	EnableMetrics   bool              `mapstructure:"enable_metrics"`
