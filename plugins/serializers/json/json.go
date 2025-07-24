@@ -1,7 +1,6 @@
 package json
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -59,7 +58,7 @@ func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
 
 func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	buf := baiscpools.BytesBuffer.Get()
 	defer baiscpools.BytesBuffer.Put(buf)
 	defer buf.Reset()
 
@@ -93,7 +92,7 @@ func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 
 func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	buf := baiscpools.BytesBuffer.Get()
 	defer baiscpools.BytesBuffer.Put(buf)
 	defer buf.Reset()
 

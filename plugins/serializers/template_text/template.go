@@ -1,7 +1,6 @@
 package template_text
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"text/template"
@@ -59,7 +58,7 @@ func (t *TemplateText) Init() error {
 
 func (t *TemplateText) parseBatch(events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	buf := baiscpools.BytesBuffer.Get()
 	defer baiscpools.BytesBuffer.Put(buf)
 	defer buf.Reset()
 
