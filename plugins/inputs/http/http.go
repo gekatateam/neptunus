@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -175,7 +174,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"path", r.URL.Path,
 	)
 
-	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	buf := baiscpools.BytesBuffer.Get()
 	defer baiscpools.BytesBuffer.Put(buf)
 	defer buf.Reset()
 

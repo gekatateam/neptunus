@@ -209,7 +209,7 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(fmt.Sprintf("accepted events: %v", events)))
+	_, err := fmt.Fprintf(w, "accepted events: %v", events)
 	if err != nil {
 		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,

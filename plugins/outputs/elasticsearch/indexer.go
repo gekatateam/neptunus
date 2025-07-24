@@ -215,7 +215,7 @@ func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk
 func (i *indexer) unmarshalBody(b *esapi.Response) (*bulk.Response, error) {
 	defer b.Body.Close()
 
-	buf := baiscpools.BytesBuffer.Get().(*bytes.Buffer)
+	buf := baiscpools.BytesBuffer.Get()
 	defer baiscpools.BytesBuffer.Put(buf)
 	defer buf.Reset()
 
