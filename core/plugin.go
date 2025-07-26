@@ -53,13 +53,25 @@ type Parser interface {
 
 // serializer plugin serializes events into configured format
 type Serializer interface {
-	Serialize(event ...*Event) ([]byte, error)
+	Serialize(events ...*Event) ([]byte, error)
 	io.Closer
 	Initer
 }
 
 type Keykeeper interface {
 	Get(key string) (any, error)
+	io.Closer
+	Initer
+}
+
+type Compressor interface {
+	Compress([]byte) ([]byte, error)
+	io.Closer
+	Initer
+}
+
+type Decompressor interface {
+	Decompress([]byte) ([]byte, error)
 	io.Closer
 	Initer
 }

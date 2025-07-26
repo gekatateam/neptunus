@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/goccy/go-yaml"
 	toml2 "github.com/naoina/toml" // for marshal only
 )
 
-// TODO: rewrite to structs
 type Pipeline struct {
 	Settings   PipeSettings   `toml:"settings"   yaml:"settings"   json:"settings"`
 	Vars       map[string]any `toml:"vars"       yaml:"vars"       json:"vars"`
@@ -140,6 +140,48 @@ func (p Plugin) Filters() PluginSet {
 		filters[key] = Plugin(filterCfg)
 	}
 	return filters
+}
+
+func (p Plugin) Compressor() (Plugin, string) {
+	compressorNameRaw, ok := p["compressor"]
+	if !ok {
+		return nil, ""
+	}
+
+	compressorName, ok := compressorNameRaw.(string)
+	if !ok {
+		return nil, ""
+	}
+
+	compressor := make(Plugin, len(p))
+	for k, v := range p {
+		if strings.HasPrefix(k, compressorName+"_") {
+			compressor[k] = v
+		}
+	}
+
+	return compressor, compressorName
+}
+
+func (p Plugin) Decompressor() (Plugin, string) {
+	decompressorNameRaw, ok := p["decompressor"]
+	if !ok {
+		return nil, ""
+	}
+
+	decompressorName, ok := decompressorNameRaw.(string)
+	if !ok {
+		return nil, ""
+	}
+
+	decompressor := make(Plugin, len(p))
+	for k, v := range p {
+		if strings.HasPrefix(k, decompressorName+"_") {
+			decompressor[k] = v
+		}
+	}
+
+	return decompressor, decompressorName
 }
 
 func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {

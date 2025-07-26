@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"log/slog"
 	"reflect"
 	"time"
@@ -153,4 +154,62 @@ type BaseKeykeeper struct {
 	Pipeline string
 
 	Log *slog.Logger
+}
+
+type SerializerComperssor struct {
+	S Serializer
+	C Compressor
+}
+
+func (sc *SerializerComperssor) Init() error { panic(errors.ErrUnsupported) }
+
+func (sc *SerializerComperssor) Close() error {
+	var err error
+	if sc.C != nil {
+		err = sc.C.Close()
+	}
+	err = sc.S.Close()
+	return err
+}
+
+func (sc *SerializerComperssor) Serialize(events ...*Event) ([]byte, error) {
+	data, err := sc.S.Serialize(events...)
+	if err != nil {
+		return nil, err
+	}
+
+	if sc.C != nil {
+		return sc.C.Compress(data)
+	}
+
+	return data, nil
+}
+
+type ParserDecompressor struct {
+	P Parser
+	D Decompressor
+}
+
+func (pd *ParserDecompressor) Init() error { panic(errors.ErrUnsupported) }
+
+func (pd *ParserDecompressor) Close() error {
+	var err error
+	if pd.D != nil {
+		err = pd.D.Close()
+	}
+	err = pd.P.Close()
+	return err
+}
+
+func (pd *ParserDecompressor) Parse(data []byte, routingKey string) ([]*Event, error) {
+	if pd.D != nil {
+		ddata, err := pd.D.Decompress(data)
+		if err != nil {
+			return nil, err
+		}
+
+		data = ddata
+	}
+
+	return pd.P.Parse(data, routingKey)
 }

@@ -18,7 +18,6 @@
   [inputs.http.parser]
     type = "json"
 
-
 [[processors]]
   [processors.template.fields]
     id     = '{{ .GetLabel "id" }}'

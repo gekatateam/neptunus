@@ -131,3 +131,39 @@ func GetKeykeeper(key string) (keykeeperFunc, bool) {
 	p, ok := keykeepers[key]
 	return p, ok
 }
+
+// compressors
+type compressorFunc func() core.Compressor
+
+var compressors = make(map[string]compressorFunc)
+
+func AddCompressor(key string, p compressorFunc) {
+	if _, exists := compressors[key]; exists {
+		panic(fmt.Errorf("duplicate compressor func added: %v", key))
+	}
+
+	compressors[key] = p
+}
+
+func GetCompressor(key string) (compressorFunc, bool) {
+	p, ok := compressors[key]
+	return p, ok
+}
+
+// decompressors
+type decompressorFunc func() core.Decompressor
+
+var decompressors = make(map[string]decompressorFunc)
+
+func AddDecompressor(key string, p decompressorFunc) {
+	if _, exists := decompressors[key]; exists {
+		panic(fmt.Errorf("duplicate decompressor func added: %v", key))
+	}
+
+	decompressors[key] = p
+}
+
+func GetDecompressor(key string) (decompressorFunc, bool) {
+	p, ok := decompressors[key]
+	return p, ok
+}
