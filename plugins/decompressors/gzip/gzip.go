@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"sync"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
 )
+
+var readersPool = &sync.Pool{}
 
 type Gzip struct{}
 
@@ -21,16 +24,22 @@ func (c *Gzip) Close() error {
 
 func (c *Gzip) Decompress(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
-
 	buf.Write(data)
 
-	r, err := gzip.NewReader(buf)
-	if err != nil {
-		return nil, err
+	var r *gzip.Reader
+	if poolReader := readersPool.Get(); poolReader == nil {
+		newReader, err := gzip.NewReader(buf)
+		if err != nil {
+			return nil, err
+		}
+		r = newReader
+	} else {
+		r = poolReader.(*gzip.Reader)
+		r.Reset(buf)
 	}
 	defer r.Close()
 
-	data, err = io.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

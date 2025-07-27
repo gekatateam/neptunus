@@ -5,10 +5,19 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"fmt"
+	"sync"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/plugins"
 )
+
+var writersPools = map[int]*sync.Pool{
+	flate.NoCompression:      {},
+	flate.BestSpeed:          {},
+	flate.BestCompression:    {},
+	flate.DefaultCompression: {},
+	flate.HuffmanOnly:        {},
+}
 
 type Gzip struct {
 	CompressionLevel string `mapstructure:"gzip_level"`
@@ -41,10 +50,19 @@ func (c *Gzip) Close() error {
 func (c *Gzip) Compress(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 
-	w, err := gzip.NewWriterLevel(buf, c.level)
-	if err != nil {
-		return nil, err
+	var w *gzip.Writer
+	if poolWriter := writersPools[c.level].Get(); poolWriter == nil {
+		newWriter, err := gzip.NewWriterLevel(buf, c.level)
+		if err != nil {
+			return nil, err
+		}
+		w = newWriter
+	} else {
+		w = poolWriter.(*gzip.Writer)
+		w.Reset(buf)
 	}
+	defer writersPools[c.level].Put(w)
+
 	w.Write(data)
 
 	if err := w.Flush(); err != nil {
