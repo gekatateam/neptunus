@@ -17,7 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
-const defaultBufferSize = 4096
+const defaultBufferSize = 1024
 
 type indexer struct {
 	*core.BaseOutput

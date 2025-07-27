@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
-	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
@@ -20,7 +20,7 @@ type Json struct {
 	OmitFailed           bool   `mapstructure:"omit_failed"`
 	Mode                 string `mapstructure:"mode"`
 
-	serFunc func(events ...*core.Event) ([]byte, error)
+	serFunc func(buf *bytes.Buffer, events ...*core.Event) ([]byte, error)
 
 	delim string
 	start string
@@ -53,14 +53,12 @@ func (s *Json) Close() error {
 }
 
 func (s *Json) Serialize(events ...*core.Event) ([]byte, error) {
-	return s.serFunc(events...)
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	return s.serFunc(buf, events...)
 }
 
-func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
+func (s *Json) serializeTryAll(buf *bytes.Buffer, events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := baiscpools.BytesBuffer.Get()
-	defer baiscpools.BytesBuffer.Put(buf)
-	defer buf.Reset()
 
 	buf.WriteString(s.start)
 	for _, e := range events {
@@ -90,11 +88,8 @@ func (s *Json) serializeTryAll(events ...*core.Event) ([]byte, error) {
 	return nil, errors.New("all events serialization failed")
 }
 
-func (s *Json) serializeFailFast(events ...*core.Event) ([]byte, error) {
+func (s *Json) serializeFailFast(buf *bytes.Buffer, events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := baiscpools.BytesBuffer.Get()
-	defer baiscpools.BytesBuffer.Put(buf)
-	defer buf.Reset()
 
 	buf.WriteString(s.start)
 	var sErr error

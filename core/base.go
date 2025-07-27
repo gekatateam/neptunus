@@ -179,7 +179,8 @@ func (sc *SerializerComperssor) Serialize(events ...*Event) ([]byte, error) {
 	}
 
 	if sc.C != nil {
-		return sc.C.Compress(data)
+		data, err = sc.C.Compress(data)
+		return data, err
 	}
 
 	return data, nil
@@ -203,12 +204,11 @@ func (pd *ParserDecompressor) Close() error {
 
 func (pd *ParserDecompressor) Parse(data []byte, routingKey string) ([]*Event, error) {
 	if pd.D != nil {
-		ddata, err := pd.D.Decompress(data)
+		var err error
+		data, err = pd.D.Decompress(data)
 		if err != nil {
 			return nil, err
 		}
-
-		data = ddata
 	}
 
 	return pd.P.Parse(data, routingKey)
