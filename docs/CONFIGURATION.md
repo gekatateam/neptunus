@@ -210,11 +210,11 @@ Inputs, processors, outputs and filters may use [Parser plugins](../plugins/pars
 [[outputs]]
   [outputs.http]
     host = "http://localhost:9200"
-    [outputs.http.serializer]
-      type = "json"
-      data_only = true
-      compressor = "gzip"
-      gzip_level = "DefaultCompression"
+  [outputs.http.serializer]
+    type = "json"
+    data_only = true
+    compressor = "gzip"
+    gzip_level = "DefaultCompression"
 ```
 
 </td>
