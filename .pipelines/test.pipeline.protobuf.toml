@@ -23,7 +23,7 @@
 
 [[outputs]]
   [outputs.http]
-    host = "http://localhost:9200"
+    host = "http://localhost:9100"
     fallbacks = [ "http://localhost:9300", "http://localhost:9100" ]
     retry_attempts = 3
     retry_after = "1s"

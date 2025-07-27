@@ -16,14 +16,13 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
-	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/esopensearch"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
-const defaultBufferSize = 4096
+const defaultBufferSize = 1024
 
 type indexer struct {
 	*core.BaseOutput
@@ -215,10 +214,7 @@ func (i *indexer) perform(r *esapi.BulkRequest, b *esopensearch.BulkBody) (*bulk
 func (i *indexer) unmarshalBody(b *esapi.Response) (*bulk.Response, error) {
 	defer b.Body.Close()
 
-	buf := baiscpools.BytesBuffer.Get()
-	defer baiscpools.BytesBuffer.Put(buf)
-	defer buf.Reset()
-
+	buf := bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
 	if _, err := buf.ReadFrom(b.Body); err != nil {
 		return nil, fmt.Errorf("response body read failed: %w", err)
 	}

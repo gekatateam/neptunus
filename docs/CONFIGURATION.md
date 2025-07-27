@@ -185,6 +185,42 @@ In inputs and outputs case, if any filter rejects event, the event is dropped fr
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
 
+[Compressors](../plugins/compressors/) and [Decompressors](../plugins/decompressors/) are used as part of the serializers and parsers configuration. Сompressor compresses data after serialization, and decompressor unpacks data before parsing:
+<table>
+<tr>
+<td> Compressor </td> <td> Decompressor </td>
+</tr>
+<tr>
+<td>
+
+```toml
+[[inputs]]
+  [inputs.http]
+    address = ":9200"
+  [inputs.http.parser]
+    type = "json"
+    split_array = true
+    decompressor = "gzip"
+```
+
+</td>
+<td>
+
+```toml
+[[outputs]]
+  [outputs.http]
+    host = "http://localhost:9200"
+  [outputs.http.serializer]
+    type = "json"
+    data_only = true
+    compressor = "gzip"
+    gzip_level = "DefaultCompression"
+```
+
+</td>
+</tr>
+</table>
+
 A special plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
 ```toml
 [[keykeepers]]

@@ -23,6 +23,8 @@ import (
 	"github.com/gekatateam/neptunus/plugins/core/fusion"
 	"github.com/gekatateam/neptunus/plugins/core/self"
 
+	_ "github.com/gekatateam/neptunus/plugins/compressors"
+	_ "github.com/gekatateam/neptunus/plugins/decompressors"
 	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
 	_ "github.com/gekatateam/neptunus/plugins/keykeepers"
@@ -459,12 +461,12 @@ func (p *Pipeline) configureOutputs() error {
 			p.aliases[alias] = struct{}{}
 
 			if serializerNeedy, ok := output.(core.SetSerializer); ok {
-				cfgSerializer := outputCfg.Serializer()
-				if cfgSerializer == nil {
+				serializerCfg := outputCfg.Serializer()
+				if serializerCfg == nil {
 					return fmt.Errorf("%v output requires serializer, but no serializer configuration provided", plugin)
 				}
 
-				serializer, err := p.configureSerializer(cfgSerializer, alias)
+				serializer, err := p.configureSerializer(serializerCfg, alias)
 				if err != nil {
 					return fmt.Errorf("%v output serializer configuration error: %v", plugin, err.Error())
 				}
@@ -552,12 +554,12 @@ func (p *Pipeline) configureProcessors() error {
 				p.aliases[alias] = struct{}{}
 
 				if serializerNeedy, ok := processor.(core.SetSerializer); ok {
-					cfgSerializer := processorCfg.Serializer()
-					if cfgSerializer == nil {
+					serializerCfg := processorCfg.Serializer()
+					if serializerCfg == nil {
 						return fmt.Errorf("%v processor requires serializer, but no serializer configuration provided", plugin)
 					}
 
-					serializer, err := p.configureSerializer(cfgSerializer, alias)
+					serializer, err := p.configureSerializer(serializerCfg, alias)
 					if err != nil {
 						return fmt.Errorf("%v processor serializer configuration error: %v", plugin, err.Error())
 					}
@@ -670,12 +672,12 @@ func (p *Pipeline) configureInputs() error {
 			p.aliases[alias] = struct{}{}
 
 			if serializerNeedy, ok := input.(core.SetSerializer); ok {
-				cfgSerializer := inputCfg.Serializer()
-				if cfgSerializer == nil {
+				serializerCfg := inputCfg.Serializer()
+				if serializerCfg == nil {
 					return fmt.Errorf("%v input requires serializer, but no serializer configuration provided", plugin)
 				}
 
-				serializer, err := p.configureSerializer(cfgSerializer, alias)
+				serializer, err := p.configureSerializer(serializerCfg, alias)
 				if err != nil {
 					return fmt.Errorf("%v input serializer configuration error: %v", plugin, err.Error())
 				}
@@ -757,12 +759,12 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		p.aliases[alias] = struct{}{}
 
 		if serializerNeedy, ok := filter.(core.SetSerializer); ok {
-			cfgSerializer := filterCfg.Serializer()
-			if cfgSerializer == nil {
+			serializerCfg := filterCfg.Serializer()
+			if serializerCfg == nil {
 				return nil, fmt.Errorf("%v filter requires serializer, but no serializer configuration provided", plugin)
 			}
 
-			serializer, err := p.configureSerializer(cfgSerializer, alias)
+			serializer, err := p.configureSerializer(serializerCfg, alias)
 			if err != nil {
 				return nil, fmt.Errorf("%v filter serializer configuration error: %v", plugin, err.Error())
 			}
@@ -868,11 +870,28 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		return nil, fmt.Errorf("%v parser initialization error: %v", plugin, err.Error())
 	}
 
-	return parser, nil
+	var decompressor core.Decompressor
+	if decompressorCfg, decompressorName := parserCfg.Decompressor(); decompressorCfg != nil {
+		decompressorFunc, ok := plugins.GetDecompressor(decompressorName)
+		if !ok {
+			return nil, fmt.Errorf("%v parser: unknown decompressor plugin in pipeline configuration: %v", plugin, decompressorName)
+		}
+		decompressor = decompressorFunc()
+
+		if err := mapstructure.Decode(decompressorCfg, decompressor, p.decodeHook()); err != nil {
+			return nil, fmt.Errorf("%v parser: %v decompressor: configuration mapping error: %v", plugin, decompressorName, err.Error())
+		}
+
+		if err := decompressor.Init(); err != nil {
+			return nil, fmt.Errorf("%v parser: %v decompressor: initialization error: %v", plugin, decompressorName, err.Error())
+		}
+	}
+
+	return &core.ParserDecompressor{P: parser, D: decompressor}, nil
 }
 
-func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) (core.Serializer, error) {
-	plugin := serCfg.Type()
+func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName string) (core.Serializer, error) {
+	plugin := serializerCfg.Type()
 	serFunc, ok := plugins.GetSerializer(plugin)
 	if !ok {
 		return nil, fmt.Errorf("unknown serializer plugin in pipeline configuration: %v", plugin)
@@ -880,8 +899,8 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 	serializer := serFunc()
 
 	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
-	if len(serCfg.Alias()) > 0 {
-		alias = serCfg.Alias()
+	if len(serializerCfg.Alias()) > 0 {
+		alias = serializerCfg.Alias()
 	}
 
 	if _, ok := p.aliases[alias]; ok {
@@ -890,14 +909,14 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 	p.aliases[alias] = struct{}{}
 
 	if idNeedy, ok := serializer.(core.SetId); ok {
-		idNeedy.SetId(serCfg.Id())
+		idNeedy.SetId(serializerCfg.Id())
 	}
 
 	log := p.log.With(slog.Group("serializer",
 		"plugin", plugin,
 		"name", alias,
 	))
-	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(serCfg.LogLevel()))
+	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(serializerCfg.LogLevel()))
 
 	baseField := reflect.ValueOf(serializer).Elem().FieldByName(core.KindSerializer)
 	if baseField.IsValid() && baseField.CanSet() {
@@ -912,7 +931,7 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("%v serializer plugin does not contains BaseSerializer", plugin)
 	}
 
-	if err := mapstructure.Decode(serCfg, serializer, p.decodeHook()); err != nil {
+	if err := mapstructure.Decode(serializerCfg, serializer, p.decodeHook()); err != nil {
 		return nil, fmt.Errorf("%v serializer configuration mapping error: %v", plugin, err.Error())
 	}
 
@@ -920,7 +939,24 @@ func (p *Pipeline) configureSerializer(serCfg config.Plugin, parentName string) 
 		return nil, fmt.Errorf("%v serializer initialization error: %v", plugin, err.Error())
 	}
 
-	return serializer, nil
+	var compressor core.Compressor
+	if compressorCfg, compressorName := serializerCfg.Compressor(); compressorCfg != nil {
+		compressorFunc, ok := plugins.GetCompressor(compressorName)
+		if !ok {
+			return nil, fmt.Errorf("%v serializer: unknown compressor plugin in pipeline configuration: %v", plugin, compressorName)
+		}
+		compressor = compressorFunc()
+
+		if err := mapstructure.Decode(compressorCfg, compressor, p.decodeHook()); err != nil {
+			return nil, fmt.Errorf("%v serializer: %v compressor: configuration mapping error: %v", plugin, compressorName, err.Error())
+		}
+
+		if err := compressor.Init(); err != nil {
+			return nil, fmt.Errorf("%v serializer: %v compressor: initialization error: %v", plugin, compressorName, err.Error())
+		}
+	}
+
+	return &core.SerializerComperssor{S: serializer, C: compressor}, nil
 }
 
 func (p *Pipeline) decodeHook() func(f reflect.Type, _ reflect.Type, data any) (any, error) {

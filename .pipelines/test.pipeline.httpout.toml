@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.httpout"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
   log_level = "debug"
 
@@ -10,17 +10,32 @@
 
 [[inputs]]
   [inputs.http]
-    address = ":9100"
+    address = ":9200"
     max_connections = 10
     query_params_to = "."
-    wait_for_delivery = true
+    wait_for_delivery = false
     tls_enable = false
     tls_key_file = '.testcerts\server-key.pem'
     tls_cert_file = '.testcerts\server-cert.pem'
     tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
   [inputs.http.parser]
     type = "json"
-    split_array = false
+    split_array = true
+    decompressor = "gzip"
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    query_params_to = "."
+    wait_for_delivery = false
+    tls_enable = false
+    tls_key_file = '.testcerts\server-key.pem'
+    tls_cert_file = '.testcerts\server-cert.pem'
+    tls_allowed_cacerts = [ '.testcerts\ca-cert.pem' ]
+  [inputs.http.parser]
+    type = "json"
+    split_array = true
 
 [[processors]]
   [processors.rk.mapping]
@@ -30,13 +45,14 @@
 [[outputs]]
   [outputs.http]
     host = "http://localhost:9200"
-    fallbacks = [ "http://localhost:9300", "http://localhost:9100" ]
-    retry_attempts = 3
+    retry_attempts = 1
     retry_after = "1s"
     batch_interval = "1s"
     [outputs.http.serializer]
       type = "json"
       data_only = true
+      mode = "array"
+      compressor = "gzip"
     [outputs.http.filters.glob]
       routing_key = [ "/httpout-test-out" ]
 

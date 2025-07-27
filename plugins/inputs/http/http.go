@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -17,7 +18,6 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
-	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	basic "github.com/gekatateam/neptunus/plugins/common/http"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
@@ -174,10 +174,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"path", r.URL.Path,
 	)
 
-	buf := baiscpools.BytesBuffer.Get()
-	defer baiscpools.BytesBuffer.Put(buf)
-	defer buf.Reset()
-
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
 		i.Log.Error("body read error",

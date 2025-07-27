@@ -1,6 +1,7 @@
 package template_text
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"text/template"
@@ -11,7 +12,6 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
-	"github.com/gekatateam/neptunus/plugins/common/baiscpools"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	cte "github.com/gekatateam/neptunus/plugins/common/template"
 )
@@ -25,7 +25,8 @@ type TemplateText struct {
 }
 
 func (t *TemplateText) Serialize(events ...*core.Event) ([]byte, error) {
-	return t.parseBatch(events...)
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	return t.serializeBatch(buf, events...)
 }
 
 func (t *TemplateText) Close() error {
@@ -56,11 +57,8 @@ func (t *TemplateText) Init() error {
 	return nil
 }
 
-func (t *TemplateText) parseBatch(events ...*core.Event) ([]byte, error) {
+func (t *TemplateText) serializeBatch(buf *bytes.Buffer, events ...*core.Event) ([]byte, error) {
 	now := time.Now()
-	buf := baiscpools.BytesBuffer.Get()
-	defer baiscpools.BytesBuffer.Put(buf)
-	defer buf.Reset()
 
 	te := make([]cte.TEvent, 0, len(events))
 	for _, e := range events {
