@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	github.com/gekatateam/dynamic-level-handler v1.0.1
-	github.com/gekatateam/protomap v0.1.0
+	github.com/gekatateam/protomap v0.2.0
 	github.com/google/uuid v1.6.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6

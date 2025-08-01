@@ -19,6 +19,7 @@ tasks:
         go build \
           -ldflags="-X main.Version={{ .NEPTUNUS_BUILD_VERSION }}" \
           -o {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} \
+          -tags noasm
           ./cmd/neptunus
     status:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }}
