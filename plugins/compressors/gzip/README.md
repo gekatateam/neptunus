@@ -9,7 +9,7 @@ The `gzip` compressor compress serialization result using [gzip](https://pkg.go.
     type = "json"
     compressor = "gzip"
 
-    # compression level, "NoCompression", "BestSpeed", "BestCompression",
-    # "DefaultCompression", "HuffmanOnly"
+    # compression level, "NoCompression", "BestSpeed", 
+    # "BestCompression", "DefaultCompression", "HuffmanOnly"
     gzip_level = "DefaultCompression"
 ```

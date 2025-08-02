@@ -21,7 +21,7 @@
   [inputs.http.parser]
     type = "json"
     split_array = true
-    decompressor = "gzip"
+    decompressor = "zstd"
 
 [[inputs]]
   [inputs.http]
@@ -52,7 +52,7 @@
       type = "json"
       data_only = true
       mode = "array"
-      compressor = "gzip"
+      compressor = "zstd"
     [outputs.http.filters.glob]
       routing_key = [ "/httpout-test-out" ]
 

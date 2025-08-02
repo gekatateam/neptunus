@@ -22,7 +22,7 @@ import (
 
 const tablePlaceholder = ":table_name"
 
-var clientStorage = sharedstorage.New[*sqlx.DB]()
+var clientStorage = sharedstorage.New[*sqlx.DB, uint64]()
 
 type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`

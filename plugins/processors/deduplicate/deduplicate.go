@@ -17,7 +17,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-var clientStorage = sharedstorage.New[redis.UniversalClient]()
+var clientStorage = sharedstorage.New[redis.UniversalClient, uint64]()
 
 type Deduplicate struct {
 	*core.BaseProcessor `mapstructure:"-"`

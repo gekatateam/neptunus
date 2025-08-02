@@ -20,7 +20,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
-var clientStorage = sharedstorage.New[*http.Client]()
+var clientStorage = sharedstorage.New[*http.Client, uint64]()
 
 type Http struct {
 	*core.BaseProcessor `mapstructure:"-"`

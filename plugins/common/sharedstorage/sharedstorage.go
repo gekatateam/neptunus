@@ -5,21 +5,21 @@ import (
 	"sync"
 )
 
-type SharedStorage[T any] struct {
+type SharedStorage[T any, K comparable] struct {
 	mu      *sync.Mutex
-	objects map[uint64]T
-	members map[uint64]int
+	objects map[K]T
+	members map[K]int
 }
 
-func New[T any]() *SharedStorage[T] {
-	return &SharedStorage[T]{
+func New[T any, K comparable]() *SharedStorage[T, K] {
+	return &SharedStorage[T, K]{
 		mu:      &sync.Mutex{},
-		objects: make(map[uint64]T),
-		members: make(map[uint64]int),
+		objects: make(map[K]T),
+		members: make(map[K]int),
 	}
 }
 
-func (s *SharedStorage[T]) CompareAndStore(id uint64, obj T) T {
+func (s *SharedStorage[T, K]) CompareAndStore(id K, obj T) T {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -39,7 +39,7 @@ func (s *SharedStorage[T]) CompareAndStore(id uint64, obj T) T {
 	return obj
 }
 
-func (s *SharedStorage[T]) Leave(id uint64) (last bool) {
+func (s *SharedStorage[T, K]) Leave(id K) (last bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
