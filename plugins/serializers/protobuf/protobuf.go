@@ -4,7 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/bufbuild/protocompile"
 	"github.com/gekatateam/protomap"
+	"github.com/gekatateam/protomap/interceptors"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -29,7 +31,11 @@ func (s *Protobuf) Init() error {
 		return errors.New("message required")
 	}
 
-	mapper, err := protomap.NewMapper(nil, s.ProtoFiles...)
+	compiler := &protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+	}
+
+	mapper, err := protomap.NewMapper(compiler, s.ProtoFiles...)
 	if err != nil {
 		return err
 	}
@@ -74,7 +80,18 @@ func (s *Protobuf) Serialize(events ...*core.Event) ([]byte, error) {
 		return nil, err
 	}
 
-	return s.mapper.Encode(data, s.Message)
+	result, err := s.mapper.Encode(data, s.Message, interceptors.DurationEncoder, interceptors.TimeEncoder)
+	if err != nil {
+		s.Log.Error("event serialization failed",
+			"error", err,
+			elog.EventGroup(events[0]),
+		)
+		s.Observe(metrics.EventFailed, time.Since(now))
+	} else {
+		s.Observe(metrics.EventAccepted, time.Since(now))
+	}
+
+	return result, err
 }
 
 func init() {

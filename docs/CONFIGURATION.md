@@ -188,7 +188,7 @@ Inputs, processors, outputs and filters may use [Parser plugins](../plugins/pars
 [Compressors](../plugins/compressors/) and [Decompressors](../plugins/decompressors/) are used as part of the serializers and parsers configuration. Сompressor compresses data after serialization, and decompressor unpacks data before parsing:
 <table>
 <tr>
-<td> Compressor </td> <td> Decompressor </td>
+<td> Decompressor </td> <td> Compressor </td>
 </tr>
 <tr>
 <td>

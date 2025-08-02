@@ -4,7 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/bufbuild/protocompile"
 	"github.com/gekatateam/protomap"
+	"github.com/gekatateam/protomap/interceptors"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -28,7 +30,11 @@ func (p *Protobuf) Init() error {
 		return errors.New("message required")
 	}
 
-	mapper, err := protomap.NewMapper(nil, p.ProtoFiles...)
+	compiler := &protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+	}
+
+	mapper, err := protomap.NewMapper(compiler, p.ProtoFiles...)
 	if err != nil {
 		return err
 	}
@@ -45,7 +51,7 @@ func (p *Protobuf) Close() error {
 func (p *Protobuf) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 	now := time.Now()
 
-	eventData, err := p.mapper.Decode(data, p.Message)
+	eventData, err := p.mapper.Decode(data, p.Message, interceptors.DurationDecoder, interceptors.TimeDecoder)
 	if err != nil {
 		p.Observe(metrics.EventFailed, time.Since(now))
 		return nil, err
