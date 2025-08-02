@@ -74,8 +74,6 @@ github.com/gekatateam/dynamic-level-handler v1.0.1 h1:/qvJYCuuXPegbuxDXjZLWhXsAE
 github.com/gekatateam/dynamic-level-handler v1.0.1/go.mod h1:ByHkezyEmR1w/KchN2GCXzHMgqMP09N5NndJPCrLg2s=
 github.com/gekatateam/mappath v1.2.1 h1:k1rBg0C7NeQOELA8GlTCNnUkphIMYgWnYIukTl0d3bQ=
 github.com/gekatateam/mappath v1.2.1/go.mod h1:GTvbaeyEcqAfwZqMdy8A59AUMCqfSjE6xYNjMdFAF+M=
-github.com/gekatateam/protomap v0.1.0 h1:DlY2UQ+NSzpmbho+6IQycEqpi2hV9mXMzAnoE479VZM=
-github.com/gekatateam/protomap v0.1.0/go.mod h1:UVhCmSINJlHFq2XeWr2dSfEpDj0PqRDE9SO/STtRCwM=
 github.com/gekatateam/protomap v0.2.0 h1:YKPCdISviPZlsRU/nGw6cLeKHpflQCYiz/Vfj8HMnWM=
 github.com/gekatateam/protomap v0.2.0/go.mod h1:UVhCmSINJlHFq2XeWr2dSfEpDj0PqRDE9SO/STtRCwM=
 github.com/go-chi/chi/v5 v5.2.1 h1:KOIHODQj58PmL80G2Eak4WdvUzjSJSm0vG72crDCqb8=
