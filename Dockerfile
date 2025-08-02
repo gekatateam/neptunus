@@ -9,7 +9,7 @@ WORKDIR /build
 
 COPY . . 
 
-RUN go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -tags noasm -o /neptunus ./cmd/neptunus
+RUN go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
 
 ### create final image
 FROM alpine:3
