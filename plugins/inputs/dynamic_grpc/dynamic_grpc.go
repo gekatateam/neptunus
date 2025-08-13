@@ -39,10 +39,11 @@ const (
 
 type DynamicGRPC struct {
 	*core.BaseInput `mapstructure:"-"`
-	Mode            string   `mapstructure:"mode"`
-	ProtoFiles      []string `mapstructure:"proto_files"`
-	ImportPaths     []string `mapstructure:"import_paths"`
-	Procedure       string   `mapstructure:"procedure"`
+	Mode            string            `mapstructure:"mode"`
+	ProtoFiles      []string          `mapstructure:"proto_files"`
+	ImportPaths     []string          `mapstructure:"import_paths"`
+	Procedure       string            `mapstructure:"procedure"`
+	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 
 	// ServerSideStream
 	Client     Client `mapstructure:"client"`
@@ -59,7 +60,6 @@ type Client struct {
 	Address               string            `mapstructure:"address"`
 	InvokeRequest         string            `mapstructure:"invoke_request"`
 	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
-	LabelHeaders          map[string]string `mapstructure:"labelheaders"`
 	Authority             string            `mapstructure:"authority"`               // https://pkg.go.dev/google.golang.org/grpc#WithAuthority
 	UserAgent             string            `mapstructure:"user_agent"`              // https://pkg.go.dev/google.golang.org/grpc#WithUserAgent
 	InactiveTransportPing time.Duration     `mapstructure:"inactive_transport_ping"` // keepalive ClientParameters.Time
@@ -194,7 +194,7 @@ STREAM_READ_LOOP:
 			}
 
 			e := core.NewEventWithData(string(i.method.FullName()), result)
-			for k, v := range i.Client.LabelHeaders {
+			for k, v := range i.LabelHeaders {
 				if h := header.Get(v); len(h) > 0 {
 					e.SetLabel(k, strings.Join(h, "; "))
 				}
