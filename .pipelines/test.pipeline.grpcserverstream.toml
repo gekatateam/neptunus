@@ -26,8 +26,6 @@
         ]
     }
 }'''
-      [inputs.dynamic_grpc.client.invoke_headers]
-        authorization = "Bearer t.33-7mKzYbM0_SajnPmn34B802T6fhxOXo9JsW9Qs5OZReKIyQWyCmFCYG3R-JF9Ul9hxz0yIVvjigO6pc3TCHw"
       [inputs.dynamic_grpc.client.labelheaders]
         x-k8s-istio-sage-group = "x-k8s-istio-sage-group"
 
