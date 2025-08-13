@@ -1,0 +1,40 @@
+[settings]
+  id = "test.pipeline.grpcserverstream"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.dynamic_grpc]
+    mode = "ServerSideStream"
+    proto_files = [ 'D:\Go\_bin\protos\marketdata.proto' ]
+    import_paths = [ 'D:\Go\_bin\protos\' ]
+    procedure = 'tinkoff.public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
+    [inputs.dynamic_grpc.client]
+      tls_enable = true
+      address = "sandbox-invest-public-api.tinkoff.ru:443"
+      invoke_request = '''
+{
+    "subscribe_order_book_request": {
+        "subscription_action": 1,
+        "instruments": [
+            {
+                "instrument_id": "FUTRGBI09250",
+                "depth": 10,
+                "order_book_type": 1
+            }
+        ]
+    }
+}'''
+      [inputs.dynamic_grpc.client.invoke_headers]
+        authorization = "Bearer t.33-7mKzYbM0_SajnPmn34B802T6fhxOXo9JsW9Qs5OZReKIyQWyCmFCYG3R-JF9Ul9hxz0yIVvjigO6pc3TCHw"
+      [inputs.dynamic_grpc.client.labelheaders]
+        x-k8s-istio-sage-group = "x-k8s-istio-sage-group"
+
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
