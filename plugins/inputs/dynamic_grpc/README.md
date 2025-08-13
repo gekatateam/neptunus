@@ -28,6 +28,9 @@ Ability to receive unary calls and client streams as a server will be implemente
       # https://grpc.github.io/grpc/core/md_doc_naming.html
       address = "sandbox-invest-public-api.domain.net:443"
 
+      # interval between retries to (re-)establish a connection
+      retry_after = "5s"
+
       # if set, value will be used as the :authority pseudo-header 
       # and as the server name in authentication handshake
       authority = ""

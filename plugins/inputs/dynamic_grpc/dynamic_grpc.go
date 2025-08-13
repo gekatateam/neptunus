@@ -58,6 +58,7 @@ type DynamicGRPC struct {
 
 type Client struct {
 	Address               string            `mapstructure:"address"`
+	RetryAfter            time.Duration     `mapstructure:"retry_after"`
 	InvokeRequest         string            `mapstructure:"invoke_request"`
 	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
 	Authority             string            `mapstructure:"authority"`               // https://pkg.go.dev/google.golang.org/grpc#WithAuthority
@@ -135,8 +136,7 @@ STREAM_INVOKE_LOOP:
 				i.Log.Error("invoke server-side stream failed",
 					"error", err,
 				)
-
-				time.Sleep(time.Second)
+				time.Sleep(i.Client.RetryAfter)
 			} else {
 				i.Log.Info("server-side stream created")
 				ss = stream
@@ -150,7 +150,7 @@ STREAM_INVOKE_LOOP:
 		i.Log.Error("receive headers failed",
 			"error", err,
 		)
-		time.Sleep(time.Second)
+		time.Sleep(i.Client.RetryAfter)
 		goto STREAM_INVOKE_LOOP
 	}
 
@@ -180,7 +180,7 @@ STREAM_READ_LOOP:
 					"error", err,
 				)
 				i.Observe(metrics.EventFailed, time.Since(now))
-				time.Sleep(time.Second)
+				time.Sleep(i.Client.RetryAfter)
 				goto STREAM_INVOKE_LOOP
 			}
 
@@ -312,6 +312,7 @@ func init() {
 	plugins.AddInput("dynamic_grpc", func() core.Input {
 		return &DynamicGRPC{
 			Client: Client{
+				RetryAfter:      5 * time.Second,
 				TLSClientConfig: &tls.TLSClientConfig{},
 			},
 		}
