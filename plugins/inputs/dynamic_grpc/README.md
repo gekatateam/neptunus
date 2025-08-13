@@ -15,7 +15,7 @@ Ability to receive unary calls and client streams as a server will be implemente
     # list of .proto files with messages and procedure to call
     proto_files = [ 'D:\Go\_bin\protos\marketdata.proto' ]
 
-    # list of import paths to resolve .proto imports paths
+    # list of import paths to resolve .proto imports
     import_paths = [ 'D:\Go\_bin\protos\' ]
 
     # procedure name to call

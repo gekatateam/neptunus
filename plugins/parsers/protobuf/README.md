@@ -11,6 +11,9 @@ The `protobuf` parser plugin can be used to decode protobuf-encoded binary data 
     # list of .proto files with target message schema and it's dependencies
     proto_files = [ ".pipelines/payload.proto" ]
 
+    # list of import paths to resolve .proto imports
+    import_paths = [ 'D:\Go\_bin\protos\' ]
+
     # full message name, which schema will be used to decode input binary
     message = "protomap.test.Test"
 ```
