@@ -73,18 +73,7 @@ func (s *Protobuf) Serialize(events ...*core.Event) ([]byte, error) {
 		return nil, err
 	}
 
-	data, ok := events[0].Data.(map[string]any)
-	if !ok {
-		err := errors.New("event data must be a map")
-		s.Log.Error("event serialization failed",
-			"error", err,
-			elog.EventGroup(events[0]),
-		)
-		s.Observe(metrics.EventFailed, time.Since(now))
-		return nil, err
-	}
-
-	result, err := s.mapper.Encode(data, s.Message, interceptors.DurationEncoder, interceptors.TimeEncoder)
+	result, err := s.mapper.Encode(events[0].Data, s.Message, interceptors.DurationEncoder, interceptors.TimeEncoder)
 	if err != nil {
 		s.Log.Error("event serialization failed",
 			"error", err,

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bufbuild/protocompile"
-
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
 
 	"google.golang.org/grpc"
@@ -28,6 +27,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	"github.com/gekatateam/neptunus/plugins/common/ider"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 	"github.com/gekatateam/protomap"
 	"github.com/gekatateam/protomap/interceptors"
@@ -44,6 +44,7 @@ type DynamicGRPC struct {
 	ImportPaths     []string          `mapstructure:"import_paths"`
 	Procedure       string            `mapstructure:"procedure"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
+	*ider.Ider      `mapstructure:",squash"`
 
 	// ServerSideStream
 	Client     Client `mapstructure:"client"`
@@ -76,6 +77,10 @@ func (i *DynamicGRPC) Init() error {
 
 	if len(i.Procedure) == 0 {
 		return errors.New("procedure name required")
+	}
+
+	if err := i.Ider.Init(); err != nil {
+		return err
 	}
 
 	i.doneCh = make(chan struct{})
@@ -156,14 +161,13 @@ STREAM_INVOKE_LOOP:
 
 STREAM_READ_LOOP:
 	for {
-		now := time.Now()
-
 		select {
 		case <-ctx.Done():
 			i.Log.Info("server-side stream context canceled")
 			return
 		default:
 			msg, err := ss.RecvMsg()
+			now := time.Now()
 			if err != nil {
 				// io.EOF means stream is closed gracefuly
 				if errors.Is(err, io.EOF) {
@@ -176,7 +180,7 @@ STREAM_READ_LOOP:
 				}
 
 				// any other error means that the stream is aborted and the error contains the RPC status
-				i.Log.Error("receive from stream failed",
+				i.Log.Error("receive from server-side stream failed",
 					"error", err,
 				)
 				i.Observe(metrics.EventFailed, time.Since(now))
@@ -193,14 +197,15 @@ STREAM_READ_LOOP:
 				continue STREAM_READ_LOOP
 			}
 
-			e := core.NewEventWithData(string(i.method.FullName()), result)
+			event := core.NewEventWithData(string(i.method.FullName()), result)
 			for k, v := range i.LabelHeaders {
 				if h := header.Get(v); len(h) > 0 {
-					e.SetLabel(k, strings.Join(h, "; "))
+					event.SetLabel(k, strings.Join(h, "; "))
 				}
 			}
 
-			i.Out <- e
+			i.Ider.Apply(event)
+			i.Out <- event
 			i.Observe(metrics.EventAccepted, time.Since(now))
 		}
 	}
@@ -234,11 +239,7 @@ func (i *DynamicGRPC) prepareClient() error {
 		return fmt.Errorf("%v is not a method", i.Procedure)
 	}
 
-	if m.IsStreamingClient() {
-		return fmt.Errorf("%v is not a server-side stream", i.Procedure)
-	}
-
-	if !m.IsStreamingServer() {
+	if m.IsStreamingClient() || !m.IsStreamingServer() {
 		return fmt.Errorf("%v is not a server-side stream", i.Procedure)
 	}
 
@@ -311,6 +312,7 @@ func dialOptions(c Client) ([]grpc.DialOption, error) {
 func init() {
 	plugins.AddInput("dynamic_grpc", func() core.Input {
 		return &DynamicGRPC{
+			Ider: &ider.Ider{},
 			Client: Client{
 				RetryAfter:      5 * time.Second,
 				TLSClientConfig: &tls.TLSClientConfig{},

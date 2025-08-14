@@ -21,6 +21,15 @@ Ability to receive unary calls and client streams as a server will be implemente
     # procedure name to call
     procedure = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
 
+    # if configured, an event id will be set by data from path
+    # expected format - "type:path"
+    id_from = "field:path.to.id"
+
+    # a "label name <- header" map
+    # if received message header exists, it will be saved as configured label
+    [inputs.dynamic_grpc.labelheaders]
+      x-ratelimit-limit = "x-ratelimit-limit"
+
     # gRPC client settings
     # used in "ServerSideStream" mode
     [inputs.dynamic_grpc.client]
@@ -59,7 +68,7 @@ Ability to receive unary calls and client streams as a server will be implemente
       # use TLS but skip chain & host verification
       tls_insecure_skip_verify = false
 
-      # json-encoded request that will be encoded to procedure input message
+      # request body in json that will be encoded to procedure input message
       invoke_request = '''
 {
   "subscribe_order_book_request": {
@@ -75,11 +84,5 @@ Ability to receive unary calls and client streams as a server will be implemente
 }'''
 
       # invoke headers
-      [inputs.dynamic_grpc.client.invoke_headers]
-        authorization = "Bearer "
-
-    # a "label name <- header" map
-    # if received message header exists, it will be saved as configured label
-    [inputs.dynamic_grpc.labelheaders]
-      x-ratelimit-limit = "x-ratelimit-limit"
+      invoke_headers = { authorization = "Bearer XXXXXX" }
 ```

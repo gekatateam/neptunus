@@ -3,7 +3,7 @@
 The `protobuf` serializer plugin can be used to encode event data to protobuf binary.
 
 > [!CAUTION]
-> This plugin **always** accepts exactly one event, and event data **must** be `map[string]any`
+> This plugin **always** accepts exactly one event, and event data **must** be `map[string]any`, `time.Time` or `time.Duration`
 
 ## Configuration
 ```toml
