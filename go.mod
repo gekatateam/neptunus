@@ -93,6 +93,7 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jackc/pgx/v4 v4.18.3
+	github.com/jhump/protoreflect/v2 v2.0.0-beta.2
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/mitchellh/mapstructure v1.5.0

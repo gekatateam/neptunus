@@ -16,6 +16,7 @@ import (
 type Protobuf struct {
 	*core.BaseParser `mapstructure:"-"`
 	ProtoFiles       []string `mapstructure:"proto_files"`
+	ImportPaths      []string `mapstructure:"import_paths"`
 	Message          string   `mapstructure:"message"`
 
 	mapper *protomap.Mapper
@@ -31,7 +32,10 @@ func (p *Protobuf) Init() error {
 	}
 
 	compiler := &protocompile.Compiler{
-		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+		Resolver: protocompile.CompositeResolver{
+			protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+			&protocompile.SourceResolver{ImportPaths: p.ImportPaths},
+		},
 	}
 
 	mapper, err := protomap.NewMapper(compiler, p.ProtoFiles...)
