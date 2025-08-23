@@ -10,6 +10,7 @@ import (
 
 	"github.com/bufbuild/protocompile"
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
+	"kythe.io/kythe/go/util/datasize"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -35,6 +36,7 @@ import (
 
 const (
 	modeServerSideStream = "ServerSideStream"
+	modeAsServer         = "AsServer"
 )
 
 type DynamicGRPC struct {
@@ -42,7 +44,6 @@ type DynamicGRPC struct {
 	Mode            string            `mapstructure:"mode"`
 	ProtoFiles      []string          `mapstructure:"proto_files"`
 	ImportPaths     []string          `mapstructure:"import_paths"`
-	Procedure       string            `mapstructure:"procedure"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider      `mapstructure:",squash"`
 
@@ -53,12 +54,16 @@ type DynamicGRPC struct {
 	initMsg    proto.Message
 	initMD     metadata.MD
 
+	// AsServer
+	Server Server `mapstructure:"server"`
+
 	cancelFunc context.CancelFunc
 	doneCh     chan struct{}
 }
 
 type Client struct {
 	Address               string            `mapstructure:"address"`
+	Procedure             string            `mapstructure:"procedure"`
 	RetryAfter            time.Duration     `mapstructure:"retry_after"`
 	InvokeRequest         string            `mapstructure:"invoke_request"`
 	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
@@ -70,13 +75,22 @@ type Client struct {
 	*tls.TLSClientConfig  `mapstructure:",squash"`
 }
 
+type Server struct {
+	Address               string        `mapstructure:"address"`
+	MaxMessageSize        datasize.Size `mapstructure:"max_message_size"`
+	NumStreamWorkers      uint32        `mapstructure:"num_stream_workers"`
+	MaxConcurrentStreams  uint32        `mapstructure:"max_concurrent_streams"`
+	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`     // ServerParameters.MaxConnectionIdle
+	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`      // ServerParameters.MaxConnectionAge
+	MaxConnectionGrace    time.Duration `mapstructure:"max_connection_grace"`    // ServerParameters.MaxConnectionAgeGrace
+	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"` // ServerParameters.Time
+	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
+	*tls.TLSServerConfig  `mapstructure:",squash"`
+}
+
 func (i *DynamicGRPC) Init() error {
 	if len(i.ProtoFiles) == 0 {
 		return errors.New("at least one .proto file required")
-	}
-
-	if len(i.Procedure) == 0 {
-		return errors.New("procedure name required")
 	}
 
 	if err := i.Ider.Init(); err != nil {
@@ -87,6 +101,10 @@ func (i *DynamicGRPC) Init() error {
 
 	switch i.Mode {
 	case modeServerSideStream:
+		if err := i.prepareClient(); err != nil {
+			return err
+		}
+	case modeAsServer:
 		if err := i.prepareClient(); err != nil {
 			return err
 		}
@@ -211,6 +229,10 @@ STREAM_READ_LOOP:
 	}
 }
 
+func (i *DynamicGRPC) prepareServer() error {
+	return nil
+}
+
 func (i *DynamicGRPC) prepareClient() error {
 	compiler := &protocompile.Compiler{
 		Resolver: protocompile.CompositeResolver{
@@ -224,23 +246,27 @@ func (i *DynamicGRPC) prepareClient() error {
 		return fmt.Errorf("compilation error: %w", err)
 	}
 
+	if len(i.Client.Procedure) == 0 {
+		return errors.New("procedure name required")
+	}
+
 	r := f.AsResolver()
-	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
+	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Client.Procedure))
 	if err != nil {
-		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
+		return fmt.Errorf("%v search failed: %w", i.Client.Procedure, err)
 	}
 
 	if desc == nil {
-		return fmt.Errorf("no such descriptor: %v", i.Procedure)
+		return fmt.Errorf("no such descriptor: %v", i.Client.Procedure)
 	}
 
 	m, ok := desc.(protoreflect.MethodDescriptor)
 	if !ok {
-		return fmt.Errorf("%v is not a method", i.Procedure)
+		return fmt.Errorf("%v is not a method", i.Client.Procedure)
 	}
 
 	if m.IsStreamingClient() || !m.IsStreamingServer() {
-		return fmt.Errorf("%v is not a server-side stream", i.Procedure)
+		return fmt.Errorf("%v is not a server-side stream", i.Client.Procedure)
 	}
 
 	i.method = m
@@ -316,6 +342,9 @@ func init() {
 			Client: Client{
 				RetryAfter:      5 * time.Second,
 				TLSClientConfig: &tls.TLSClientConfig{},
+			},
+			Server: Server{
+				TLSServerConfig: &tls.TLSServerConfig{},
 			},
 		}
 	})

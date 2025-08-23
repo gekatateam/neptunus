@@ -96,6 +96,7 @@ func readPipeline(file string) (*config.Pipeline, error) {
 		return nil, &pipeline.ValidationError{Err: err}
 	}
 
+	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	return pipe, nil
 }
 
