@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"time"
 
@@ -44,26 +45,29 @@ type DynamicGRPC struct {
 	Mode            string            `mapstructure:"mode"`
 	ProtoFiles      []string          `mapstructure:"proto_files"`
 	ImportPaths     []string          `mapstructure:"import_paths"`
+	Procedure       string            `mapstructure:"procedure"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider      `mapstructure:",squash"`
 
 	// ServerSideStream
 	Client     Client `mapstructure:"client"`
 	clientConn *grpc.ClientConn
-	method     protoreflect.MethodDescriptor
 	initMsg    proto.Message
 	initMD     metadata.MD
 
 	// AsServer
-	Server Server `mapstructure:"server"`
+	Server   Server `mapstructure:"server"`
+	listener net.Listener
+	server   *grpc.Server
+	respMsg  proto.Message
 
+	method     protoreflect.MethodDescriptor
 	cancelFunc context.CancelFunc
 	doneCh     chan struct{}
 }
 
 type Client struct {
 	Address               string            `mapstructure:"address"`
-	Procedure             string            `mapstructure:"procedure"`
 	RetryAfter            time.Duration     `mapstructure:"retry_after"`
 	InvokeRequest         string            `mapstructure:"invoke_request"`
 	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
@@ -77,6 +81,7 @@ type Client struct {
 
 type Server struct {
 	Address               string        `mapstructure:"address"`
+	InvokeResponse        string        `mapstructure:"invoke_response"`
 	MaxMessageSize        datasize.Size `mapstructure:"max_message_size"`
 	NumStreamWorkers      uint32        `mapstructure:"num_stream_workers"`
 	MaxConcurrentStreams  uint32        `mapstructure:"max_concurrent_streams"`
@@ -230,6 +235,69 @@ STREAM_READ_LOOP:
 }
 
 func (i *DynamicGRPC) prepareServer() error {
+	compiler := &protocompile.Compiler{
+		Resolver: protocompile.CompositeResolver{
+			protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+			&protocompile.SourceResolver{ImportPaths: i.ImportPaths},
+		},
+	}
+
+	f, err := compiler.Compile(context.Background(), i.ProtoFiles...)
+	if err != nil {
+		return fmt.Errorf("compilation error: %w", err)
+	}
+
+	if len(i.Procedure) == 0 {
+		return errors.New("procedure name required")
+	}
+
+	r := f.AsResolver()
+	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
+	if err != nil {
+		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
+	}
+
+	if desc == nil {
+		return fmt.Errorf("no such descriptor: %v", i.Procedure)
+	}
+
+	m, ok := desc.(protoreflect.MethodDescriptor)
+	if !ok {
+		return fmt.Errorf("%v is not a method", i.Procedure)
+	}
+
+	if m.IsStreamingServer() {
+		return fmt.Errorf("%v is not an unary or client stream", i.Procedure)
+	}
+
+	i.method = m
+
+	if len(i.Server.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	if len(i.Server.InvokeResponse) == 0 {
+		return errors.New("invoke response required")
+	}
+
+	i.respMsg = dynamicpb.NewMessage(m.Input())
+	if err := protojson.Unmarshal([]byte(i.Server.InvokeResponse), i.respMsg); err != nil {
+		return fmt.Errorf("invoke response unmarshal failed: %w", err)
+	}
+
+	listener, err := net.Listen("tcp", i.Server.Address)
+	if err != nil {
+		return fmt.Errorf("error creating listener: %v", err)
+	}
+	i.listener = listener
+
+	opts, err := serverOptions(i.Server)
+	if err != nil {
+		return err
+	}
+
+	i.server = grpc.NewServer(opts...)
+
 	return nil
 }
 
@@ -246,27 +314,27 @@ func (i *DynamicGRPC) prepareClient() error {
 		return fmt.Errorf("compilation error: %w", err)
 	}
 
-	if len(i.Client.Procedure) == 0 {
+	if len(i.Procedure) == 0 {
 		return errors.New("procedure name required")
 	}
 
 	r := f.AsResolver()
-	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Client.Procedure))
+	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
 	if err != nil {
-		return fmt.Errorf("%v search failed: %w", i.Client.Procedure, err)
+		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
 	}
 
 	if desc == nil {
-		return fmt.Errorf("no such descriptor: %v", i.Client.Procedure)
+		return fmt.Errorf("no such descriptor: %v", i.Procedure)
 	}
 
 	m, ok := desc.(protoreflect.MethodDescriptor)
 	if !ok {
-		return fmt.Errorf("%v is not a method", i.Client.Procedure)
+		return fmt.Errorf("%v is not a method", i.Procedure)
 	}
 
 	if m.IsStreamingClient() || !m.IsStreamingServer() {
-		return fmt.Errorf("%v is not a server-side stream", i.Client.Procedure)
+		return fmt.Errorf("%v is not a server-side stream", i.Procedure)
 	}
 
 	i.method = m
@@ -276,12 +344,12 @@ func (i *DynamicGRPC) prepareClient() error {
 	}
 
 	if len(i.Client.InvokeRequest) == 0 {
-		return errors.New("init request required")
+		return errors.New("invoke request required")
 	}
 
 	i.initMsg = dynamicpb.NewMessage(m.Input())
 	if err := protojson.Unmarshal([]byte(i.Client.InvokeRequest), i.initMsg); err != nil {
-		return fmt.Errorf("init request unmarshal failed: %w", err)
+		return fmt.Errorf("invoke request unmarshal failed: %w", err)
 	}
 
 	i.initMD = make(metadata.MD)
@@ -333,6 +401,38 @@ func dialOptions(c Client) ([]grpc.DialOption, error) {
 	}
 
 	return dialOpts, nil
+}
+
+func serverOptions(s Server) ([]grpc.ServerOption, error) {
+	var serverOptions []grpc.ServerOption
+
+	serverOptions = append(serverOptions,
+		grpc.MaxRecvMsgSize(int(s.MaxMessageSize.Bytes())),
+		grpc.MaxSendMsgSize(int(s.MaxMessageSize.Bytes())),
+		grpc.NumStreamWorkers(s.NumStreamWorkers),
+		grpc.MaxConcurrentStreams(s.MaxConcurrentStreams),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     s.MaxConnectionIdle,
+			MaxConnectionAge:      s.MaxConnectionAge,
+			MaxConnectionAgeGrace: s.MaxConnectionGrace,
+			Time:                  s.InactiveTransportPing,
+			Timeout:               s.InactiveTransportAge,
+		}),
+	)
+
+	tlsConfig, err := s.TLSServerConfig.Config()
+	if err != nil {
+		return nil, err
+	}
+
+	if tlsConfig != nil {
+		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(tlsConfig)))
+	} else {
+		serverOptions = append(serverOptions, grpc.Creds(insecure.NewCredentials()))
+
+	}
+
+	return serverOptions, nil
 }
 
 func init() {
