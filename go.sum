@@ -76,6 +76,8 @@ github.com/gekatateam/mappath v1.2.1 h1:k1rBg0C7NeQOELA8GlTCNnUkphIMYgWnYIukTl0d
 github.com/gekatateam/mappath v1.2.1/go.mod h1:GTvbaeyEcqAfwZqMdy8A59AUMCqfSjE6xYNjMdFAF+M=
 github.com/gekatateam/protomap v0.2.0 h1:YKPCdISviPZlsRU/nGw6cLeKHpflQCYiz/Vfj8HMnWM=
 github.com/gekatateam/protomap v0.2.0/go.mod h1:UVhCmSINJlHFq2XeWr2dSfEpDj0PqRDE9SO/STtRCwM=
+github.com/gekatateam/protomap v0.2.1 h1:67lJlIVnFMR1lE1nUIZrp/+4E/DTdWEhm6zKoSRFv6M=
+github.com/gekatateam/protomap v0.2.1/go.mod h1:UVhCmSINJlHFq2XeWr2dSfEpDj0PqRDE9SO/STtRCwM=
 github.com/go-chi/chi/v5 v5.2.1 h1:KOIHODQj58PmL80G2Eak4WdvUzjSJSm0vG72crDCqb8=
 github.com/go-chi/chi/v5 v5.2.1/go.mod h1:L2yAIGWB3H+phAw1NxKwWM+7eUH/lU8pOMm5hHcoops=
 github.com/go-faster/city v1.0.1 h1:4WAxSZ3V2Ws4QRDrscLEDcibJY8uf41H6AhXDrNDcGw=

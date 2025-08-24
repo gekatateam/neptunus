@@ -110,7 +110,7 @@ func (i *DynamicGRPC) Init() error {
 			return err
 		}
 	case modeAsServer:
-		if err := i.prepareClient(); err != nil {
+		if err := i.prepareServer(); err != nil {
 			return err
 		}
 	default:
