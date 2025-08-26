@@ -1,15 +1,12 @@
 # Dynamic gRPC Input Plugin
 
-The `dynamic_grpc` input can read server-side stream as a client. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
-
-Ability to receive unary calls and client streams as a server will be implemented in future releases.
+The `dynamic_grpc` input can read server stream as a client or receive unary calls/client streams as a server. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
 
 ## Configuration
 ```toml
 [[inputs]]
   [inputs.dynamic_grpc]
-    # plugin mode, right now it is only "ServerSideStream"
-    # procedure to call MUST be server-side stream
+    # plugin mode, "ServerSideStream" or "AsServer"
     mode = "ServerSideStream"
 
     # list of .proto files with messages and procedure to call
@@ -18,7 +15,9 @@ Ability to receive unary calls and client streams as a server will be implemente
     # list of import paths to resolve .proto imports
     import_paths = [ 'D:\Go\_bin\protos\' ]
 
-    # procedure name to call
+    # procedure name to call/receive
+    # procedure MUST be server stream in "ServerSideStream" mode
+    # and MUST be unary/client stream in "AsServer" mode
     procedure = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
 
     # if configured, an event id will be set by data from path
@@ -29,6 +28,7 @@ Ability to receive unary calls and client streams as a server will be implemente
     # if received message header exists, it will be saved as configured label
     [inputs.dynamic_grpc.labelheaders]
       x-ratelimit-limit = "x-ratelimit-limit"
+
 
     # gRPC client settings
     # used in "ServerSideStream" mode
@@ -85,4 +85,48 @@ Ability to receive unary calls and client streams as a server will be implemente
 
       # invoke headers
       invoke_headers = { authorization = "Bearer XXXXXX" }
+
+    
+    # gRPC server settings
+    # used in "AsServer" mode
+    [inputs.dynamic_grpc.server]
+      # address and port to host HTTP/2 listener on
+      address = ":9900"
+
+      ## TLS configuration
+      # if true, TLS listener will be used
+      tls_enable = false
+      # service key and certificate
+      tls_key_file = "/etc/neptunus/key.pem"
+      tls_cert_file = "/etc/neptunus/cert.pem"
+      # one or more allowed client CA certificate file names to
+      # enable mutually authenticated TLS connections
+      tls_allowed_cacerts = [ "/etc/neptunus/clientca.pem" ]
+      # minimum and maximum TLS version accepted by the service
+      # not limited by default
+      tls_min_version = "TLS12"
+      tls_max_version = "TLS13"
+
+      # max size of input and output messages in bytes
+      max_message_size = "4MiB"
+
+      # number of worker goroutines that should be used to process incoming streams
+      num_stream_workers = 5
+
+      # limit on the number of concurrent streams to each ServerTransport
+      max_concurrent_streams = 5
+
+      # server keepalive options
+      # see more in https://pkg.go.dev/google.golang.org/grpc/keepalive#ServerParameters
+      max_connection_idle = "0s" # zero is for infinity
+      max_connection_age = "0s"
+      max_connection_grace = "0s"
+      inactive_transport_ping = "2h"
+      inactive_transport_age = "20s"
+
+      # response body in json that will be used as unary call response/client stream end message
+      invoke_response = '''
+{
+  "accepted": true
+}'''
 ```

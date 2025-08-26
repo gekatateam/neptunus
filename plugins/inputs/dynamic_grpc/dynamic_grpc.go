@@ -293,7 +293,7 @@ func (i *DynamicGRPC) prepareServer() error {
 		return errors.New("invoke response required")
 	}
 
-	i.respMsg = dynamicpb.NewMessage(m.Input())
+	i.respMsg = dynamicpb.NewMessage(m.Output())
 	if err := protojson.Unmarshal([]byte(i.Server.InvokeResponse), i.respMsg); err != nil {
 		return fmt.Errorf("invoke response unmarshal failed: %w", err)
 	}
@@ -332,7 +332,12 @@ func (i *DynamicGRPC) prepareServer() error {
 			},
 		}
 	} else {
-		panic(errors.ErrUnsupported)
+		sd.Methods = []grpc.MethodDesc{
+			{
+				MethodName: string(i.method.Name()),
+				Handler:    h.HandleUnary,
+			},
+		}
 	}
 
 	i.server = grpc.NewServer(opts...)
@@ -420,8 +425,10 @@ func init() {
 				TLSClientConfig: &tls.TLSClientConfig{},
 			},
 			Server: Server{
-				MaxMessageSize:  4 * datasize.Mebibyte,
-				TLSServerConfig: &tls.TLSServerConfig{},
+				MaxMessageSize:       4 * datasize.Mebibyte,
+				NumStreamWorkers:     5,
+				MaxConcurrentStreams: 5,
+				TLSServerConfig:      &tls.TLSServerConfig{},
 			},
 		}
 	})

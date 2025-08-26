@@ -1,6 +1,7 @@
 package dynamicgrpc
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -78,6 +79,46 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 		h.Out <- event
 		h.Observe(metrics.EventAccepted, time.Since(now))
 	}
+}
+
+func (h *Handler) HandleUnary(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+	now := time.Now()
+
+	m := dynamicpb.NewMessage(h.RecvMsg)
+	if err := dec(m); err != nil {
+		h.Log.Error("message decoding error",
+			"error", err,
+		)
+		h.Observe(metrics.EventFailed, time.Since(now))
+		return nil, err
+	}
+
+	headers, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		headers = make(metadata.MD)
+	}
+
+	result, err := protomap.MessageToAny(m, interceptors.DurationDecoder, interceptors.TimeDecoder)
+	if err != nil {
+		h.Log.Error("message decoding error",
+			"error", err,
+		)
+		h.Observe(metrics.EventFailed, time.Since(now))
+		return nil, err
+	}
+
+	event := core.NewEventWithData(h.Procedure, result)
+	for k, v := range h.LabelHeaders {
+		if h := headers.Get(v); len(h) > 0 {
+			event.SetLabel(k, strings.Join(h, "; "))
+		}
+	}
+
+	h.Ider.Apply(event)
+	h.Out <- event
+	h.Observe(metrics.EventAccepted, time.Since(now))
+
+	return h.RespMsg, nil
 }
 
 func dialOptions(c Client) ([]grpc.DialOption, error) {
