@@ -1,0 +1,21 @@
+[settings]
+  id = "test.pipeline.dynamicgrpc"
+  lines = 1
+  run = true
+  buffer = 1_000
+
+[[inputs]]
+  [inputs.dynamic_grpc]
+    mode = "AsServer"
+    proto_files = [ "./plugins/common/grpc/input.proto" ]
+    procedure = "neptunus.plugins.common.grpc.Input.SendOne"
+    [inputs.dynamic_grpc.server]
+      address = ":9900"
+      invoke_response = '{}'
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
