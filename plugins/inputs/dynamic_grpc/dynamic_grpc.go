@@ -15,9 +15,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -121,12 +118,15 @@ func (i *DynamicGRPC) Init() error {
 }
 
 func (i *DynamicGRPC) Close() error {
-	i.cancelFunc()
-	<-i.doneCh
-
 	switch i.Mode {
 	case modeServerSideStream:
+		i.cancelFunc()
+		<-i.doneCh
 		return i.clientConn.Close()
+	case modeAsServer:
+		i.server.GracefulStop()
+		<-i.doneCh
+		return i.listener.Close()
 	default:
 		// btw unreachable code, mode checks on init
 		panic(fmt.Errorf("unknown mode: %v", i.Mode))
@@ -137,12 +137,25 @@ func (i *DynamicGRPC) Run() {
 	switch i.Mode {
 	case modeServerSideStream:
 		i.runServerSideStream()
+	case modeAsServer:
+		i.runAsServer()
 	default:
 		// btw unreachable code, mode checks on init
 		panic(fmt.Errorf("unknown mode: %v", i.Mode))
 	}
 
 	close(i.doneCh)
+}
+
+func (i *DynamicGRPC) runAsServer() {
+	i.Log.Info(fmt.Sprintf("starting grpc server on %v", i.Server.Address))
+	if err := i.server.Serve(i.listener); err != nil {
+		i.Log.Error("grpc server startup failed",
+			"error", err.Error(),
+		)
+	} else {
+		i.Log.Info("grpc server stopped")
+	}
 }
 
 func (i *DynamicGRPC) runServerSideStream() {
@@ -296,7 +309,34 @@ func (i *DynamicGRPC) prepareServer() error {
 		return err
 	}
 
+	sd := &grpc.ServiceDesc{
+		ServiceName: string(i.method.Parent().FullName()),
+	}
+
+	h := &Handler{
+		BaseInput:    i.BaseInput,
+		Ider:         i.Ider,
+		Procedure:    i.Procedure,
+		LabelHeaders: i.LabelHeaders,
+		RespMsg:      i.respMsg,
+		RecvMsg:      i.method.Input(),
+	}
+
+	if i.method.IsStreamingClient() {
+		sd.Streams = []grpc.StreamDesc{
+			{
+				StreamName:    string(i.method.Name()),
+				Handler:       h.HandleClientStream,
+				ServerStreams: false,
+				ClientStreams: true,
+			},
+		}
+	} else {
+		panic(errors.ErrUnsupported)
+	}
+
 	i.server = grpc.NewServer(opts...)
+	i.server.RegisterService(sd, nil)
 
 	return nil
 }
@@ -371,70 +411,6 @@ func (i *DynamicGRPC) prepareClient() error {
 	return nil
 }
 
-func dialOptions(c Client) ([]grpc.DialOption, error) {
-	var dialOpts []grpc.DialOption
-
-	if len(c.Authority) > 0 {
-		dialOpts = append(dialOpts, grpc.WithAuthority(c.Authority))
-	}
-
-	if len(c.UserAgent) > 0 {
-		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
-	}
-
-	dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
-		Time:                c.InactiveTransportPing,
-		Timeout:             c.InactiveTransportAge,
-		PermitWithoutStream: c.PermitWithoutStream,
-	}))
-
-	tlsConfig, err := c.TLSClientConfig.Config()
-	if err != nil {
-		return nil, err
-	}
-
-	if tlsConfig != nil {
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-	} else {
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	}
-
-	return dialOpts, nil
-}
-
-func serverOptions(s Server) ([]grpc.ServerOption, error) {
-	var serverOptions []grpc.ServerOption
-
-	serverOptions = append(serverOptions,
-		grpc.MaxRecvMsgSize(int(s.MaxMessageSize.Bytes())),
-		grpc.MaxSendMsgSize(int(s.MaxMessageSize.Bytes())),
-		grpc.NumStreamWorkers(s.NumStreamWorkers),
-		grpc.MaxConcurrentStreams(s.MaxConcurrentStreams),
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			MaxConnectionIdle:     s.MaxConnectionIdle,
-			MaxConnectionAge:      s.MaxConnectionAge,
-			MaxConnectionAgeGrace: s.MaxConnectionGrace,
-			Time:                  s.InactiveTransportPing,
-			Timeout:               s.InactiveTransportAge,
-		}),
-	)
-
-	tlsConfig, err := s.TLSServerConfig.Config()
-	if err != nil {
-		return nil, err
-	}
-
-	if tlsConfig != nil {
-		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(tlsConfig)))
-	} else {
-		serverOptions = append(serverOptions, grpc.Creds(insecure.NewCredentials()))
-
-	}
-
-	return serverOptions, nil
-}
-
 func init() {
 	plugins.AddInput("dynamic_grpc", func() core.Input {
 		return &DynamicGRPC{
@@ -444,6 +420,7 @@ func init() {
 				TLSClientConfig: &tls.TLSClientConfig{},
 			},
 			Server: Server{
+				MaxMessageSize:  4 * datasize.Mebibyte,
 				TLSServerConfig: &tls.TLSServerConfig{},
 			},
 		}
