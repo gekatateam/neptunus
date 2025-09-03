@@ -4,7 +4,7 @@ The `kafka` input plugin reads from Kafka and passes each message to configured 
 
 Each reader uses it's own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
 
-A message is marked as ready to commit if all of its events hooks are called, if parser returned zero events, or if parsing ended with an error.
+A message is marked as ready to commit if all of its events hooks are called or if parser returned zero events.
 
 If commit queue is full, fetching is suspended until at least one message is committed.
 
@@ -27,6 +27,11 @@ If commit queue is full, fetching is suspended until at least one message is com
     # topics to consume
     # topic name will be set as an event routing key
     topics = [ "topic_one", "topic_two" ]
+
+    # what plugin shoud do with message if parsing failed
+    # - "drop" - mark message as ready to be committed without producing any event
+    # - "consume" - produce one event with message data as event body (it can be accessed using "." path)
+    on_parser_error = "drop"
 
     # if configured, an event id will be set by data from path
     # expected format - "type:path"

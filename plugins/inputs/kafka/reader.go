@@ -30,6 +30,7 @@ type topicReader struct {
 
 	enableMetrics bool
 	keepTimestamp bool
+	onParserError string
 	labelHeaders  map[string]string
 	delay         atomic.Int64
 
@@ -95,22 +96,30 @@ FETCH_LOOP:
 
 		events, err := r.parser.Parse(msg.Value, r.topic)
 		if err != nil {
-			r.Log.Error("parser error, message marked as ready to be committed",
+			r.Log.Error("parsing failed",
 				"error", err,
 				"topic", msg.Topic,
 				"offset", strconv.FormatInt(msg.Offset, 10),
 				"partition", strconv.Itoa(msg.Partition),
 			)
 
-			r.commitSemaphore <- struct{}{}
-			r.fetchCh <- &trackedMessage{
-				Message:   msg,
-				events:    0,
-				delivered: true, // if parser fails, commit message
+			if r.onParserError == "drop" {
+				r.commitSemaphore <- struct{}{}
+				r.fetchCh <- &trackedMessage{
+					Message:   msg,
+					events:    0,
+					delivered: true, // if parser fails, commit message
+				}
+
+				r.Observe(metrics.EventFailed, time.Since(now))
+				continue FETCH_LOOP
 			}
 
-			r.Observe(metrics.EventFailed, time.Since(now))
-			continue FETCH_LOOP
+			if r.onParserError == "consume" {
+				e := core.NewEventWithData(r.topic, msg.Value)
+				e.StackError(err)
+				events = []*core.Event{e}
+			}
 		}
 
 		// here we expect a header value to be a string
