@@ -113,7 +113,9 @@ FETCH_LOOP:
 
 				r.Observe(metrics.EventFailed, time.Since(now))
 				continue FETCH_LOOP
-			} else {
+			}
+
+			if r.onParserError == "consume" {
 				e := core.NewEventWithData(r.topic, msg.Value)
 				e.StackError(err)
 				events = []*core.Event{e}

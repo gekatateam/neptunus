@@ -2,7 +2,7 @@
 
 The `rabbitmq` input plugin reads from RabbitMQ queues and passes each message to configured parser. This plugin requires parser.
 
-Each consumer uses it's own ACK queue into which each consumed message is placed. A message ACKed if all of its events hooks are called or if parser returned zero events. if parsing ended with an error, message will be rejected.
+Each consumer uses it's own ACK queue into which each consumed message is placed. A message ACKed if all of its events hooks are called or if parser returned zero events.
 
 If ACK queue is full, consuming is suspended until at least one message is ACKed.
 
@@ -25,6 +25,12 @@ If ACK queue is full, consuming is suspended until at least one message is ACKed
 
     # https://www.rabbitmq.com/docs/connections#client-provided-names
     connection_name = "neptunus.rabbitmq.input"
+
+    # what plugin shoud do with message if parsing failed
+    # - "drop" - immediately ack message without producing any event
+    # - "reject" - immediately reject message without producing any event
+    # - "consume" - produce one event with message data as event body (it can be accessed using "." path)
+    on_parser_error = "reject"
 
     # authentication credentials for the PLAIN auth
     username = ""

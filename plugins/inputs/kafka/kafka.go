@@ -79,8 +79,7 @@ func (i *Kafka) Init() (err error) {
 	}
 
 	switch i.OnParserError {
-	case "drop":
-	case "consume":
+	case "drop", "consume":
 	default:
 		return fmt.Errorf("unknown parser error behaviour: %v; expected one of: drop, consume", i.OnParserError)
 	}
