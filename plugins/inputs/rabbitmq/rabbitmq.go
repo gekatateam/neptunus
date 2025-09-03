@@ -25,6 +25,7 @@ type RabbitMQ struct {
 	ConnectionName    string            `mapstructure:"connection_name"`
 	Username          string            `mapstructure:"username"`
 	Password          string            `mapstructure:"password"`
+	OnParserError     string            `mapstructure:"on_parser_error"`
 	KeepTimestamp     bool              `mapstructure:"keep_timestamp"`
 	KeepMessageId     bool              `mapstructure:"keep_message_id"`
 	DialTimeout       time.Duration     `mapstructure:"dial_timeout"`
@@ -83,6 +84,12 @@ func (i *RabbitMQ) Init() error {
 
 	if len(i.Queues) == 0 {
 		return errors.New("at least one queue required")
+	}
+
+	switch i.OnParserError {
+	case "drop", "reject", "consume":
+	default:
+		return fmt.Errorf("unknown parser error behaviour: %v; expected one of: drop, reject, consume", i.OnParserError)
 	}
 
 	if err := i.Ider.Init(); err != nil {
@@ -212,6 +219,7 @@ CONNECT_LOOP:
 				keepTimestamp: i.KeepTimestamp,
 				keepMessageId: i.KeepMessageId,
 				labelHeaders:  i.LabelHeaders,
+				onParserError: i.OnParserError,
 				ider:          i.Ider,
 				parser:        i.parser,
 				queue:         queue,
@@ -417,6 +425,7 @@ func init() {
 			VHost:             "/",
 			ConsumerTag:       "neptunus.rabbitmq.input",
 			ConnectionName:    "neptunus.rabbitmq.input",
+			OnParserError:     "reject",
 			DialTimeout:       10 * time.Second,
 			HeartbeatInterval: 10 * time.Second,
 			MaxUndelivered:    100,

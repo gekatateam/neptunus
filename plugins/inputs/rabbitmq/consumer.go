@@ -25,6 +25,7 @@ type consumer struct {
 
 	keepTimestamp bool
 	keepMessageId bool
+	onParserError string
 	labelHeaders  map[string]string
 
 	ider         *ider.Ider
@@ -52,21 +53,47 @@ CONSUME_LOOP:
 
 		events, err := c.parser.Parse(msg.Body, c.queue.Name)
 		if err != nil {
-			c.Log.Error("parser error, message rejected",
+			c.Log.Error("parsing failed",
 				msgLogAttrs(msg, "error", err, "queue", c.queue.Name)...,
 			)
 
-			msg.Reject(c.queue.Requeue)
-			c.Observe(metrics.EventFailed, time.Since(now))
-			continue CONSUME_LOOP
+			if c.onParserError == "reject" {
+				msg.Reject(c.queue.Requeue)
+				c.Observe(metrics.EventFailed, time.Since(now))
+				continue CONSUME_LOOP
+			}
+
+			if c.onParserError == "drop" {
+				c.ackSemaphore <- struct{}{}
+				c.fetchCh <- trackedDelivery{
+					Delivery: msg,
+					events:   0,
+				}
+				c.ackCh <- msg.DeliveryTag
+
+				c.Observe(metrics.EventFailed, time.Since(now))
+				continue CONSUME_LOOP
+			}
+
+			if c.onParserError == "consume" {
+				e := core.NewEventWithData(c.queue.Name, msg.Body)
+				e.StackError(err)
+				events = []*core.Event{e}
+			}
 		}
 
 		if len(events) == 0 {
-			c.Log.Debug("parser returns zero events, message acked",
+			c.Log.Debug("parser returns zero events, message will be acked",
 				msgLogAttrs(msg, "queue", c.queue.Name)...,
 			)
 
-			msg.Ack(false)
+			c.ackSemaphore <- struct{}{}
+			c.fetchCh <- trackedDelivery{
+				Delivery: msg,
+				events:   0,
+			}
+			c.ackCh <- msg.DeliveryTag
+
 			c.Observe(metrics.EventAccepted, time.Since(now))
 			continue CONSUME_LOOP
 		}
