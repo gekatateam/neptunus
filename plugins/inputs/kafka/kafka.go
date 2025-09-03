@@ -27,6 +27,7 @@ type Kafka struct {
 	*core.BaseInput      `mapstructure:"-"`
 	EnableMetrics        bool              `mapstructure:"enable_metrics"`
 	Brokers              []string          `mapstructure:"brokers"`
+	OnParserError        string            `mapstructure:"on_parser_error"`
 	ClientId             string            `mapstructure:"client_id"`
 	GroupId              string            `mapstructure:"group_id"`
 	GroupTTL             time.Duration     `mapstructure:"group_ttl"`
@@ -75,6 +76,13 @@ func (i *Kafka) Init() (err error) {
 
 	if len(i.GroupId) == 0 {
 		return errors.New("group_id required")
+	}
+
+	switch i.OnParserError {
+	case "drop":
+	case "consume":
+	default:
+		return fmt.Errorf("unknown parser error behaviour: %v; expected one of: drop, consume", i.OnParserError)
 	}
 
 	if err := i.Ider.Init(); err != nil {
@@ -246,6 +254,7 @@ GENERATION_LOOP:
 						enableMetrics: i.EnableMetrics,
 						labelHeaders:  i.LabelHeaders,
 						keepTimestamp: i.KeepTimestamp,
+						onParserError: i.OnParserError,
 						parser:        i.parser,
 						ider:          i.Ider,
 
@@ -304,6 +313,7 @@ func init() {
 			GroupId:           "neptunus.kafka.input",
 			GroupBalancer:     "range",
 			StartOffset:       "last",
+			OnParserError:     "drop",
 			GroupTTL:          24 * time.Hour,
 			DialTimeout:       5 * time.Second,
 			SessionTimeout:    30 * time.Second,
