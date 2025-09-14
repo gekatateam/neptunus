@@ -63,7 +63,6 @@ require (
 	github.com/klauspost/compress v1.18.0
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
@@ -97,7 +96,6 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/naoina/toml v0.1.1
 	github.com/opensearch-project/opensearch-go/v3 v3.1.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/prometheus v0.304.0
