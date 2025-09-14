@@ -8,7 +8,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/goccy/go-yaml"
-	toml2 "github.com/naoina/toml" // for marshal only
 )
 
 type Pipeline struct {
@@ -215,7 +214,7 @@ func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
 
 	switch format {
 	case ".toml":
-		if content, err = toml2.Marshal(pipe); err != nil {
+		if content, err = toml.Marshal(pipe); err != nil {
 			return nil, err
 		}
 	case ".yaml", ".yml":
