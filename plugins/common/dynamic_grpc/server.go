@@ -15,7 +15,6 @@ import (
 
 type Server struct {
 	Address               string        `mapstructure:"address"`
-	InvokeResponse        string        `mapstructure:"invoke_response"`
 	MaxMessageSize        datasize.Size `mapstructure:"max_message_size"`
 	NumStreamWorkers      uint32        `mapstructure:"num_stream_workers"`
 	MaxConcurrentStreams  uint32        `mapstructure:"max_concurrent_streams"`

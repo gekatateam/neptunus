@@ -49,13 +49,13 @@ type DynamicGRPC struct {
 	*ider.Ider      `mapstructure:",squash"`
 
 	// ServerSideStream
-	Client     dynamicgrpc.Client `mapstructure:"client"`
+	Client     Client `mapstructure:"client"`
 	clientConn *grpc.ClientConn
 	initMsg    proto.Message
 	initMD     metadata.MD
 
 	// AsServer
-	Server   dynamicgrpc.Server `mapstructure:"server"`
+	Server   Server `mapstructure:"server"`
 	listener net.Listener
 	server   *grpc.Server
 	respMsg  proto.Message
@@ -63,6 +63,18 @@ type DynamicGRPC struct {
 	method     protoreflect.MethodDescriptor
 	cancelFunc context.CancelFunc
 	doneCh     chan struct{}
+}
+
+type Client struct {
+	dynamicgrpc.Client `mapstructure:",squash"`
+	RetryAfter         time.Duration     `mapstructure:"retry_after"`
+	InvokeRequest      string            `mapstructure:"invoke_request"`
+	InvokeHeaders      map[string]string `mapstructure:"invoke_headers"`
+}
+
+type Server struct {
+	dynamicgrpc.Server `mapstructure:",squash"`
+	InvokeResponse     string `mapstructure:"invoke_response"`
 }
 
 func (i *DynamicGRPC) Init() error {
@@ -362,15 +374,19 @@ func init() {
 	plugins.AddInput("dynamic_grpc", func() core.Input {
 		return &DynamicGRPC{
 			Ider: &ider.Ider{},
-			Client: dynamicgrpc.Client{
-				RetryAfter:      5 * time.Second,
-				TLSClientConfig: &tls.TLSClientConfig{},
+			Client: Client{
+				RetryAfter: 5 * time.Second,
+				Client: dynamicgrpc.Client{
+					TLSClientConfig: &tls.TLSClientConfig{},
+				},
 			},
-			Server: dynamicgrpc.Server{
-				MaxMessageSize:       4 * datasize.Mebibyte,
-				NumStreamWorkers:     5,
-				MaxConcurrentStreams: 5,
-				TLSServerConfig:      &tls.TLSServerConfig{},
+			Server: Server{
+				Server: dynamicgrpc.Server{
+					MaxMessageSize:       4 * datasize.Mebibyte,
+					NumStreamWorkers:     5,
+					MaxConcurrentStreams: 5,
+					TLSServerConfig:      &tls.TLSServerConfig{},
+				},
 			},
 		}
 	})

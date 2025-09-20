@@ -13,9 +13,6 @@ import (
 
 type Client struct {
 	Address               string            `mapstructure:"address"`
-	RetryAfter            time.Duration     `mapstructure:"retry_after"`
-	InvokeRequest         string            `mapstructure:"invoke_request"`
-	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
 	Authority             string            `mapstructure:"authority"`               // https://pkg.go.dev/google.golang.org/grpc#WithAuthority
 	UserAgent             string            `mapstructure:"user_agent"`              // https://pkg.go.dev/google.golang.org/grpc#WithUserAgent
 	InactiveTransportPing time.Duration     `mapstructure:"inactive_transport_ping"` // keepalive ClientParameters.Time
