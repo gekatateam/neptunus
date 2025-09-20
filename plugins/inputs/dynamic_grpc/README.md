@@ -15,7 +15,7 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
     # list of import paths to resolve .proto imports
     import_paths = [ 'D:\Go\_bin\protos\' ]
 
-    # procedure name to call/receive
+    # procedure name to call/listen
     # procedure MUST be server stream in "ServerSideStream" mode
     # and MUST be unary/client stream in "AsServer" mode
     procedure = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'

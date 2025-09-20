@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bufbuild/protocompile"
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
 	"kythe.io/kythe/go/util/datasize"
+
+	"github.com/bufbuild/protocompile"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -26,6 +27,7 @@ import (
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
+	dynamicgrpc "github.com/gekatateam/neptunus/plugins/common/dynamic_grpc"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 	"github.com/gekatateam/protomap"
@@ -47,13 +49,13 @@ type DynamicGRPC struct {
 	*ider.Ider      `mapstructure:",squash"`
 
 	// ServerSideStream
-	Client     Client `mapstructure:"client"`
+	Client     dynamicgrpc.Client `mapstructure:"client"`
 	clientConn *grpc.ClientConn
 	initMsg    proto.Message
 	initMD     metadata.MD
 
 	// AsServer
-	Server   Server `mapstructure:"server"`
+	Server   dynamicgrpc.Server `mapstructure:"server"`
 	listener net.Listener
 	server   *grpc.Server
 	respMsg  proto.Message
@@ -63,36 +65,13 @@ type DynamicGRPC struct {
 	doneCh     chan struct{}
 }
 
-type Client struct {
-	Address               string            `mapstructure:"address"`
-	RetryAfter            time.Duration     `mapstructure:"retry_after"`
-	InvokeRequest         string            `mapstructure:"invoke_request"`
-	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
-	Authority             string            `mapstructure:"authority"`               // https://pkg.go.dev/google.golang.org/grpc#WithAuthority
-	UserAgent             string            `mapstructure:"user_agent"`              // https://pkg.go.dev/google.golang.org/grpc#WithUserAgent
-	InactiveTransportPing time.Duration     `mapstructure:"inactive_transport_ping"` // keepalive ClientParameters.Time
-	InactiveTransportAge  time.Duration     `mapstructure:"inactive_transport_age"`  // keepalive ClientParameters.Timeout
-	PermitWithoutStream   bool              `mapstructure:"permit_without_stream"`   // keepalive ClientParameters.PermitWithoutStream
-	*tls.TLSClientConfig  `mapstructure:",squash"`
-}
-
-type Server struct {
-	Address               string        `mapstructure:"address"`
-	InvokeResponse        string        `mapstructure:"invoke_response"`
-	MaxMessageSize        datasize.Size `mapstructure:"max_message_size"`
-	NumStreamWorkers      uint32        `mapstructure:"num_stream_workers"`
-	MaxConcurrentStreams  uint32        `mapstructure:"max_concurrent_streams"`
-	MaxConnectionIdle     time.Duration `mapstructure:"max_connection_idle"`     // ServerParameters.MaxConnectionIdle
-	MaxConnectionAge      time.Duration `mapstructure:"max_connection_age"`      // ServerParameters.MaxConnectionAge
-	MaxConnectionGrace    time.Duration `mapstructure:"max_connection_grace"`    // ServerParameters.MaxConnectionAgeGrace
-	InactiveTransportPing time.Duration `mapstructure:"inactive_transport_ping"` // ServerParameters.Time
-	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
-	*tls.TLSServerConfig  `mapstructure:",squash"`
-}
-
 func (i *DynamicGRPC) Init() error {
 	if len(i.ProtoFiles) == 0 {
 		return errors.New("at least one .proto file required")
+	}
+
+	if len(i.Procedure) == 0 {
+		return errors.New("procedure name required")
 	}
 
 	if err := i.Ider.Init(); err != nil {
@@ -100,6 +79,35 @@ func (i *DynamicGRPC) Init() error {
 	}
 
 	i.doneCh = make(chan struct{})
+
+	compiler := &protocompile.Compiler{
+		Resolver: protocompile.CompositeResolver{
+			protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+			&protocompile.SourceResolver{ImportPaths: i.ImportPaths},
+		},
+	}
+
+	f, err := compiler.Compile(context.Background(), i.ProtoFiles...)
+	if err != nil {
+		return fmt.Errorf("compilation error: %w", err)
+	}
+
+	r := f.AsResolver()
+	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
+	if err != nil {
+		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
+	}
+
+	if desc == nil {
+		return fmt.Errorf("no such descriptor: %v", i.Procedure)
+	}
+
+	m, ok := desc.(protoreflect.MethodDescriptor)
+	if !ok {
+		return fmt.Errorf("%v is not a method", i.Procedure)
+	}
+
+	i.method = m
 
 	switch i.Mode {
 	case modeServerSideStream:
@@ -248,42 +256,9 @@ STREAM_READ_LOOP:
 }
 
 func (i *DynamicGRPC) prepareServer() error {
-	compiler := &protocompile.Compiler{
-		Resolver: protocompile.CompositeResolver{
-			protocompile.WithStandardImports(&protocompile.SourceResolver{}),
-			&protocompile.SourceResolver{ImportPaths: i.ImportPaths},
-		},
-	}
-
-	f, err := compiler.Compile(context.Background(), i.ProtoFiles...)
-	if err != nil {
-		return fmt.Errorf("compilation error: %w", err)
-	}
-
-	if len(i.Procedure) == 0 {
-		return errors.New("procedure name required")
-	}
-
-	r := f.AsResolver()
-	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
-	if err != nil {
-		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
-	}
-
-	if desc == nil {
-		return fmt.Errorf("no such descriptor: %v", i.Procedure)
-	}
-
-	m, ok := desc.(protoreflect.MethodDescriptor)
-	if !ok {
-		return fmt.Errorf("%v is not a method", i.Procedure)
-	}
-
-	if m.IsStreamingServer() {
+	if i.method.IsStreamingServer() {
 		return fmt.Errorf("%v is not an unary or client stream", i.Procedure)
 	}
-
-	i.method = m
 
 	if len(i.Server.Address) == 0 {
 		return errors.New("address required")
@@ -293,7 +268,7 @@ func (i *DynamicGRPC) prepareServer() error {
 		return errors.New("invoke response required")
 	}
 
-	i.respMsg = dynamicpb.NewMessage(m.Output())
+	i.respMsg = dynamicpb.NewMessage(i.method.Output())
 	if err := protojson.Unmarshal([]byte(i.Server.InvokeResponse), i.respMsg); err != nil {
 		return fmt.Errorf("invoke response unmarshal failed: %w", err)
 	}
@@ -304,7 +279,7 @@ func (i *DynamicGRPC) prepareServer() error {
 	}
 	i.listener = listener
 
-	opts, err := serverOptions(i.Server)
+	opts, err := i.Server.ServerOptions()
 	if err != nil {
 		return err
 	}
@@ -347,42 +322,9 @@ func (i *DynamicGRPC) prepareServer() error {
 }
 
 func (i *DynamicGRPC) prepareClient() error {
-	compiler := &protocompile.Compiler{
-		Resolver: protocompile.CompositeResolver{
-			protocompile.WithStandardImports(&protocompile.SourceResolver{}),
-			&protocompile.SourceResolver{ImportPaths: i.ImportPaths},
-		},
-	}
-
-	f, err := compiler.Compile(context.Background(), i.ProtoFiles...)
-	if err != nil {
-		return fmt.Errorf("compilation error: %w", err)
-	}
-
-	if len(i.Procedure) == 0 {
-		return errors.New("procedure name required")
-	}
-
-	r := f.AsResolver()
-	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
-	if err != nil {
-		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
-	}
-
-	if desc == nil {
-		return fmt.Errorf("no such descriptor: %v", i.Procedure)
-	}
-
-	m, ok := desc.(protoreflect.MethodDescriptor)
-	if !ok {
-		return fmt.Errorf("%v is not a method", i.Procedure)
-	}
-
-	if m.IsStreamingClient() || !m.IsStreamingServer() {
+	if i.method.IsStreamingClient() || !i.method.IsStreamingServer() {
 		return fmt.Errorf("%v is not a server-side stream", i.Procedure)
 	}
-
-	i.method = m
 
 	if len(i.Client.Address) == 0 {
 		return errors.New("address required")
@@ -392,7 +334,7 @@ func (i *DynamicGRPC) prepareClient() error {
 		return errors.New("invoke request required")
 	}
 
-	i.initMsg = dynamicpb.NewMessage(m.Input())
+	i.initMsg = dynamicpb.NewMessage(i.method.Input())
 	if err := protojson.Unmarshal([]byte(i.Client.InvokeRequest), i.initMsg); err != nil {
 		return fmt.Errorf("invoke request unmarshal failed: %w", err)
 	}
@@ -402,7 +344,7 @@ func (i *DynamicGRPC) prepareClient() error {
 		i.initMD.Set(k, v)
 	}
 
-	opts, err := dialOptions(i.Client)
+	opts, err := i.Client.DialOptions()
 	if err != nil {
 		return err
 	}
@@ -420,11 +362,11 @@ func init() {
 	plugins.AddInput("dynamic_grpc", func() core.Input {
 		return &DynamicGRPC{
 			Ider: &ider.Ider{},
-			Client: Client{
+			Client: dynamicgrpc.Client{
 				RetryAfter:      5 * time.Second,
 				TLSClientConfig: &tls.TLSClientConfig{},
 			},
-			Server: Server{
+			Server: dynamicgrpc.Server{
 				MaxMessageSize:       4 * datasize.Mebibyte,
 				NumStreamWorkers:     5,
 				MaxConcurrentStreams: 5,
