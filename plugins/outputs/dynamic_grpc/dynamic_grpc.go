@@ -12,15 +12,20 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jhump/protoreflect/v2/grpcdynamic"
+
 	"github.com/bufbuild/protocompile"
 	"github.com/bufbuild/protocompile/linker"
+
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	dynamicgrpc "github.com/gekatateam/neptunus/plugins/common/dynamic_grpc"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 	"github.com/gekatateam/neptunus/plugins/common/pool"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
@@ -38,27 +43,18 @@ type DynamicGRPC struct {
 	LabelHeaders     map[string]string `mapstructure:"labelheaders"`
 
 	// AsClient
-	Client     dynamicgrpc.Client `mapstructure:"client"`
+	Client     Client `mapstructure:"client"`
 	clientConn *grpc.ClientConn
-
-	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
-	*retryer.Retryer              `mapstructure:",squash"`
 
 	callersPool *pool.Pool[*core.Event, string]
 	resolver    linker.Resolver
 }
 
 type Client struct {
-	Address               string            `mapstructure:"address"`
-	RetryAfter            time.Duration     `mapstructure:"retry_after"`
-	InvokeRequest         string            `mapstructure:"invoke_request"`
-	InvokeHeaders         map[string]string `mapstructure:"invoke_headers"`
-	Authority             string            `mapstructure:"authority"`               // https://pkg.go.dev/google.golang.org/grpc#WithAuthority
-	UserAgent             string            `mapstructure:"user_agent"`              // https://pkg.go.dev/google.golang.org/grpc#WithUserAgent
-	InactiveTransportPing time.Duration     `mapstructure:"inactive_transport_ping"` // keepalive ClientParameters.Time
-	InactiveTransportAge  time.Duration     `mapstructure:"inactive_transport_age"`  // keepalive ClientParameters.Timeout
-	PermitWithoutStream   bool              `mapstructure:"permit_without_stream"`   // keepalive ClientParameters.PermitWithoutStream
-	*tls.TLSClientConfig  `mapstructure:",squash"`
+	IdleTimeout                   time.Duration `mapstructure:"idle_timeout"`
+	dynamicgrpc.Client            `mapstructure:",squash"`
+	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
+	*retryer.Retryer              `mapstructure:",squash"`
 }
 
 func (o *DynamicGRPC) Init() error {
@@ -78,7 +74,18 @@ func (o *DynamicGRPC) Init() error {
 
 	switch o.Mode {
 	case modeAsClient:
+		options, err := o.Client.DialOptions()
+		if err != nil {
+			return err
+		}
 
+		conn, err := grpc.NewClient(o.Client.Address, options...)
+		if err != nil {
+			return err
+		}
+
+		o.clientConn = conn
+		o.callersPool = pool.New(o.newCaller)
 	default:
 		return fmt.Errorf("unknown mode: %v", o.Mode)
 	}
@@ -87,28 +94,112 @@ func (o *DynamicGRPC) Init() error {
 }
 
 func (o *DynamicGRPC) Run() {
-	for e := range o.In {
-		now := time.Now()
+	clearTicker := time.NewTicker(time.Minute)
+	if o.Client.IdleTimeout == 0 {
+		clearTicker.Stop()
+	}
 
-		o.Done <- e
-		o.Observe(metrics.EventAccepted, time.Since(now))
+MAIN_LOOP:
+	for {
+		select {
+		case e, ok := <-o.In:
+			if !ok {
+				clearTicker.Stop()
+				break MAIN_LOOP
+			}
+
+			now := time.Now()
+			if (o.callersPool.LastWrite(e.RoutingKey) != time.Time{}) {
+				goto DESCRIPTOR_FOUND_AND_CORRECT
+			}
+
+			if _, err := o.descriptorForClient(protoreflect.FullName(e.RoutingKey)); err != nil {
+				o.Log.Error("event processing failed",
+					"error", err,
+					elog.EventGroup(e),
+				)
+				o.Observe(metrics.EventFailed, time.Since(now))
+				o.Done <- e
+				continue
+			}
+
+		DESCRIPTOR_FOUND_AND_CORRECT:
+			o.callersPool.Get(e.RoutingKey).Push(e)
+		case <-clearTicker.C:
+			for _, pipeline := range o.callersPool.Keys() {
+				if time.Since(o.callersPool.LastWrite(pipeline)) > o.Client.IdleTimeout {
+					o.callersPool.Remove(pipeline)
+				}
+			}
+		}
 	}
 }
 
 func (o *DynamicGRPC) Close() error {
-	return nil
+	o.callersPool.Close()
+	return o.clientConn.Close()
 }
 
 func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
-	return &Caller{}
+	m, _ := o.descriptorForClient(protoreflect.FullName(rpc))
+
+	c := &Caller{
+		BaseOutput:   o.BaseOutput,
+		Batcher:      o.Client.Batcher,
+		Retryer:      o.Client.Retryer,
+		labelHeaders: o.LabelHeaders,
+		method:       m,
+		stub:         grpcdynamic.NewStub(o.clientConn),
+		input:        make(chan *core.Event),
+	}
+
+	if m.IsStreamingClient() {
+		c.sendFunc = c.sendBulk
+	} else {
+		c.sendFunc = c.sendUnary
+	}
+
+	return c
+}
+
+func (o *DynamicGRPC) descriptorForClient(name protoreflect.FullName) (protoreflect.MethodDescriptor, error) {
+	desc, err := o.resolver.FindDescriptorByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("%v search failed: %w", name, err)
+	}
+
+	if desc == nil {
+		return nil, fmt.Errorf("no such descriptor: %v", name)
+	}
+
+	m, ok := desc.(protoreflect.MethodDescriptor)
+	if !ok {
+		return nil, fmt.Errorf("%v is not a method", name)
+	}
+
+	if m.IsStreamingServer() {
+		return nil, fmt.Errorf("%v is not an unary or client stream", name)
+	}
+
+	return m, nil
 }
 
 func init() {
 	plugins.AddOutput("dynamic_grpc", func() core.Output {
 		return &DynamicGRPC{
-			Client: dynamicgrpc.Client{
-				RetryAfter:      5 * time.Second,
-				TLSClientConfig: &tls.TLSClientConfig{},
+			Client: Client{
+				IdleTimeout: time.Hour,
+				Client: dynamicgrpc.Client{
+					TLSClientConfig: &tls.TLSClientConfig{},
+				},
+				Batcher: &batcher.Batcher[*core.Event]{
+					Buffer:   100,
+					Interval: 5 * time.Second,
+				},
+				Retryer: &retryer.Retryer{
+					RetryAttempts: 0,
+					RetryAfter:    5 * time.Second,
+				},
 			},
 		}
 	})
