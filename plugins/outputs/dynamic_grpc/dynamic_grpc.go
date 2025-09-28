@@ -9,6 +9,7 @@ package dynamicgrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -40,7 +41,7 @@ type DynamicGRPC struct {
 	Mode             string            `mapstructure:"mode"`
 	ProtoFiles       []string          `mapstructure:"proto_files"`
 	ImportPaths      []string          `mapstructure:"import_paths"`
-	LabelHeaders     map[string]string `mapstructure:"labelheaders"`
+	HeaderLabels     map[string]string `mapstructure:"headerlabels"`
 
 	// AsClient
 	Client     Client `mapstructure:"client"`
@@ -52,12 +53,17 @@ type DynamicGRPC struct {
 
 type Client struct {
 	IdleTimeout                   time.Duration `mapstructure:"idle_timeout"`
+	InvokeTimeout                 time.Duration `mapstructure:"invoke_timeout"`
 	dynamicgrpc.Client            `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 }
 
 func (o *DynamicGRPC) Init() error {
+	if len(o.ProtoFiles) == 0 {
+		return errors.New("at least one .proto file required")
+	}
+
 	compiler := &protocompile.Compiler{
 		Resolver: protocompile.CompositeResolver{
 			protocompile.WithStandardImports(&protocompile.SourceResolver{}),
@@ -147,7 +153,8 @@ func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
 		BaseOutput:   o.BaseOutput,
 		Batcher:      o.Client.Batcher,
 		Retryer:      o.Client.Retryer,
-		labelHeaders: o.LabelHeaders,
+		headerLabels: o.HeaderLabels,
+		timeout:      o.Client.InvokeTimeout,
 		method:       m,
 		stub:         grpcdynamic.NewStub(o.clientConn),
 		input:        make(chan *core.Event),
@@ -188,7 +195,8 @@ func init() {
 	plugins.AddOutput("dynamic_grpc", func() core.Output {
 		return &DynamicGRPC{
 			Client: Client{
-				IdleTimeout: time.Hour,
+				IdleTimeout:   time.Hour,
+				InvokeTimeout: 30 * time.Second,
 				Client: dynamicgrpc.Client{
 					TLSClientConfig: &tls.TLSClientConfig{},
 				},
