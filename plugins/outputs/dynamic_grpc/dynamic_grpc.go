@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
@@ -48,6 +49,7 @@ type DynamicGRPC struct {
 	Client       Client `mapstructure:"client"`
 	clientConn   *grpc.ClientConn
 	successCodes map[codes.Code]struct{}
+	successMsg   *regexp.Regexp
 
 	callersPool *pool.Pool[*core.Event, string]
 	resolver    linker.Resolver
@@ -55,6 +57,7 @@ type DynamicGRPC struct {
 
 type Client struct {
 	SuccessCodes                  []int32       `mapstructure:"success_codes"`
+	SuccessMessage                string        `mapstructure:"success_message"`
 	IdleTimeout                   time.Duration `mapstructure:"idle_timeout"`
 	InvokeTimeout                 time.Duration `mapstructure:"invoke_timeout"`
 	dynamicgrpc.Client            `mapstructure:",squash"`
@@ -95,7 +98,21 @@ func (o *DynamicGRPC) Init() error {
 
 		o.successCodes = make(map[codes.Code]struct{})
 		for _, code := range o.Client.SuccessCodes {
+			if code == int32(codes.Unknown) {
+				o.Log.Warn("it is strongly recommended not to use Unknown (2) code as a successful one")
+			}
+
 			o.successCodes[codes.Code(code)] = struct{}{}
+		}
+
+		o.successMsg = nil
+		if len(o.Client.SuccessMessage) > 0 {
+			r, err := regexp.Compile(o.Client.SuccessMessage)
+			if err != nil {
+				return err
+			}
+
+			o.successMsg = r
 		}
 
 		o.clientConn = conn
@@ -164,6 +181,7 @@ func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
 		headerLabels: o.HeaderLabels,
 		timeout:      o.Client.InvokeTimeout,
 		successCodes: o.successCodes,
+		successMsg:   o.successMsg,
 		method:       m,
 		stub:         grpcdynamic.NewStub(o.clientConn),
 		input:        make(chan *core.Event),

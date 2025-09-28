@@ -2,8 +2,8 @@ package dynamicgrpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
@@ -25,8 +25,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 )
 
-var ErrZeroCode = errors.New("rpc invoked with 0 result code, but it is not what we expected")
-
 type Caller struct {
 	*core.BaseOutput
 	*batcher.Batcher[*core.Event]
@@ -34,6 +32,7 @@ type Caller struct {
 
 	headerLabels map[string]string
 	successCodes map[codes.Code]struct{}
+	successMsg   *regexp.Regexp
 	timeout      time.Duration
 	method       protoreflect.MethodDescriptor
 	stub         *grpcdynamic.Stub
@@ -64,13 +63,6 @@ func (c *Caller) sendUnary(buf []*core.Event) {
 	for _, e := range buf {
 		now := time.Now()
 
-		headers := make(metadata.MD)
-		for k, v := range c.headerLabels {
-			if val, ok := e.GetLabel(v); ok {
-				headers.Set(k, val)
-			}
-		}
-
 		msg := dynamicpb.NewMessage(c.method.Input())
 		if err := protomap.AnyToMessage(e.Data, msg, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
 			c.Log.Error("event processing failed",
@@ -82,6 +74,12 @@ func (c *Caller) sendUnary(buf []*core.Event) {
 			continue
 		}
 
+		headers := make(metadata.MD)
+		for k, v := range c.headerLabels {
+			if val, ok := e.GetLabel(v); ok {
+				headers.Set(k, val)
+			}
+		}
 		ctx := metadata.NewOutgoingContext(context.Background(), headers)
 
 		err := c.Retryer.Do("execute unary rpc", c.Log, func() error {
@@ -89,27 +87,32 @@ func (c *Caller) sendUnary(buf []*core.Event) {
 			defer cancel()
 
 			resp, invokeErr := c.stub.InvokeRpc(invokeCtx, c.method, msg)
-			if _, ok := c.successCodes[status.Code(invokeErr)]; !ok {
-				if invokeErr != nil {
-					return invokeErr
-				} else {
-					return ErrZeroCode
-				}
-			}
+			status := status.Convert(invokeErr)
 
 			jsonResp, err := protojson.Marshal(resp)
 			if err != nil {
-				c.Log.Warn("rpc invoked successfully, but response body marshal failed",
+				c.Log.Warn("rpc response body marshal failed",
 					"error", err,
 					elog.EventGroup(e),
 				)
 			}
 
-			c.Log.Debug(fmt.Sprintf("event processed with code: %v; response: %v", status.Code(invokeErr), string(jsonResp)),
-				elog.EventGroup(e),
-			)
-
-			return nil
+			if _, ok := c.successCodes[status.Code()]; ok {
+				c.Log.Debug(fmt.Sprintf("rpc invoked successfully with code: %v; message: %v; response: %v", status.Code(), status.Message(), string(jsonResp)),
+					elog.EventGroup(e),
+				)
+				return nil
+			} else {
+				if c.successMsg != nil && c.successMsg.MatchString(status.Message()) {
+					c.Log.Debug(fmt.Sprintf("rpc invoked with code: %v; message: %v; response: %v; "+
+						"but RPC status message matches configured regexp", status.Code(), status.Message(), string(jsonResp)),
+						elog.EventGroup(e),
+					)
+					return nil
+				} else {
+					return fmt.Errorf("rpc invoke failed with code: %v; message: %v; response: %v", status.Code(), status.Message(), string(jsonResp))
+				}
+			}
 		})
 
 		c.Done <- e
