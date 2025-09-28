@@ -87,7 +87,10 @@ func (c *Caller) sendUnary(buf []*core.Event) {
 			defer cancel()
 
 			resp, invokeErr := c.stub.InvokeRpc(invokeCtx, c.method, msg)
-			status := status.Convert(invokeErr)
+			status, ok := status.FromError(invokeErr)
+			if !ok { // if error does not contains a status, return it as is
+				return invokeErr
+			}
 
 			jsonResp, err := protojson.Marshal(resp)
 			if err != nil {
