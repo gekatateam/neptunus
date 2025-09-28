@@ -14,12 +14,13 @@ import (
 	"time"
 
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bufbuild/protocompile"
 	"github.com/bufbuild/protocompile/linker"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/grpc/codes"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -44,14 +45,16 @@ type DynamicGRPC struct {
 	HeaderLabels     map[string]string `mapstructure:"headerlabels"`
 
 	// AsClient
-	Client     Client `mapstructure:"client"`
-	clientConn *grpc.ClientConn
+	Client       Client `mapstructure:"client"`
+	clientConn   *grpc.ClientConn
+	successCodes map[codes.Code]struct{}
 
 	callersPool *pool.Pool[*core.Event, string]
 	resolver    linker.Resolver
 }
 
 type Client struct {
+	SuccessCodes                  []int32       `mapstructure:"success_codes"`
 	IdleTimeout                   time.Duration `mapstructure:"idle_timeout"`
 	InvokeTimeout                 time.Duration `mapstructure:"invoke_timeout"`
 	dynamicgrpc.Client            `mapstructure:",squash"`
@@ -88,6 +91,11 @@ func (o *DynamicGRPC) Init() error {
 		conn, err := grpc.NewClient(o.Client.Address, options...)
 		if err != nil {
 			return err
+		}
+
+		o.successCodes = make(map[codes.Code]struct{})
+		for _, code := range o.Client.SuccessCodes {
+			o.successCodes[codes.Code(code)] = struct{}{}
 		}
 
 		o.clientConn = conn
@@ -155,6 +163,7 @@ func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
 		Retryer:      o.Client.Retryer,
 		headerLabels: o.HeaderLabels,
 		timeout:      o.Client.InvokeTimeout,
+		successCodes: o.successCodes,
 		method:       m,
 		stub:         grpcdynamic.NewStub(o.clientConn),
 		input:        make(chan *core.Event),
@@ -195,6 +204,7 @@ func init() {
 	plugins.AddOutput("dynamic_grpc", func() core.Output {
 		return &DynamicGRPC{
 			Client: Client{
+				SuccessCodes:  []int32{0},
 				IdleTimeout:   time.Hour,
 				InvokeTimeout: 30 * time.Second,
 				Client: dynamicgrpc.Client{
