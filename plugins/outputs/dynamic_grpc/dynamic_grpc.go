@@ -86,6 +86,10 @@ func (o *DynamicGRPC) Init() error {
 
 	switch o.Mode {
 	case modeAsClient:
+		if len(o.Client.Address) == 0 {
+			return errors.New("address required")
+		}
+
 		options, err := o.Client.DialOptions()
 		if err != nil {
 			return err

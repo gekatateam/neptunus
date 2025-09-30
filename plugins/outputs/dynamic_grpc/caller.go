@@ -50,6 +50,8 @@ func (c *Caller) Close() error {
 }
 
 func (c *Caller) Run() {
+	c.Log.Info(fmt.Sprintf("caller for %v spawned", c.method.FullName()))
+
 	c.Batcher.Run(c.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
@@ -57,6 +59,8 @@ func (c *Caller) Run() {
 
 		c.sendFunc(buf)
 	})
+
+	c.Log.Info(fmt.Sprintf("caller for %v closed", c.method.FullName()))
 }
 
 func (c *Caller) sendUnary(buf []*core.Event) {
