@@ -4,34 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"strings"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
 	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/bufbuild/protocompile"
+	"github.com/bufbuild/protocompile/linker"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	dynamicgrpc "github.com/gekatateam/neptunus/plugins/common/dynamic_grpc"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
-	"github.com/gekatateam/protomap"
-	"github.com/gekatateam/protomap/interceptors"
 )
 
 const (
@@ -44,37 +39,39 @@ type DynamicGRPC struct {
 	Mode            string            `mapstructure:"mode"`
 	ProtoFiles      []string          `mapstructure:"proto_files"`
 	ImportPaths     []string          `mapstructure:"import_paths"`
-	Procedure       string            `mapstructure:"procedure"`
+	Procedures      []Procedure       `mapstructure:"procedures"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider      `mapstructure:",squash"`
 
 	// ServerSideStream
-	Client     Client `mapstructure:"client"`
-	clientConn *grpc.ClientConn
-	initMsg    proto.Message
-	initMD     metadata.MD
+	Client      Client `mapstructure:"client"`
+	clientConn  *grpc.ClientConn
+	subscribers []*Subscriber
 
 	// AsServer
 	Server   Server `mapstructure:"server"`
 	listener net.Listener
 	server   *grpc.Server
-	respMsg  proto.Message
 
-	method     protoreflect.MethodDescriptor
+	resolver   linker.Resolver
 	cancelFunc context.CancelFunc
 	doneCh     chan struct{}
 }
 
+type Procedure struct {
+	Name           string            `mapstructure:"name"`
+	InvokeRequest  string            `mapstructure:"invoke_request"`
+	InvokeHeaders  map[string]string `mapstructure:"invoke_headers"`
+	InvokeResponse string            `mapstructure:"invoke_response"`
+}
+
 type Client struct {
 	dynamicgrpc.Client `mapstructure:",squash"`
-	RetryAfter         time.Duration     `mapstructure:"retry_after"`
-	InvokeRequest      string            `mapstructure:"invoke_request"`
-	InvokeHeaders      map[string]string `mapstructure:"invoke_headers"`
+	RetryAfter         time.Duration `mapstructure:"retry_after"`
 }
 
 type Server struct {
 	dynamicgrpc.Server `mapstructure:",squash"`
-	InvokeResponse     string `mapstructure:"invoke_response"`
 }
 
 func (i *DynamicGRPC) Init() error {
@@ -82,9 +79,13 @@ func (i *DynamicGRPC) Init() error {
 		return errors.New("at least one .proto file required")
 	}
 
-	if len(i.Procedure) == 0 {
-		return errors.New("procedure name required")
+	if len(i.Procedures) == 0 {
+		return errors.New("at least one procedure required")
 	}
+
+	i.Procedures = slices.CompactFunc(i.Procedures, func(a, b Procedure) bool {
+		return a.Name == b.Name
+	})
 
 	if err := i.Ider.Init(); err != nil {
 		return err
@@ -104,22 +105,7 @@ func (i *DynamicGRPC) Init() error {
 		return fmt.Errorf("compilation error: %w", err)
 	}
 
-	r := f.AsResolver()
-	desc, err := r.FindDescriptorByName(protoreflect.FullName(i.Procedure))
-	if err != nil {
-		return fmt.Errorf("%v search failed: %w", i.Procedure, err)
-	}
-
-	if desc == nil {
-		return fmt.Errorf("no such descriptor: %v", i.Procedure)
-	}
-
-	m, ok := desc.(protoreflect.MethodDescriptor)
-	if !ok {
-		return fmt.Errorf("%v is not a method", i.Procedure)
-	}
-
-	i.method = m
+	i.resolver = f.AsResolver()
 
 	switch i.Mode {
 	case modeServerSideStream:
@@ -180,109 +166,23 @@ func (i *DynamicGRPC) runAsServer() {
 
 func (i *DynamicGRPC) runServerSideStream() {
 	stub := grpcdynamic.NewStub(i.clientConn)
-	ctx, cancel := context.WithCancel(metadata.NewOutgoingContext(context.Background(), i.initMD))
-
+	ctx, cancel := context.WithCancel(context.Background())
 	i.cancelFunc = cancel
-	var ss *grpcdynamic.ServerStream
 
-STREAM_INVOKE_LOOP:
-	for {
-		select {
-		case <-ctx.Done():
-			i.Log.Info("server-side stream context canceled")
-			return
-		default:
-			stream, err := stub.InvokeRpcServerStream(ctx, i.method, i.initMsg)
-			if err != nil {
-				i.Log.Error("invoke server-side stream failed",
-					"error", err,
-				)
-				time.Sleep(i.Client.RetryAfter)
-			} else {
-				i.Log.Info("server-side stream created")
-				ss = stream
-				break STREAM_INVOKE_LOOP
-			}
-		}
+	wg := &sync.WaitGroup{}
+	for _, s := range i.subscribers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.Subscribe(ctx, stub)
+		}()
 	}
-
-	header, err := ss.Header()
-	if err != nil {
-		i.Log.Error("receive headers failed",
-			"error", err,
-		)
-		time.Sleep(i.Client.RetryAfter)
-		goto STREAM_INVOKE_LOOP
-	}
-
-STREAM_READ_LOOP:
-	for {
-		select {
-		case <-ctx.Done():
-			i.Log.Info("server-side stream context canceled")
-			return
-		default:
-			msg, err := ss.RecvMsg()
-			now := time.Now()
-			if err != nil {
-				// io.EOF means stream is closed gracefuly
-				if errors.Is(err, io.EOF) {
-					goto STREAM_INVOKE_LOOP
-				}
-
-				// fires on shutdown
-				if status.Code(err) == codes.Canceled {
-					goto STREAM_INVOKE_LOOP
-				}
-
-				// any other error means that the stream is aborted and the error contains the RPC status
-				i.Log.Error("receive from server-side stream failed",
-					"error", err,
-				)
-				i.Observe(metrics.EventFailed, time.Since(now))
-				time.Sleep(i.Client.RetryAfter)
-				goto STREAM_INVOKE_LOOP
-			}
-
-			result, err := protomap.MessageToAny(msg.ProtoReflect(), interceptors.DurationDecoder, interceptors.TimeDecoder)
-			if err != nil {
-				i.Log.Error("message decoding failed",
-					"error", err,
-				)
-				i.Observe(metrics.EventFailed, time.Since(now))
-				continue STREAM_READ_LOOP
-			}
-
-			event := core.NewEventWithData(string(i.method.FullName()), result)
-			for k, v := range i.LabelHeaders {
-				if h := header.Get(v); len(h) > 0 {
-					event.SetLabel(k, strings.Join(h, "; "))
-				}
-			}
-
-			i.Ider.Apply(event)
-			i.Out <- event
-			i.Observe(metrics.EventAccepted, time.Since(now))
-		}
-	}
+	wg.Wait()
 }
 
 func (i *DynamicGRPC) prepareServer() error {
-	if i.method.IsStreamingServer() {
-		return fmt.Errorf("%v is not an unary or client stream", i.Procedure)
-	}
-
 	if len(i.Server.Address) == 0 {
 		return errors.New("address required")
-	}
-
-	if len(i.Server.InvokeResponse) == 0 {
-		return errors.New("invoke response required")
-	}
-
-	i.respMsg = dynamicpb.NewMessage(i.method.Output())
-	if err := protojson.Unmarshal([]byte(i.Server.InvokeResponse), i.respMsg); err != nil {
-		return fmt.Errorf("invoke response unmarshal failed: %w", err)
 	}
 
 	listener, err := net.Listen("tcp", i.Server.Address)
@@ -291,69 +191,127 @@ func (i *DynamicGRPC) prepareServer() error {
 	}
 	i.listener = listener
 
+	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
+	for _, rpc := range i.Procedures {
+		if len(rpc.InvokeResponse) == 0 {
+			return fmt.Errorf("%v: invoke response required", rpc.Name)
+		}
+
+		desc, err := i.resolver.FindDescriptorByName(protoreflect.FullName(rpc.Name))
+		if err != nil {
+			return fmt.Errorf("%v search failed: %w", rpc.Name, err)
+		}
+
+		if desc == nil {
+			return fmt.Errorf("no such descriptor: %v", rpc.Name)
+		}
+
+		m, ok := desc.(protoreflect.MethodDescriptor)
+		if !ok {
+			return fmt.Errorf("%v is not a method", rpc.Name)
+		}
+
+		if m.IsStreamingServer() {
+			return fmt.Errorf("%v is not an unary or client stream", rpc.Name)
+		}
+
+		respMsg := dynamicpb.NewMessage(m.Output())
+		if err := protojson.Unmarshal([]byte(rpc.InvokeResponse), respMsg); err != nil {
+			return fmt.Errorf("%v invoke response unmarshal failed: %w", rpc.Name, err)
+		}
+
+		service, ok := services[m.Parent().FullName()]
+		if !ok {
+			service = &grpc.ServiceDesc{ServiceName: string(m.Parent().FullName())}
+			services[m.Parent().FullName()] = service
+		}
+
+		// create new handler per each RPC due to unique responses
+		h := &Handler{
+			BaseInput:    i.BaseInput,
+			Ider:         i.Ider,
+			LabelHeaders: i.LabelHeaders,
+			Procedure:    rpc.Name,
+			RespMsg:      respMsg,
+			RecvMsg:      m.Input(),
+		}
+
+		if m.IsStreamingClient() {
+			service.Streams = append(service.Streams, grpc.StreamDesc{
+				StreamName:    string(m.Name()),
+				Handler:       h.HandleClientStream,
+				ServerStreams: false,
+				ClientStreams: true,
+			})
+		} else {
+			service.Methods = append(service.Methods, grpc.MethodDesc{
+				MethodName: string(m.Name()),
+				Handler:    h.HandleUnary,
+			})
+		}
+	}
+
 	opts, err := i.Server.ServerOptions()
 	if err != nil {
 		return err
 	}
-
-	sd := &grpc.ServiceDesc{
-		ServiceName: string(i.method.Parent().FullName()),
-	}
-
-	h := &Handler{
-		BaseInput:    i.BaseInput,
-		Ider:         i.Ider,
-		Procedure:    i.Procedure,
-		LabelHeaders: i.LabelHeaders,
-		RespMsg:      i.respMsg,
-		RecvMsg:      i.method.Input(),
-	}
-
-	if i.method.IsStreamingClient() {
-		sd.Streams = []grpc.StreamDesc{
-			{
-				StreamName:    string(i.method.Name()),
-				Handler:       h.HandleClientStream,
-				ServerStreams: false,
-				ClientStreams: true,
-			},
-		}
-	} else {
-		sd.Methods = []grpc.MethodDesc{
-			{
-				MethodName: string(i.method.Name()),
-				Handler:    h.HandleUnary,
-			},
-		}
-	}
-
 	i.server = grpc.NewServer(opts...)
-	i.server.RegisterService(sd, nil)
+
+	for _, service := range services {
+		i.server.RegisterService(service, nil)
+	}
 
 	return nil
 }
 
 func (i *DynamicGRPC) prepareClient() error {
-	if i.method.IsStreamingClient() || !i.method.IsStreamingServer() {
-		return fmt.Errorf("%v is not a server-side stream", i.Procedure)
-	}
-
 	if len(i.Client.Address) == 0 {
 		return errors.New("address required")
 	}
 
-	if len(i.Client.InvokeRequest) == 0 {
-		return errors.New("invoke request required")
-	}
+	for _, rpc := range i.Procedures {
+		if len(rpc.InvokeRequest) == 0 {
+			return fmt.Errorf("%v: invoke request required", rpc.Name)
+		}
 
-	i.initMsg = dynamicpb.NewMessage(i.method.Input())
-	if err := protojson.Unmarshal([]byte(i.Client.InvokeRequest), i.initMsg); err != nil {
-		return fmt.Errorf("invoke request unmarshal failed: %w", err)
-	}
+		desc, err := i.resolver.FindDescriptorByName(protoreflect.FullName(rpc.Name))
+		if err != nil {
+			return fmt.Errorf("%v search failed: %w", rpc.Name, err)
+		}
 
-	i.initMD = make(metadata.MD)
-	for k, v := range i.Client.InvokeHeaders {
-		i.initMD.Set(k, v)
+		if desc == nil {
+			return fmt.Errorf("no such descriptor: %v", rpc.Name)
+		}
+
+		m, ok := desc.(protoreflect.MethodDescriptor)
+		if !ok {
+			return fmt.Errorf("%v is not a method", rpc.Name)
+		}
+
+		if m.IsStreamingClient() || !m.IsStreamingServer() {
+			return fmt.Errorf("%v is not a server-side stream", rpc.Name)
+		}
+
+		initMsg := dynamicpb.NewMessage(m.Input())
+		if err := protojson.Unmarshal([]byte(rpc.InvokeRequest), initMsg); err != nil {
+			return fmt.Errorf("%v invoke request unmarshal failed: %w", rpc.Name, err)
+		}
+
+		initMD := make(metadata.MD)
+		for k, v := range rpc.InvokeHeaders {
+			initMD.Set(k, v)
+		}
+
+		i.subscribers = append(i.subscribers, &Subscriber{
+			BaseInput:    i.BaseInput,
+			Ider:         i.Ider,
+			LabelHeaders: i.LabelHeaders,
+			RetryAfter:   i.Client.RetryAfter,
+			Procedure:    rpc.Name,
+			method:       m,
+			initMsg:      initMsg,
+			initMD:       initMD,
+		})
 	}
 
 	opts, err := i.Client.DialOptions()

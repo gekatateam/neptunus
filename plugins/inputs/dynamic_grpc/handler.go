@@ -23,9 +23,9 @@ import (
 
 type Handler struct {
 	*core.BaseInput
+	*ider.Ider
 	Procedure    string
 	LabelHeaders map[string]string
-	*ider.Ider
 
 	RespMsg proto.Message
 	RecvMsg protoreflect.MessageDescriptor
@@ -43,7 +43,9 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 		now := time.Now()
 
 		if err != nil && errors.Is(err, io.EOF) {
-			h.Log.Info("client stream closed")
+			h.Log.Info("client stream closed",
+				"procedure", h.Procedure,
+			)
 			stream.SendMsg(h.RespMsg)
 			return nil
 		}
@@ -51,6 +53,7 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 		if err != nil {
 			h.Log.Error("message receiving error, stream aborted",
 				"error", err,
+				"procedure", h.Procedure,
 			)
 			h.Observe(metrics.EventFailed, time.Since(now))
 			return nil
@@ -60,6 +63,7 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 		if err != nil {
 			h.Log.Error("message decoding error, message skipped",
 				"error", err,
+				"procedure", h.Procedure,
 			)
 			h.Observe(metrics.EventFailed, time.Since(now))
 			continue
@@ -85,6 +89,7 @@ func (h *Handler) HandleUnary(_ any, ctx context.Context, dec func(any) error, _
 	if err := dec(m); err != nil {
 		h.Log.Error("message decoding error",
 			"error", err,
+			"procedure", h.Procedure,
 		)
 		h.Observe(metrics.EventFailed, time.Since(now))
 		return nil, err
@@ -99,6 +104,7 @@ func (h *Handler) HandleUnary(_ any, ctx context.Context, dec func(any) error, _
 	if err != nil {
 		h.Log.Error("message decoding error",
 			"error", err,
+			"procedure", h.Procedure,
 		)
 		h.Observe(metrics.EventFailed, time.Since(now))
 		return nil, err
