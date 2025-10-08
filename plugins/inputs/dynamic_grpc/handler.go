@@ -14,11 +14,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"github.com/gekatateam/protomap"
+	"github.com/gekatateam/protomap/interceptors"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
-	"github.com/gekatateam/protomap"
-	"github.com/gekatateam/protomap/interceptors"
 )
 
 type Handler struct {
