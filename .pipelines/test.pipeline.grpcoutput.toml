@@ -18,6 +18,7 @@
 [[processors]]
   [processors.rk.mapping]
     "neptunus.plugins.common.grpc.Input.SendOne" = [ "/neptunus.plugins.common.grpc.Input.SendOne" ]
+    "neptunus.plugins.common.grpc.Input.SendBulk" = [ "/neptunus.plugins.common.grpc.Input.SendBulk" ]
 
 [[outputs]]
   [outputs.dynamic_grpc]

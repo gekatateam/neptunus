@@ -10,7 +10,9 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
@@ -144,14 +146,13 @@ func (c *Caller) sendBulk(buf []*core.Event) {
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), headers)
 
-	var stream *grpcdynamic.ClientStream
+	msgs := make([]trackedMessage, 0, len(buf))
 	for _, e := range buf {
 		now := time.Now()
-
 		msg := dynamicpb.NewMessage(c.method.Input())
 		if err := protomap.AnyToMessage(e.Data, msg, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
 			c.Log.Error("event processing failed",
-				"error", fmt.Errorf("encoding failed: %w", err),
+				"error", fmt.Errorf("encoding failed: %w; event dropped", err),
 				elog.EventGroup(e),
 			)
 			c.Done <- e
@@ -159,76 +160,90 @@ func (c *Caller) sendBulk(buf []*core.Event) {
 			continue
 		}
 
-	BEFORE_STREAM_CHECK:
-		if stream == nil {
-			s, err := c.clientStream(ctx)
-			if err != nil {
-				c.Log.Error("event processing failed",
+		msgs = append(msgs, trackedMessage{
+			e: e,
+			m: msg,
+			d: time.Since(now),
+		})
+	}
+
+	if len(msgs) == 0 {
+		c.Log.Error("no messages after serialization stage, nothing to send")
+		return
+	}
+
+	now := time.Now()
+	err := c.Retryer.Do(fmt.Sprintf("create and write to %v stream", c.method.FullName()), c.Log, func() error {
+		stream, err := c.stub.InvokeRpcClientStream(ctx, c.method)
+		if err != nil {
+			return fmt.Errorf("create stream error: %w", err)
+		}
+
+		c.Log.Debug("stream created")
+
+		for _, msg := range msgs {
+			if err := stream.SendMsg(msg.m); err != nil {
+				c.Log.Error("send to stream failed",
 					"error", err,
-					elog.EventGroup(e),
+					elog.EventGroup(msg.e),
 				)
-				c.Done <- e
-				c.Observe(metrics.EventFailed, time.Since(now))
-				continue
+				goto CHECK_STREAM_RESULT
 			}
 
-			stream = s
-		}
-
-		if err := stream.SendMsg(msg); err != nil {
-			c.Log.Error("send to stream failed",
-				"error", err,
-				elog.EventGroup(e),
+			c.Log.Debug("message sent to stream",
+				elog.EventGroup(msg.e),
 			)
-
-			// if SendMsg failed, stream is already aborted
-			stream = nil
-			goto BEFORE_STREAM_CHECK
 		}
 
-		c.Log.Debug("message sent to stream",
-			elog.EventGroup(e),
-		)
-		c.Done <- e
-		c.Observe(metrics.EventAccepted, time.Since(now))
-	}
+	CHECK_STREAM_RESULT:
+		resp, err := stream.CloseAndReceive()
+		status := dynamicgrpc.StatusFromError(err)
 
-	if stream == nil {
-		c.Log.Error(fmt.Sprintf("stream %v already aborted, can't receive response message", c.method.FullName()))
-		return
-	}
-
-	resp, err := stream.CloseAndReceive()
-	if err != nil {
-		c.Log.Error(fmt.Sprintf("stream %v closing failed", c.method.FullName()),
-			"error", err,
-		)
-		return
-	}
-
-	jsonResp, err := protojson.Marshal(resp)
-	if err != nil {
-		c.Log.Warn(fmt.Sprintf("stream %v rpc response body marshal failed", c.method.FullName()),
-			"error", err,
-		)
-		return
-	}
-
-	c.Log.Debug(fmt.Sprintf("stream %v completed with response: %v", c.method.FullName(), string(jsonResp)))
-}
-
-func (c *Caller) clientStream(ctx context.Context) (*grpcdynamic.ClientStream, error) {
-	var stream *grpcdynamic.ClientStream
-
-	err := c.Retryer.Do(fmt.Sprintf("create %v stream", c.method.FullName()), c.Log, func() error {
-		s, err := c.stub.InvokeRpcClientStream(ctx, c.method)
+		jsonResp, err := protojson.Marshal(resp)
 		if err != nil {
-			return err
+			c.Log.Warn("stream response marshal failed",
+				"error", err,
+			)
 		}
 
-		stream = s
-		return nil
+		if _, ok := c.successCodes[status.Code()]; ok {
+			c.Log.Debug(
+				fmt.Sprintf("stream invoked successfully with code: %v; message: %v; response: %v", status.Code(), status.Message(), string(jsonResp)),
+			)
+			return nil
+		} else {
+			if c.successMsg != nil && c.successMsg.MatchString(status.Message()) {
+				c.Log.Debug(
+					fmt.Sprintf("stream invoked with code: %v; message: %v; response: %v; "+
+						"but RPC status message matches configured regexp", status.Code(), status.Message(), string(jsonResp)),
+				)
+				return nil
+			} else {
+				return fmt.Errorf("stream invoke failed with code: %v; message: %v; response: %v", status.Code(), status.Message(), string(jsonResp))
+			}
+		}
 	})
 
-	return stream, err
+	timePerEvent := time.Since(now) / time.Duration(len(msgs))
+	for _, msg := range msgs {
+		c.Done <- msg.e
+		if err != nil {
+			c.Log.Error("event processing failed",
+				"error", err,
+				elog.EventGroup(msg.e),
+			)
+			c.Observe(metrics.EventFailed, msg.d+timePerEvent)
+		} else {
+			c.Log.Debug("event processed",
+				elog.EventGroup(msg.e),
+			)
+			c.Observe(metrics.EventAccepted, msg.d+timePerEvent)
+		}
+	}
+}
+
+type trackedMessage struct {
+	e *core.Event
+	m proto.Message
+	d time.Duration
 }
