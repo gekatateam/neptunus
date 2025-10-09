@@ -170,8 +170,8 @@ This section is intended for storing general parameters that can be used via [`s
 
 There are three types of first-order plugins:
  - [Input plugins](../plugins/inputs/) consume events from external sources.
- - [Processor plugins](plugins/processors/) transform events.
- - [Output plugins](plugins/outputs/) produce events to external systems.
+ - [Processor plugins](../plugins/processors/) transform events.
+ - [Output plugins](../plugins/outputs/) produce events to external systems.
 
 Inputs works independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
 
