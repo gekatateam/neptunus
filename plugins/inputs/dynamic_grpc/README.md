@@ -9,7 +9,7 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
     # plugin mode, "ServerSideStream" or "AsServer"
     mode = "ServerSideStream"
 
-    # list of .proto files with messages and procedure to call
+    # list of .proto files with messages and procedures
     proto_files = [ 'D:\Go\_bin\protos\marketdata.proto' ]
 
     # list of import paths to resolve .proto imports
