@@ -138,6 +138,12 @@ func (c *Caller) sendUnary(buf []*core.Event) {
 }
 
 func (c *Caller) sendBulk(buf []*core.Event) {
+	type trackedMessage struct {
+		e *core.Event
+		m proto.Message
+		d time.Duration
+	}
+
 	headers := make(metadata.MD)
 	for k, v := range c.headerLabels {
 		if val, ok := buf[0].GetLabel(v); ok {
@@ -240,10 +246,4 @@ func (c *Caller) sendBulk(buf []*core.Event) {
 			c.Observe(metrics.EventAccepted, msg.d+timePerEvent)
 		}
 	}
-}
-
-type trackedMessage struct {
-	e *core.Event
-	m proto.Message
-	d time.Duration
 }
