@@ -8,7 +8,7 @@ Event routing key must be a full RPC name from `proto_files`. If RPC:
 
 Plugin creates one caller per each unique event routing key, with personal batch controller. By the way, gRPC client shares between callers.
 
-Each event will be encoded using [protomap](https://github.com/gekatateam/protomap). Concrete message takes from RPC input. 
+Each event will be encoded using [protomap](https://github.com/gekatateam/protomap). Concrete message descriptor takes from RPC input. 
 
 ## Configuration
 ```toml

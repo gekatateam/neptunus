@@ -119,6 +119,10 @@ func (o *DynamicGRPC) Init() error {
 			o.successMsg = r
 		}
 
+		if o.Client.IdleTimeout > 0 && o.Client.IdleTimeout < time.Minute {
+			o.Client.IdleTimeout = time.Minute
+		}
+
 		o.clientConn = conn
 		o.callersPool = pool.New(o.newCaller)
 	default:
