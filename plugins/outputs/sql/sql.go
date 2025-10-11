@@ -154,10 +154,11 @@ MAIN_LOOP:
 			}
 		}
 	}
+
+	o.queryersPool.Close()
 }
 
 func (o *Sql) Close() error {
-	o.queryersPool.Close()
 	return o.db.Close()
 }
 

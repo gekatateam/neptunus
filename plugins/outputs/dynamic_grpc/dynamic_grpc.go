@@ -172,10 +172,11 @@ MAIN_LOOP:
 			}
 		}
 	}
+
+	o.callersPool.Close()
 }
 
 func (o *DynamicGRPC) Close() error {
-	o.callersPool.Close()
 	return o.clientConn.Close()
 }
 

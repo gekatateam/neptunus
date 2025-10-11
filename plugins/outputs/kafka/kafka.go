@@ -231,10 +231,11 @@ MAIN_LOOP:
 			}
 		}
 	}
+
+	o.writersPool.Close()
 }
 
 func (o *Kafka) Close() error {
-	o.writersPool.Close()
 	o.ser.Close()
 	return nil
 }
