@@ -44,6 +44,7 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
       idle_timeout = "1h"
 
       # status codes, means RPC performed successfully
+      # https://grpc.io/docs/guides/status-codes/#the-full-list-of-status-codes
       success_codes = [ 0 ]
 
       # regular expression to match status message
