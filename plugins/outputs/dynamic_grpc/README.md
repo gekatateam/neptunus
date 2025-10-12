@@ -26,7 +26,7 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
 
     # a "header <- label name" map
     # if event label exists, it will be added to RPC call as a header
-    [outputs.dynamic_grpc.labelheaders]
+    [outputs.dynamic_grpc.headerlabels]
       x-ratelimit-limit = "x-ratelimit-limit"
 
     [outputs.dynamic_grpc.client]
