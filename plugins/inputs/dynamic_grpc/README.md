@@ -9,26 +9,52 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
     # plugin mode, "ServerSideStream" or "AsServer"
     mode = "ServerSideStream"
 
-    # list of .proto files with messages and procedure to call
+    # list of .proto files with messages and procedures
     proto_files = [ 'D:\Go\_bin\protos\marketdata.proto' ]
 
     # list of import paths to resolve .proto imports
     import_paths = [ 'D:\Go\_bin\protos\' ]
 
-    # procedure name to call/receive
-    # procedure MUST be server stream in "ServerSideStream" mode
-    # and MUST be unary/client stream in "AsServer" mode
-    procedure = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
-
     # if configured, an event id will be set by data from path
     # expected format - "type:path"
     id_from = "field:path.to.id"
+
+    # procedures to call/listen
+    [[inputs.gynamic_grpc.procedures]]
+      # name MUST be server stream in "ServerSideStream" mode
+      # and MUST be unary/client stream in "AsServer" mode
+      name = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
+
+      # used in "ServerSideStream" mode
+      # request body in json that will be encoded to procedure input message
+      invoke_request = '''
+{
+  "subscribe_order_book_request": {
+    "subscription_action": 1,
+    "instruments": [
+      {
+        "instrument_id": "F0",
+        "depth": 10,
+        "order_book_type": 1
+      }
+    ]
+  }
+}'''
+      # used in "ServerSideStream" mode
+      # invoke headers
+      invoke_headers = { authorization = "Bearer XXXXXX" }
+
+      # used in "AsServer" mode
+      # response body in json that will be used as unary call response/client stream end message
+      invoke_response = '''
+{
+  "accepted": true
+}'''
 
     # a "label name <- header" map
     # if received message header exists, it will be saved as configured label
     [inputs.dynamic_grpc.labelheaders]
       x-ratelimit-limit = "x-ratelimit-limit"
-
 
     # gRPC client settings
     # used in "ServerSideStream" mode
@@ -68,25 +94,6 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
       # use TLS but skip chain & host verification
       tls_insecure_skip_verify = false
 
-      # request body in json that will be encoded to procedure input message
-      invoke_request = '''
-{
-  "subscribe_order_book_request": {
-    "subscription_action": 1,
-    "instruments": [
-      {
-        "instrument_id": "F0",
-        "depth": 10,
-        "order_book_type": 1
-      }
-    ]
-  }
-}'''
-
-      # invoke headers
-      invoke_headers = { authorization = "Bearer XXXXXX" }
-
-    
     # gRPC server settings
     # used in "AsServer" mode
     [inputs.dynamic_grpc.server]
@@ -123,10 +130,4 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
       max_connection_grace = "0s"
       inactive_transport_ping = "2h"
       inactive_transport_age = "20s"
-
-      # response body in json that will be used as unary call response/client stream end message
-      invoke_response = '''
-{
-  "accepted": true
-}'''
 ```

@@ -146,10 +146,11 @@ MAIN_LOOP:
 			}
 		}
 	}
+
+	o.requestersPool.Close()
 }
 
 func (o *Http) Close() error {
-	o.requestersPool.Close()
 	o.ser.Close()
 	o.client.CloseIdleConnections()
 	return nil

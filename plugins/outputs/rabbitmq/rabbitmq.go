@@ -102,7 +102,6 @@ func (o *RabbitMQ) SetSerializer(s core.Serializer) {
 
 func (o *RabbitMQ) Close() error {
 	o.ser.Close()
-	o.publishersPool.Close()
 	return o.conn.Close()
 }
 
@@ -129,6 +128,8 @@ MAIN_LOOP:
 			}
 		}
 	}
+
+	o.publishersPool.Close()
 }
 
 func (o *RabbitMQ) newPublisher(exchange string) pool.Runner[*core.Event] {

@@ -121,10 +121,11 @@ MAIN_LOOP:
 			}
 		}
 	}
+
+	o.indexersPool.Close()
 }
 
 func (o *Opensearch) Close() error {
-	o.indexersPool.Close()
 	o.client = nil
 	return nil
 }

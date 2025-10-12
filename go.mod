@@ -1,6 +1,6 @@
 module github.com/gekatateam/neptunus
 
-go 1.24.3
+go 1.25.2
 
 require (
 	github.com/gekatateam/dynamic-level-handler v1.0.1
