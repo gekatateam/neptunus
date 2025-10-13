@@ -9,6 +9,7 @@ WORKDIR /build
 
 COPY . . 
 
+ENV GOEXPERIMENT=greenteagc
 RUN go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
 
 ### create final image
