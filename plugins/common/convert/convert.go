@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 )
 
 func AnyToString(v any) (string, error) {
@@ -43,7 +44,7 @@ func AnyToString(v any) (string, error) {
 	case bool:
 		return strconv.FormatBool(t), nil
 	default:
-		return "", fmt.Errorf("cannot convert to string: unsupported type")
+		return "", fmt.Errorf("cannot convert to string: unsupported type: %T", v)
 	}
 }
 
@@ -93,7 +94,7 @@ func AnyToInteger(v any) (int64, error) {
 		}
 		return int64(0), nil
 	default:
-		return 0, fmt.Errorf("cannot convert to integer: unsupported type")
+		return 0, fmt.Errorf("cannot convert to integer: unsupported type: %T", v)
 	}
 }
 
@@ -152,7 +153,7 @@ func AnyToUnsigned(v any) (uint64, error) {
 		}
 		return uint64(0), nil
 	default:
-		return 0, fmt.Errorf("cannot convert to unsigned: unsupported type")
+		return 0, fmt.Errorf("cannot convert to unsigned: unsupported type: %T", v)
 	}
 }
 
@@ -190,7 +191,7 @@ func AnyToFloat(v any) (float64, error) {
 		}
 		return float64(0), nil
 	default:
-		return 0, fmt.Errorf("cannot convert to float: unsupported type")
+		return 0, fmt.Errorf("cannot convert to float: unsupported type: %T", v)
 	}
 }
 
@@ -225,6 +226,101 @@ func AnyToBoolean(v any) (bool, error) {
 	case bool:
 		return bool(t), nil
 	default:
-		return false, fmt.Errorf("cannot convert to boolean: unsupported type")
+		return false, fmt.Errorf("cannot convert to boolean: unsupported type: %T", v)
 	}
+}
+
+func AnyToTime(v any, layout string) (time.Time, error) {
+	if t, ok := v.(time.Time); ok {
+		return t, nil
+	}
+
+	switch layout {
+	case "unix", "unix_micro", "unix_milli":
+	default:
+		if t, ok := v.(string); ok {
+			return time.Parse(layout, t)
+		}
+		return time.Time{}, fmt.Errorf("cannot convert to Time with layout %v: unsopported type: %T", layout, v)
+	}
+
+	var mnsec int64
+	switch t := v.(type) {
+	case string:
+		var err error
+		mnsec, err = strconv.ParseInt(t, 0, 64)
+		if err != nil {
+			return time.Time{}, err
+		}
+	case int:
+		mnsec = int64(t)
+	case int8:
+		mnsec = int64(t)
+	case int16:
+		mnsec = int64(t)
+	case int32:
+		mnsec = int64(t)
+	case int64:
+		mnsec = int64(t)
+	case uint:
+		mnsec = int64(t)
+	case uint8:
+		mnsec = int64(t)
+	case uint16:
+		mnsec = int64(t)
+	case uint32:
+		mnsec = int64(t)
+	case uint64:
+		mnsec = int64(t)
+	default:
+		return time.Time{}, fmt.Errorf("cannot convert to Time: unsopported type: %T", v)
+	}
+
+	switch layout {
+	case "unix":
+		return time.Unix(mnsec, 0), nil
+	case "unix_micro":
+		return time.UnixMicro(mnsec), nil
+	case "unix_milli":
+		return time.UnixMilli(mnsec), nil
+	}
+
+	// should be unreachable due to previous check
+	return time.Time{}, fmt.Errorf("cannot convert to Time: unsopported type: %T", v)
+}
+
+func AnyToDuration(v any) (time.Duration, error) {
+	if t, ok := v.(time.Duration); ok {
+		return t, nil
+	}
+
+	var dur int64
+	switch t := v.(type) {
+	case string:
+		return time.ParseDuration(t)
+	case int:
+		dur = int64(t)
+	case int8:
+		dur = int64(t)
+	case int16:
+		dur = int64(t)
+	case int32:
+		dur = int64(t)
+	case int64:
+		dur = int64(t)
+	case uint:
+		dur = int64(t)
+	case uint8:
+		dur = int64(t)
+	case uint16:
+		dur = int64(t)
+	case uint32:
+		dur = int64(t)
+	case uint64:
+		dur = int64(t)
+	default:
+		return 0, fmt.Errorf("cannot convert to Duration: unsopported type: %T", v)
+	}
+
+	return time.Duration(dur), nil
 }

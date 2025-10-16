@@ -11,18 +11,23 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
-var targetObjectPattern = regexp.MustCompile(`^((label|field):)?([\w-\.]+)$`)
+// https://go.dev/play/p/zvCYfzqA78O
+var targetObjectPattern = regexp.MustCompile(`^((label|field|id|uuid|timestamp|routingkey):)?([\w\.-]+):?(.+)?$`)
 
 type Converter struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	IgnoreOutOfRange    bool     `mapstructure:"ignore_out_of_range"`
 	Id                  string   `mapstructure:"id"`
+	Timestamp           string   `mapstructure:"timestamp"`
+	RoutingKey          string   `mapstructure:"routing_key"`
 	Label               []string `mapstructure:"label"`
 	String              []string `mapstructure:"string"`
 	Integer             []string `mapstructure:"integer"`
 	Unsigned            []string `mapstructure:"unsigned"`
 	Float               []string `mapstructure:"float"`
 	Boolean             []string `mapstructure:"boolean"`
+	Time                []string `mapstructure:"time"`
+	Duration            []string `mapstructure:"duration"`
 
 	conversions []conversionParams
 	converter   *converter
@@ -31,6 +36,18 @@ type Converter struct {
 func (p *Converter) Init() error {
 	if len(p.Id) > 0 {
 		if err := p.initConversionParam(p.Id, toId); err != nil {
+			return fmt.Errorf("id: %w", err)
+		}
+	}
+
+	if len(p.Timestamp) > 0 {
+		if err := p.initConversionParam(p.Id, toTimestamp); err != nil {
+			return fmt.Errorf("id: %w", err)
+		}
+	}
+
+	if len(p.RoutingKey) > 0 {
+		if err := p.initConversionParam(p.Id, toRoutingKey); err != nil {
 			return fmt.Errorf("id: %w", err)
 		}
 	}
@@ -78,16 +95,49 @@ func (p *Converter) Init() error {
 
 func (p *Converter) initConversionParam(rawParam string, to to) error {
 	match := targetObjectPattern.FindStringSubmatch(rawParam)
-	if len(match) != 4 {
+	if len(match) != 6 {
 		return fmt.Errorf("configured value %v does not match pattern", rawParam)
 	}
 
 	switch match[2] {
+	case "id":
+		p.conversions = append(p.conversions, conversionParams{
+			from: fromId,
+			to:   to,
+			path: match[3],
+			tlyt: defaultLayout(match[5]),
+			ioor: p.IgnoreOutOfRange,
+		})
+	case "uuid":
+		p.conversions = append(p.conversions, conversionParams{
+			from: fromUuid,
+			to:   to,
+			path: match[3],
+			tlyt: defaultLayout(match[5]),
+			ioor: p.IgnoreOutOfRange,
+		})
+	case "timestamp":
+		p.conversions = append(p.conversions, conversionParams{
+			from: fromTimestamp,
+			to:   to,
+			path: match[3],
+			tlyt: defaultLayout(match[5]),
+			ioor: p.IgnoreOutOfRange,
+		})
+	case "routingkey":
+		p.conversions = append(p.conversions, conversionParams{
+			from: fromRoutingKey,
+			to:   to,
+			path: match[3],
+			tlyt: defaultLayout(match[5]),
+			ioor: p.IgnoreOutOfRange,
+		})
 	case "label":
 		p.conversions = append(p.conversions, conversionParams{
 			from: fromLabel,
 			to:   to,
 			path: match[3],
+			tlyt: defaultLayout(match[5]),
 			ioor: p.IgnoreOutOfRange,
 		})
 	case "", "field":
@@ -95,10 +145,11 @@ func (p *Converter) initConversionParam(rawParam string, to to) error {
 			from: fromField,
 			to:   to,
 			path: match[3],
+			tlyt: defaultLayout(match[5]),
 			ioor: p.IgnoreOutOfRange,
 		})
 	default:
-		panic(fmt.Errorf("processors.converter: totally unexpected source type: %v", match[2]))
+		return fmt.Errorf("processors.converter: unexpected source type: %v", match[2])
 	}
 
 	return nil
