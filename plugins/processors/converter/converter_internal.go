@@ -11,6 +11,15 @@ import (
 
 type from int
 
+var fromFromString = map[string]from{
+	"label":      fromLabel,
+	"field":      fromField,
+	"id":         fromId,
+	"uuid":       fromUuid,
+	"timestamp":  fromTimestamp,
+	"routingkey": fromRoutingKey,
+}
+
 const (
 	fromLabel from = iota + 1
 	fromField
@@ -39,21 +48,17 @@ var toAsString = map[to]string{
 }
 
 const (
-	//lint:ignore U1000 reserved
-	toTimestamp to = iota + 1
-
-	toId
+	toId to = iota + 1
+	toRoutingKey
+	toTimestamp
 	toLabel
 	toString
 	toInteger
 	toUnsigned
 	toFloat
 	toBoolean
-
-	//lint:ignore U1000 reserved
 	toTime
 	toDuration
-	toRoutingKey
 )
 
 type conversionParams struct {
@@ -68,89 +73,27 @@ type converter struct{}
 
 func (c *converter) Convert(e *core.Event, p conversionParams) error {
 	switch p.from {
-
-	// from label to type
 	case fromLabel:
 		return c.fromLabel(e, p)
 
-	// from field to type
 	case fromField:
 		return c.fromField(e, p)
 
-	// from id to type
 	case fromId:
 		return c.fromId(e, p)
 
 	case fromUuid:
-		if err := e.SetField(p.path, e.UUID.String()); err != nil {
-			return fmt.Errorf("from uuid: set field failed: %w", err)
-		}
+		return c.fromUuid(e, p)
+
 	case fromTimestamp:
 		if err := e.SetField(p.path, e.Timestamp); err != nil {
 			return fmt.Errorf("from timestamp: set field failed: %w", err)
 		}
 	case fromRoutingKey:
+		return c.fromRoutingKey(e, p)
 
 	default:
 		panic(fmt.Errorf("unexpected from type: %v", p.from))
-	}
-
-	return nil
-}
-
-func (c *converter) fromLabel(e *core.Event, p conversionParams) error {
-	label, ok := e.GetLabel(p.path)
-	if !ok {
-		return fmt.Errorf("from label: %v: no such label", p.path)
-	}
-
-	var field any
-	var err error
-
-	switch p.to {
-	case toId:
-		e.Id = label
-		return nil
-	case toRoutingKey:
-		e.RoutingKey = label
-		return nil
-	case toLabel: // doesn't make sense
-		return nil
-	case toTimestamp:
-		t, err := convert.AnyToTime(label, p.tlyt)
-		if err != nil {
-			return fmt.Errorf("from label: %v: %w", p.path, err)
-		}
-		e.Timestamp = t
-		return nil
-	case toString:
-		field = label
-	case toInteger:
-		// the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise
-		field, err = strconv.ParseInt(label, 0, 64)
-	case toUnsigned:
-		field, err = strconv.ParseUint(label, 0, 64)
-	case toFloat:
-		field, err = strconv.ParseFloat(label, 64)
-	case toBoolean:
-		field, err = strconv.ParseBool(label)
-	case toDuration:
-		field, err = time.ParseDuration(label)
-	case toTime:
-		field, err = convert.AnyToTime(label, p.tlyt)
-	}
-
-	if err == strconv.ErrRange && p.ioor {
-		goto LABEL_OUT_OF_RANGE_IGNORED
-	}
-
-	if err != nil {
-		return fmt.Errorf("from label: %v: %w", p.path, err)
-	}
-LABEL_OUT_OF_RANGE_IGNORED:
-
-	if err = e.SetField(p.path, field); err != nil {
-		return fmt.Errorf("from label: set field failed: %w", err)
 	}
 
 	return nil
@@ -167,36 +110,47 @@ func (c *converter) fromField(e *core.Event, p conversionParams) error {
 
 	switch p.to {
 	case toId:
-		field, err := convert.AnyToString(rawField)
+		field, err := convert.AnyToStringWithTimeDuration(rawField, p.tlyt)
 		if err != nil {
 			return fmt.Errorf("from field: %v: %w", p.path, err)
 		}
 		e.Id = field
 		return nil
 	case toRoutingKey:
-		field, err := convert.AnyToString(rawField)
+		field, err := convert.AnyToStringWithTimeDuration(rawField, p.tlyt)
 		if err != nil {
 			return fmt.Errorf("from field: %v: %w", p.path, err)
 		}
 		e.RoutingKey = field
 		return nil
+	case toTimestamp:
+		field, err := convert.AnyToTime(rawField, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from field: %v: %w", p.path, err)
+		}
+		e.Timestamp = field
+		return nil
 	case toLabel:
-		field, err := convert.AnyToString(rawField)
+		field, err := convert.AnyToStringWithTimeDuration(rawField, p.tlyt)
 		if err != nil {
 			return fmt.Errorf("from field: %v: %w", p.path, err)
 		}
 		e.SetLabel(p.path, field)
 		return nil
 	case toString:
-		field, err = convert.AnyToString(rawField)
+		field, err = convert.AnyToStringWithTimeDuration(rawField, p.tlyt)
 	case toInteger:
-		field, err = convert.AnyToInteger(rawField)
+		field, err = convert.AnyToIntegerWithTimeDuration(rawField, p.tlyt)
 	case toUnsigned:
-		field, err = convert.AnyToUnsigned(rawField)
+		field, err = convert.AnyToUnsignedWithTimeDuration(rawField, p.tlyt)
 	case toFloat:
 		field, err = convert.AnyToFloat(rawField)
 	case toBoolean:
 		field, err = convert.AnyToBoolean(rawField)
+	case toTime:
+		field, err = convert.AnyToTime(rawField, p.tlyt)
+	case toDuration:
+		field, err = convert.AnyToDuration(rawField)
 	}
 
 	if err == strconv.ErrRange && p.ioor {
@@ -215,40 +169,79 @@ FIELD_OUT_OF_RANGE_IGNORED:
 	return nil
 }
 
+func (c *converter) fromUuid(e *core.Event, p conversionParams) error {
+	switch p.to {
+	case toId:
+		e.Id = e.UUID.String()
+		return nil
+	case toRoutingKey:
+		e.RoutingKey = e.UUID.String()
+		return nil
+	case toLabel:
+		e.SetLabel(p.path, e.UUID.String())
+		return nil
+	case toString:
+		if err := e.SetField(p.path, e.UUID.String()); err != nil {
+			return fmt.Errorf("from uuid: set field failed: %w", err)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("from uuid: cannot convert: unsopported target type: %v", p.to.String())
+}
+
+func (c *converter) fromLabel(e *core.Event, p conversionParams) error {
+	label, ok := e.GetLabel(p.path)
+	if !ok {
+		return fmt.Errorf("from label: %v: no such label", p.path)
+	}
+
+	return c.fromStringType(e, p, label, "label")
+}
+
 func (c *converter) fromId(e *core.Event, p conversionParams) error {
+	return c.fromStringType(e, p, e.Id, "id")
+}
+
+func (c *converter) fromRoutingKey(e *core.Event, p conversionParams) error {
+	return c.fromStringType(e, p, e.RoutingKey, "routing key")
+}
+
+func (c *converter) fromStringType(e *core.Event, p conversionParams, s, from string) error {
 	var field any
 	var err error
 
 	switch p.to {
 	case toId:
-		// doesn't make sense
+		e.Id = s
 		return nil
-	case toLabel:
-		e.SetLabel(p.path, e.Id)
+	case toRoutingKey:
+		e.RoutingKey = s
 		return nil
 	case toTimestamp:
-		t, err := time.Parse(p.tlyt, e.Id)
+		t, err := time.Parse(p.tlyt, s)
 		if err != nil {
-			return fmt.Errorf("from label: %v: %w", p.path, err)
+			return fmt.Errorf("from %v: %v: %w", from, p.path, err)
 		}
-
 		e.Timestamp = t
 		return nil
+	case toLabel:
+		e.SetLabel(p.path, s)
+		return nil
 	case toString:
-		field = e.Id
+		field = s
 	case toInteger:
-		// the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise
-		field, err = strconv.ParseInt(e.Id, 0, 64)
+		field, err = strconv.ParseInt(s, 0, 64)
 	case toUnsigned:
-		field, err = strconv.ParseUint(e.Id, 0, 64)
+		field, err = strconv.ParseUint(s, 0, 64)
 	case toFloat:
-		field, err = strconv.ParseFloat(e.Id, 64)
+		field, err = strconv.ParseFloat(s, 64)
 	case toBoolean:
-		field, err = strconv.ParseBool(e.Id)
+		field, err = strconv.ParseBool(s)
 	case toDuration:
-		field, err = time.ParseDuration(e.Id)
+		field, err = time.ParseDuration(s)
 	case toTime:
-		field, err = time.Parse(p.tlyt, e.Id)
+		field, err = time.Parse(p.tlyt, s)
 	}
 
 	if err == strconv.ErrRange && p.ioor {
@@ -256,12 +249,12 @@ func (c *converter) fromId(e *core.Event, p conversionParams) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("from id: %v: %w", p.path, err)
+		return fmt.Errorf("from %v: %v: %w", from, p.path, err)
 	}
 LABEL_OUT_OF_RANGE_IGNORED:
 
 	if err = e.SetField(p.path, field); err != nil {
-		return fmt.Errorf("from id: set field failed: %w", err)
+		return fmt.Errorf("from %v: set field failed: %w", from, err)
 	}
 
 	return nil

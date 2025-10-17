@@ -16,16 +16,15 @@ The source depends on path prefix:
 
 The target takes from converter configuration. Use:
  - `id` to convert source to event id. In this case, if source is `uuid`, `timestamp` or `routingkey`, path must be any non-empty string. In other cases, label or field from path will be used;
- - `timestamp` to convert source to event timestamp. If source is `id`, `uuid` or `routingkey`, path must be any non-empty string. In other cases, label or field from path will be used;
+ - `timestamp` to convert source to event timestamp. If source is `id` or `routingkey`, path must be any non-empty string. In other cases, label or field from path will be used;
  - `routing_key` to convert source to event routing key. If source is `id`, `uuid` or `timestamp`, path must be any non-empty string. In other cases, label or field from path will be used;
- - `label` to convert source to label. Path is always a label name to set. If source is `label` or `field`, label or field from path will be used;
+ - `label` to convert source to label. Path is always a label name to set. If source is `field`, field from path will be used;
  - `string`, `integer`, `unsigned`, `float`, `boolean`, `time` or `duration` to convert source to concrete field type. Path is always a field path to set. If source is `label` or `field`, label or field from path will be used.
 
 A few limitations:
  - `uuid` can be converted only to `string`, `label`, `id` or `routing_key`;
- - `time` and `timestamp` can be converted only to `string`, `integer` or `unsigned`;
- - `time` and `timestamp` can be created only from `time`, `timestamp`, `string`, `integer` or `unsigned`;
- - `duration` can be created only from `string`, `integer` or `unsigned`.
+ - `time` and `timestamp` can be created/converted only from/to `time`, `id`, `routingkey`, `timestamp`, `string`, `integer` or `unsigned`;
+ - `duration` can be created/converted only from/to `id`, `routingkey`, `string`, `integer` or `unsigned`.
 
 ## Configuration
 ```toml
@@ -35,13 +34,13 @@ A few limitations:
     # and negative to unsigned convertion errors will be ignored
     ignore_out_of_range = false
 
-    # configured source will be converted to event Id, timestamp or routing key
+    # configured source will be converted to event Id, routing key or timestamp
     id = "label:event-id"
-    timestamp = "data.timestamp"
     routing_key = "id:id"
+    timestamp = "field:data.timestamp"
 
     # configured fields will be converted to event labels
-    label = [ "datagrid.source" ]
+    label = [ "field:datagrid.source" ]
 
     # other types creates or updates fields only
     string = [ "label:content-type" ]
@@ -49,4 +48,6 @@ A few limitations:
     unsigned = []
     float = []
     boolean = []
+    time = []
+    duration = []
 ```

@@ -48,6 +48,27 @@ func AnyToString(v any) (string, error) {
 	}
 }
 
+func AnyToStringWithTimeDuration(v any, layout string) (string, error) {
+	if t, ok := v.(time.Duration); ok {
+		return t.String(), nil
+	}
+
+	if t, ok := v.(time.Time); ok {
+		switch layout {
+		case "unix":
+			return strconv.FormatInt(t.Unix(), 10), nil
+		case "unix_micro":
+			return strconv.FormatInt(t.UnixMicro(), 10), nil
+		case "unix_milli":
+			return strconv.FormatInt(t.UnixMilli(), 10), nil
+		default:
+			return t.Format(layout), nil
+		}
+	}
+
+	return AnyToString(v)
+}
+
 func AnyToInteger(v any) (int64, error) {
 	switch t := v.(type) {
 	case string:
@@ -96,6 +117,27 @@ func AnyToInteger(v any) (int64, error) {
 	default:
 		return 0, fmt.Errorf("cannot convert to integer: unsupported type: %T", v)
 	}
+}
+
+func AnyToIntegerWithTimeDuration(v any, layout string) (int64, error) {
+	if t, ok := v.(time.Duration); ok {
+		return int64(t), nil
+	}
+
+	if t, ok := v.(time.Time); ok {
+		switch layout {
+		case "unix":
+			return t.Unix(), nil
+		case "unix_micro":
+			return t.UnixMicro(), nil
+		case "unix_milli":
+			return t.UnixMilli(), nil
+		default:
+			return 0, fmt.Errorf("cannot convert to integer: unsupported layout: %v", layout)
+		}
+	}
+
+	return AnyToInteger(v)
 }
 
 func AnyToUnsigned(v any) (uint64, error) {
@@ -155,6 +197,27 @@ func AnyToUnsigned(v any) (uint64, error) {
 	default:
 		return 0, fmt.Errorf("cannot convert to unsigned: unsupported type: %T", v)
 	}
+}
+
+func AnyToUnsignedWithTimeDuration(v any, layout string) (uint64, error) {
+	if t, ok := v.(time.Duration); ok {
+		return uint64(t), nil
+	}
+
+	if t, ok := v.(time.Time); ok {
+		switch layout {
+		case "unix":
+			return uint64(t.Unix()), nil
+		case "unix_micro":
+			return uint64(t.UnixMicro()), nil
+		case "unix_milli":
+			return uint64(t.UnixMilli()), nil
+		default:
+			return 0, fmt.Errorf("cannot convert to integer: unsupported layout: %v", layout)
+		}
+	}
+
+	return AnyToUnsigned(v)
 }
 
 func AnyToFloat(v any) (float64, error) {
