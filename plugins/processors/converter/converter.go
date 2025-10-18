@@ -11,18 +11,23 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
-var targetObjectPattern = regexp.MustCompile(`^((label|field):)?([\w-\.]+)$`)
+// https://go.dev/play/p/zvCYfzqA78O
+var targetObjectPattern = regexp.MustCompile(`^(label|field|id|uuid|timestamp|routingkey):([\w\.-]+):?(.+)?$`)
 
 type Converter struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	IgnoreOutOfRange    bool     `mapstructure:"ignore_out_of_range"`
 	Id                  string   `mapstructure:"id"`
+	Timestamp           string   `mapstructure:"timestamp"`
+	RoutingKey          string   `mapstructure:"routing_key"`
 	Label               []string `mapstructure:"label"`
 	String              []string `mapstructure:"string"`
 	Integer             []string `mapstructure:"integer"`
 	Unsigned            []string `mapstructure:"unsigned"`
 	Float               []string `mapstructure:"float"`
 	Boolean             []string `mapstructure:"boolean"`
+	Time                []string `mapstructure:"time"`
+	Duration            []string `mapstructure:"duration"`
 
 	conversions []conversionParams
 	converter   *converter
@@ -31,6 +36,18 @@ type Converter struct {
 func (p *Converter) Init() error {
 	if len(p.Id) > 0 {
 		if err := p.initConversionParam(p.Id, toId); err != nil {
+			return fmt.Errorf("id: %w", err)
+		}
+	}
+
+	if len(p.Timestamp) > 0 {
+		if err := p.initConversionParam(p.Id, toTimestamp); err != nil {
+			return fmt.Errorf("id: %w", err)
+		}
+	}
+
+	if len(p.RoutingKey) > 0 {
+		if err := p.initConversionParam(p.Id, toRoutingKey); err != nil {
 			return fmt.Errorf("id: %w", err)
 		}
 	}
@@ -71,6 +88,18 @@ func (p *Converter) Init() error {
 		}
 	}
 
+	for _, v := range p.Time {
+		if err := p.initConversionParam(v, toTime); err != nil {
+			return fmt.Errorf("time: %w", err)
+		}
+	}
+
+	for _, v := range p.Duration {
+		if err := p.initConversionParam(v, toDuration); err != nil {
+			return fmt.Errorf("duration: %w", err)
+		}
+	}
+
 	p.converter = &converter{}
 
 	return nil
@@ -82,24 +111,13 @@ func (p *Converter) initConversionParam(rawParam string, to to) error {
 		return fmt.Errorf("configured value %v does not match pattern", rawParam)
 	}
 
-	switch match[2] {
-	case "label":
-		p.conversions = append(p.conversions, conversionParams{
-			from: fromLabel,
-			to:   to,
-			path: match[3],
-			ioor: p.IgnoreOutOfRange,
-		})
-	case "", "field":
-		p.conversions = append(p.conversions, conversionParams{
-			from: fromField,
-			to:   to,
-			path: match[3],
-			ioor: p.IgnoreOutOfRange,
-		})
-	default:
-		panic(fmt.Errorf("processors.converter: totally unexpected source type: %v", match[2]))
-	}
+	p.conversions = append(p.conversions, conversionParams{
+		from: fromFromString[match[1]],
+		to:   to,
+		path: match[2],
+		tlyt: defaultLayout(match[3]),
+		ioor: p.IgnoreOutOfRange,
+	})
 
 	return nil
 }

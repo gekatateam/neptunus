@@ -24,7 +24,7 @@ func TestConverter(t *testing.T) {
 		"convert-to-string-ok": {
 			config: map[string]any{
 				"string": []string{
-					"string", "float", "int", "uint", "bool", "label:foo",
+					"field:string", "field:float", "field:int", "field:uint", "field:bool", "label:foo",
 				},
 			},
 			input:  make(chan *core.Event, 100),
@@ -54,7 +54,7 @@ func TestConverter(t *testing.T) {
 		"convert-to-int-ok": {
 			config: map[string]any{
 				"integer": []string{
-					"string", "float", "int", "uint", "field:bool", "label:foo",
+					"field:string", "field:float", "field:int", "field:uint", "field:bool", "label:foo",
 				},
 			},
 			input:  make(chan *core.Event, 100),
@@ -85,7 +85,7 @@ func TestConverter(t *testing.T) {
 			config: map[string]any{
 				"ignore_out_of_range": true,
 				"unsigned": []string{
-					"string", "float", "int", "uint", "bool", "label:foo",
+					"field:string", "field:float", "field:int", "field:uint", "field:bool", "label:foo",
 				},
 			},
 			input:  make(chan *core.Event, 100),
