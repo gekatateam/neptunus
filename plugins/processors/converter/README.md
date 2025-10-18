@@ -4,7 +4,7 @@ The `converter` processor converts fields and labels from one type to another.
 
 The conversion settings may seem complicated, but let's take a closer look at them and you'll see that they are intuitive.
 
-Firstly, any setting is always are `%source%:%path%:%layout%`. Layout is used only for time types and may be omited. If layout is not set, `time.RFC3339Nano` will be used.
+Firstly, any setting is always are `%source%:%path%:%layout%`. Layout is used only for time-based sources and targets and may be omited. If layout is not set, [time.RFC3339Nano](https://pkg.go.dev/time#pkg-constants) will be used.
 
 The source depends on path prefix:
  - `label:content-type` for label;
@@ -12,7 +12,7 @@ The source depends on path prefix:
  - `uuid:path` for event UUID;
  - `timestamp:path` for event timestamp;
  - `routingkey:path` for event routing key;
- - `field:log.line` or just `log.line` for field.
+ - `field:log.line` for field.
 
 The target takes from converter configuration. Use:
  - `id` to convert source to event id. In this case, if source is `uuid`, `timestamp` or `routingkey`, path must be any non-empty string. In other cases, label or field from path will be used;

@@ -86,17 +86,14 @@ func (c *converter) Convert(e *core.Event, p conversionParams) error {
 		return c.fromUuid(e, p)
 
 	case fromTimestamp:
-		if err := e.SetField(p.path, e.Timestamp); err != nil {
-			return fmt.Errorf("from timestamp: set field failed: %w", err)
-		}
+		return c.fromTimestamp(e, p)
+
 	case fromRoutingKey:
 		return c.fromRoutingKey(e, p)
 
 	default:
 		panic(fmt.Errorf("unexpected from type: %v", p.from))
 	}
-
-	return nil
 }
 
 func (c *converter) fromField(e *core.Event, p conversionParams) error {
@@ -197,6 +194,71 @@ func (c *converter) fromLabel(e *core.Event, p conversionParams) error {
 	}
 
 	return c.fromStringType(e, p, label, "label")
+}
+
+func (c *converter) fromTimestamp(e *core.Event, p conversionParams) error {
+	switch p.to {
+	case toId:
+		t, err := convert.AnyToStringWithTimeDuration(e.Timestamp, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from timestamp: %v: %w", p.path, err)
+		}
+		e.Id = t
+		return nil
+	case toRoutingKey:
+		t, err := convert.AnyToStringWithTimeDuration(e.Timestamp, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from timestamp: %v: %w", p.path, err)
+		}
+		e.RoutingKey = t
+		return nil
+	case toTimestamp:
+		return nil
+	case toLabel:
+		t, err := convert.AnyToStringWithTimeDuration(e.Timestamp, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from timestamp: %v: %w", p.path, err)
+		}
+		e.SetLabel(p.path, t)
+		return nil
+	case toString:
+		t, err := convert.AnyToStringWithTimeDuration(e.Timestamp, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from timestamp: %v: %w", p.path, err)
+		}
+
+		if err := e.SetField(p.path, t); err != nil {
+			return fmt.Errorf("from timestamp: set field failed: %w", err)
+		}
+		return nil
+	case toInteger:
+		t, err := convert.AnyToIntegerWithTimeDuration(e.Timestamp, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from timestamp: %v: %w", p.path, err)
+		}
+
+		if err := e.SetField(p.path, t); err != nil {
+			return fmt.Errorf("from timestamp: set field failed: %w", err)
+		}
+		return nil
+	case toUnsigned:
+		t, err := convert.AnyToUnsignedWithTimeDuration(e.Timestamp, p.tlyt)
+		if err != nil {
+			return fmt.Errorf("from timestamp: %v: %w", p.path, err)
+		}
+
+		if err := e.SetField(p.path, t); err != nil {
+			return fmt.Errorf("from timestamp: set field failed: %w", err)
+		}
+		return nil
+	case toTime:
+		if err := e.SetField(p.path, e.Timestamp); err != nil {
+			return fmt.Errorf("from timestamp: set field failed: %w", err)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("from timestamp: cannot convert to %v: unsopported type", p.to.String())
 }
 
 func (c *converter) fromId(e *core.Event, p conversionParams) error {
