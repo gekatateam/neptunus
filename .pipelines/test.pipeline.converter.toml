@@ -1,0 +1,30 @@
+[settings]
+  id = "test.pipeline.converter"
+  lines = 5
+  run = true
+  buffer = 1
+
+[[keykeepers]]
+  [keykeepers.self]
+    alias = "self"
+
+[[inputs]]
+  [inputs.cronjob]
+    [[inputs.cronjob.jobs]]
+      name = "@{self:settings.id}"
+      schedule = "@every 30s"
+      force = true
+
+[[processors]]
+  [processors.converter]
+    id = "timestamp:timestamp"
+    routing_key = "timestamp:timestamp"
+    string = [ "timestamp:data.fromts_milli:unix_milli" ]
+    time = [ "timestamp:data.fromts" ]
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false

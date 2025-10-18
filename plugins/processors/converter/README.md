@@ -23,8 +23,8 @@ The target takes from converter configuration. Use:
 
 A few limitations:
  - `uuid` can be converted only to `string`, `label`, `id` or `routing_key`;
- - `time` and `timestamp` can be created/converted only from/to `time`, `id`, `routingkey`, `timestamp`, `string`, `integer` or `unsigned`;
- - `duration` can be created/converted only from/to `id`, `routingkey`, `string`, `integer` or `unsigned`.
+ - `time` and `timestamp` can be converted only from/to `time`, `id`, `routingkey`, `timestamp`, `string`, `integer` or `unsigned`;
+ - `duration` can be converted only from/to `id`, `routingkey`, `string`, `integer` or `unsigned`.
 
 ## Configuration
 ```toml

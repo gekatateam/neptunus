@@ -281,7 +281,7 @@ func (c *converter) fromStringType(e *core.Event, p conversionParams, s, from st
 		e.RoutingKey = s
 		return nil
 	case toTimestamp:
-		t, err := time.Parse(p.tlyt, s)
+		t, err := convert.AnyToTime(s, p.tlyt)
 		if err != nil {
 			return fmt.Errorf("from %v: %v: %w", from, p.path, err)
 		}
@@ -303,7 +303,7 @@ func (c *converter) fromStringType(e *core.Event, p conversionParams, s, from st
 	case toDuration:
 		field, err = time.ParseDuration(s)
 	case toTime:
-		field, err = time.Parse(p.tlyt, s)
+		field, err = convert.AnyToTime(s, p.tlyt)
 	}
 
 	if err == strconv.ErrRange && p.ioor {

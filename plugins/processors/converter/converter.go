@@ -88,6 +88,18 @@ func (p *Converter) Init() error {
 		}
 	}
 
+	for _, v := range p.Time {
+		if err := p.initConversionParam(v, toTime); err != nil {
+			return fmt.Errorf("time: %w", err)
+		}
+	}
+
+	for _, v := range p.Duration {
+		if err := p.initConversionParam(v, toDuration); err != nil {
+			return fmt.Errorf("duration: %w", err)
+		}
+	}
+
 	p.converter = &converter{}
 
 	return nil
