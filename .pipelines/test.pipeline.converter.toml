@@ -18,7 +18,7 @@
 [[processors]]
   [processors.converter]
     id = "timestamp:timestamp"
-    routing_key = "timestamp:timestamp"
+    routing_key = "timestamp:timestamp:unix"
     string = [ "timestamp:data.fromts_milli:unix_milli" ]
     time = [ "timestamp:data.fromts" ]
 

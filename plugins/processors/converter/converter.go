@@ -40,13 +40,13 @@ func (p *Converter) Init() error {
 	}
 
 	if len(p.Timestamp) > 0 {
-		if err := p.initConversionParam(p.Id, toTimestamp); err != nil {
+		if err := p.initConversionParam(p.Timestamp, toTimestamp); err != nil {
 			return fmt.Errorf("timestamp: %w", err)
 		}
 	}
 
 	if len(p.RoutingKey) > 0 {
-		if err := p.initConversionParam(p.Id, toRoutingKey); err != nil {
+		if err := p.initConversionParam(p.RoutingKey, toRoutingKey); err != nil {
 			return fmt.Errorf("routing_key: %w", err)
 		}
 	}
