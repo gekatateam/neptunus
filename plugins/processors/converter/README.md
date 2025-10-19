@@ -4,7 +4,7 @@ The `converter` processor converts fields and labels from one type to another.
 
 The conversion settings may seem complicated, but let's take a closer look at them and you'll see that they are intuitive.
 
-Firstly, any setting is always are `%source%:%path%:%layout%`. Layout is used only for time-based sources and targets and may be omited. If layout is not set, [time.RFC3339Nano](https://pkg.go.dev/time#pkg-constants) will be used.
+Firstly, any setting is always are `%source%:%path%:%layout%`. Layout is used only for time-based sources and targets and may be omited. If layout is not set, [time.RFC3339Nano](https://pkg.go.dev/time#pkg-constants) will be used. Also, layout can be `unix`, `unix_micro` or `unix_milli` to convert time [to](https://pkg.go.dev/time#Time.Unix)/[from](https://pkg.go.dev/time#Unix) seconds, microseconds or milliseconds as unix timestamp (in case of conversion any to `unix`, nanoseconds is always zero).
 
 The source depends on path prefix:
  - `label:content-type` for label;
@@ -15,9 +15,9 @@ The source depends on path prefix:
  - `field:log.line` for field.
 
 The target takes from converter configuration. Use:
- - `id` to convert source to event id. In this case, if source is `uuid`, `timestamp` or `routingkey`, path must be any non-empty string. In other cases, label or field from path will be used;
- - `timestamp` to convert source to event timestamp. If source is `id` or `routingkey`, path must be any non-empty string. In other cases, label or field from path will be used;
- - `routing_key` to convert source to event routing key. If source is `id`, `uuid` or `timestamp`, path must be any non-empty string. In other cases, label or field from path will be used;
+ - `id` to convert source to event id. In this case, if source is `uuid`, `timestamp` or `routingkey`, path must be any non-empty string (e.g. same as source, like `uuid:uuid`). In other cases, label or field from path will be used;
+ - `timestamp` to convert source to event timestamp. If source is `id` or `routingkey`, path must be any non-empty string (e.g. same as source, like `id:id:unix_milli`). In other cases, label or field from path will be used;
+ - `routing_key` to convert source to event routing key. If source is `id`, `uuid` or `timestamp`, path must be any non-empty string (e.g. same as source, like `timestamp:timestamp`). In other cases, label or field from path will be used;
  - `label` to convert source to label. Path is always a label name to set. If source is `field`, field from path will be used;
  - `string`, `integer`, `unsigned`, `float`, `boolean`, `time` or `duration` to convert source to concrete field type. Path is always a field path to set. If source is `label` or `field`, label or field from path will be used.
 
