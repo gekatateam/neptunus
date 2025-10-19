@@ -11,7 +11,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
-// https://go.dev/play/p/zvCYfzqA78O
 var targetObjectPattern = regexp.MustCompile(`^(label|field|id|uuid|timestamp|routingkey):([\w\.-]+):?(.+)?$`)
 
 type Converter struct {
@@ -42,13 +41,13 @@ func (p *Converter) Init() error {
 
 	if len(p.Timestamp) > 0 {
 		if err := p.initConversionParam(p.Id, toTimestamp); err != nil {
-			return fmt.Errorf("id: %w", err)
+			return fmt.Errorf("timestamp: %w", err)
 		}
 	}
 
 	if len(p.RoutingKey) > 0 {
 		if err := p.initConversionParam(p.Id, toRoutingKey); err != nil {
-			return fmt.Errorf("id: %w", err)
+			return fmt.Errorf("routing_key: %w", err)
 		}
 	}
 
