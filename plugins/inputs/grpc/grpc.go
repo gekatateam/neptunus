@@ -25,7 +25,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
-	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
 
@@ -108,10 +107,10 @@ func (i *Grpc) Init() error {
 		}),
 	}
 
-	if i.EnableMetrics {
-		options = append(options, grpc.StreamInterceptor(grpcstats.GrpcServerStreamInterceptor(i.Pipeline, i.Alias)))
-		options = append(options, grpc.UnaryInterceptor(grpcstats.GrpcServerUnaryInterceptor(i.Pipeline, i.Alias)))
-	}
+	// if i.EnableMetrics {
+	// 	options = append(options, grpc.StreamInterceptor(grpcstats.GrpcServerStreamInterceptor(i.Pipeline, i.Alias)))
+	// 	options = append(options, grpc.UnaryInterceptor(grpcstats.GrpcServerUnaryInterceptor(i.Pipeline, i.Alias)))
+	// }
 
 	if tlsConfig != nil {
 		options = append(options, grpc.Creds(credentials.NewTLS(tlsConfig)))

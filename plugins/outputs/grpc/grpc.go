@@ -18,7 +18,6 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 	common "github.com/gekatateam/neptunus/plugins/common/grpc"
-	grpcstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/retryer"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
@@ -72,10 +71,10 @@ func (o *Grpc) Init() error {
 	}
 
 	options := dialOptions(o.DialOptions)
-	if o.EnableMetrics {
-		options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(o.Pipeline, o.Alias)))
-		options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(o.Pipeline, o.Alias)))
-	}
+	// if o.EnableMetrics {
+	// 	options = append(options, grpc.WithStreamInterceptor(grpcstats.GrpcClientStreamInterceptor(o.Pipeline, o.Alias)))
+	// 	options = append(options, grpc.WithUnaryInterceptor(grpcstats.GrpcClientUnaryInterceptor(o.Pipeline, o.Alias)))
+	// }
 
 	if tlsConfig != nil {
 		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))

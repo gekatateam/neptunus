@@ -62,7 +62,7 @@ func run(cCtx *cli.Context) error {
 			"kind", "internal",
 		),
 	))
-	metrics.CollectPipes(ctx, s.Stats)
+	metrics.CollectPipes(s.Stats)
 
 	restApi := api.Rest(s, logger.Default.With(
 		slog.Group("controller",
@@ -91,6 +91,7 @@ func run(cCtx *cli.Context) error {
 		}
 	}
 
+	metrics.GlobalCollectorsRunner.Run(ctx, metrics.DefaultMetricCollectInterval)
 	wg.Go(func() {
 		if err := httpServer.Serve(); err != nil {
 			logger.Default.Error("http server startup failed",
