@@ -10,22 +10,22 @@ import (
 )
 
 var (
-	PluginDbConnectionsMax = func(d dbDescriptor) string {
+	pluginDbConnectionsMax = func(d dbDescriptor) string {
 		return fmt.Sprintf("plugin_db_connections_max{pipeline=%q,plugin_name=%q,driver=%q}", d.pipeline, d.pluginName, d.driver)
 	}
-	PluginDbConnectionsOpen = func(d dbDescriptor) string {
+	pluginDbConnectionsOpen = func(d dbDescriptor) string {
 		return fmt.Sprintf("plugin_db_connections_open{pipeline=%q,plugin_name=%q,driver=%q}", d.pipeline, d.pluginName, d.driver)
 	}
-	PluginDbConnectionsInUse = func(d dbDescriptor) string {
+	pluginDbConnectionsInUse = func(d dbDescriptor) string {
 		return fmt.Sprintf("plugin_db_connections_in_use{pipeline=%q,plugin_name=%q,driver=%q}", d.pipeline, d.pluginName, d.driver)
 	}
-	PluginDbConnectionsIdle = func(d dbDescriptor) string {
+	pluginDbConnectionsIdle = func(d dbDescriptor) string {
 		return fmt.Sprintf("plugin_db_connections_idle{pipeline=%q,plugin_name=%q,driver=%q}", d.pipeline, d.pluginName, d.driver)
 	}
-	PluginDbConnectionsWaitedTotal = func(d dbDescriptor) string {
+	pluginDbConnectionsWaitedTotal = func(d dbDescriptor) string {
 		return fmt.Sprintf("plugin_db_connections_waited_total{pipeline=%q,plugin_name=%q,driver=%q}", d.pipeline, d.pluginName, d.driver)
 	}
-	PluginDbConnectionsWaitedSecondsTotal = func(d dbDescriptor) string {
+	pluginDbConnectionsWaitedSecondsTotal = func(d dbDescriptor) string {
 		return fmt.Sprintf("plugin_db_connections_waited_seconds_total{pipeline=%q,plugin_name=%q,driver=%q}", d.pipeline, d.pluginName, d.driver)
 	}
 )
@@ -53,25 +53,18 @@ func (c *dbCollector) append(d dbDescriptor, db *sqlx.DB) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.dbs[d] = db
-
-	metrics.PluginsSet.GetOrCreateGauge(PluginDbConnectionsMax(d), nil)
-	metrics.PluginsSet.GetOrCreateGauge(PluginDbConnectionsOpen(d), nil)
-	metrics.PluginsSet.GetOrCreateGauge(PluginDbConnectionsInUse(d), nil)
-	metrics.PluginsSet.GetOrCreateGauge(PluginDbConnectionsIdle(d), nil)
-	metrics.PluginsSet.GetOrCreateCounter(PluginDbConnectionsWaitedTotal(d))
-	metrics.PluginsSet.GetOrCreateFloatCounter(PluginDbConnectionsWaitedSecondsTotal(d))
 }
 
 func (c *dbCollector) delete(d dbDescriptor) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.dbs, d)
-	metrics.PluginsSet.UnregisterMetric(PluginDbConnectionsMax(d))
-	metrics.PluginsSet.UnregisterMetric(PluginDbConnectionsOpen(d))
-	metrics.PluginsSet.UnregisterMetric(PluginDbConnectionsInUse(d))
-	metrics.PluginsSet.UnregisterMetric(PluginDbConnectionsIdle(d))
-	metrics.PluginsSet.UnregisterMetric(PluginDbConnectionsWaitedTotal(d))
-	metrics.PluginsSet.UnregisterMetric(PluginDbConnectionsWaitedSecondsTotal(d))
+	metrics.PluginsSet.UnregisterMetric(pluginDbConnectionsMax(d))
+	metrics.PluginsSet.UnregisterMetric(pluginDbConnectionsOpen(d))
+	metrics.PluginsSet.UnregisterMetric(pluginDbConnectionsInUse(d))
+	metrics.PluginsSet.UnregisterMetric(pluginDbConnectionsIdle(d))
+	metrics.PluginsSet.UnregisterMetric(pluginDbConnectionsWaitedTotal(d))
+	metrics.PluginsSet.UnregisterMetric(pluginDbConnectionsWaitedSecondsTotal(d))
 }
 
 func (c *dbCollector) Collect() {
@@ -80,29 +73,12 @@ func (c *dbCollector) Collect() {
 
 	for d, db := range c.dbs {
 		stats := db.Stats()
-
-		metrics.PluginsSet.GetOrCreateGauge(
-			PluginDbConnectionsMax(d),
-			nil,
-		).Set(float64(stats.MaxOpenConnections))
-		metrics.PluginsSet.GetOrCreateGauge(
-			PluginDbConnectionsOpen(d),
-			nil,
-		).Set(float64(stats.OpenConnections))
-		metrics.PluginsSet.GetOrCreateGauge(
-			PluginDbConnectionsInUse(d),
-			nil,
-		).Set(float64(stats.InUse))
-		metrics.PluginsSet.GetOrCreateGauge(
-			PluginDbConnectionsIdle(d),
-			nil,
-		).Set(float64(stats.Idle))
-		metrics.PluginsSet.GetOrCreateCounter(
-			PluginDbConnectionsWaitedTotal(d),
-		).Set(uint64(stats.WaitCount))
-		metrics.PluginsSet.GetOrCreateFloatCounter(
-			PluginDbConnectionsWaitedSecondsTotal(d),
-		).Set(stats.WaitDuration.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(pluginDbConnectionsMax(d), nil).Set(float64(stats.MaxOpenConnections))
+		metrics.PluginsSet.GetOrCreateGauge(pluginDbConnectionsOpen(d), nil).Set(float64(stats.OpenConnections))
+		metrics.PluginsSet.GetOrCreateGauge(pluginDbConnectionsInUse(d), nil).Set(float64(stats.InUse))
+		metrics.PluginsSet.GetOrCreateGauge(pluginDbConnectionsIdle(d), nil).Set(float64(stats.Idle))
+		metrics.PluginsSet.GetOrCreateCounter(pluginDbConnectionsWaitedTotal(d)).Set(uint64(stats.WaitCount))
+		metrics.PluginsSet.GetOrCreateFloatCounter(pluginDbConnectionsWaitedSecondsTotal(d)).Set(stats.WaitDuration.Seconds())
 	}
 }
 
