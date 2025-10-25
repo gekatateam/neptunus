@@ -41,7 +41,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgtype v1.14.4 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
@@ -59,7 +58,6 @@ require (
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
@@ -71,7 +69,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
-	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
@@ -103,7 +100,6 @@ require (
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/opensearch-project/opensearch-go/v3 v3.1.0
-	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/prometheus v0.304.0
 	github.com/qri-io/starlib v0.5.0
 	github.com/rabbitmq/amqp091-go v1.10.0

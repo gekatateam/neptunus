@@ -1,11 +1,12 @@
 package metrics
 
 import (
+	"fmt"
 	"sync"
-	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/segmentio/kafka-go"
+
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 var (
@@ -14,307 +15,125 @@ var (
 		statFuncs: make(map[readerDescriptor]func() ReaderStats),
 		mu:        &sync.Mutex{},
 	}
-
-	kafkaReaderMessagesCount *prometheus.CounterVec
-	kafkaReaderBytesCount    *prometheus.CounterVec
-	kafkaReaderErrorsCount   *prometheus.CounterVec
-	kafkaReaderTimeoutsCount *prometheus.CounterVec
-	kafkaReaderFetchesCount  *prometheus.CounterVec
-
-	kafkaReaderOffset              *prometheus.GaugeVec
-	kafkaReaderLag                 *prometheus.GaugeVec
-	kafkaReaderDelay               *prometheus.GaugeVec
-	kafkaReaderCommitQueueCapacity *prometheus.GaugeVec
-	kafkaReaderCommitQueueLength   *prometheus.GaugeVec
-
-	kafkaReaderDialSecondsCount *prometheus.CounterVec
-	kafkaReaderDialSecondsSum   *prometheus.CounterVec
-	kafkaReaderDialSecondsMin   *prometheus.GaugeVec
-	kafkaReaderDialSecondsAvg   *prometheus.GaugeVec
-	kafkaReaderDialSecondsMax   *prometheus.GaugeVec
-
-	kafkaReaderReadSecondsCount *prometheus.CounterVec
-	kafkaReaderReadSecondsSum   *prometheus.CounterVec
-	kafkaReaderReadSecondsMin   *prometheus.GaugeVec
-	kafkaReaderReadSecondsAvg   *prometheus.GaugeVec
-	kafkaReaderReadSecondsMax   *prometheus.GaugeVec
-
-	kafkaReaderWaitSecondsCount *prometheus.CounterVec
-	kafkaReaderWaitSecondsSum   *prometheus.CounterVec
-	kafkaReaderWaitSecondsMin   *prometheus.GaugeVec
-	kafkaReaderWaitSecondsAvg   *prometheus.GaugeVec
-	kafkaReaderWaitSecondsMax   *prometheus.GaugeVec
-
-	kafkaReaderFetchSizeCount *prometheus.CounterVec
-	kafkaReaderFetchSizeSum   *prometheus.CounterVec
-	kafkaReaderFetchSizeMin   *prometheus.GaugeVec
-	kafkaReaderFetchSizeAvg   *prometheus.GaugeVec
-	kafkaReaderFetchSizeMax   *prometheus.GaugeVec
-
-	kafkaReaderFetchBytesCount *prometheus.CounterVec
-	kafkaReaderFetchBytesSum   *prometheus.CounterVec
-	kafkaReaderFetchBytesMin   *prometheus.GaugeVec
-	kafkaReaderFetchBytesAvg   *prometheus.GaugeVec
-	kafkaReaderFetchBytesMax   *prometheus.GaugeVec
 )
 
-func init() {
-	kafkaReaderMessagesCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_messages_count",
-			Help: "Number of messages read by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderBytesCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_bytes_count",
-			Help: "Number of bytes read by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderErrorsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_errors_count",
-			Help: "Number of errors occurred during reads",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderTimeoutsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_timeouts_count",
-			Help: "Number of fetches that ends with timeout",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchesCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_fetches_count",
-			Help: "Total number of fetches done by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
+var (
+	kafkaReaderMessagesCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_messages_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderBytesCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_bytes_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderErrorsCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_errors_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderTimeoutsCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_timeouts_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchesCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetches_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
 
-	kafkaReaderOffset = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_offset",
-			Help: "Reader current offset",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderLag = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_lag",
-			Help: "Reader current lag",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderDelay = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_delay",
-			Help: "Reader current delay in milliseconds",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderCommitQueueCapacity = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_commit_queue_capacity",
-			Help: "Reader internal commit queue capacity",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderCommitQueueLength = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_commit_queue_length",
-			Help: "Reader internal commit queue length",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
+	kafkaReaderOffset = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_offset{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderLag = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_lag{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderDelay = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_delay{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderCommitQueueCapacity = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_commit_queue_capacity{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderCommitQueueLength = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_commit_queue_length{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
 
-	kafkaReaderDialSecondsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_dial_seconds_count",
-			Help: "Number of dials performed by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderDialSecondsSum = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_dial_seconds_sum",
-			Help: "Total time spent on dials",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderDialSecondsMin = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_dial_seconds_min",
-			Help: "Min time spent on dials",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderDialSecondsAvg = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_dial_seconds_avg",
-			Help: "Average time spent on dials",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderDialSecondsMax = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_dial_seconds_max",
-			Help: "Max time spent on dials",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
+	kafkaReaderDialSecondsCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_dial_seconds_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderDialSecondsSum = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_dial_seconds_sum{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderDialSecondsMin = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_dial_seconds_min{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderDialSecondsAvg = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_dial_seconds_avg{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderDialSecondsMax = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_dial_seconds_max{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
 
-	kafkaReaderReadSecondsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_read_seconds_count",
-			Help: "Number of reads performed by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderReadSecondsSum = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_read_seconds_sum",
-			Help: "Total time spent on reads",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderReadSecondsMin = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_read_seconds_min",
-			Help: "Min time spent on reads",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderReadSecondsAvg = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_read_seconds_avg",
-			Help: "Average time spent on reads",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderReadSecondsMax = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_read_seconds_max",
-			Help: "Max time spent on reads",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
+	kafkaReaderReadSecondsCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_read_seconds_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderReadSecondsSum = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_read_seconds_sum{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderReadSecondsMin = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_read_seconds_min{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderReadSecondsAvg = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_read_seconds_avg{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderReadSecondsMax = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_read_seconds_max{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
 
-	kafkaReaderWaitSecondsCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_wait_seconds_count",
-			Help: "Number of message waiting cycles",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderWaitSecondsSum = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_wait_seconds_sum",
-			Help: "Total time spent on waiting for messages",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderWaitSecondsMin = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_wait_seconds_min",
-			Help: "Min time spent on waiting",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderWaitSecondsAvg = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_wait_seconds_avg",
-			Help: "Average time spent on waiting",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderWaitSecondsMax = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_wait_seconds_max",
-			Help: "Max time spent on waiting",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
+	kafkaReaderWaitSecondsCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_wait_seconds_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderWaitSecondsSum = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_wait_seconds_sum{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderWaitSecondsMin = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_wait_seconds_min{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderWaitSecondsAvg = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_wait_seconds_avg{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderWaitSecondsMax = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_wait_seconds_max{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
 
-	kafkaReaderFetchSizeCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_fetch_size_count",
-			Help: "Number of fetches performed by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchSizeSum = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_fetch_size_sum",
-			Help: "Total messages fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchSizeMin = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_fetch_size_min",
-			Help: "Min messages fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchSizeAvg = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_fetch_size_avg",
-			Help: "Average messages fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchSizeMax = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_fetch_size_max",
-			Help: "Max messages fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
+	kafkaReaderFetchSizeCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_size_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchSizeSum = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_size_sum{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchSizeMin = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_size_min{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchSizeAvg = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_size_avg{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchSizeMax = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_size_max{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
 
-	kafkaReaderFetchBytesCount = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_fetch_bytes_count",
-			Help: "Number of fetches performed by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchBytesSum = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "plugin_kafka_reader_fetch_bytes_sum",
-			Help: "Total bytes fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchBytesMin = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_fetch_bytes_min",
-			Help: "Min bytes fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchBytesAvg = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_fetch_bytes_avg",
-			Help: "Average bytes fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-	kafkaReaderFetchBytesMax = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "plugin_kafka_reader_fetch_bytes_max",
-			Help: "Max bytes fetched by client",
-		},
-		[]string{"pipeline", "plugin_name", "topic", "partition", "group_id", "client_id"},
-	)
-}
+	kafkaReaderFetchBytesCount = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_bytes_count{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchBytesSum = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_bytes_sum{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchBytesMin = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_bytes_min{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchBytesAvg = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_bytes_avg{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+	kafkaReaderFetchBytesMax = func(d readerDescriptor) string {
+		return fmt.Sprintf("plugin_kafka_reader_fetch_bytes_max{pipeline=%q,plugin_name=%q,topic=%q,partition=%q,group_id=%q,client_id=%q}", d.pipeline, d.pluginName, d.topic, d.partition, d.groupId, d.clientId)
+	}
+)
 
 type ReaderStats struct {
 	kafka.ReaderStats
-	CommitQueueLenght   int
+	CommitQueueLength   int
 	CommitQueueCapacity int
 	Delay               int64
 }
@@ -343,249 +162,106 @@ func (c *kafkaReaderCollector) delete(d readerDescriptor) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.statFuncs, d)
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderMessagesCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderBytesCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderErrorsCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchesCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderTimeoutsCount(d))
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderOffset(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderLag(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderDelay(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderCommitQueueCapacity(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderCommitQueueLength(d))
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderDialSecondsCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderDialSecondsSum(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderDialSecondsAvg(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderDialSecondsMin(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderDialSecondsMax(d))
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderReadSecondsCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderReadSecondsSum(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderReadSecondsAvg(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderReadSecondsMin(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderReadSecondsMax(d))
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderWaitSecondsCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderWaitSecondsSum(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderWaitSecondsAvg(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderWaitSecondsMin(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderWaitSecondsMax(d))
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchSizeCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchSizeSum(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchSizeMin(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchSizeAvg(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchSizeMax(d))
+
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchBytesCount(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchBytesSum(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchBytesMin(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchBytesAvg(d))
+	metrics.PluginsSet.UnregisterMetric(kafkaReaderFetchBytesMax(d))
 }
 
-func (c *kafkaReaderCollector) collect() {
+func (c *kafkaReaderCollector) Collect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for desc, f := range c.statFuncs {
+	for d, f := range c.statFuncs {
 		stats := f()
 
-		kafkaReaderMessagesCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.Messages))
-		kafkaReaderBytesCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.Bytes))
-		kafkaReaderErrorsCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.Errors))
-		kafkaReaderFetchesCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.Fetches))
-		kafkaReaderTimeoutsCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.Timeouts))
+		// it is very important to know - all kafka.ReaderStats are reset after collection
+		// this is why all counters here updated by Add(), not by Set()
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderMessagesCount(d)).Add(int(stats.Messages))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderBytesCount(d)).Add(int(stats.Bytes))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderErrorsCount(d)).Add(int(stats.Errors))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderFetchesCount(d)).Add(int(stats.Fetches))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderTimeoutsCount(d)).Add(int(stats.Timeouts))
 
-		kafkaReaderOffset.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Set(float64(stats.Offset))
-		kafkaReaderLag.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Set(float64(stats.Lag))
-		kafkaReaderDelay.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Set(float64(stats.Delay))
-		kafkaReaderCommitQueueCapacity.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Set(float64(stats.CommitQueueCapacity))
-		kafkaReaderCommitQueueLength.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Set(float64(stats.CommitQueueLenght))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderOffset(d), nil).Set(float64(stats.Offset))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderLag(d), nil).Set(float64(stats.Lag))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderDelay(d), nil).Set(float64(stats.Delay))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderCommitQueueCapacity(d), nil).Set(float64(stats.CommitQueueCapacity))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderCommitQueueLength(d), nil).Set(float64(stats.CommitQueueLength))
 
-		kafkaReaderDialSecondsCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.DialTime.Count))
-		kafkaReaderDialSecondsSum.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.DialTime.Sum.Seconds())
-		kafkaReaderDialSecondsAvg.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.DialTime.Avg.Seconds())
-		kafkaReaderDialSecondsMin.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.DialTime.Min.Seconds())
-		kafkaReaderDialSecondsMax.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.DialTime.Max.Seconds())
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderDialSecondsCount(d)).Add(int(stats.DialTime.Count))
+		metrics.PluginsSet.GetOrCreateFloatCounter(kafkaReaderDialSecondsSum(d)).Add(stats.DialTime.Sum.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderDialSecondsAvg(d), nil).Set(stats.DialTime.Min.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderDialSecondsMin(d), nil).Set(stats.DialTime.Avg.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderDialSecondsMax(d), nil).Set(stats.DialTime.Max.Seconds())
 
-		kafkaReaderReadSecondsCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.ReadTime.Count))
-		kafkaReaderReadSecondsSum.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.ReadTime.Sum.Seconds())
-		kafkaReaderReadSecondsAvg.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.ReadTime.Avg.Seconds())
-		kafkaReaderReadSecondsMin.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.ReadTime.Min.Seconds())
-		kafkaReaderReadSecondsMax.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.ReadTime.Max.Seconds())
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderReadSecondsCount(d)).Add(int(stats.ReadTime.Count))
+		metrics.PluginsSet.GetOrCreateFloatCounter(kafkaReaderReadSecondsSum(d)).Add(stats.ReadTime.Sum.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderReadSecondsAvg(d), nil).Set(stats.ReadTime.Min.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderReadSecondsMin(d), nil).Set(stats.ReadTime.Avg.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderReadSecondsMax(d), nil).Set(stats.ReadTime.Max.Seconds())
 
-		kafkaReaderWaitSecondsCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.WaitTime.Count))
-		kafkaReaderWaitSecondsSum.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.WaitTime.Sum.Seconds())
-		kafkaReaderWaitSecondsAvg.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.WaitTime.Avg.Seconds())
-		kafkaReaderWaitSecondsMin.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.WaitTime.Min.Seconds())
-		kafkaReaderWaitSecondsMax.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(stats.WaitTime.Max.Seconds())
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderWaitSecondsCount(d)).Add(int(stats.WaitTime.Count))
+		metrics.PluginsSet.GetOrCreateFloatCounter(kafkaReaderWaitSecondsSum(d)).Add(stats.WaitTime.Sum.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderWaitSecondsAvg(d), nil).Set(stats.WaitTime.Min.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderWaitSecondsMin(d), nil).Set(stats.WaitTime.Avg.Seconds())
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderWaitSecondsMax(d), nil).Set(stats.WaitTime.Max.Seconds())
 
-		kafkaReaderFetchSizeCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchSize.Count))
-		kafkaReaderFetchSizeSum.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchSize.Sum))
-		kafkaReaderFetchSizeAvg.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchSize.Avg))
-		kafkaReaderFetchSizeMin.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchSize.Min))
-		kafkaReaderFetchSizeMax.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchSize.Max))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderFetchSizeCount(d)).Add(int(stats.FetchSize.Count))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderFetchSizeSum(d)).Add(int(stats.FetchSize.Sum))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderFetchSizeMin(d), nil).Set(float64(stats.FetchSize.Min))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderFetchSizeAvg(d), nil).Set(float64(stats.FetchSize.Avg))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderFetchSizeMax(d), nil).Set(float64(stats.FetchSize.Max))
 
-		kafkaReaderFetchBytesCount.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchBytes.Count))
-		kafkaReaderFetchBytesSum.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchBytes.Sum))
-		kafkaReaderFetchBytesAvg.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchBytes.Avg))
-		kafkaReaderFetchBytesMin.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchBytes.Min))
-		kafkaReaderFetchBytesMax.WithLabelValues(
-			desc.pipeline, desc.pluginName,
-			desc.topic, stats.Partition,
-			desc.groupId, desc.clientId,
-		).Add(float64(stats.FetchBytes.Max))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderFetchBytesCount(d)).Add(int(stats.FetchBytes.Count))
+		metrics.PluginsSet.GetOrCreateCounter(kafkaReaderFetchBytesSum(d)).Add(int(stats.FetchBytes.Sum))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderFetchBytesMin(d), nil).Set(float64(stats.FetchBytes.Min))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderFetchBytesAvg(d), nil).Set(float64(stats.FetchBytes.Avg))
+		metrics.PluginsSet.GetOrCreateGauge(kafkaReaderFetchBytesMax(d), nil).Set(float64(stats.FetchBytes.Max))
 	}
 }
 
 func RegisterKafkaReader(pipeline, pluginName, topic, partition, groupId, clientId string, statFunc func() ReaderStats) {
 	kafkaReaderMetricsRegister.Do(func() {
-		prometheus.MustRegister(kafkaReaderMessagesCount)
-		prometheus.MustRegister(kafkaReaderBytesCount)
-		prometheus.MustRegister(kafkaReaderErrorsCount)
-		prometheus.MustRegister(kafkaReaderFetchesCount)
-		prometheus.MustRegister(kafkaReaderTimeoutsCount)
-
-		prometheus.MustRegister(kafkaReaderOffset)
-		prometheus.MustRegister(kafkaReaderLag)
-		prometheus.MustRegister(kafkaReaderDelay)
-		prometheus.MustRegister(kafkaReaderCommitQueueCapacity)
-		prometheus.MustRegister(kafkaReaderCommitQueueLength)
-
-		prometheus.MustRegister(kafkaReaderDialSecondsCount)
-		prometheus.MustRegister(kafkaReaderDialSecondsSum)
-		prometheus.MustRegister(kafkaReaderDialSecondsMin)
-		prometheus.MustRegister(kafkaReaderDialSecondsAvg)
-		prometheus.MustRegister(kafkaReaderDialSecondsMax)
-
-		prometheus.MustRegister(kafkaReaderReadSecondsCount)
-		prometheus.MustRegister(kafkaReaderReadSecondsSum)
-		prometheus.MustRegister(kafkaReaderReadSecondsMin)
-		prometheus.MustRegister(kafkaReaderReadSecondsAvg)
-		prometheus.MustRegister(kafkaReaderReadSecondsMax)
-
-		prometheus.MustRegister(kafkaReaderWaitSecondsCount)
-		prometheus.MustRegister(kafkaReaderWaitSecondsSum)
-		prometheus.MustRegister(kafkaReaderWaitSecondsMin)
-		prometheus.MustRegister(kafkaReaderWaitSecondsAvg)
-		prometheus.MustRegister(kafkaReaderWaitSecondsMax)
-
-		prometheus.MustRegister(kafkaReaderFetchSizeCount)
-		prometheus.MustRegister(kafkaReaderFetchSizeSum)
-		prometheus.MustRegister(kafkaReaderFetchSizeMin)
-		prometheus.MustRegister(kafkaReaderFetchSizeAvg)
-		prometheus.MustRegister(kafkaReaderFetchSizeMax)
-
-		prometheus.MustRegister(kafkaReaderFetchBytesCount)
-		prometheus.MustRegister(kafkaReaderFetchBytesSum)
-		prometheus.MustRegister(kafkaReaderFetchBytesMin)
-		prometheus.MustRegister(kafkaReaderFetchBytesAvg)
-		prometheus.MustRegister(kafkaReaderFetchBytesMax)
-
-		t := time.NewTicker(15 * time.Second)
-		go func() {
-			for range t.C {
-				kafkaReaderMetricsCollector.collect()
-			}
-		}()
+		metrics.GlobalCollectorsRunner.Append(kafkaReaderMetricsCollector)
 	})
 
 	kafkaReaderMetricsCollector.append(readerDescriptor{

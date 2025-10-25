@@ -51,7 +51,7 @@ func (r *topicReader) Run(rCtx context.Context) {
 		kafkastats.RegisterKafkaReader(r.Pipeline, r.Alias, r.topic, r.partition, r.groupId, r.clientId, func() kafkastats.ReaderStats {
 			return kafkastats.ReaderStats{
 				ReaderStats:         r.reader.Stats(),
-				CommitQueueLenght:   len(r.commitSemaphore),
+				CommitQueueLength:   len(r.commitSemaphore),
 				CommitQueueCapacity: cap(r.commitSemaphore),
 				Delay:               r.loadAndResetDelay(),
 			}
