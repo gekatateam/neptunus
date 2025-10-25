@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 type ChanDesc string
 
@@ -28,69 +32,44 @@ type PipelineStats struct {
 	Chans    []ChanStats
 }
 
-func CollectPipes(statFunc func() []PipelineStats) {
-	pipes.set(statFunc)
-}
+func CollectPipes(ctx context.Context, statFunc func() []PipelineStats) {
+	ticker := time.NewTicker(DefaultMetricCollectInterval)
+	go func() {
+		for {
+			defer ticker.Stop()
 
-type pipelineCollectror struct {
-	statFunc func() []PipelineStats
-}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				for _, pipe := range statFunc() {
+					PipelinesSet.GetOrCreateGauge(
+						fmt.Sprintf("pipeline_run{pipeline=%q}", pipe.Pipeline),
+						nil,
+					).Set(bool2float(pipe.Run))
+					PipelinesSet.GetOrCreateGauge(
+						fmt.Sprintf("pipeline_state{pipeline=%q}", pipe.Pipeline),
+						nil,
+					).Set(float64(pipe.State))
+					PipelinesSet.GetOrCreateGauge(
+						fmt.Sprintf("pipeline_processors_lines{pipeline=%q}", pipe.Pipeline),
+						nil,
+					).Set(float64(pipe.Lines))
 
-func (c *pipelineCollectror) set(f func() []PipelineStats) {
-	c.statFunc = f
-}
-
-func (c *pipelineCollectror) Describe(ch chan<- *prometheus.Desc) {
-	ch <- pipeState
-	ch <- pipeLines
-	ch <- chanCapacity
-	ch <- chanLength
-}
-
-func (c *pipelineCollectror) Collect(ch chan<- prometheus.Metric) {
-	for _, pipe := range c.statFunc() {
-		ch <- prometheus.MustNewConstMetric(
-			pipeState,
-			prometheus.GaugeValue,
-			float64(pipe.State),
-			pipe.Pipeline,
-		)
-
-		ch <- prometheus.MustNewConstMetric(
-			pipeRun,
-			prometheus.GaugeValue,
-			bool2float(pipe.Run),
-			pipe.Pipeline,
-		)
-
-		ch <- prometheus.MustNewConstMetric(
-			pipeLines,
-			prometheus.GaugeValue,
-			float64(pipe.Lines),
-			pipe.Pipeline,
-		)
-
-		for _, channel := range pipe.Chans {
-			ch <- prometheus.MustNewConstMetric(
-				chanCapacity,
-				prometheus.GaugeValue,
-				float64(channel.Capacity),
-				channel.Plugin,
-				channel.Name,
-				pipe.Pipeline,
-				string(channel.Descriptor),
-			)
-			ch <- prometheus.MustNewConstMetric(
-				chanLength,
-				prometheus.GaugeValue,
-				float64(channel.Length),
-				channel.Plugin,
-				channel.Name,
-				pipe.Pipeline,
-				string(channel.Descriptor),
-			)
+					for _, ch := range pipe.Chans {
+						PipelinesSet.GetOrCreateGauge(
+							fmt.Sprintf("pipeline_channel_capacity{pipeline=%q,plugin=%q,name=%q,desc=%q}", pipe.Pipeline, ch.Plugin, ch.Name, ch.Descriptor),
+							nil,
+						).Set(float64(ch.Capacity))
+						PipelinesSet.GetOrCreateGauge(
+							fmt.Sprintf("pipeline_channel_length{pipeline=%q,plugin=%q,name=%q,desc=%q}", pipe.Pipeline, ch.Plugin, ch.Name, ch.Descriptor),
+							nil,
+						).Set(float64(ch.Length))
+					}
+				}
+			}
 		}
-	}
+	}()
 }
 
 // https://github.com/golang/go/issues/6011

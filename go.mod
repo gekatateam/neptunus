@@ -11,6 +11,11 @@ require (
 )
 
 require (
+	github.com/valyala/fastrand v1.1.0 // indirect
+	github.com/valyala/histogram v1.2.0 // indirect
+)
+
+require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/ClickHouse/ch-go v0.65.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
@@ -80,6 +85,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
+	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/elastic/go-elasticsearch/v8 v8.17.1
 	github.com/elastic/go-lumber v0.1.1
 	github.com/gekatateam/mappath v1.2.1

@@ -7,10 +7,12 @@ import (
 	"net/http/pprof"
 	"time"
 
+	vmetrics "github.com/VictoriaMetrics/metrics"
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/metrics"
 )
 
 type httpServer struct {
@@ -32,6 +34,13 @@ func Http(cfg config.Common) (*httpServer, error) {
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	mux.HandleFunc("/metrics2", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		metrics.PipelinesSet.WritePrometheus(w)
+		metrics.CoreSet.WritePrometheus(w)
+		vmetrics.WriteProcessMetrics(w)
+	})
 
 	// up all probes after api server startup
 	// it is dangerous to make probes depending on pipelines state

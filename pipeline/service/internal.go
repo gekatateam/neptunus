@@ -301,6 +301,7 @@ func (m *internalService) Stats() []metrics.PipelineStats {
 	m.pipes.Range(func(name string, pipe pipeUnit) bool {
 		pipesState = append(pipesState, metrics.PipelineStats{
 			Pipeline: name,
+			Run:      pipe.p.Config().Settings.Run,
 			State:    int(pipe.p.State()),
 			Lines:    pipe.p.Config().Settings.Lines,
 			Chans:    pipe.p.ChansStats(),

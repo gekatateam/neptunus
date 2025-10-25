@@ -16,10 +16,6 @@ const (
 	ConsistencyHard = "hard"
 )
 
-type Unit interface {
-	Run()
-}
-
 // processor unit consumes events from input channel
 // if filters are set, each event passes through them
 // rejected events are going to unit output
@@ -32,12 +28,12 @@ type Unit interface {
 // |  └┤ f ├─┤proc├┴┼─
 // |   └───┘ └────┘ |
 // └────────────────┘
-func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []core.Filter, in <-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newProcessorSoftUnit(p, f, in, bufferSize)
+		return newProcessorSoftUnit(p, f, in, c.Buffer)
 	}
 }
 
@@ -52,12 +48,12 @@ func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []
 // |  └┤ f ├─┤out>| |
 // |   └───┘ └────┘ |
 // └────────────────┘
-func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.Filter, in <-chan *core.Event, bufferSize int) (unit Unit, chansStats []metrics.ChanStatsFunc) {
+func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.Filter, in <-chan *core.Event) (unit core.Runner, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newOutputSoftUnit(o, f, in, bufferSize)
+		return newOutputSoftUnit(o, f, in, c.Buffer)
 	}
 }
 
@@ -73,12 +69,12 @@ func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.F
 // |        └┤ f ├──┼─
 // |         └───┘  |
 // └────────────────┘
-func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Filter, stop <-chan struct{}, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Filter, stop <-chan struct{}) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newInputSoftUnit(i, f, stop, bufferSize)
+		return newInputSoftUnit(i, f, stop, c.Buffer)
 	}
 }
 
@@ -91,12 +87,12 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 // ┼───█────┼─
 // |   └────┼─
 // └────────┘
-func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <-chan *core.Event, outsCount, bufferSize int) (unit Unit, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <-chan *core.Event, outsCount int) (unit core.Runner, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newBroadcastSoftUnit(b, in, outsCount, bufferSize)
+		return newBroadcastSoftUnit(b, in, outsCount, c.Buffer)
 	}
 }
 
@@ -109,12 +105,12 @@ func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <
 // ┼───█────┼─
 // ┼───┘    |
 // └────────┘
-func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newFusionSoftUnit(f, ins, bufferSize)
+		return newFusionSoftUnit(f, ins, c.Buffer)
 	}
 }
 
@@ -127,12 +123,12 @@ func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-ch
 // ┼───█────┼─
 // ┼───┘    |
 // └────────┘
-func NewMixer(c *config.PipeSettings, l *slog.Logger, m core.Mixer, in <-chan *core.Event, bufferSize int) (unit Unit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewMixer(c *config.PipeSettings, l *slog.Logger, m core.Mixer, in <-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newMixerSoftUnit(m, in, bufferSize)
+		return newMixerSoftUnit(m, in, c.Buffer)
 	}
 }
 

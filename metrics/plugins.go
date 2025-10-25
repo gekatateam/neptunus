@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -17,29 +18,57 @@ type ObserveFunc func(plugin, name, pipeline string, status EventStatus, t time.
 func ObserveMock(plugin, name, pipeline string, status EventStatus, t time.Duration) {}
 
 func ObserveInputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	inputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("input_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
 
 func ObserveFilterSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	filterSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("filter_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
 
 func ObserveProcessorSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	processorSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("processor_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
 
 func ObserveOutputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	outputSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("output_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
 
 func ObserveParserSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	parserSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("parser_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
 
 func ObserveSerializerSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	serializerSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("serializer_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
 
 func ObserveCoreSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
-	coreSummary.WithLabelValues(plugin, name, pipeline, string(status)).Observe(t.Seconds())
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("core_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
 }
