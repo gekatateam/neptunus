@@ -9,7 +9,6 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
-	"github.com/gekatateam/neptunus/metrics"
 )
 
 var Version = "v.0.0.0"
@@ -24,7 +23,6 @@ func main() {
 			)
 		}
 	}()
-	metrics.Init()
 
 	app := &cli.App{
 		Name:    "neptunus",

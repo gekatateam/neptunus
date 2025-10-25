@@ -1,141 +1,59 @@
 package metrics
 
 import (
+	"context"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/gekatateam/neptunus/logger"
 )
 
 var (
-	coreSummary       *prometheus.SummaryVec
-	inputSummary      *prometheus.SummaryVec
-	filterSummary     *prometheus.SummaryVec
-	processorSummary  *prometheus.SummaryVec
-	outputSummary     *prometheus.SummaryVec
-	parserSummary     *prometheus.SummaryVec
-	serializerSummary *prometheus.SummaryVec
-
-	pipes        *pipelineCollectror
-	pipeState    *prometheus.Desc
-	pipeRun      *prometheus.Desc
-	pipeLines    *prometheus.Desc
-	chanCapacity *prometheus.Desc
-	chanLength   *prometheus.Desc
+	// CoreSet is a set with plugins core metrics
+	CoreSet = metrics.NewSet()
+	// PluginsSet is a set with plugins custom metrics
+	PluginsSet = metrics.NewSet()
+	// PipelinesSet is a set with pipelines metrics
+	PipelinesSet = metrics.NewSet()
 )
 
-func Init() {
-	// plugins stats
-	// status="(accepted|rejected|failed)"
-	inputSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "input_plugin_processed_events",
-			Help:       "Events statistic for inputs.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
+var (
+	GlobalCollectorsRunner       = &collectorsRunner{}
+	DefaultMetricCollectInterval = 15 * time.Second
+	DefaultMetricWindow          = time.Minute
+	DefaultSummaryQuantiles      = []float64{0.5, 0.9, 0.99, 1.0}
+)
 
-	filterSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "filter_plugin_processed_events",
-			Help:       "Events statistic for filters.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
+type Collector interface {
+	Collect()
+}
 
-	processorSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "processor_plugin_processed_events",
-			Help:       "Events statistic for processors.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
+type collectorsRunner struct {
+	collectors []Collector
+}
 
-	outputSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "output_plugin_processed_events",
-			Help:       "Events statistic for outputs.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
+func (cr *collectorsRunner) Append(c Collector) {
+	cr.collectors = append(cr.collectors, c)
+}
 
-	parserSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "parser_plugin_processed_events",
-			Help:       "Events statistic for parsers.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
+func (cr *collectorsRunner) Run(ctx context.Context, interval time.Duration) {
+	metrics.ExposeMetadata(true)
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		defer logger.Default.Info("metric collectors runner exited")
 
-	serializerSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "serializer_plugin_processed_events",
-			Help:       "Events statistic for serializers.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
-
-	coreSummary = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "core_plugin_processed_events",
-			Help:       "Events statistic for core plugins.",
-			MaxAge:     time.Minute,
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001, 1.0: 0},
-		},
-		[]string{"plugin", "name", "pipeline", "status"},
-	)
-
-	// pipelines stats
-	pipes = &pipelineCollectror{}
-	pipeState = prometheus.NewDesc(
-		"pipeline_state",
-		"Pipeline state: 1-6 is for Created, Building, Starting, Running, Stopping, Stopped.",
-		[]string{"pipeline"},
-		nil,
-	)
-	pipeRun = prometheus.NewDesc(
-		"pipeline_run",
-		"Is pipeline must run.",
-		[]string{"pipeline"},
-		nil,
-	)
-	pipeLines = prometheus.NewDesc(
-		"pipeline_processors_lines",
-		"Number of configured processors lines.",
-		[]string{"pipeline"},
-		nil,
-	)
-
-	chanLength = prometheus.NewDesc(
-		"pipeline_channel_length",
-		"Pipeline plugin communication channel length.",
-		[]string{"plugin", "name", "pipeline", "desc"},
-		nil,
-	)
-	chanCapacity = prometheus.NewDesc(
-		"pipeline_channel_capacity",
-		"Pipeline plugin communication channel capacity.",
-		[]string{"plugin", "name", "pipeline", "desc"},
-		nil,
-	)
-
-	prometheus.MustRegister(inputSummary)
-	prometheus.MustRegister(filterSummary)
-	prometheus.MustRegister(processorSummary)
-	prometheus.MustRegister(outputSummary)
-	prometheus.MustRegister(parserSummary)
-	prometheus.MustRegister(serializerSummary)
-	prometheus.MustRegister(coreSummary)
-	prometheus.MustRegister(pipes)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				logger.Default.Info("metric collectors runner - collection cycle started")
+				for _, c := range cr.collectors {
+					c.Collect()
+				}
+				logger.Default.Info("metric collectors runner - collection cycle done")
+			}
+		}
+	}()
 }

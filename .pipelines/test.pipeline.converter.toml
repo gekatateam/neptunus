@@ -2,7 +2,7 @@
   id = "test.pipeline.converter"
   lines = 5
   run = true
-  buffer = 1
+  buffer = 10
 
 [[keykeepers]]
   [keykeepers.self]

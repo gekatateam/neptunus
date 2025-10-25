@@ -133,6 +133,7 @@ Labels:
  - **method** - incoming request method
  - **status** - request status
 
+<!--
 ### gRPC Server
 
 #### Summary `plugin_grpc_server_calls_seconds`
@@ -236,6 +237,7 @@ Labels:
  - **plugin_name** - plugin name (alias)
  - **procedure** - method full name
  - **type** - RPC type
+-->
 
 ### Kafka Producer
 

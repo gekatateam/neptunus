@@ -43,12 +43,12 @@ func run(cCtx *cli.Context) error {
 		return fmt.Errorf("runtime params set error: %w", err)
 	}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit,
+	ctx, stop := signal.NotifyContext(cCtx.Context,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
+	defer stop()
 
 	wg := &sync.WaitGroup{}
 
@@ -91,18 +91,17 @@ func run(cCtx *cli.Context) error {
 		}
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	metrics.GlobalCollectorsRunner.Run(ctx, metrics.DefaultMetricCollectInterval)
+	wg.Go(func() {
 		if err := httpServer.Serve(); err != nil {
 			logger.Default.Error("http server startup failed",
 				"error", err,
 			)
 			os.Exit(1)
 		}
-	}()
+	})
 
-	<-quit
+	<-ctx.Done()
 	if err := httpServer.Shutdown(context.Background()); err != nil {
 		logger.Default.Warn("http server stopped with error",
 			"error", err,

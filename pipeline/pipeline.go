@@ -256,14 +256,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
 	for i, input := range p.ins {
 		inputsStopChannels = append(inputsStopChannels, make(chan struct{}))
-		inputUnit, outCh, chansStats := unit.NewInput(&p.config.Settings, p.log, input.i, input.f, inputsStopChannels[i], p.config.Settings.Buffer)
+		inputUnit, outCh, chansStats := unit.NewInput(&p.config.Settings, p.log, input.i, input.f, inputsStopChannels[i])
 		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 		inputsOutChannels = append(inputsOutChannels, outCh)
-		wg.Add(1)
-		go func() {
-			inputUnit.Run()
-			wg.Done()
-		}()
+		wg.Go(inputUnit.Run)
 	}
 
 	p.log.Info("starting inputs-to-processors fusionner")
@@ -276,13 +272,9 @@ func (p *Pipeline) Run(ctx context.Context) {
 			"name", "fusion::inputs",
 		)),
 		Obs: metrics.ObserveCoreSummary,
-	}), inputsOutChannels, p.config.Settings.Buffer)
+	}), inputsOutChannels)
 	p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-	wg.Add(1)
-	go func() {
-		inFusionUnit.Run()
-		wg.Done()
-	}()
+	wg.Go(inFusionUnit.Run)
 
 	if len(p.procs) > 0 {
 		p.log.Info(fmt.Sprintf("starting processors, scaling to %v parallel lines", p.config.Settings.Lines))
@@ -291,26 +283,22 @@ func (p *Pipeline) Run(ctx context.Context) {
 			procInput := outCh
 			for j, processor := range p.procs[i] {
 				var (
-					processorUnit unit.Unit
+					processorUnit core.Runner
 					procOut       <-chan *core.Event
 					chansStats    []metrics.ChanStatsFunc
 				)
 
 				if mixer, ok := processor.p.(core.Mixer); ok {
 					p.log.Info(fmt.Sprintf("found mixer processor in %v position", j))
-					processorUnit, procOut, chansStats = unit.NewMixer(&p.config.Settings, p.log, mixer, procInput, p.config.Settings.Buffer)
+					processorUnit, procOut, chansStats = unit.NewMixer(&p.config.Settings, p.log, mixer, procInput)
 					goto PROC_CONFIGURED
 				}
 
-				processorUnit, procOut, chansStats = unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput, p.config.Settings.Buffer)
+				processorUnit, procOut, chansStats = unit.NewProcessor(&p.config.Settings, p.log, processor.p, processor.f, procInput)
 			PROC_CONFIGURED:
 
 				p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-				wg.Add(1)
-				go func() {
-					processorUnit.Run()
-					wg.Done()
-				}()
+				wg.Go(processorUnit.Run)
 				procInput = procOut
 			}
 			procsOutChannels = append(procsOutChannels, procInput)
@@ -327,14 +315,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 				"name", "fusion::processors",
 			)),
 			Obs: metrics.ObserveCoreSummary,
-		}), procsOutChannels, p.config.Settings.Buffer)
+		}), procsOutChannels)
 		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
 		outCh = fusionOutCh
-		wg.Add(1)
-		go func() {
-			outFusionUnit.Run()
-			wg.Done()
-		}()
+		wg.Go(outFusionUnit.Run)
 	}
 
 	p.log.Info("starting broadcaster")
@@ -347,23 +331,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 			"name", "broadcast::processors",
 		)),
 		Obs: metrics.ObserveCoreSummary,
-	}), outCh, len(p.outs), p.config.Settings.Buffer)
+	}), outCh, len(p.outs))
 	p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-	wg.Add(1)
-	go func() {
-		bcastUnit.Run()
-		wg.Done()
-	}()
+	wg.Go(bcastUnit.Run)
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {
-		outputUnit, chansStats := unit.NewOutput(&p.config.Settings, p.log, output.o, output.f, bcastChs[i], p.config.Settings.Buffer)
+		outputUnit, chansStats := unit.NewOutput(&p.config.Settings, p.log, output.o, output.f, bcastChs[i])
 		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-		wg.Add(1)
-		go func() {
-			outputUnit.Run()
-			wg.Done()
-		}()
+		wg.Go(outputUnit.Run)
 	}
 
 	p.state = StateRunning
