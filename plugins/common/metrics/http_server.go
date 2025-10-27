@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gekatateam/neptunus/metrics"
@@ -37,7 +38,7 @@ func HttpServerMiddleware(pipeline string, pluginName string, pathsConfigured bo
 		}
 
 		metrics.PluginsSet.GetOrCreateSummaryExt(
-			fmt.Sprintf("plugin_http_server_requests_seconds{pipeline=%q,plugin_name=%q,uri=%q,method=%q,status=%q}", pipeline, pluginName, path, r.Method, s.Status),
+			fmt.Sprintf("plugin_http_server_requests_seconds{pipeline=%q,plugin_name=%q,uri=%q,method=%q,status=%q}", pipeline, pluginName, path, r.Method, strconv.Itoa(s.Status)),
 			metrics.DefaultMetricWindow,
 			metrics.DefaultSummaryQuantiles,
 		).Update(time.Since(begin).Seconds())

@@ -1,11 +1,12 @@
 [settings]
   id = "test.pipeline.dtemplate"
   lines = 2
-  run = false
+  run = true
   buffer = 5
 
 [[inputs]]
   [inputs.http]
+    enable_metrics = true
     address = ":9100"
     max_connections = 10
     query_params_to = ""
