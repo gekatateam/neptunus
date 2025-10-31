@@ -1,13 +1,14 @@
 package stats
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/gekatateam/neptunus/core"
 )
 
 type cache interface {
-	observe(m *metric, v float64)
+	observe(m *metric, b map[float64]float64, v float64)
 	flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event))
 	clear()
 }
@@ -18,11 +19,14 @@ func newIndividualCache() individualCache {
 	return make(individualCache)
 }
 
-func (c individualCache) observe(m *metric, v float64) {
-	if metric, ok := c[m.hash()]; ok {
+func (c individualCache) observe(m *metric, b map[float64]float64, v float64) {
+	hash := m.hash()
+
+	if metric, ok := c[hash]; ok {
 		m = metric
 	} else { // hit an uncached netric
-		c[m.hash()] = m
+		m.Value.Buckets = maps.Clone(b)
+		c[hash] = m
 	}
 
 	m.observe(v)
@@ -77,10 +81,6 @@ func (s *sharedStorage) newCache(k uint64) *sharedCache {
 	return cache
 }
 
-func newSharedCache(k uint64) *sharedCache {
-	return ss.newCache(k)
-}
-
 type sharedCache struct {
 	id      uint64
 	writers int64
@@ -91,10 +91,14 @@ type sharedCache struct {
 	mu        *sync.Mutex
 }
 
-func (c *sharedCache) observe(m *metric, v float64) {
+func newSharedCache(k uint64) *sharedCache {
+	return ss.newCache(k)
+}
+
+func (c *sharedCache) observe(m *metric, b map[float64]float64, v float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache.observe(m, v)
+	c.cache.observe(m, b, v)
 }
 
 func (c *sharedCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event)) {

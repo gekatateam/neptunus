@@ -3,7 +3,6 @@ package stats
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -40,6 +39,10 @@ func (p *Stats) Init() error {
 	p.exLabels = make(map[string]struct{}, len(p.WithoutLabels))
 	p.WithLabels = slices.Compact(p.WithLabels)
 
+	if len(p.WithLabels) > 0 && len(p.WithoutLabels) > 0 {
+		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
+	}
+
 	for _, v := range p.WithoutLabels {
 		p.exLabels[v] = struct{}{}
 	}
@@ -51,10 +54,6 @@ func (p *Stats) Init() error {
 	p.buckets[math.MaxFloat64] = 0 // +Inf bucket
 	for _, v := range p.Buckets {
 		p.buckets[v] = 0
-	}
-
-	if len(p.WithLabels) > 0 && len(p.WithoutLabels) > 0 {
-		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
 	}
 
 	p.labelsFunc = p.noLabels
@@ -104,15 +103,15 @@ func (p *Stats) SetId(id uint64) {
 }
 
 func (p *Stats) Run() {
-	ticker := time.NewTicker(p.Period)
+	flushTicker := time.NewTicker(p.Period)
+	defer flushTicker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-flushTicker.C:
 			p.Flush()
 		case e, ok := <-p.In:
 			if !ok {
-				ticker.Stop()
 				p.Flush()
 				return
 			}
@@ -219,12 +218,9 @@ func (p *Stats) Observe(e *core.Event) {
 				Name:   field,
 				Labels: labels, // previously saved labels shares here
 			},
-			Value: metricValue{
-				Buckets: maps.Clone(p.buckets),
-			},
 		}
 
-		p.cache.observe(m, fv)
+		p.cache.observe(m, p.buckets, fv)
 	}
 }
 
