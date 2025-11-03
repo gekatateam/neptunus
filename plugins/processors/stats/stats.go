@@ -108,7 +108,7 @@ func (p *Stats) Run() {
 	flushTicker := time.NewTicker(p.Period)
 	defer flushTicker.Stop()
 
-	clearTicker := time.NewTicker(time.Minute)
+	clearTicker := time.NewTicker(time.Minute + 55*time.Millisecond)
 	defer clearTicker.Stop()
 	if p.MetricTTL == 0 {
 		clearTicker.Stop()
