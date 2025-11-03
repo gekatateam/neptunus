@@ -57,7 +57,7 @@ def process(event):
 
 [[outputs]]
   [outputs.promremote]
-    host = "http://localhost:9090/api/v1/write"
+    host = "http://localhost:8428/api/v1/write"
     ignore_labels = [ "::type", "::name" ]
     retry_attempts = 1
     [outputs.promremote.filters.glob]

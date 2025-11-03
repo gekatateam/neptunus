@@ -3,7 +3,6 @@ package stats
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -15,9 +14,12 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/convert"
 )
 
+var noLabelsSlice = make([]metricLabel, 0)
+
 type Stats struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Period              time.Duration       `mapstructure:"period"`
+	MetricTTL           time.Duration       `mapstructure:"metric_ttl"`
 	Mode                string              `mapstructure:"mode"`
 	RoutingKey          string              `mapstructure:"routing_key"`
 	WithLabels          []string            `mapstructure:"with_labels"`
@@ -40,8 +42,8 @@ func (p *Stats) Init() error {
 	p.exLabels = make(map[string]struct{}, len(p.WithoutLabels))
 	p.WithLabels = slices.Compact(p.WithLabels)
 
-	for _, v := range p.WithoutLabels {
-		p.exLabels[v] = struct{}{}
+	if len(p.WithLabels) > 0 && len(p.WithoutLabels) > 0 {
+		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
 	}
 
 	if p.Period < time.Second {
@@ -53,10 +55,6 @@ func (p *Stats) Init() error {
 		p.buckets[v] = 0
 	}
 
-	if len(p.WithLabels) > 0 && len(p.WithoutLabels) > 0 {
-		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
-	}
-
 	p.labelsFunc = p.noLabels
 
 	if len(p.WithLabels) > 0 {
@@ -64,6 +62,9 @@ func (p *Stats) Init() error {
 	}
 
 	if len(p.WithoutLabels) > 0 {
+		for _, v := range p.WithoutLabels {
+			p.exLabels[v] = struct{}{}
+		}
 		p.labelsFunc = p.withoutLabels
 	}
 
@@ -104,15 +105,23 @@ func (p *Stats) SetId(id uint64) {
 }
 
 func (p *Stats) Run() {
-	ticker := time.NewTicker(p.Period)
+	flushTicker := time.NewTicker(p.Period)
+	defer flushTicker.Stop()
+
+	clearTicker := time.NewTicker(time.Minute)
+	defer clearTicker.Stop()
+	if p.MetricTTL == 0 {
+		clearTicker.Stop()
+	}
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-clearTicker.C:
+			p.cache.dropOlderThan(p.MetricTTL)
+		case <-flushTicker.C:
 			p.Flush()
 		case e, ok := <-p.In:
 			if !ok {
-				ticker.Stop()
 				p.Flush()
 				return
 			}
@@ -219,17 +228,14 @@ func (p *Stats) Observe(e *core.Event) {
 				Name:   field,
 				Labels: labels, // previously saved labels shares here
 			},
-			Value: metricValue{
-				Buckets: maps.Clone(p.buckets),
-			},
 		}
 
-		p.cache.observe(m, fv)
+		p.cache.observe(m, p.buckets, fv)
 	}
 }
 
 func (p *Stats) noLabels(e *core.Event) ([]metricLabel, bool) {
-	return make([]metricLabel, 0), true
+	return noLabelsSlice, true
 }
 
 func (p *Stats) withLabels(e *core.Event) ([]metricLabel, bool) {

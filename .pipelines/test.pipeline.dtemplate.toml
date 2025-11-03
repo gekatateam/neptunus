@@ -25,6 +25,15 @@
       labels = [ "tmplabel" ]
       fields = [ "annotations", "legend", "reason", "number" ]
 
+[[processors]]
+  [processors.stats]
+    mode = "shared"
+    period = "15s"
+    metric_ttl = "1m"
+    routing_key = "neptunus.generated.metric"
+    [processors.stats.fields]
+      "keysnum" = ["count", "sum", "avg", "gauge", "max", "min", "histogram"]
+
 [[outputs]]
   [outputs.log]
     [outputs.log.serializer]
