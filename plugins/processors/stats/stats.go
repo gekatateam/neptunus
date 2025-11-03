@@ -14,9 +14,12 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/convert"
 )
 
+var noLabelsSlice = make([]metricLabel, 0)
+
 type Stats struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Period              time.Duration       `mapstructure:"period"`
+	MetricTTL           time.Duration       `mapstructure:"metric_ttl"`
 	Mode                string              `mapstructure:"mode"`
 	RoutingKey          string              `mapstructure:"routing_key"`
 	WithLabels          []string            `mapstructure:"with_labels"`
@@ -43,10 +46,6 @@ func (p *Stats) Init() error {
 		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
 	}
 
-	for _, v := range p.WithoutLabels {
-		p.exLabels[v] = struct{}{}
-	}
-
 	if p.Period < time.Second {
 		p.Period = time.Second
 	}
@@ -63,6 +62,9 @@ func (p *Stats) Init() error {
 	}
 
 	if len(p.WithoutLabels) > 0 {
+		for _, v := range p.WithoutLabels {
+			p.exLabels[v] = struct{}{}
+		}
 		p.labelsFunc = p.withoutLabels
 	}
 
@@ -106,8 +108,16 @@ func (p *Stats) Run() {
 	flushTicker := time.NewTicker(p.Period)
 	defer flushTicker.Stop()
 
+	clearTicker := time.NewTicker(time.Minute)
+	defer clearTicker.Stop()
+	if p.MetricTTL == 0 {
+		clearTicker.Stop()
+	}
+
 	for {
 		select {
+		case <-clearTicker.C:
+			p.cache.dropOlderThan(p.MetricTTL)
 		case <-flushTicker.C:
 			p.Flush()
 		case e, ok := <-p.In:
@@ -225,7 +235,7 @@ func (p *Stats) Observe(e *core.Event) {
 }
 
 func (p *Stats) noLabels(e *core.Event) ([]metricLabel, bool) {
-	return make([]metricLabel, 0), true
+	return noLabelsSlice, true
 }
 
 func (p *Stats) withLabels(e *core.Event) ([]metricLabel, bool) {

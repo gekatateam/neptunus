@@ -3,6 +3,7 @@ package stats
 import (
 	"maps"
 	"sync"
+	"time"
 
 	"github.com/gekatateam/neptunus/core"
 )
@@ -10,37 +11,57 @@ import (
 type cache interface {
 	observe(m *metric, b map[float64]float64, v float64)
 	flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event))
+	dropOlderThan(olderThan time.Duration)
 	clear()
 }
 
-type individualCache map[uint64]*metric
+type individualCache struct {
+	c map[uint64]*metric
+	d map[uint64]time.Time
+}
 
 func newIndividualCache() individualCache {
-	return make(individualCache)
+	return individualCache{
+		c: make(map[uint64]*metric),
+		d: make(map[uint64]time.Time),
+	}
 }
 
 func (c individualCache) observe(m *metric, b map[float64]float64, v float64) {
 	hash := m.hash()
 
-	if metric, ok := c[hash]; ok {
+	if metric, ok := c.c[hash]; ok {
 		m = metric
-	} else { // hit an uncached netric
+	} else {
+		// hit an uncached metric
+		// add buckets into it, once
 		m.Value.Buckets = maps.Clone(b)
-		c[hash] = m
+		c.c[hash] = m
 	}
 
+	c.d[hash] = time.Now()
 	m.observe(v)
 }
 
 func (c individualCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event)) {
-	for _, m := range c {
+	for _, m := range c.c {
 		flushFn(m, out)
 		m.reset()
 	}
 }
 
+func (c individualCache) dropOlderThan(olderThan time.Duration) {
+	for k, v := range c.d {
+		if time.Since(v) > olderThan {
+			delete(c.d, k)
+			delete(c.c, k)
+		}
+	}
+}
+
 func (c individualCache) clear() {
-	clear(c)
+	clear(c.c)
+	clear(c.d)
 }
 
 var ss = &sharedStorage{
@@ -107,11 +128,20 @@ func (c *sharedCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch c
 
 	c.syncPoint++
 	if c.syncPoint == c.writers {
-		for _, m := range c.cache {
+		for _, m := range c.cache.c {
 			flushFn(m, out)
 			m.reset()
 		}
 		c.syncPoint = 0
+	}
+}
+
+func (c *sharedCache) dropOlderThan(olderThan time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.syncPoint == 0 {
+		c.cache.dropOlderThan(olderThan)
 	}
 }
 
