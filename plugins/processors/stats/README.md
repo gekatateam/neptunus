@@ -52,8 +52,8 @@ This is the format of stats event:
 
     # metrics TTL
     # any metric that has not been observed longer than TTL will be deleted
-    # zero means to TTL
-    metric_ttl = "0s"
+    # zero means no limit
+    metric_ttl = "30m"
 
     # routing key with which events will be created
     routing_key = "neptunus.generated.metric"

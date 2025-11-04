@@ -108,7 +108,7 @@ func (p *Stats) Run() {
 	flushTicker := time.NewTicker(p.Period)
 	defer flushTicker.Stop()
 
-	clearTicker := time.NewTicker(time.Minute + 55*time.Millisecond)
+	clearTicker := time.NewTicker(time.Minute + 555*time.Millisecond)
 	defer clearTicker.Stop()
 	if p.MetricTTL == 0 {
 		clearTicker.Stop()
@@ -276,6 +276,7 @@ func init() {
 	plugins.AddProcessor("stats", func() core.Processor {
 		return &Stats{
 			Period:     time.Minute,
+			MetricTTL:  30 * time.Minute,
 			RoutingKey: "neptunus.generated.metric",
 			Mode:       "shared",
 			Buckets:    []float64{0.1, 0.3, 0.5, 0.7, 1.0, 2.0, 5.0, 10.0},
