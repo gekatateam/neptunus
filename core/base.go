@@ -168,7 +168,7 @@ func (sc *SerializerComperssor) Close() error {
 	if sc.C != nil {
 		err = sc.C.Close()
 	}
-	err = sc.S.Close()
+	err = errors.Join(err, sc.S.Close())
 	return err
 }
 
@@ -198,7 +198,7 @@ func (pd *ParserDecompressor) Close() error {
 	if pd.D != nil {
 		err = pd.D.Close()
 	}
-	err = pd.P.Close()
+	err = errors.Join(err, pd.P.Close())
 	return err
 }
 

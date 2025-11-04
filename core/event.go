@@ -29,7 +29,7 @@ func NewEvent(routingKey string) *Event {
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
-		Labels:     make(map[string]string),
+		Labels:     make(map[string]string, 5),
 		Data:       nil,
 	}
 }
@@ -41,7 +41,7 @@ func NewEventWithData(routingKey string, data any) *Event {
 		Timestamp:  time.Now(),
 		RoutingKey: routingKey,
 		Tags:       make([]string, 0, 5),
-		Labels:     make(map[string]string),
+		Labels:     make(map[string]string, 5),
 		Data:       data,
 	}
 }

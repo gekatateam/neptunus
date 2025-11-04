@@ -29,6 +29,7 @@ func newIndividualCache() individualCache {
 
 func (c individualCache) observe(m *metric, b map[float64]float64, v float64) {
 	hash := m.hash()
+	c.d[hash] = time.Now()
 
 	if metric, ok := c.c[hash]; ok {
 		m = metric
@@ -39,7 +40,6 @@ func (c individualCache) observe(m *metric, b map[float64]float64, v float64) {
 		c.c[hash] = m
 	}
 
-	c.d[hash] = time.Now()
 	m.observe(v)
 }
 
