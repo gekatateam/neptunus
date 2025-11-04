@@ -20,7 +20,7 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
     id_from = "field:path.to.id"
 
     # procedures to call/listen
-    [[inputs.gynamic_grpc.procedures]]
+    [[inputs.dynamic_grpc.procedures]]
       # name MUST be server stream in "ServerSideStream" mode
       # and MUST be unary/client stream in "AsServer" mode
       name = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
