@@ -1,0 +1,29 @@
+[settings]
+  id = "test.pipeline.dtemplate"
+  lines = 2
+  run = true
+  buffer = 5
+
+[[inputs]]
+  [inputs.http]
+    enable_metrics = true
+    address = ":9100"
+    max_connections = 10
+    query_params_to = ""
+    wait_for_delivery = false
+    tls_enable = false
+    [inputs.http.parser]
+      type = "json"
+      split_array = true
+
+[[processors]]
+ [processors.switchcase.fields."data.key"]
+   "new value" = [ "test data" ]
+ [processors.switchcase.fields.keysnum]
+   "new value" = [ "test data" ]
+   "another new value" = [ "test data" ]
+
+[[outputs]]
+  [outputs.log]
+    [outputs.log.serializer]
+      type = "json"
