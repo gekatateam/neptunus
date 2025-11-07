@@ -25,7 +25,7 @@ func (p *SwitchCase) Init() error {
 	for label, mapping := range p.Labels {
 		index, err := p.mappingToIndex(mapping)
 		if err != nil {
-			return fmt.Errorf("%v: %w", label, err)
+			return fmt.Errorf("label %v: %w", label, err)
 		}
 
 		p.labelsIndex[label] = index
@@ -35,7 +35,7 @@ func (p *SwitchCase) Init() error {
 	for field, mapping := range p.Fields {
 		index, err := p.mappingToIndex(mapping)
 		if err != nil {
-			return fmt.Errorf("%v: %w", field, err)
+			return fmt.Errorf("field %v: %w", field, err)
 		}
 
 		p.fieldsIndex[field] = index
