@@ -20,6 +20,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/sql"
 	_ "github.com/gekatateam/neptunus/plugins/processors/starlark"
 	_ "github.com/gekatateam/neptunus/plugins/processors/stats"
+	_ "github.com/gekatateam/neptunus/plugins/processors/switchcase"
 	_ "github.com/gekatateam/neptunus/plugins/processors/template"
 	_ "github.com/gekatateam/neptunus/plugins/processors/through"
 )

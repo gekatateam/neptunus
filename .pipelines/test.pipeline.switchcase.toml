@@ -1,0 +1,35 @@
+[settings]
+  id = "test.pipeline.switchcase"
+  lines = 2
+  run = true
+  buffer = 5
+
+[[inputs]]
+  [inputs.http]
+    enable_metrics = true
+    address = ":9100"
+    max_connections = 10
+    query_params_to = ""
+    wait_for_delivery = false
+    tls_enable = false
+    [inputs.http.labelheaders]
+      region = "x-region"
+      stage  = "x-stage"
+    [inputs.http.parser]
+      type = "json"
+      split_array = true
+
+[[processors]]
+  [processors.switchcase.labels.region]
+    "west" = [ "w-1", "w-2", "w-3" ]
+    "east" = [ "e-1", "e-2", "e-3" ]
+  [processors.switchcase.labels.stage]
+    "test" = [ "test", "feature", "integration", "load" ]
+  [processors.switchcase.fields."status.code"]
+    "success" = [ "0", "1", "2" ]
+    "failed"  = [ "3", "4", "5" ]
+
+[[outputs]]
+  [outputs.log]
+    [outputs.log.serializer]
+      type = "json"
