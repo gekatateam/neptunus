@@ -35,7 +35,7 @@ As a developer, you can use Event fields directly, however, in most cases it may
     "message": "user login",
     "metadata": {
         "user": {
-            "name": "John Doe",
+            "name.full": "John Doe",
             "email": "johndoe@gmail.com",
             "roles": [ "employee", "manager" ]
         }
@@ -49,7 +49,7 @@ To get first user role, call `GetField("metadata.user.roles.0")`, to add a new f
     "message": "user login",
     "metadata": {
         "user": {
-            "name": "John Doe",
+            "name.full": "John Doe",
             "email": "johndoe@gmail.com",
             "roles": [ "employee", "manager" ],
             "age": 42
@@ -57,6 +57,8 @@ To get first user role, call `GetField("metadata.user.roles.0")`, to add a new f
     }
 }
 ```
+
+Path separator can be escaped using backslash, and a backslash also can be escaped using backslash - `GetField("metadata.user.name\\.full")`.
 
 It also supports negative indexes for slices that already exists. In this case, target element will be `len(slice) - |index|`. For example, you can get last element from this slice - `[0, 2, 4, 6]` - by `-1` index, because it's length is `4` and `4-1=3`.
 

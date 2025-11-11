@@ -16,6 +16,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/parser"
 	_ "github.com/gekatateam/neptunus/plugins/processors/redis"
 	_ "github.com/gekatateam/neptunus/plugins/processors/regex"
+	_ "github.com/gekatateam/neptunus/plugins/processors/rename"
 	_ "github.com/gekatateam/neptunus/plugins/processors/rk"
 	_ "github.com/gekatateam/neptunus/plugins/processors/sql"
 	_ "github.com/gekatateam/neptunus/plugins/processors/starlark"

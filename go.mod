@@ -85,7 +85,7 @@ require (
 	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/elastic/go-elasticsearch/v8 v8.17.1
 	github.com/elastic/go-lumber v0.1.1
-	github.com/gekatateam/mappath v1.2.1
+	github.com/gekatateam/mappath v1.3.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/go-task/slim-sprig/v3 v3.0.0
