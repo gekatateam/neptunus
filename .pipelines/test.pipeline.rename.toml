@@ -1,7 +1,7 @@
 [settings]
-  id = "test.pipeline.switchcase"
+  id = "test.pipeline.rename"
   lines = 2
-  run = false
+  run = true
   buffer = 5
 
 [[inputs]]
@@ -20,14 +20,13 @@
       split_array = true
 
 [[processors]]
-  [processors.switchcase.labels.region]
-    "west" = [ "w-1", "w-2", "w-3" ]
-    "east" = [ "e-1", "e-2", "e-3" ]
-  [processors.switchcase.labels.stage]
-    "test" = [ "test", "feature", "integration", "load" ]
-  [processors.switchcase.fields."status.code"]
-    "success" = [ "0", "1", "2" ]
-    "failed"  = [ "3", "4", "5" ]
+  [processors.rename]
+    delete_origin = false
+    [processors.rename.labels]
+      "x-stage"  = "stage"
+      "x-region" = "t-region"
+    [processors.rename.fields]
+      "result" = "status"
 
 [[outputs]]
   [outputs.log]
