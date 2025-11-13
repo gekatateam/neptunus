@@ -97,8 +97,13 @@ traffic_now_avg{::line="3", region="US/California"} 11.9 1692991768912
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
+    # static headers that will be used on each request
+    [outputs.promremote.headers]
+      authorization = "@{envs:BEARER_TOKEN}"
+
     # a "header <- label" map
     # if event label exists, it will be added as a request header
+    # if "headers" already has same one, it will be overwritten
     # ONLY FIRST EVENT IN BATCH USED
     [outputs.promremote.headerlabels]
       custom_header = "my_label_name"
