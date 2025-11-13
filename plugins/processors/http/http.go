@@ -35,6 +35,7 @@ type Http struct {
 	PathLabel           string        `mapstructure:"path_label"`
 	MethodLabel         string        `mapstructure:"method_label"`
 
+	Headers      map[string]string `mapstructure:"headers"`
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
 	Labelheaders map[string]string `mapstructure:"labelheaders"`
 	Paramfields  map[string]string `mapstructure:"paramfields"`
@@ -46,6 +47,7 @@ type Http struct {
 	*tls.TLSClientConfig `mapstructure:",squash"`
 	*retryer.Retryer     `mapstructure:",squash"`
 
+	headers      http.Header
 	successCodes map[int]struct{}
 	successBody  *regexp.Regexp
 	baseUrl      *url.URL
@@ -68,6 +70,11 @@ func (p *Http) Init() error {
 
 	if len(p.SuccessCodes) == 0 {
 		return errors.New("at least one success code required")
+	}
+
+	p.headers = make(http.Header, len(p.Headers))
+	for k, v := range p.Headers {
+		p.headers.Set(k, v)
 	}
 
 	uri, err := url.ParseRequestURI(p.Host)
@@ -144,7 +151,7 @@ func (p *Http) Run() {
 	for e := range p.In {
 		now := time.Now()
 
-		header := make(http.Header)
+		header := p.headers.Clone()
 		for k, v := range p.Headerlabels {
 			if label, ok := e.GetLabel(v); ok {
 				header.Add(k, label)

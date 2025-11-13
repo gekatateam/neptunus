@@ -79,8 +79,13 @@ Plugin creates one requester per each unique event routing key, with personal ba
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
+    # static headers that will be used on each request
+    [outputs.http.headers]
+      authorization = "@{envs:BEARER_TOKEN}"
+
     # a "header <- label" map
     # if event label exists, it will be added as a request header
+    # if "headers" already has same one, it will be overwritten
     # ONLY FIRST EVENT IN BATCH USED
     [outputs.http.headerlabels]
       custom_header = "my_label_name"

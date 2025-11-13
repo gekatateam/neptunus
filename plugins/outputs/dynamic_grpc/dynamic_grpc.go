@@ -22,6 +22,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -43,6 +44,7 @@ type DynamicGRPC struct {
 	Mode             string            `mapstructure:"mode"`
 	ProtoFiles       []string          `mapstructure:"proto_files"`
 	ImportPaths      []string          `mapstructure:"import_paths"`
+	Headers          map[string]string `mapstructure:"headers"`
 	HeaderLabels     map[string]string `mapstructure:"headerlabels"`
 
 	// AsClient
@@ -51,6 +53,7 @@ type DynamicGRPC struct {
 	successCodes map[codes.Code]struct{}
 	successMsg   *regexp.Regexp
 
+	headers     metadata.MD
 	callersPool *pool.Pool[*core.Event, string]
 	resolver    linker.Resolver
 }
@@ -83,6 +86,11 @@ func (o *DynamicGRPC) Init() error {
 	}
 
 	o.resolver = f.AsResolver()
+
+	o.headers = make(metadata.MD, len(o.Headers))
+	for k, v := range o.Headers {
+		o.headers.Set(k, v)
+	}
 
 	switch o.Mode {
 	case modeAsClient:
@@ -191,6 +199,7 @@ func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
 		timeout:      o.Client.InvokeTimeout,
 		successCodes: o.successCodes,
 		successMsg:   o.successMsg,
+		headers:      o.headers,
 		method:       m,
 		stub:         grpcdynamic.NewStub(o.clientConn),
 		input:        make(chan *core.Event),

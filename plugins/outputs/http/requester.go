@@ -25,6 +25,7 @@ type requester struct {
 	method      string
 	methodLabel string
 
+	headers      http.Header
 	successBody  *regexp.Regexp
 	successCodes map[int]struct{}
 	headerlabels map[string]string
@@ -47,7 +48,7 @@ func (r *requester) Run() {
 		}
 		now := time.Now()
 
-		header := make(http.Header)
+		header := r.headers.Clone()
 		for k, v := range r.headerlabels {
 			if label, ok := buf[0].GetLabel(v); ok {
 				header.Add(k, label)

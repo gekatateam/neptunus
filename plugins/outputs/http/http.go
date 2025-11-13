@@ -29,6 +29,7 @@ type Http struct {
 	SuccessBody      string        `mapstructure:"success_body"`
 	MethodLabel      string        `mapstructure:"method_label"`
 
+	Headers      map[string]string `mapstructure:"headers"`
 	Headerlabels map[string]string `mapstructure:"headerlabels"`
 	Paramfields  map[string]string `mapstructure:"paramfields"`
 
@@ -37,6 +38,7 @@ type Http struct {
 	*retryer.Retryer              `mapstructure:",squash"`
 
 	requestersPool *pool.Pool[*core.Event, string]
+	headers        http.Header
 	successCodes   map[int]struct{}
 	successBody    *regexp.Regexp
 	providedUri    *url.URL
@@ -57,6 +59,11 @@ func (o *Http) Init() error {
 
 	if len(o.SuccessCodes) == 0 {
 		return errors.New("at least one success code required")
+	}
+
+	o.headers = make(http.Header, len(o.Headers))
+	for k, v := range o.Headers {
+		o.headers.Set(k, v)
 	}
 
 	uri, err := url.ParseRequestURI(o.Host)
@@ -169,6 +176,7 @@ func (o *Http) newRequester(path string) pool.Runner[*core.Event] {
 		ser:          o.ser,
 		Batcher:      o.Batcher,
 		Retryer:      o.Retryer,
+		headers:      o.headers,
 		input:        make(chan *core.Event),
 		uri:          o.uriFromRoutingKey(path),
 		fallbacks:    o.fallbacksFromRoutingKey(path),

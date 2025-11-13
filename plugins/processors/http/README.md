@@ -80,8 +80,13 @@ Please note, that in multiline configuration HTTP client is shared between proce
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
 
+    # static headers that will be used on each request
+    [processors.http.headers]
+      authorization = "@{envs:BEARER_TOKEN}"
+
     # a "header <- label" map
     # if event label exists, it will be added as a request header
+    # if "headers" already has same one, it will be overwritten
     [processors.http.headerlabels]
       custom_header = "my_label_name"
 
