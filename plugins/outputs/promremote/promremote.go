@@ -40,6 +40,7 @@ type Promremote struct {
 	IdleConnTimeout  time.Duration     `mapstructure:"idle_conn_timeout"`
 	IgnoreLabels     []string          `mapstructure:"ignore_labels"`
 	StatsPerEvent    int               `mapstructure:"stats_per_event"`
+	Headers          map[string]string `mapstructure:"headers"`
 	Headerlabels     map[string]string `mapstructure:"headerlabels"`
 
 	*tls.TLSClientConfig          `mapstructure:",squash"`
@@ -112,9 +113,13 @@ func (o *Promremote) Run() {
 		}
 
 		header := basicHeaders.Clone()
+		for k, v := range o.Headers {
+			header.Set(k, v)
+		}
+
 		for k, v := range o.Headerlabels {
 			if label, ok := buf[0].GetLabel(v); ok {
-				header.Add(k, label)
+				header.Set(k, label)
 			}
 		}
 
