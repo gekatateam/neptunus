@@ -32,6 +32,7 @@ type Caller struct {
 	*batcher.Batcher[*core.Event]
 	*retryer.Retryer
 
+	headers      metadata.MD
 	headerLabels map[string]string
 	successCodes map[codes.Code]struct{}
 	successMsg   *regexp.Regexp
@@ -80,7 +81,7 @@ func (c *Caller) sendUnary(buf []*core.Event) {
 			continue
 		}
 
-		headers := make(metadata.MD)
+		headers := c.headers.Copy()
 		for k, v := range c.headerLabels {
 			if val, ok := e.GetLabel(v); ok {
 				headers.Set(k, val)

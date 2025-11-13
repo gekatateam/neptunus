@@ -24,8 +24,13 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
     # list of import paths to resolve .proto imports
     import_paths = [ 'D:\Go\_bin\protos\' ]
 
+    # static headers that will be used on each RPC
+    [outputs.dynamic_grpc.headers]
+      authorization = "@{envs:BEARER_TOKEN}"
+
     # a "header <- label name" map
-    # if event label exists, it will be added to RPC call as a header
+    # if event label exists, it will be added to RPC as a header
+    # if "headers" already has same one, it will be overwritten
     [outputs.dynamic_grpc.headerlabels]
       x-ratelimit-limit = "x-ratelimit-limit"
 
