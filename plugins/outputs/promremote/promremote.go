@@ -119,7 +119,7 @@ func (o *Promremote) Run() {
 
 		for k, v := range o.Headerlabels {
 			if label, ok := buf[0].GetLabel(v); ok {
-				header.Add(k, label)
+				header.Set(k, label)
 			}
 		}
 

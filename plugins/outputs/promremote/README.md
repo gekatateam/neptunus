@@ -98,6 +98,10 @@ traffic_now_avg{::line="3", region="US/California"} 11.9 1692991768912
     tls_insecure_skip_verify = false
 
     # static headers that will be used on each request
+    # some required headers already set by default:
+    # "X-Prometheus-Remote-Write-Version" = "0.1.0"
+    # "Content-Encoding"                  = "snappy"
+    # "Content-Type"                      = "application/x-protobuf"
     [outputs.promremote.headers]
       authorization = "@{envs:BEARER_TOKEN}"
 
