@@ -1,13 +1,14 @@
 [settings]
   id = "test.pipeline.dynamicgrpc"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
   [inputs.dynamic_grpc]
     mode = "AsServer"
     proto_files = [ "./plugins/common/grpc/input.proto" ]
+    wait_for_delivery = true
     [[inputs.dynamic_grpc.procedures]]
       name = "neptunus.plugins.common.grpc.Input.SendOne"
       invoke_response = '{}'

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -25,8 +26,9 @@ import (
 type Handler struct {
 	*core.BaseInput
 	*ider.Ider
-	Procedure    string
-	LabelHeaders map[string]string
+	Procedure       string
+	LabelHeaders    map[string]string
+	WaitForDelivery bool
 
 	RespMsg proto.Message
 	RecvMsg protoreflect.MessageDescriptor
@@ -38,6 +40,7 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 		headers = make(metadata.MD)
 	}
 
+	wg := &sync.WaitGroup{}
 	for {
 		m := dynamicpb.NewMessage(h.RecvMsg)
 		err := stream.RecvMsg(m)
@@ -47,6 +50,7 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 			h.Log.Info("client stream closed",
 				"procedure", h.Procedure,
 			)
+			wg.Wait()
 			stream.SendMsg(h.RespMsg)
 			return nil
 		}
@@ -57,6 +61,7 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 				"procedure", h.Procedure,
 			)
 			h.Observe(metrics.EventFailed, time.Since(now))
+			wg.Wait()
 			return nil
 		}
 
@@ -77,6 +82,11 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 			}
 		}
 
+		if h.WaitForDelivery {
+			wg.Add(1)
+			event.AddHook(wg.Done)
+		}
+
 		h.Ider.Apply(event)
 		h.Out <- event
 		h.Observe(metrics.EventAccepted, time.Since(now))
@@ -85,6 +95,7 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 
 func (h *Handler) HandleUnary(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
 	now := time.Now()
+	wg := &sync.WaitGroup{}
 
 	m := dynamicpb.NewMessage(h.RecvMsg)
 	if err := dec(m); err != nil {
@@ -118,9 +129,15 @@ func (h *Handler) HandleUnary(_ any, ctx context.Context, dec func(any) error, _
 		}
 	}
 
+	if h.WaitForDelivery {
+		wg.Add(1)
+		event.AddHook(wg.Done)
+	}
+
 	h.Ider.Apply(event)
 	h.Out <- event
 	h.Observe(metrics.EventAccepted, time.Since(now))
 
+	wg.Wait()
 	return h.RespMsg, nil
 }

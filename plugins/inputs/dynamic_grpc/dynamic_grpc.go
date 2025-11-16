@@ -40,6 +40,7 @@ type DynamicGRPC struct {
 	ProtoFiles      []string          `mapstructure:"proto_files"`
 	ImportPaths     []string          `mapstructure:"import_paths"`
 	Procedures      []Procedure       `mapstructure:"procedures"`
+	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
 	*ider.Ider      `mapstructure:",squash"`
 
@@ -228,12 +229,13 @@ func (i *DynamicGRPC) prepareServer() error {
 
 		// create new handler per each RPC due to unique responses
 		h := &Handler{
-			BaseInput:    i.BaseInput,
-			Ider:         i.Ider,
-			LabelHeaders: i.LabelHeaders,
-			Procedure:    rpc.Name,
-			RespMsg:      respMsg,
-			RecvMsg:      m.Input(),
+			BaseInput:       i.BaseInput,
+			Ider:            i.Ider,
+			LabelHeaders:    i.LabelHeaders,
+			WaitForDelivery: i.WaitForDelivery,
+			Procedure:       rpc.Name,
+			RespMsg:         respMsg,
+			RecvMsg:         m.Input(),
 		}
 
 		if m.IsStreamingClient() {

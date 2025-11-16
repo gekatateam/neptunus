@@ -19,6 +19,10 @@ The `dynamic_grpc` input can read server stream as a client or receive unary cal
     # expected format - "type:path"
     id_from = "field:path.to.id"
 
+    # if true, server waits for events to be delivered
+    # before responding to a client
+    wait_for_delivery = false
+
     # procedures to call/listen
     [[inputs.dynamic_grpc.procedures]]
       # name MUST be server stream in "ServerSideStream" mode
