@@ -36,6 +36,7 @@ var basicHeaders http.Header = http.Header{
 type Promremote struct {
 	*core.BaseOutput `mapstructure:"-"`
 	Host             string            `mapstructure:"host"`
+	Fallbacks        []string          `mapstructure:"fallbacks"`
 	Timeout          time.Duration     `mapstructure:"timeout"`
 	IdleConnTimeout  time.Duration     `mapstructure:"idle_conn_timeout"`
 	IgnoreLabels     []string          `mapstructure:"ignore_labels"`
@@ -63,6 +64,13 @@ func (o *Promremote) Init() error {
 	_, err := url.ParseRequestURI(o.Host)
 	if err != nil {
 		return err
+	}
+
+	for _, f := range o.Fallbacks {
+		_, err := url.ParseRequestURI(f)
+		if err != nil {
+			return fmt.Errorf("fallback %v: %w", f, err)
+		}
 	}
 
 	tlsConfig, err := o.TLSClientConfig.Config()
@@ -125,7 +133,7 @@ func (o *Promremote) Run() {
 
 		totalBefore := time.Since(now)
 		now = time.Now() // reset now() to measure time spent on the request
-		err = o.write(snappy.Encode(nil, body), header)
+		err = o.writeWithFallback(snappy.Encode(nil, body), header)
 		totalAfter := time.Since(now)
 
 		for i, e := range buf {
@@ -238,9 +246,33 @@ func (o *Promremote) Marshal(buf []*core.Event) ([]byte, error) {
 	return body, nil
 }
 
-func (o *Promremote) write(body []byte, header http.Header) error {
+func (o *Promremote) writeWithFallback(body []byte, header http.Header) error {
+	err := o.write(o.Host, body, header)
+
+	if err != nil && len(o.Fallbacks) > 0 {
+		o.Log.Warn("request failed, trying to write to fallback",
+			"error", err,
+		)
+
+		for _, f := range o.Fallbacks {
+			err = o.write(f, body, header)
+			if err == nil {
+				o.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f))
+				return nil
+			}
+
+			o.Log.Warn(fmt.Sprintf("request to fallback %v failed", f),
+				"error", err,
+			)
+		}
+	}
+
+	return err
+}
+
+func (o *Promremote) write(host string, body []byte, header http.Header) error {
 	return o.Retryer.Do("write metrics batch", o.Log, func() error {
-		req, err := http.NewRequest(http.MethodPost, o.Host, bytes.NewReader(body))
+		req, err := http.NewRequest(http.MethodPost, host, bytes.NewReader(body))
 		if err != nil {
 			return err
 		}

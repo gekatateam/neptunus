@@ -51,6 +51,10 @@ traffic_now_avg{::line="3", region="US/California"} 11.9 1692991768912
     # remote write endpoint, required
     host = "http://localhost:8428/api/v1/write"
 
+    # list of fallback hosts
+    # if all `retry_attempts` to perform request to `host` failed, fallbacks will be used
+    fallbacks = [ "http://fallback.local:9100/api/v1/write", "http://anotherfallback.local:9100/api/v1/write" ]
+
     # time limit for requests made by client
     # zero means no limit
     timeout = "10s"
