@@ -87,6 +87,10 @@ SCRIPT_LOADED:
 		},
 		Load: func(thread *starlark.Thread, module string) (starlark.StringDict, error) {
 			switch module {
+			case "log.star":
+				return starlark.StringDict{
+					"log": Log,
+				}, nil
 			case "fs.star":
 				return starlark.StringDict{
 					"fs": starlarkfs.Module,
@@ -130,6 +134,8 @@ SCRIPT_LOADED:
 			}
 		},
 	}
+
+	p.thread.SetLocal(loggerKey, log)
 
 	_, program, err := starlark.SourceProgramOptions(opts, p.File, p.Code, builtins.Has)
 	if err != nil {

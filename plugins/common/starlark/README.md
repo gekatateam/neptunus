@@ -92,6 +92,7 @@ List of embedded modules:
  - **[re](https://github.com/qri-io/starlib/tree/master/re)** - provides regular expressions
  - **[fs](../../../pkg/starlarkfs/)** - implements `os.ReadFile` and `os.ReadDir` functions
  - **[date](../../../pkg/starlarkdate/)** - expands `time` module with months and weekdays
+ - **[log](log.go)** - provides plugin logger into code
 
 For import, call the `load()` function, after which a module functions and variables will become available for use via module struct:
 ```python
