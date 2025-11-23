@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.starlark"
   lines = 5
-  run = false
+  run = true
   buffer = 1_000
 
 [[keykeepers]]
@@ -22,16 +22,21 @@
 [[processors]]
   [processors.starlark]
     code = '''
+load("log.star", "log")
+
 def process(event):
     event.setField("thenumber", thenumber)
-    event.setField("hostname", hostname)
     event.setField("table", table)
+
+    log.warn("simple warn")
+    log.info("it is event", event=event)
+    log.error("it is error", error=error("boooop"))
+    log.error("it is both", event=event, error=error("kaboom"))
 
     return event
     '''
     [processors.starlark.constants]
       thenumber = 42
-      hostname = "@{env:COMPUTERNAME}"
       table = { a = "a", b = true }
 
 [[outputs]]
