@@ -10,6 +10,16 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
+/*
+Package log provides plugin logger into Starlark code
+
+there is a four functions - `debug`, `info`, `warn` and `error` - each for concrete level
+each func signature is `logfunc(msg, event=None, error=None)`, where:
+ - `msg` - is a message to log; it is alvays required
+ - `event` - is an optional Event; if passed, event attrs (id, uuid, routing key) will be added to log row
+ - `error` - is an optional Error; if passed, `error` key will be added to row
+*/
+
 const loggerKey = "log.logger"
 
 var Log = &starlarkstruct.Module{
