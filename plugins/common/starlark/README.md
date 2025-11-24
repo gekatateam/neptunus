@@ -24,7 +24,6 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `delErrors() ()` - delete all errors from event
  - `getUuid() (uuid String)` - get event UUID
  - `shareTracker(receiver Event)` - share tracker with another event; **if receiver already has a tracker, method panics**
- - `shareUUID(receiver Event)` - share UUID with another event
 
 Also, you can create a new event using `newEvent(key String) (event Event)` builtin function.
 
@@ -51,8 +50,8 @@ def process(event):
  - Golang uint -> Starlark Int -> Golang uint64
  - Golang bool <-> Starlark Bool
  - Golang float -> Starlark Float -> Gloang float64
- - Golang array or slice -> Starlark List -> Gloang slice
- - Golang map[string]T <-> Starlark Dict
+ - Golang []any -> Starlark List -> Gloang []any
+ - Golang map[string]any <-> Starlark Dict
  - Golang time.Time <-> starlark Time
  - Golang time.Duration <-> starlark Duration
 
@@ -104,6 +103,7 @@ load("yaml.star",   "yaml")
 load("base64.star", "base64")
 load("csv.star",    "csv")
 load("fs.star",     "fs")
+load("log.star",    "log")
 
 print(time.now())
 ```

@@ -41,7 +41,6 @@ var woEventMethods = map[string]*starlark.Builtin{
 	"addTag":       starlark.NewBuiltin("addTag", addTag),             // f(tag String)
 	"delTag":       starlark.NewBuiltin("delTag", delTag),             // f(tag String)
 	"shareTracker": starlark.NewBuiltin("shareTracker", shareTracker), // f(event Event)
-	"shareUUID":    starlark.NewBuiltin("shareUUID", shareUUID),       // f(event Event)
 	"delErrors":    starlark.NewBuiltin("delErrors", delErrors),       // f(event Event)
 }
 
@@ -203,7 +202,7 @@ func getErrors(_ *starlark.Thread, b *starlark.Builtin, _ starlark.Tuple, _ []st
 
 func delErrors(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	b.Receiver().(*Event).event.Errors = make(core.Errors, 0)
-	return nil, nil
+	return starlark.None, nil
 }
 
 func getUuid(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -222,16 +221,6 @@ func shareTracker(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, 
 	}
 
 	core.ShareTracker(b.Receiver().(*Event).event, receiver.event)
-	return starlark.None, nil
-}
-
-func shareUUID(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	var receiver *Event
-	if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &receiver); err != nil {
-		return starlark.None, err
-	}
-
-	receiver.event.UUID = b.Receiver().(*Event).event.UUID
 	return starlark.None, nil
 }
 
