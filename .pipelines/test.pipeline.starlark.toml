@@ -27,6 +27,7 @@ load("log.star", "log")
 def process(event):
     event.setField("thenumber", thenumber)
     event.setField("table", table)
+    event.delErrors()
 
     log.warn("simple warn")
     log.info("it is event", event=event)
@@ -38,6 +39,14 @@ def process(event):
     [processors.starlark.constants]
       thenumber = 42
       table = { a = "a", b = true }
+
+[[processors]]
+  [processors.log]
+    level = "info"
+    drop_origin = true
+    [processors.log.serializer]
+      type = "json"
+      data_only = false
 
 [[outputs]]
   [outputs.log]

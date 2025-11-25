@@ -13,6 +13,7 @@ import (
 type Log struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Level               string `mapstructure:"level"`
+	DropOrigin          bool   `mapstructure:"drop_origin"`
 
 	logFunc func(msg string, args ...any)
 
@@ -58,7 +59,11 @@ func (p *Log) Run() {
 		p.logFunc(string(event),
 			elog.EventGroup(e),
 		)
-		p.Out <- e
+		if p.DropOrigin {
+			p.Drop <- e
+		} else {
+			p.Out <- e
+		}
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 }
