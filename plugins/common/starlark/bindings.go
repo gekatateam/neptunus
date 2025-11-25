@@ -6,10 +6,11 @@ import (
 	"maps"
 	"time"
 
-	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 	starlarktime "go.starlark.net/lib/time"
 	"go.starlark.net/starlark"
+
+	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/pkg/starlarkdate"
 )
 
 func init() {
