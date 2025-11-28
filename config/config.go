@@ -60,6 +60,20 @@ type FileStorage struct {
 	Extension string `toml:"extension" yaml:"extension" json:"extension"`
 }
 
+type PostgresqlStorage struct {
+	DSN                   string `toml:"dsn"                      yaml:"dsn"                      json:"dsn"`
+	Username              string `toml:"username"                 yaml:"username"                 json:"username"`
+	Password              string `toml:"password"                 yaml:"password"                 json:"password"`
+	Migrate               bool   `toml:"migrate"                  yaml:"migrate"                  json:"migrate"`
+	TLSEnable             bool   `toml:"tls_enable"               yaml:"tls_enable"               json:"tls_enable"`
+	TLSInsecureSkipVerify bool   `toml:"tls_insecure_skip_verify" yaml:"tls_insecure_skip_verify" json:"tls_insecure_skip_verify"`
+	TLSKeyFile            string `toml:"tls_key_file"             yaml:"tls_key_file"             json:"tls_key_file"`
+	TLSCertFile           string `toml:"tls_cert_file"            yaml:"tls_cert_file"            json:"tls_cert_file"`
+	TLSCAFile             string `toml:"tls_ca_file"              yaml:"tls_ca_file"              json:"tls_ca_file"`
+	TLSMinVersion         string `toml:"tls_min_version"          yaml:"tls_min_version"          json:"tls_min_version"`
+	TLSServerName         string `toml:"tls_server_name"          yaml:"tls_server_name"          json:"tls_server_name"`
+}
+
 func ReadConfig(file string) (*Config, error) {
 	buf, err := os.ReadFile(file)
 	if err != nil {
