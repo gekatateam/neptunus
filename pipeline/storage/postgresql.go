@@ -1,9 +1,15 @@
 package storage
 
 import (
-	"errors"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v4"
+	pgxstd "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/gekatateam/neptunus/config"
+	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
 // type Pipeline struct {
@@ -31,8 +37,8 @@ CREATE TABLE IF NOT EXISTS pipelines (
 	, updated_at  TIMESTAMP WITH TIME ZONE
 	, deleted_at  TIMESTAMP WITH TIME ZONE
 	, id          TEXT CONSTRAINT unique_ids_only UNIQUE
-	, lines       INTEGER
 	, run         BOOLEAN
+	, lines       INTEGER
 	, buffer      INTEGER
 	, consistency TEXT
 	, log_level   TEXT
@@ -49,7 +55,7 @@ INSERT INTO pipelines
 VALUES
 ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);`
 
-	add_check = `
+	check = `
 SELECT id, deleted_at FROM pipelines
 WHERE id = $1;`
 
@@ -85,10 +91,40 @@ WHERE deleted_at IS NULL;`
 )
 
 type postgresql struct {
+	db *sql.DB
 }
 
 func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
-	panic(errors.ErrUnsupported)
+	config, err := pgx.ParseConfig(cfg.DSN)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.TLSEnable {
+		tls, err := pkg.NewConfigBuilder().
+			RootCaFile(cfg.TLSCAFile).
+			KeyPairFile(cfg.TLSCertFile, cfg.TLSKeyFile).
+			SkipVerify(cfg.TLSInsecureSkipVerify).
+			ServerName(cfg.TLSServerName).
+			MinMaxVersion(cfg.TLSMinVersion, "").
+			Build()
+		if err != nil {
+			return nil, fmt.Errorf("tls: %w", err)
+		}
+
+		config.TLSConfig = tls
+	}
+
+	config.User = cfg.Username
+	config.Password = cfg.Password
+
+	db := pgxstd.OpenDB(*config)
+	db.SetConnMaxIdleTime(time.Second * 30)
+	db.SetConnMaxLifetime(time.Second * 60)
+	db.SetMaxIdleConns(1)
+	db.SetMaxOpenConns(1)
+
+	return &postgresql{db: db}, nil
 }
 
 func (s *postgresql) List() ([]*config.Pipeline, error)
