@@ -8,8 +8,11 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	pgxstd "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/types"
 
 	"github.com/gekatateam/neptunus/config"
+	"github.com/gekatateam/neptunus/pipeline"
 	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
@@ -94,8 +97,25 @@ FROM pipelines
 WHERE deleted_at IS NULL;`
 )
 
+type storedPipeline struct {
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   sql.NullTime   `db:"updated_at"`
+	DeletedAt   sql.NullTime   `db:"deleted_at"`
+	Id          string         `db:"id"`
+	Run         bool           `db:"run"`
+	Lines       int            `db:"lines"`
+	Buffer      int            `db:"buffer"`
+	Consistency string         `db:"consistency"`
+	LogLevel    string         `db:"log_level"`
+	Vars        types.JSONText `db:"vars"`
+	Keykeepers  types.JSONText `db:"keykeepers"`
+	Inputs      types.JSONText `db:"inputs"`
+	Processors  types.JSONText `db:"processors"`
+	Outputs     types.JSONText `db:"outputs"`
+}
+
 type postgresql struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
@@ -132,22 +152,84 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
+		db.Close()
 		return nil, err
 	}
 
 	if cfg.Migrate {
 		_, err := db.ExecContext(ctx, migrate)
 		if err != nil {
+			db.Close()
 			return nil, fmt.Errorf("migrate: %w", err)
 		}
 	}
 
-	return &postgresql{db: db}, nil
+	return &postgresql{db: sqlx.NewDb(db, "pgx")}, nil
 }
 
-func (s *postgresql) List() ([]*config.Pipeline, error)
+func (s *postgresql) List() ([]*config.Pipeline, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	storedPipes := make([]storedPipeline, 0)
+	err := s.db.SelectContext(ctx, &storedPipes, list)
+	if err != nil {
+		return nil, &pipeline.IOError{Err: err}
+	}
+
+	pipes := make([]*config.Pipeline, 0, len(storedPipes))
+	for _, v := range storedPipes {
+		p, err := storedToInternal(v)
+		if err != nil {
+			return nil, &pipeline.ValidationError{Err: err}
+		}
+
+		pipes = append(pipes, p)
+	}
+
+	return pipes, nil
+}
+
 func (s *postgresql) Get(id string) (*config.Pipeline, error)
 func (s *postgresql) Add(pipe *config.Pipeline) error
 func (s *postgresql) Update(pipe *config.Pipeline) error
 func (s *postgresql) Delete(id string) error
-func (s *postgresql) Close() error
+
+func (s *postgresql) Close() error {
+	return s.db.Close()
+}
+
+func storedToInternal(p storedPipeline) (*config.Pipeline, error) {
+	cfg := config.Pipeline{
+		Settings: config.PipeSettings{
+			Id:          p.Id,
+			Lines:       p.Lines,
+			Run:         p.Run,
+			Buffer:      p.Buffer,
+			Consistency: p.Consistency,
+			LogLevel:    p.LogLevel,
+		},
+	}
+
+	if err := p.Vars.Unmarshal(&cfg.Vars); err != nil {
+		return nil, fmt.Errorf("unmarshal vars: %w", err)
+	}
+
+	if err := p.Keykeepers.Unmarshal(&cfg.Keykeepers); err != nil {
+		return nil, fmt.Errorf("unmarshal keykeepers: %w", err)
+	}
+
+	if err := p.Inputs.Unmarshal(&cfg.Inputs); err != nil {
+		return nil, fmt.Errorf("unmarshal inputs: %w", err)
+	}
+
+	if err := p.Processors.Unmarshal(&cfg.Processors); err != nil {
+		return nil, fmt.Errorf("unmarshal processors: %w", err)
+	}
+
+	if err := p.Outputs.Unmarshal(&cfg.Outputs); err != nil {
+		return nil, fmt.Errorf("unmarshal outputs: %w", err)
+	}
+
+	return &cfg, nil
+}
