@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -31,6 +32,9 @@ import (
 // }
 
 const (
+	timeout   = time.Second * 30
+	connlimit = 1
+
 	migrate = `
 CREATE TABLE IF NOT EXISTS pipelines (
 	created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -119,10 +123,24 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 	config.Password = cfg.Password
 
 	db := pgxstd.OpenDB(*config)
-	db.SetConnMaxIdleTime(time.Second * 30)
-	db.SetConnMaxLifetime(time.Second * 60)
-	db.SetMaxIdleConns(1)
-	db.SetMaxOpenConns(1)
+	db.SetConnMaxIdleTime(timeout)
+	db.SetConnMaxLifetime(timeout * 2)
+	db.SetMaxIdleConns(connlimit)
+	db.SetMaxOpenConns(connlimit)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		return nil, err
+	}
+
+	if cfg.Migrate {
+		_, err := db.ExecContext(ctx, migrate)
+		if err != nil {
+			return nil, fmt.Errorf("migrate: %w", err)
+		}
+	}
 
 	return &postgresql{db: db}, nil
 }
