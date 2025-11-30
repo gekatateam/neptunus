@@ -53,7 +53,7 @@ FS storage uses the file system to load, save and update pipelines:
  - **directory**: Path to the directory where the pipelines files are stored.
  - **extension**: File extension to use. New files will be created with the specified extension, and existing files with a different extension will be ignored.
 
-This is a default storage for the engine:
+This is the default storage for the engine:
 ```toml
 [engine]
   storage = "fs"
@@ -61,6 +61,30 @@ This is a default storage for the engine:
   [engine.fs]
     directory = ".pipelines"
     extension = "toml"
+```
+
+### PostgreSQL storage
+
+PostgreSQL storage uses configured database as pipelines source:
+ - **dsn**: Connection string. See [pgx v4](https://pkg.go.dev/github.com/jackc/pgx/v4).
+ - **username** & **password**: Authentication credentials.
+ - **migrate**: Should engine run migration scripts on startup. 
+ - **tls_enable**: If true, TLS client will be used.
+ - **tls_insecure_skip_verify**: Use TLS but skip chain & host verification.
+ - **tls_key_file** & **tls_cert_file**: Used for TLS client certificate authentication.
+ - **tls_ca_file**: Trusted root certificates for server.
+ - **tls_min_version**: Minimum TLS version, not limited by default.
+ - **tls_server_name**: Send the specified TLS server name via SNI.
+
+Minimalistic example:
+```toml
+[engine]
+  storage = "postgresql"
+  [engine.postgresql]
+    dsn = "postgres://localhost:5432/postgres"
+    username = "postgres"
+    password = "pguser"
+    migrate = true
 ```
 
 ## Pipeline
