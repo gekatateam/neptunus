@@ -16,6 +16,20 @@ type Service interface {
 	Delete(id string) error
 }
 
+type Storage interface {
+	List() ([]*config.Pipeline, error)
+	Get(id string) (*config.Pipeline, error)
+	Add(pipe *config.Pipeline) error
+	Update(pipe *config.Pipeline) error
+	Delete(id string) error
+	Close() error
+}
+
 type Stater interface {
 	Stats() []metrics.PipelineStats
+}
+
+type Locker interface {
+	Acquire(id string) error
+	Release(id string) error
 }

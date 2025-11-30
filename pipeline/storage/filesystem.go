@@ -17,7 +17,9 @@ type fileStorage struct {
 	ext string
 }
 
-func FS(dir, ext string) *fileStorage {
+func FS(cfg config.FileStorage) *fileStorage {
+	dir, ext := cfg.Directory, cfg.Extension
+
 	if !strings.HasSuffix(dir, pathSeparator) {
 		dir = dir + pathSeparator
 	}

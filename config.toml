@@ -21,3 +21,8 @@
   [engine.fs]
     directory = ".pipelines"
     extension = "toml"
+  [engine.postgresql]
+    dsn = "postgres://localhost:5432/postgres"
+    username = "postgres"
+    password = "pguser"
+    migrate = true
