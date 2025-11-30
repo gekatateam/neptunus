@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -16,85 +17,74 @@ import (
 	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
-// type Pipeline struct {
-// 	Settings   PipeSettings   `toml:"settings"   yaml:"settings"   json:"settings"`
-// 	Vars       map[string]any `toml:"vars"       yaml:"vars"       json:"vars"`
-// 	Inputs     []PluginSet    `toml:"inputs"     yaml:"inputs"     json:"inputs"`
-// 	Processors []PluginSet    `toml:"processors" yaml:"processors" json:"processors"`
-// 	Outputs    []PluginSet    `toml:"outputs"    yaml:"outputs"    json:"outputs"`
-// 	Keykeepers []PluginSet    `toml:"keykeepers" yaml:"keykeepers" json:"keykeepers"`
-// }
-
-// type PipeSettings struct {
-// 	Id          string `toml:"id"          yaml:"id"          json:"id"`
-// 	Lines       int    `toml:"lines"       yaml:"lines"       json:"lines"`
-// 	Run         bool   `toml:"run"         yaml:"run"         json:"run"`
-// 	Buffer      int    `toml:"buffer"      yaml:"buffer"      json:"buffer"`
-// 	Consistency string `toml:"consistency" yaml:"consistency" json:"consistency"`
-// 	LogLevel    string `toml:"log_level"   yaml:"log_level"   json:"log_level"`
-// }
-
 const (
 	timeout   = time.Second * 30
 	connlimit = 1
 
 	migrate = `
 CREATE TABLE IF NOT EXISTS pipelines (
-	created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 	, updated_at  TIMESTAMP WITH TIME ZONE
 	, deleted_at  TIMESTAMP WITH TIME ZONE
-	, id          TEXT CONSTRAINT unique_ids_only UNIQUE
-	, run         BOOLEAN
-	, lines       INTEGER
-	, buffer      INTEGER
-	, consistency TEXT
-	, log_level   TEXT
-	, vars        JSON
-	, keykeepers  JSON
-	, inputs      JSON
-	, processors  JSON
-	, outputs     JSON
+	, id          TEXT NOT NULL
+	, run         BOOLEAN NOT NULL
+	, lines       INTEGER NOT NULL
+	, buffer      INTEGER NOT NULL
+	, consistency TEXT NOT NULL
+	, log_level   TEXT NOT NULL
+	, vars        JSON NOT NULL
+	, keykeepers  JSON NOT NULL
+	, inputs      JSON NOT NULL
+	, processors  JSON NOT NULL
+	, outputs     JSON NOT NULL
+	, CONSTRAINT unique_ids_only UNIQUE (id)
+	, CONSTRAINT not_empty_id CHECK (id <> '')
 );`
 
 	add = `
 INSERT INTO pipelines 
 (id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs)
 VALUES
-($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);`
+(:id, :lines, :run, :buffer, :consistency, :log_level, :vars, :keykeepers, :inputs, :processors, :outputs);`
 
 	check = `
 SELECT id, deleted_at FROM pipelines
-WHERE id = $1;`
+WHERE id = :id;`
 
 	delete = `
 DELETE FROM pipelines
-WHERE id = $1;`
+WHERE id = :id;`
 
 	update = `
 UPDATE pipelines 
 SET
 	updated_at = NOW()
-	, lines       = $2
-	, run         = $3
-	, buffer      = $4
-	, consistency = $5
-	, log_level   = $6
-	, vars        = $7
-	, keykeepers  = $8
-	, inputs      = $9
-	, processors  = $10
-	, outputs     = $11
-WHERE id = $1;`
+	, lines       = :lines
+	, run         = :run
+	, buffer      = :buffer
+	, consistency = :consistency
+	, log_level   = :log_level
+	, vars        = :vars
+	, keykeepers  = :keykeepers
+	, inputs      = :inputs
+	, processors  = :processors
+	, outputs     = :outputs
+WHERE id = :id;`
 
 	get = `
-SELECT lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
+SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
 FROM pipelines
-WHERE id = $1 and deleted_at IS NULL;`
+WHERE id = :id and deleted_at IS NULL;`
 
 	list = `
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
 FROM pipelines
 WHERE deleted_at IS NULL;`
+)
+
+var (
+	emptyVars = types.JSONText("{}")
+	emptyList = types.JSONText("[]")
 )
 
 type storedPipeline struct {
@@ -172,14 +162,13 @@ func (s *postgresql) List() ([]*config.Pipeline, error) {
 	defer cancel()
 
 	storedPipes := make([]storedPipeline, 0)
-	err := s.db.SelectContext(ctx, &storedPipes, list)
-	if err != nil {
+	if err := s.db.SelectContext(ctx, &storedPipes, list); err != nil {
 		return nil, &pipeline.IOError{Err: err}
 	}
 
 	pipes := make([]*config.Pipeline, 0, len(storedPipes))
 	for _, v := range storedPipes {
-		p, err := storedToInternal(v)
+		p, err := storedToConfig(v)
 		if err != nil {
 			return nil, &pipeline.ValidationError{Err: err}
 		}
@@ -190,16 +179,70 @@ func (s *postgresql) List() ([]*config.Pipeline, error) {
 	return pipes, nil
 }
 
-func (s *postgresql) Get(id string) (*config.Pipeline, error)
+func (s *postgresql) Get(id string) (*config.Pipeline, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	storedPipe := storedPipeline{}
+	if err := s.db.SelectContext(ctx, &storedPipe, get, id); err != nil {
+		return nil, &pipeline.IOError{Err: err}
+	}
+
+	if len(storedPipe.Id) == 0 {
+		return nil, &pipeline.NotFoundError{Err: fmt.Errorf("no rows returned by id %v", id)}
+	}
+
+	pipe, err := storedToConfig(storedPipe)
+	if err != nil {
+		return nil, &pipeline.ValidationError{Err: err}
+	}
+
+	return pipe, nil
+}
+
 func (s *postgresql) Add(pipe *config.Pipeline) error
 func (s *postgresql) Update(pipe *config.Pipeline) error
-func (s *postgresql) Delete(id string) error
+
+func (s *postgresql) Delete(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	defer tx.Rollback()
+	storedPipe := storedPipeline{}
+
+	if err := tx.SelectContext(ctx, &storedPipe, check, id); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	if storedPipe.DeletedAt.Valid {
+		return &pipeline.NotFoundError{Err: fmt.Errorf("pipeline with id %v already deleted at %v", id, storedPipe.DeletedAt.Time)}
+	}
+
+	if len(storedPipe.Id) == 0 {
+		return &pipeline.NotFoundError{Err: fmt.Errorf("no rows returned by id %v", id)}
+	}
+
+	if _, err := tx.ExecContext(ctx, delete, id); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
 
 func (s *postgresql) Close() error {
 	return s.db.Close()
 }
 
-func storedToInternal(p storedPipeline) (*config.Pipeline, error) {
+func storedToConfig(p storedPipeline) (*config.Pipeline, error) {
 	cfg := config.Pipeline{
 		Settings: config.PipeSettings{
 			Id:          p.Id,
@@ -232,4 +275,72 @@ func storedToInternal(p storedPipeline) (*config.Pipeline, error) {
 	}
 
 	return &cfg, nil
+}
+
+func configToStored(c *config.Pipeline) (storedPipeline, error) {
+	pipe := storedPipeline{
+		Id:          c.Settings.Id,
+		Run:         c.Settings.Run,
+		Lines:       c.Settings.Lines,
+		Buffer:      c.Settings.Buffer,
+		Consistency: c.Settings.Consistency,
+		LogLevel:    c.Settings.LogLevel,
+		Vars:        types.JSONText{},
+		Keykeepers:  types.JSONText{},
+		Inputs:      types.JSONText{},
+		Processors:  types.JSONText{},
+		Outputs:     types.JSONText{},
+	}
+
+	if len(c.Vars) == 0 {
+		pipe.Vars = emptyVars
+	} else {
+		vars, err := json.Marshal(c.Vars)
+		if err != nil {
+			return storedPipeline{}, fmt.Errorf("marshal vars: %w", err)
+		}
+		pipe.Vars = vars
+	}
+
+	if len(c.Keykeepers) == 0 {
+		pipe.Keykeepers = emptyList
+	} else {
+		keykeepers, err := json.Marshal(c.Keykeepers)
+		if err != nil {
+			return storedPipeline{}, fmt.Errorf("marshal keykeepers: %w", err)
+		}
+		pipe.Keykeepers = keykeepers
+	}
+
+	if len(c.Inputs) == 0 {
+		pipe.Inputs = emptyList
+	} else {
+		inputs, err := json.Marshal(c.Inputs)
+		if err != nil {
+			return storedPipeline{}, fmt.Errorf("marshal inputs: %w", err)
+		}
+		pipe.Inputs = inputs
+	}
+
+	if len(c.Processors) == 0 {
+		pipe.Processors = emptyList
+	} else {
+		processors, err := json.Marshal(c.Processors)
+		if err != nil {
+			return storedPipeline{}, fmt.Errorf("marshal processors: %w", err)
+		}
+		pipe.Processors = processors
+	}
+
+	if len(c.Outputs) == 0 {
+		pipe.Outputs = emptyList
+	} else {
+		outputs, err := json.Marshal(c.Outputs)
+		if err != nil {
+			return storedPipeline{}, fmt.Errorf("marshal outputs: %w", err)
+		}
+		pipe.Outputs = outputs
+	}
+
+	return pipe, nil
 }
