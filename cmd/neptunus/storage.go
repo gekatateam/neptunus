@@ -14,6 +14,9 @@ func getStorage(cfg *config.Engine) (pipeline.Storage, error) {
 	case "fs":
 		logger.Default.Info(fmt.Sprintf("using file system storage at %v", cfg.File.Directory))
 		return storage.FS(cfg.File), nil
+	case "postgresql":
+		logger.Default.Info(fmt.Sprintf("using postgresql storage at %v", cfg.Postgresql.DSN))
+		return storage.PostgreSQL(cfg.Postgresql)
 	default:
 		return nil, fmt.Errorf("unknown storage type in configuration: %v", cfg.Storage)
 	}

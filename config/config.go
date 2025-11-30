@@ -50,9 +50,10 @@ type Runtime struct {
 }
 
 type Engine struct {
-	Storage  string      `toml:"storage"   yaml:"storage"   json:"storage"`
-	FailFast bool        `toml:"fail_fast" yaml:"fail_fast" json:"fail_fast"`
-	File     FileStorage `toml:"fs"        yaml:"fs"        json:"fs"`
+	Storage    string            `toml:"storage"    yaml:"storage"    json:"storage"`
+	FailFast   bool              `toml:"fail_fast"  yaml:"fail_fast"  json:"fail_fast"`
+	File       FileStorage       `toml:"fs"         yaml:"fs"         json:"fs"`
+	Postgresql PostgresqlStorage `toml:"postgresql" yaml:"postgresql" json:"postgresql"`
 }
 
 type FileStorage struct {

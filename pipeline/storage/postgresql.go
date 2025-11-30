@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -49,11 +50,17 @@ VALUES
 
 	check = `
 SELECT id, deleted_at FROM pipelines
-WHERE id = :id;`
+WHERE id = $1;`
+
+	remove = `
+DELETE FROM pipelines
+WHERE id = $1;`
 
 	delete = `
-DELETE FROM pipelines
-WHERE id = :id;`
+UPDATE pipelines 
+SET
+	deleted_at = NOW()
+WHERE id = $1;`
 
 	update = `
 UPDATE pipelines 
@@ -74,7 +81,7 @@ WHERE id = :id;`
 	get = `
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
 FROM pipelines
-WHERE id = :id and deleted_at IS NULL;`
+WHERE id = $1 and deleted_at IS NULL;`
 
 	list = `
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
@@ -184,12 +191,11 @@ func (s *postgresql) Get(id string) (*config.Pipeline, error) {
 	defer cancel()
 
 	storedPipe := storedPipeline{}
-	if err := s.db.SelectContext(ctx, &storedPipe, get, id); err != nil {
+	if err := s.db.GetContext(ctx, &storedPipe, get, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, &pipeline.NotFoundError{Err: errors.New("no rows returned, there is no such pipeline")}
+		}
 		return nil, &pipeline.IOError{Err: err}
-	}
-
-	if len(storedPipe.Id) == 0 {
-		return nil, &pipeline.NotFoundError{Err: fmt.Errorf("no rows returned by id %v", id)}
 	}
 
 	pipe, err := storedToConfig(storedPipe)
@@ -200,8 +206,90 @@ func (s *postgresql) Get(id string) (*config.Pipeline, error) {
 	return pipe, nil
 }
 
-func (s *postgresql) Add(pipe *config.Pipeline) error
-func (s *postgresql) Update(pipe *config.Pipeline) error
+func (s *postgresql) Add(pipe *config.Pipeline) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	defer tx.Rollback()
+	storedPipe := storedPipeline{}
+
+	if err := tx.GetContext(ctx, &storedPipe, check, pipe.Settings.Id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			goto CLEANED_UP
+		}
+		return &pipeline.IOError{Err: err}
+	}
+
+	if len(storedPipe.Id) > 0 && !storedPipe.DeletedAt.Valid {
+		return &pipeline.ConflictError{Err: errors.New("pipeline already exists")}
+	}
+
+	if len(storedPipe.Id) > 0 && storedPipe.DeletedAt.Valid {
+		if _, err := tx.ExecContext(ctx, remove, storedPipe.Id); err != nil {
+			return &pipeline.IOError{Err: err}
+		}
+	}
+
+CLEANED_UP:
+	storedPipe, err = configToStored(pipe)
+	if err != nil {
+		return &pipeline.ValidationError{Err: err}
+	}
+
+	if _, err := tx.NamedExecContext(ctx, add, storedPipe); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
+
+func (s *postgresql) Update(pipe *config.Pipeline) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	defer tx.Rollback()
+	storedPipe := storedPipeline{}
+
+	if err := tx.GetContext(ctx, &storedPipe, check, pipe.Settings.Id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to delete")}
+		}
+		return &pipeline.IOError{Err: err}
+	}
+
+	if storedPipe.DeletedAt.Valid {
+		return &pipeline.NotFoundError{Err: fmt.Errorf("pipeline already deleted at %v", storedPipe.DeletedAt.Time)}
+	}
+
+	storedPipe, err = configToStored(pipe)
+	if err != nil {
+		return &pipeline.ValidationError{Err: err}
+	}
+
+	if _, err := tx.NamedExecContext(ctx, update, storedPipe); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
 
 func (s *postgresql) Delete(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -215,16 +303,15 @@ func (s *postgresql) Delete(id string) error {
 	defer tx.Rollback()
 	storedPipe := storedPipeline{}
 
-	if err := tx.SelectContext(ctx, &storedPipe, check, id); err != nil {
+	if err := tx.GetContext(ctx, &storedPipe, check, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to delete")}
+		}
 		return &pipeline.IOError{Err: err}
 	}
 
 	if storedPipe.DeletedAt.Valid {
-		return &pipeline.NotFoundError{Err: fmt.Errorf("pipeline with id %v already deleted at %v", id, storedPipe.DeletedAt.Time)}
-	}
-
-	if len(storedPipe.Id) == 0 {
-		return &pipeline.NotFoundError{Err: fmt.Errorf("no rows returned by id %v", id)}
+		return &pipeline.NotFoundError{Err: fmt.Errorf("pipeline already deleted at %v", storedPipe.DeletedAt.Time)}
 	}
 
 	if _, err := tx.ExecContext(ctx, delete, id); err != nil {
