@@ -361,7 +361,7 @@ func storedToConfig(p storedPipeline) (*config.Pipeline, error) {
 		return nil, fmt.Errorf("unmarshal outputs: %w", err)
 	}
 
-	return &cfg, nil
+	return config.SetPipelineDefaults(&cfg), nil
 }
 
 func configToStored(c *config.Pipeline) (storedPipeline, error) {
