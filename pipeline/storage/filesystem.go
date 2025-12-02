@@ -87,6 +87,14 @@ func (s *fileStorage) Delete(id string) error {
 	return nil
 }
 
+func (s *fileStorage) Acquire(id string) error {
+	return nil
+}
+
+func (s *fileStorage) Release(id string) error {
+	return nil
+}
+
 func readPipeline(file string) (*config.Pipeline, error) {
 	buf, err := os.ReadFile(file)
 	if err != nil {

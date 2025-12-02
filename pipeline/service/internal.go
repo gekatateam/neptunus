@@ -68,9 +68,7 @@ func (m *internalService) StartAll() error {
 func (m *internalService) StopAll() {
 	m.pipes.Range(func(_ string, u pipeUnit) bool {
 		u.mu.Lock()
-		if u.c != nil {
-			u.c()
-		}
+		m.stopPipeline(u)
 		u.mu.Unlock()
 
 		return true
@@ -154,7 +152,7 @@ func (m *internalService) Stop(id string) error {
 		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 	}
 
-	unit.c()
+	m.stopPipeline(unit)
 	return nil
 }
 
@@ -284,6 +282,16 @@ func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	pipeUnit.c = cancel
 	m.pipes.Store(id, pipeUnit)
 
+	if err := m.s.Acquire(id); err != nil {
+		m.log.Error("pipeline lock not acquired",
+			"error", err,
+			slog.Group("pipeline",
+				"id", id,
+			),
+		)
+		return err
+	}
+
 	m.wg.Add(1)
 	go func(p *pipeline.Pipeline) {
 		p.Run(ctx)
@@ -293,6 +301,23 @@ func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	}(pipeUnit.p)
 
 	return nil
+}
+
+func (m *internalService) stopPipeline(pipeUnit pipeUnit) {
+	id := pipeUnit.p.Config().Settings.Id
+
+	if pipeUnit.c != nil {
+		pipeUnit.c()
+	}
+
+	if err := m.s.Release(id); err != nil {
+		m.log.Error("pipeline lock not released",
+			"error", err,
+			slog.Group("pipeline",
+				"id", id,
+			),
+		)
+	}
 }
 
 func (m *internalService) Stats() []metrics.PipelineStats {

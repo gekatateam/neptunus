@@ -62,6 +62,7 @@ type FileStorage struct {
 }
 
 type PostgresqlStorage struct {
+	Instance              string `toml:"instance"                 yaml:"instance"                 json:"instance"`
 	DSN                   string `toml:"dsn"                      yaml:"dsn"                      json:"dsn"`
 	Username              string `toml:"username"                 yaml:"username"                 json:"username"`
 	Password              string `toml:"password"                 yaml:"password"                 json:"password"`

@@ -101,11 +101,11 @@ INSERT INTO pipelines_locks
 (instance, pipeline, locked_at)
 VALUES
 (:instance, :pipeline, NOW())
-ON CONFLICT unique_locks_only DO NITHING;`
+ON CONFLICT ON CONSTRAINT unique_locks_only DO NOTHING;`
 
 	release = `
 DELETE FROM pipelines_locks
-WHERE instance = $1 and pipeline = $2;`
+WHERE instance = :instance and pipeline = :pipeline;`
 
 	haslock = `
 SELECT locked_at, instance
@@ -147,10 +147,15 @@ type pipelineLock struct {
 }
 
 type postgresql struct {
-	db *sqlx.DB
+	instance string
+	db       *sqlx.DB
 }
 
 func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
+	if len(cfg.Instance) == 0 {
+		return nil, errors.New("instance name cannot be empty")
+	}
+
 	config, err := pgx.ParseConfig(cfg.DSN)
 	if err != nil {
 		return nil, err
@@ -196,7 +201,7 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 
 		defer tx.Rollback()
 		for _, m := range migrations {
-			_, err := db.ExecContext(ctx, m)
+			_, err := tx.ExecContext(ctx, m)
 			if err != nil {
 				db.Close()
 				return nil, fmt.Errorf("migrate: %w", err)
@@ -209,7 +214,7 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 		}
 	}
 
-	return &postgresql{db: sqlx.NewDb(db, "pgx")}, nil
+	return &postgresql{instance: cfg.Instance, db: sqlx.NewDb(db, "pgx")}, nil
 }
 
 func (s *postgresql) List() ([]*config.Pipeline, error) {
@@ -311,7 +316,7 @@ func (s *postgresql) Update(pipe *config.Pipeline) error {
 
 	defer tx.Rollback()
 	pipeLocks := []pipelineLock{}
-	if err := s.db.SelectContext(ctx, &pipeLocks, haslock, pipe.Settings.Id); err != nil {
+	if err := tx.SelectContext(ctx, &pipeLocks, haslock, pipe.Settings.Id); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 
@@ -358,7 +363,7 @@ func (s *postgresql) Delete(id string) error {
 
 	defer tx.Rollback()
 	pipeLocks := []pipelineLock{}
-	if err := s.db.SelectContext(ctx, &pipeLocks, haslock, id); err != nil {
+	if err := tx.SelectContext(ctx, &pipeLocks, haslock, id); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 
@@ -383,6 +388,38 @@ func (s *postgresql) Delete(id string) error {
 	}
 
 	if err := tx.Commit(); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
+
+func (s *postgresql) Acquire(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pipelineLock := pipelineLock{
+		Instance: s.instance,
+		Pipeline: id,
+	}
+
+	if _, err := s.db.NamedExecContext(ctx, acquire, pipelineLock); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
+
+func (s *postgresql) Release(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pipelineLock := pipelineLock{
+		Instance: s.instance,
+		Pipeline: id,
+	}
+
+	if _, err := s.db.NamedExecContext(ctx, release, pipelineLock); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 
