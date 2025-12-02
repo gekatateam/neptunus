@@ -22,7 +22,7 @@ const (
 	timeout   = time.Second * 30
 	connlimit = 1
 
-	migrate = `
+	migrate_pipellines = `
 CREATE TABLE IF NOT EXISTS pipelines (
 	created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 	, updated_at  TIMESTAMP WITH TIME ZONE
@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS pipelines (
 	, outputs     JSON NOT NULL
 	, CONSTRAINT unique_ids_only UNIQUE (id)
 	, CONSTRAINT not_empty_id CHECK (id <> '')
+);`
+
+	migrate_locks = `
+CREATE TABLE IF NOT EXISTS pipelines_locks (
+	instance    TEXT NOT NULL
+	, pipeline  TEXT NOT NULL
+	, locked_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	, CONSTRAINT unique_locks_only UNIQUE (instance, pipeline)
 );`
 
 	add = `
@@ -87,11 +95,32 @@ WHERE id = $1 and deleted_at IS NULL;`
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
 FROM pipelines
 WHERE deleted_at IS NULL;`
+
+	acquire = `
+INSERT INTO pipelines_locks
+(instance, pipeline, locked_at)
+VALUES
+(:instance, :pipeline, NOW())
+ON CONFLICT unique_locks_only DO NITHING;`
+
+	release = `
+DELETE FROM pipelines_locks
+WHERE instance = $1 and pipeline = $2;`
+
+	haslock = `
+SELECT locked_at, instance
+FROM pipelines_locks
+WHERE pipeline = $1;`
 )
 
 var (
 	emptyVars = types.JSONText("{}")
 	emptyList = types.JSONText("[]")
+
+	migrations = []string{
+		migrate_pipellines,
+		migrate_locks,
+	}
 )
 
 type storedPipeline struct {
@@ -109,6 +138,12 @@ type storedPipeline struct {
 	Inputs      types.JSONText `db:"inputs"`
 	Processors  types.JSONText `db:"processors"`
 	Outputs     types.JSONText `db:"outputs"`
+}
+
+type pipelineLock struct {
+	Instance string    `db:"instance"`
+	Pipeline string    `db:"pipeline"`
+	LockedAt time.Time `db:"locked_at"`
 }
 
 type postgresql struct {
@@ -154,10 +189,23 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 	}
 
 	if cfg.Migrate {
-		_, err := db.ExecContext(ctx, migrate)
+		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
+			return nil, fmt.Errorf("migrate tx begin: %w", err)
+		}
+
+		defer tx.Rollback()
+		for _, m := range migrations {
+			_, err := db.ExecContext(ctx, m)
+			if err != nil {
+				db.Close()
+				return nil, fmt.Errorf("migrate: %w", err)
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
 			db.Close()
-			return nil, fmt.Errorf("migrate: %w", err)
+			return nil, fmt.Errorf("migrate tx commit: %w", err)
 		}
 	}
 
@@ -262,11 +310,19 @@ func (s *postgresql) Update(pipe *config.Pipeline) error {
 	}
 
 	defer tx.Rollback()
-	storedPipe := storedPipeline{}
+	pipeLocks := []pipelineLock{}
+	if err := s.db.SelectContext(ctx, &pipeLocks, haslock, pipe.Settings.Id); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
 
+	if len(pipeLocks) > 0 {
+		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline has active locks: %+v", pipeLocks)}
+	}
+
+	storedPipe := storedPipeline{}
 	if err := tx.GetContext(ctx, &storedPipe, check, pipe.Settings.Id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to delete")}
+			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to update")}
 		}
 		return &pipeline.IOError{Err: err}
 	}
@@ -301,8 +357,16 @@ func (s *postgresql) Delete(id string) error {
 	}
 
 	defer tx.Rollback()
-	storedPipe := storedPipeline{}
+	pipeLocks := []pipelineLock{}
+	if err := s.db.SelectContext(ctx, &pipeLocks, haslock, id); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
 
+	if len(pipeLocks) > 0 {
+		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline has active locks: %+v", pipeLocks)}
+	}
+
+	storedPipe := storedPipeline{}
 	if err := tx.GetContext(ctx, &storedPipe, check, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to delete")}
