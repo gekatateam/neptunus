@@ -22,6 +22,7 @@
     directory = ".pipelines"
     extension = "toml"
   [engine.postgresql]
+    instance = "neptunus.local"
     dsn = "postgres://localhost:5432/postgres"
     username = "postgres"
     password = "pguser"

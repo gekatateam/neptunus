@@ -15,14 +15,13 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
-	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
 const (
 	timeout   = time.Second * 30
 	connlimit = 1
 
-	migrate = `
+	migrate_pipelines = `
 CREATE TABLE IF NOT EXISTS pipelines (
 	created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 	, updated_at  TIMESTAMP WITH TIME ZONE
@@ -42,27 +41,35 @@ CREATE TABLE IF NOT EXISTS pipelines (
 	, CONSTRAINT not_empty_id CHECK (id <> '')
 );`
 
-	add = `
+	migrate_locks = `
+CREATE TABLE IF NOT EXISTS pipelines_locks (
+	instance    TEXT NOT NULL
+	, pipeline  TEXT NOT NULL
+	, locked_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	, CONSTRAINT unique_locks_only UNIQUE (instance, pipeline)
+);`
+
+	pipeline_add = `
 INSERT INTO pipelines 
 (id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs)
 VALUES
 (:id, :lines, :run, :buffer, :consistency, :log_level, :vars, :keykeepers, :inputs, :processors, :outputs);`
 
-	check = `
+	pipeline_check = `
 SELECT id, deleted_at FROM pipelines
 WHERE id = $1;`
 
-	remove = `
+	pipeline_remove = `
 DELETE FROM pipelines
 WHERE id = $1;`
 
-	delete = `
+	pipeline_delete = `
 UPDATE pipelines 
 SET
 	deleted_at = NOW()
 WHERE id = $1;`
 
-	update = `
+	pipeline_update = `
 UPDATE pipelines 
 SET
 	updated_at = NOW()
@@ -78,20 +85,45 @@ SET
 	, outputs     = :outputs
 WHERE id = :id;`
 
-	get = `
+	pipeline_get = `
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
 FROM pipelines
 WHERE id = $1 and deleted_at IS NULL;`
 
-	list = `
+	pipeline_list = `
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
 FROM pipelines
 WHERE deleted_at IS NULL;`
+
+	lock_acquire = `
+INSERT INTO pipelines_locks
+(instance, pipeline, locked_at)
+VALUES
+(:instance, :pipeline, NOW())
+ON CONFLICT ON CONSTRAINT unique_locks_only DO NOTHING;`
+
+	lock_release = `
+DELETE FROM pipelines_locks
+WHERE instance = :instance and pipeline = :pipeline;`
+
+	lock_check = `
+SELECT locked_at, instance
+FROM pipelines_locks
+WHERE pipeline = $1;`
+
+	lock_cleanup = `
+DELETE FROM pipelines_locks
+WHERE instance = $1;`
 )
 
 var (
 	emptyVars = types.JSONText("{}")
 	emptyList = types.JSONText("[]")
+
+	migrations = []string{
+		migrate_pipelines,
+		migrate_locks,
+	}
 )
 
 type storedPipeline struct {
@@ -111,29 +143,25 @@ type storedPipeline struct {
 	Outputs     types.JSONText `db:"outputs"`
 }
 
+type pipelineLock struct {
+	Instance string    `db:"instance"`
+	Pipeline string    `db:"pipeline"`
+	LockedAt time.Time `db:"locked_at"`
+}
+
 type postgresql struct {
-	db *sqlx.DB
+	instance string
+	db       *sqlx.DB
 }
 
 func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
+	if len(cfg.Instance) == 0 {
+		return nil, errors.New("instance name cannot be empty")
+	}
+
 	config, err := pgx.ParseConfig(cfg.DSN)
 	if err != nil {
 		return nil, err
-	}
-
-	if cfg.TLSEnable {
-		tls, err := pkg.NewConfigBuilder().
-			RootCaFile(cfg.TLSCAFile).
-			KeyPairFile(cfg.TLSCertFile, cfg.TLSKeyFile).
-			SkipVerify(cfg.TLSInsecureSkipVerify).
-			ServerName(cfg.TLSServerName).
-			MinMaxVersion(cfg.TLSMinVersion, "").
-			Build()
-		if err != nil {
-			return nil, fmt.Errorf("tls: %w", err)
-		}
-
-		config.TLSConfig = tls
 	}
 
 	config.User = cfg.Username
@@ -154,14 +182,31 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 	}
 
 	if cfg.Migrate {
-		_, err := db.ExecContext(ctx, migrate)
+		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
+			return nil, fmt.Errorf("migrate tx begin: %w", err)
+		}
+
+		defer tx.Rollback()
+		for _, m := range migrations {
+			if _, err := tx.ExecContext(ctx, m); err != nil {
+				db.Close()
+				return nil, fmt.Errorf("migrate: %w", err)
+			}
+		}
+
+		if _, err := tx.ExecContext(ctx, lock_cleanup, cfg.Instance); err != nil {
 			db.Close()
-			return nil, fmt.Errorf("migrate: %w", err)
+			return nil, fmt.Errorf("cleanup locks: %w", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate tx commit: %w", err)
 		}
 	}
 
-	return &postgresql{db: sqlx.NewDb(db, "pgx")}, nil
+	return &postgresql{instance: cfg.Instance, db: sqlx.NewDb(db, "pgx")}, nil
 }
 
 func (s *postgresql) List() ([]*config.Pipeline, error) {
@@ -169,7 +214,7 @@ func (s *postgresql) List() ([]*config.Pipeline, error) {
 	defer cancel()
 
 	storedPipes := make([]storedPipeline, 0)
-	if err := s.db.SelectContext(ctx, &storedPipes, list); err != nil {
+	if err := s.db.SelectContext(ctx, &storedPipes, pipeline_list); err != nil {
 		return nil, &pipeline.IOError{Err: err}
 	}
 
@@ -191,7 +236,7 @@ func (s *postgresql) Get(id string) (*config.Pipeline, error) {
 	defer cancel()
 
 	storedPipe := storedPipeline{}
-	if err := s.db.GetContext(ctx, &storedPipe, get, id); err != nil {
+	if err := s.db.GetContext(ctx, &storedPipe, pipeline_get, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, &pipeline.NotFoundError{Err: errors.New("no rows returned, there is no such pipeline")}
 		}
@@ -218,7 +263,7 @@ func (s *postgresql) Add(pipe *config.Pipeline) error {
 	defer tx.Rollback()
 	storedPipe := storedPipeline{}
 
-	if err := tx.GetContext(ctx, &storedPipe, check, pipe.Settings.Id); err != nil {
+	if err := tx.GetContext(ctx, &storedPipe, pipeline_check, pipe.Settings.Id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			goto CLEANED_UP
 		}
@@ -230,7 +275,7 @@ func (s *postgresql) Add(pipe *config.Pipeline) error {
 	}
 
 	if len(storedPipe.Id) > 0 && storedPipe.DeletedAt.Valid {
-		if _, err := tx.ExecContext(ctx, remove, storedPipe.Id); err != nil {
+		if _, err := tx.ExecContext(ctx, pipeline_remove, storedPipe.Id); err != nil {
 			return &pipeline.IOError{Err: err}
 		}
 	}
@@ -241,7 +286,7 @@ CLEANED_UP:
 		return &pipeline.ValidationError{Err: err}
 	}
 
-	if _, err := tx.NamedExecContext(ctx, add, storedPipe); err != nil {
+	if _, err := tx.NamedExecContext(ctx, pipeline_add, storedPipe); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 
@@ -262,11 +307,19 @@ func (s *postgresql) Update(pipe *config.Pipeline) error {
 	}
 
 	defer tx.Rollback()
-	storedPipe := storedPipeline{}
+	pipeLocks := []pipelineLock{}
+	if err := tx.SelectContext(ctx, &pipeLocks, lock_check, pipe.Settings.Id); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
 
-	if err := tx.GetContext(ctx, &storedPipe, check, pipe.Settings.Id); err != nil {
+	if len(pipeLocks) > 0 {
+		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline has active locks: %+v", pipeLocks)}
+	}
+
+	storedPipe := storedPipeline{}
+	if err := tx.GetContext(ctx, &storedPipe, pipeline_check, pipe.Settings.Id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to delete")}
+			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to update")}
 		}
 		return &pipeline.IOError{Err: err}
 	}
@@ -280,7 +333,7 @@ func (s *postgresql) Update(pipe *config.Pipeline) error {
 		return &pipeline.ValidationError{Err: err}
 	}
 
-	if _, err := tx.NamedExecContext(ctx, update, storedPipe); err != nil {
+	if _, err := tx.NamedExecContext(ctx, pipeline_update, storedPipe); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 
@@ -301,9 +354,17 @@ func (s *postgresql) Delete(id string) error {
 	}
 
 	defer tx.Rollback()
-	storedPipe := storedPipeline{}
+	pipeLocks := []pipelineLock{}
+	if err := tx.SelectContext(ctx, &pipeLocks, lock_check, id); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
 
-	if err := tx.GetContext(ctx, &storedPipe, check, id); err != nil {
+	if len(pipeLocks) > 0 {
+		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline has active locks: %+v", pipeLocks)}
+	}
+
+	storedPipe := storedPipeline{}
+	if err := tx.GetContext(ctx, &storedPipe, pipeline_check, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return &pipeline.NotFoundError{Err: errors.New("no rows returned, nothing to delete")}
 		}
@@ -314,11 +375,43 @@ func (s *postgresql) Delete(id string) error {
 		return &pipeline.NotFoundError{Err: fmt.Errorf("pipeline already deleted at %v", storedPipe.DeletedAt.Time)}
 	}
 
-	if _, err := tx.ExecContext(ctx, delete, id); err != nil {
+	if _, err := tx.ExecContext(ctx, pipeline_delete, id); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 
 	if err := tx.Commit(); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
+
+func (s *postgresql) Acquire(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pipelineLock := pipelineLock{
+		Instance: s.instance,
+		Pipeline: id,
+	}
+
+	if _, err := s.db.NamedExecContext(ctx, lock_acquire, pipelineLock); err != nil {
+		return &pipeline.IOError{Err: err}
+	}
+
+	return nil
+}
+
+func (s *postgresql) Release(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pipelineLock := pipelineLock{
+		Instance: s.instance,
+		Pipeline: id,
+	}
+
+	if _, err := s.db.NamedExecContext(ctx, lock_release, pipelineLock); err != nil {
 		return &pipeline.IOError{Err: err}
 	}
 

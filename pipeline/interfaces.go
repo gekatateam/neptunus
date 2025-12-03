@@ -17,6 +17,8 @@ type Service interface {
 }
 
 type Storage interface {
+	Acquire(id string) error
+	Release(id string) error
 	List() ([]*config.Pipeline, error)
 	Get(id string) (*config.Pipeline, error)
 	Add(pipe *config.Pipeline) error
@@ -27,9 +29,4 @@ type Storage interface {
 
 type Stater interface {
 	Stats() []metrics.PipelineStats
-}
-
-type Locker interface {
-	Acquire(id string) error
-	Release(id string) error
 }

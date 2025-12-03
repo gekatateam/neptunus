@@ -52,7 +52,7 @@ func (m *internalService) StartAll() error {
 		unit := pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil}
 		m.pipes.Store(pipeCfg.Settings.Id, unit)
 		if pipeCfg.Settings.Run {
-			if err := m.runPipeline(unit); err != nil {
+			if err := m.startPipeline(unit); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -68,9 +68,7 @@ func (m *internalService) StartAll() error {
 func (m *internalService) StopAll() {
 	m.pipes.Range(func(_ string, u pipeUnit) bool {
 		u.mu.Lock()
-		if u.c != nil {
-			u.c()
-		}
+		m.stopPipeline(u)
 		u.mu.Unlock()
 
 		return true
@@ -100,11 +98,11 @@ func (m *internalService) Start(id string) error {
 
 	// double-check here because pipeline buid and start stages
 	// may take a lot of time
-	// so, if several parallel calls occurred, only one will go to runPipeline()
+	// so, if several parallel calls occurred, only one will go to startPipeline()
 	unit.mu.Lock()
 	defer unit.mu.Unlock()
 
-	// Load() returns unit that already updated by runPipeline()
+	// Load() returns unit that already updated by startPipeline()
 	// it saves us from multiple runs of one pipeline, because we MUST recreate it
 	// to run with new config
 	unit, _ = m.pipes.Load(id)
@@ -120,7 +118,7 @@ func (m *internalService) Start(id string) error {
 		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 	}
 
-	return m.runPipeline(pipeUnit{m.createPipeline(pipeCfg), unit.mu, nil})
+	return m.startPipeline(pipeUnit{m.createPipeline(pipeCfg), unit.mu, nil})
 }
 
 func (m *internalService) Stop(id string) error {
@@ -154,7 +152,7 @@ func (m *internalService) Stop(id string) error {
 		return &pipeline.ConflictError{Err: errors.New("pipeline starting, please wait")}
 	}
 
-	unit.c()
+	m.stopPipeline(unit)
 	return nil
 }
 
@@ -256,7 +254,7 @@ func (m *internalService) createPipeline(pipeCfg *config.Pipeline) *pipeline.Pip
 	return pipeline.New(pipeCfg, log)
 }
 
-func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
+func (m *internalService) startPipeline(pipeUnit pipeUnit) error {
 	id := pipeUnit.p.Config().Settings.Id
 	m.pipes.Store(id, pipeUnit)
 	m.log.Info("building pipeline",
@@ -264,20 +262,25 @@ func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	)
 
 	if err := pipeUnit.p.Build(); err != nil {
-		m.log.Error("pipeline building failed",
+		pipeUnit.p.Close()
+		m.log.Error("pipeline building failed, pipeline closed as not ready for event processing",
 			"error", err.Error(),
 			slog.Group("pipeline",
 				"id", id,
 			),
 		)
+		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", id, err)}
+	}
 
+	if err := m.s.Acquire(id); err != nil {
 		pipeUnit.p.Close()
-		m.log.Warn("pipeline was closed as not ready for event processing",
+		m.log.Error("pipeline lock not acquired, pipeline closed to prevent inconsistent state",
+			"error", err,
 			slog.Group("pipeline",
 				"id", id,
 			),
 		)
-		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v building failed: %v", id, err)}
+		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline %v lock failed: %v", id, err)}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -293,6 +296,23 @@ func (m *internalService) runPipeline(pipeUnit pipeUnit) error {
 	}(pipeUnit.p)
 
 	return nil
+}
+
+func (m *internalService) stopPipeline(pipeUnit pipeUnit) {
+	id := pipeUnit.p.Config().Settings.Id
+
+	if pipeUnit.c != nil {
+		pipeUnit.c()
+	}
+
+	if err := m.s.Release(id); err != nil {
+		m.log.Error("pipeline lock not released",
+			"error", err,
+			slog.Group("pipeline",
+				"id", id,
+			),
+		)
+	}
 }
 
 func (m *internalService) Stats() []metrics.PipelineStats {

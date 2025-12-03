@@ -219,8 +219,6 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	println(fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id))
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id), buf)
 	if err != nil {
 		return err

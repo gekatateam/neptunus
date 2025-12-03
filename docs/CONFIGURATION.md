@@ -66,25 +66,22 @@ This is the default storage for the engine:
 ### PostgreSQL storage
 
 PostgreSQL storage uses configured database as pipelines source:
- - **dsn**: Connection string. See [pgx v4](https://pkg.go.dev/github.com/jackc/pgx/v4).
- - **username** & **password**: Authentication credentials.
+ - **instance**: Neptunus instance name. It MUST be unique for each instance using the same database.
+ - **dsn**: Connection string. See details [here](https://pkg.go.dev/github.com/jackc/pgx/v4#ConnConfig) (for TLS configuration too). 
+ - **username** & **password**: Authentication credentials. Always takes precedence over ones provided in DSN.
  - **migrate**: Should engine run migration scripts on startup. 
- - **tls_enable**: If true, TLS client will be used.
- - **tls_insecure_skip_verify**: Use TLS but skip chain & host verification.
- - **tls_key_file** & **tls_cert_file**: Used for TLS client certificate authentication.
- - **tls_ca_file**: Trusted root certificates for server.
- - **tls_min_version**: Minimum TLS version, not limited by default.
- - **tls_server_name**: Send the specified TLS server name via SNI.
+
+This storage provides locking functionality to the engine - each instance captures the pipeline lock using instance name and pipeline id as the key. Pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
 
 Minimalistic example:
 ```toml
 [engine]
   storage = "postgresql"
   [engine.postgresql]
-    dsn = "postgres://localhost:5432/postgres"
+    dsn      = "postgres://localhost:5432/postgres"
     username = "postgres"
     password = "pguser"
-    migrate = true
+    migrate  = true
 ```
 
 ## Pipeline
