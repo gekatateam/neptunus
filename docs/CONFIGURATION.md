@@ -78,10 +78,10 @@ Minimalistic example:
 [engine]
   storage = "postgresql"
   [engine.postgresql]
-    dsn = "postgres://localhost:5432/postgres"
+    dsn      = "postgres://localhost:5432/postgres"
     username = "postgres"
     password = "pguser"
-    migrate = true
+    migrate  = true
 ```
 
 ## Pipeline
