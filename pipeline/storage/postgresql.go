@@ -15,7 +15,6 @@ import (
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
-	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
 const (
@@ -163,21 +162,6 @@ func PostgreSQL(cfg config.PostgresqlStorage) (*postgresql, error) {
 	config, err := pgx.ParseConfig(cfg.DSN)
 	if err != nil {
 		return nil, err
-	}
-
-	if cfg.TLSEnable {
-		tls, err := pkg.NewConfigBuilder().
-			RootCaFile(cfg.TLSCAFile).
-			KeyPairFile(cfg.TLSCertFile, cfg.TLSKeyFile).
-			SkipVerify(cfg.TLSInsecureSkipVerify).
-			ServerName(cfg.TLSServerName).
-			MinMaxVersion(cfg.TLSMinVersion, "").
-			Build()
-		if err != nil {
-			return nil, fmt.Errorf("tls: %w", err)
-		}
-
-		config.TLSConfig = tls
 	}
 
 	config.User = cfg.Username
