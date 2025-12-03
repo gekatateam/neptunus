@@ -71,7 +71,7 @@ PostgreSQL storage uses configured database as pipelines source:
  - **username** & **password**: Authentication credentials. Always takes precedence over ones provided in DSN.
  - **migrate**: Should engine run migration scripts on startup. 
 
-This repository provides locking functionality - each instance captures the pipeline lock using instance name and pipeline id as the key. Pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
+This storage provides locking functionality to the engine - each instance captures the pipeline lock using instance name and pipeline id as the key. Pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
 
 Minimalistic example:
 ```toml
