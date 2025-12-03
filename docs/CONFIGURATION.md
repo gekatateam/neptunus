@@ -77,7 +77,7 @@ PostgreSQL storage uses configured database as pipelines source:
  - **tls_min_version**: Minimum TLS version, not limited by default.
  - **tls_server_name**: Send the specified TLS server name via SNI.
 
-This repository provides locking functionality - each instance captures the pipeline lock using instance name and pipeline id as the key. The pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
+This repository provides locking functionality - each instance captures the pipeline lock using instance name and pipeline id as the key. Pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
 
 Minimalistic example:
 ```toml
