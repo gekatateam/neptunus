@@ -16,7 +16,7 @@
   maxprocs = 16
 
 [engine]
-  storage = "postgresql"
+  storage = "fs"
   fail_fast = false
   [engine.fs]
     directory = ".pipelines"
