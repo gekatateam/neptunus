@@ -43,7 +43,7 @@ neptunus pipeline --help
 ```
 
 # How to build
-This project uses [Taskfile](https://taskfile.dev/) as a build tool. Out-of-the-box, there are three OS and two platform combinations: `linux`, `windows`, `darwin` and `amd64`, `arm64`. You can add more in [builds](./Taskfile.build.yaml) and [packs](./Taskfile.pack.yaml) tasks if needed. All tasks should be cross-platform, but note that they are tested only on Windows 10 and Linux (Ubuntu 22.04).
+This project uses [Taskfile](https://taskfile.dev/) as a build tool. Out-of-the-box, there are three OS and two platform combinations: `linux`, `windows`, `darwin` and `amd64`, `arm64`. You can add more in [builds](./Taskfile.build.yaml) and [packs](./Taskfile.pack.yaml) tasks if needed. All tasks should be cross-platform, but note that they are tested only on Windows 10, Linux (Ubuntu 22.04) and MacOS 26.
 
 Then, follow simple steps:
 1. Install [Taskfile](https://github.com/go-task/task) and [go-licence-detector](https://github.com/elastic/go-licence-detector)
