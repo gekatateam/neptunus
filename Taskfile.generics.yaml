@@ -31,12 +31,14 @@ tasks:
     preconditions:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }}
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+    - test -f LICENCE
     cmds:
     - |
       tar \
         -czvf {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz \
         -C {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }} \
-        -C ../../{{ .NEPTUNUS_BUILD_DIR }} NOTICE.txt
+        -C ../../{{ .NEPTUNUS_BUILD_DIR }} NOTICE.txt \
+        -C ../ LICENCE
     status:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz
 
@@ -47,20 +49,23 @@ tasks:
     preconditions:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }}
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+    - test -f LICENCE
     cmds:
     - platforms: [ linux, darwin ]
       cmd: |
         zip \
         -rj {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
         {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }} \
-        {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+        {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt \
+        LICENCE
     - platforms: [ windows ]
       cmd: |
         powershell Compress-Archive \
         -DestinationPath {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip \
         -Path \
         {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}/neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }}, \
-        {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
+        {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt, \
+        LICENCE
     status:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.zip
 
