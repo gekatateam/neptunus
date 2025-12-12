@@ -108,8 +108,8 @@ func (p *Stats) SetId(id uint64) {
 
 func (p *Stats) Run() {
 	if p.EnableMetrics {
-		pluginstats.RegisterStats(p.Pipeline, p.Plugin, p.cache)
-		defer pluginstats.UnregisterStats(p.Pipeline, p.Plugin)
+		pluginstats.RegisterStatsCache(p.Pipeline, p.Plugin, p.cache)
+		defer pluginstats.UnregisterStatsCache(p.Pipeline, p.Plugin)
 	}
 
 	flushTicker := time.NewTicker(p.Period)

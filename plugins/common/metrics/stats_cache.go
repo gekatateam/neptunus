@@ -57,7 +57,7 @@ func (c *statsCollector) Collect() {
 	}
 }
 
-func RegisterStats(pipeline, pluginName string, sc statsCounter) {
+func RegisterStatsCache(pipeline, pluginName string, sc statsCounter) {
 	statsMetricsRegister.Do(func() {
 		metrics.GlobalCollectorsRunner.Append(statsMetricsCollector)
 	})
@@ -68,7 +68,7 @@ func RegisterStats(pipeline, pluginName string, sc statsCounter) {
 	}, sc)
 }
 
-func UnregisterStats(pipeline, pluginName string) {
+func UnregisterStatsCache(pipeline, pluginName string) {
 	statsMetricsCollector.delete(statsDescriptor{
 		pipeline:   pipeline,
 		pluginName: pluginName,
