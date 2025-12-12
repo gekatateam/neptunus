@@ -9,6 +9,8 @@ import (
 )
 
 type cache interface {
+	StatsCached() int
+
 	observe(m *metric, b map[float64]float64, v float64)
 	flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event))
 	dropOlderThan(olderThan time.Duration)
@@ -62,6 +64,10 @@ func (c individualCache) dropOlderThan(olderThan time.Duration) {
 func (c individualCache) clear() {
 	clear(c.c)
 	clear(c.d)
+}
+
+func (c individualCache) StatsCached() int {
+	return len(c.c)
 }
 
 var ss = &sharedStorage{
@@ -153,4 +159,11 @@ func (c *sharedCache) clear() {
 		c.cache.clear()
 		ss.delete(c.id)
 	}
+}
+
+func (c *sharedCache) StatsCached() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.cache.StatsCached()
 }

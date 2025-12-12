@@ -12,12 +12,14 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
+	pluginstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 var noLabelsSlice = make([]metricLabel, 0)
 
 type Stats struct {
 	*core.BaseProcessor `mapstructure:"-"`
+	EnableMetrics       bool                `mapstructure:"enable_metrics"`
 	Period              time.Duration       `mapstructure:"period"`
 	MetricTTL           time.Duration       `mapstructure:"metric_ttl"`
 	Mode                string              `mapstructure:"mode"`
@@ -105,6 +107,11 @@ func (p *Stats) SetId(id uint64) {
 }
 
 func (p *Stats) Run() {
+	if p.EnableMetrics {
+		pluginstats.RegisterStats(p.Pipeline, p.Plugin, p.cache)
+		defer pluginstats.UnregisterStats(p.Pipeline, p.Plugin)
+	}
+
 	flushTicker := time.NewTicker(p.Period)
 	defer flushTicker.Stop()
 
