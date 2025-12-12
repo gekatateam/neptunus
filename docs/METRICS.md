@@ -889,7 +889,7 @@ Labels:
 ### DB pool
 
 #### Gauge `plugin_db_connections_max`
-Pipeline plugin DB pool maximum number of open connections.
+DB pool maximum number of open connections.
 
 Labels:
  - **pipeline** - pipeline Id
@@ -897,7 +897,7 @@ Labels:
  - **driver** - driver name
 
 #### Gauge `plugin_db_connections_open`
-Pipeline plugin DB pool number of established connections both in use and idle.
+DB pool number of established connections both in use and idle.
 
 Labels:
  - **pipeline** - pipeline Id
@@ -905,7 +905,7 @@ Labels:
  - **driver** - driver name
 
 #### Gauge `plugin_db_connections_in_use`
-Pipeline plugin DB pool number of connections currently in use.
+DB pool number of connections currently in use.
 
 Labels:
  - **pipeline** - pipeline Id
@@ -913,7 +913,7 @@ Labels:
  - **driver** - driver name
 
 #### Gauge `plugin_db_connections_idle`
-Pipeline plugin DB pool number of idle connections..
+DB pool number of idle connections..
 
 Labels:
  - **pipeline** - pipeline Id
@@ -921,7 +921,7 @@ Labels:
  - **driver** - driver name
 
 #### Counter `plugin_db_connections_waited_total`
-Pipeline plugin DB pool total number of connections waited for.
+DB pool total number of connections waited for.
 
 Labels:
  - **pipeline** - pipeline Id
@@ -929,9 +929,18 @@ Labels:
  - **driver** - driver name
 
 #### Counter `plugin_db_connections_waited_seconds_total`
-Pipeline plugin DB pool total time blocked waiting for a new connection.
+DB pool total time blocked waiting for a new connection.
 
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
  - **driver** - driver name
+
+### Stats Metrics Cache
+
+#### Gauge `plugin_stats_metrics_cached`
+Number of cached metrics.
+
+Labels:
+ - **pipeline** - pipeline Id
+ - **plugin_name** - plugin name (alias)

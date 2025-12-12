@@ -31,10 +31,16 @@ This is the format of stats event:
 }
 ```
 
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#stats-metrics-cache)
+
 ## Configuration
 ```toml
 [[processors]]
   [processors.stats]
+    # if true, plugin metrics cache length exposed as metric
+    enable_metrics = false
+
     # plugin mode, "individual" or "shared"
     # in individual mode each plugin collects and produces it's own stats
     # 
