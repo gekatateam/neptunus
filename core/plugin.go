@@ -100,12 +100,12 @@ type SetLine interface {
 }
 
 // core plugins
-type Fusion interface {
+type FanIn interface {
 	SetChannels(ins []<-chan *Event, out chan<- *Event)
 	Runner
 }
 
-type Broadcast interface {
+type FanOut interface {
 	SetChannels(in <-chan *Event, outs []chan<- *Event)
 	Runner
 }

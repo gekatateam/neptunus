@@ -19,8 +19,8 @@ import (
 	"github.com/gekatateam/neptunus/pkg/mapstructure"
 	"github.com/gekatateam/neptunus/plugins"
 
-	"github.com/gekatateam/neptunus/plugins/core/broadcast"
-	"github.com/gekatateam/neptunus/plugins/core/fusion"
+	"github.com/gekatateam/neptunus/plugins/core/fanin"
+	"github.com/gekatateam/neptunus/plugins/core/fanout"
 	"github.com/gekatateam/neptunus/plugins/core/mixer"
 	"github.com/gekatateam/neptunus/plugins/core/self"
 
@@ -263,22 +263,22 @@ func (p *Pipeline) Run(ctx context.Context) {
 		wg.Go(inputUnit.Run)
 	}
 
-	p.log.Info("starting inputs-to-processors fusionner")
-	inFusionUnit, outCh, chansStats := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
-		Alias:    "fusion::inputs",
-		Plugin:   "fusion",
+	p.log.Info("starting inputs-to-processors fan-in")
+	inputsFanInUnit, outCh, chansStats := unit.NewFanIn(&p.config.Settings, p.log, fanin.New(&core.BaseCore{
+		Alias:    "fan-in::inputs",
+		Plugin:   "fan-in",
 		Pipeline: p.config.Settings.Id,
 		Log: p.log.With(slog.Group("core",
-			"plugin", "fusion",
-			"name", "fusion::inputs",
+			"plugin", "fan-in",
+			"name", "fan-in::inputs",
 		)),
 		Obs: metrics.ObserveCoreSummary,
 	}), inputsOutChannels)
 	p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-	wg.Go(inFusionUnit.Run)
+	wg.Go(inputsFanInUnit.Run)
 
 	if len(p.procs) > 0 {
-		p.log.Info(fmt.Sprintf("starting processors, scaling to %v parallel lines", p.config.Settings.Lines))
+		p.log.Info(fmt.Sprintf("starting processors, %v lines", p.config.Settings.Lines))
 		var procsOutChannels = make([]<-chan *core.Event, 0, p.config.Settings.Lines)
 		for i := 0; i < p.config.Settings.Lines; i++ {
 			procInput := outCh
@@ -292,35 +292,35 @@ func (p *Pipeline) Run(ctx context.Context) {
 			p.log.Info(fmt.Sprintf("line %v started", i))
 		}
 
-		p.log.Info("starting processors-to-broadcast fusionner")
-		outFusionUnit, fusionOutCh, chansStats := unit.NewFusion(&p.config.Settings, p.log, fusion.New(&core.BaseCore{
-			Alias:    "fusion::processors",
-			Plugin:   "fusion",
+		p.log.Info("starting processors-to-fanout fan-in")
+		processorsFanInUnit, fanInOutCh, chansStats := unit.NewFanIn(&p.config.Settings, p.log, fanin.New(&core.BaseCore{
+			Alias:    "fan-in::processors",
+			Plugin:   "fan-in",
 			Pipeline: p.config.Settings.Id,
 			Log: p.log.With(slog.Group("core",
-				"plugin", "fusion",
-				"name", "fusion::processors",
+				"plugin", "fan-in",
+				"name", "fan-in::processors",
 			)),
 			Obs: metrics.ObserveCoreSummary,
 		}), procsOutChannels)
 		p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-		outCh = fusionOutCh
-		wg.Go(outFusionUnit.Run)
+		outCh = fanInOutCh
+		wg.Go(processorsFanInUnit.Run)
 	}
 
-	p.log.Info("starting broadcaster")
-	bcastUnit, bcastChs, chansStats := unit.NewBroadcast(&p.config.Settings, p.log, broadcast.New(&core.BaseCore{
-		Alias:    "broadcast::processors",
-		Plugin:   "broadcast",
+	p.log.Info("starting fan-out")
+	fanOutUnit, bcastChs, chansStats := unit.NewFanOut(&p.config.Settings, p.log, fanout.New(&core.BaseCore{
+		Alias:    "fan-out::processors",
+		Plugin:   "fan-out",
 		Pipeline: p.config.Settings.Id,
 		Log: p.log.With(slog.Group("core",
-			"plugin", "broadcast",
-			"name", "broadcast::processors",
+			"plugin", "fan-out",
+			"name", "fan-out::processors",
 		)),
 		Obs: metrics.ObserveCoreSummary,
 	}), outCh, len(p.outs))
 	p.chansStatsFuncs = append(p.chansStatsFuncs, chansStats...)
-	wg.Go(bcastUnit.Run)
+	wg.Go(fanOutUnit.Run)
 
 	p.log.Info("starting outputs")
 	for i, output := range p.outs {

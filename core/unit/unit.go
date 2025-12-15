@@ -78,7 +78,7 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 	}
 }
 
-// broadcast unit consumes events from input
+// fan-out unit consumes events from input
 // and sends clones of each event to all outputs
 // this unit uses plugin for avoid concrete metrics writing in core
 //
@@ -87,16 +87,16 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 // ┼───█────┼─
 // |   └────┼─
 // └────────┘
-func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <-chan *core.Event, outsCount int) (unit core.Runner, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewFanOut(c *config.PipeSettings, l *slog.Logger, b core.FanOut, in <-chan *core.Event, outsCount int) (unit core.Runner, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newBroadcastSoftUnit(b, in, outsCount, c.Buffer)
+		return newFanOutSoftUnit(b, in, outsCount, c.Buffer)
 	}
 }
 
-// fusion unit consumes events from multiple inputs
+// fan-in unit consumes events from multiple inputs
 // and sends them to one output channel
 // this unit uses plugin for avoid concrete metrics writing in core
 //
@@ -105,12 +105,12 @@ func NewBroadcast(c *config.PipeSettings, l *slog.Logger, b core.Broadcast, in <
 // ┼───█────┼─
 // ┼───┘    |
 // └────────┘
-func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func NewFanIn(c *config.PipeSettings, l *slog.Logger, f core.FanIn, ins []<-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
 	case ConsistencyHard:
 		panic(errors.ErrUnsupported)
 	default:
-		return newFusionSoftUnit(f, ins, c.Buffer)
+		return newFanInSoftUnit(f, ins, c.Buffer)
 	}
 }
 
@@ -132,8 +132,8 @@ func registerChan(ch <-chan *core.Event, p any, desc metrics.ChanDesc, kind stri
 	}
 }
 
-// easy way to get plugin alias and type without bolerplate
-// there is on affection on performance, because it's used only on startup
+// easy way to get plugin alias and type without boilerplate
+// there is no affection on performance, because it's used only on startup
 func pluginAlias(p any, kind string) string {
 	return reflect.ValueOf(p).
 		Elem().

@@ -1,4 +1,4 @@
-package fusion
+package fanin
 
 import (
 	"sync"
@@ -8,26 +8,26 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 )
 
-type Fusion struct {
+type FanIn struct {
 	*core.BaseCore
 	wg  *sync.WaitGroup
 	ins []<-chan *core.Event
 	out chan<- *core.Event
 }
 
-func New(c *core.BaseCore) *Fusion {
-	return &Fusion{
+func New(c *core.BaseCore) *FanIn {
+	return &FanIn{
 		BaseCore: c,
 		wg:       &sync.WaitGroup{},
 	}
 }
 
-func (c *Fusion) SetChannels(ins []<-chan *core.Event, out chan<- *core.Event) {
+func (c *FanIn) SetChannels(ins []<-chan *core.Event, out chan<- *core.Event) {
 	c.ins = ins
 	c.out = out
 }
 
-func (c *Fusion) Run() {
+func (c *FanIn) Run() {
 	for _, inputCh := range c.ins {
 		c.wg.Add(1)
 		go func(ch <-chan *core.Event) {

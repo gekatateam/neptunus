@@ -238,15 +238,15 @@ func (u *inSoftUnit) Run() {
 	rejWg.Wait() // and wait for rejection goroutine
 }
 
-type bcastSoftUnit struct {
-	c    core.Broadcast
+type fanOutSoftUnit struct {
+	c    core.FanOut
 	in   <-chan *core.Event
 	outs []chan<- *core.Event
 }
 
-func newBroadcastSoftUnit(c core.Broadcast, in <-chan *core.Event, outsCount, bufferSize int) (unit *bcastSoftUnit, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func newFanOutSoftUnit(c core.FanOut, in <-chan *core.Event, outsCount, bufferSize int) (unit *fanOutSoftUnit, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	outs := make([]<-chan *core.Event, 0, outsCount)
-	unit = &bcastSoftUnit{
+	unit = &fanOutSoftUnit{
 		c:    c,
 		in:   in,
 		outs: make([]chan<- *core.Event, 0, outsCount),
@@ -264,7 +264,7 @@ func newBroadcastSoftUnit(c core.Broadcast, in <-chan *core.Event, outsCount, bu
 	return unit, outs, chansStats
 }
 
-func (u *bcastSoftUnit) Run() {
+func (u *fanOutSoftUnit) Run() {
 	// starts consumer which will broadcast each event
 	// to all outputs
 	// this loop breaks when the input channel closes
@@ -275,15 +275,15 @@ func (u *bcastSoftUnit) Run() {
 	}
 }
 
-type fusionSoftUnit struct {
-	c   core.Fusion
+type fanInSoftUnit struct {
+	c   core.FanIn
 	ins []<-chan *core.Event
 	out chan<- *core.Event
 }
 
-func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) (unit *fusionSoftUnit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
+func newFanInSoftUnit(c core.FanIn, ins []<-chan *core.Event, bufferSize int) (unit *fanInSoftUnit, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	out := make(chan *core.Event, bufferSize)
-	unit = &fusionSoftUnit{
+	unit = &fanInSoftUnit{
 		c:   c,
 		ins: ins,
 		out: out,
@@ -297,7 +297,7 @@ func newFusionSoftUnit(c core.Fusion, ins []<-chan *core.Event, bufferSize int) 
 	return unit, out, chansStats
 }
 
-func (u *fusionSoftUnit) Run() {
+func (u *fanInSoftUnit) Run() {
 	u.c.Run()
 	close(u.out)
 }
