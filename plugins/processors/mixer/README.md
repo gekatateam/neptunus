@@ -22,4 +22,4 @@ It is a special plugin for cases when one of your processors in multiline config
 [[processors]]
   [processors.mixer]
 ```
-This plugin has no any specific configuration. Mixer also doesn't accept filters, but it can be assigned an alias and personal log level.
+This plugin has no any specific configuration. Mixer also doesn't accept filters, but an alias and personal log level can be assigned.

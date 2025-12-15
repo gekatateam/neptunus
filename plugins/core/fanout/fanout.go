@@ -1,4 +1,4 @@
-package broadcast
+package fanout
 
 import (
 	"time"
@@ -7,24 +7,24 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 )
 
-type Broadcast struct {
+type FanOut struct {
 	*core.BaseCore
 	in   <-chan *core.Event
 	outs []chan<- *core.Event
 }
 
-func New(c *core.BaseCore) *Broadcast {
-	return &Broadcast{
+func New(c *core.BaseCore) *FanOut {
+	return &FanOut{
 		BaseCore: c,
 	}
 }
 
-func (c *Broadcast) SetChannels(in <-chan *core.Event, outs []chan<- *core.Event) {
+func (c *FanOut) SetChannels(in <-chan *core.Event, outs []chan<- *core.Event) {
 	c.in = in
 	c.outs = outs
 }
 
-func (c *Broadcast) Run() {
+func (c *FanOut) Run() {
 	for e := range c.in {
 		now := time.Now()
 		for i, out := range c.outs {

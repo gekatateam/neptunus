@@ -100,19 +100,12 @@ type SetLine interface {
 }
 
 // core plugins
-type Fusion interface {
+type FanIn interface {
 	SetChannels(ins []<-chan *Event, out chan<- *Event)
 	Runner
 }
 
-type Broadcast interface {
+type FanOut interface {
 	SetChannels(in <-chan *Event, outs []chan<- *Event)
 	Runner
-}
-
-type Mixer interface {
-	Processor
-	IncrIndex() int
-	AppendChannels(in <-chan *Event, out chan *Event)
-	OutChan() chan *Event
 }
