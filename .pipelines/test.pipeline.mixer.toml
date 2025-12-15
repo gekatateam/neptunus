@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = false
+  run = true
   buffer = 5
   log_level = "info"
 
@@ -44,7 +44,7 @@ def process(event):
 
 [[processors]]
   [processors.mixer]
-    log_level = "debug"
+#    log_level = "debug"
 
 [[processors]]
   [processors.stats]
@@ -54,12 +54,7 @@ def process(event):
       c = [ "gauge", "count", "sum" ]
 
 [[processors]]
-  [processors.log]
-    log_level = "warn"
-    level = "debug"
-    [processors.log.serializer]
-      type = "json"
-      data_only = false
+  [processors.drop]
 
 [[outputs]]
   [outputs.log]

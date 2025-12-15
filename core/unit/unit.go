@@ -114,24 +114,6 @@ func NewFusion(c *config.PipeSettings, l *slog.Logger, f core.Fusion, ins []<-ch
 	}
 }
 
-// mixer processor unit consumes events from multiple inputs
-// and sends them to one output channel
-// technically, it's the same as Fusion, but can be used in processors only
-//
-// ┌────────┐
-// ┼───┐    |
-// ┼───█────┼─
-// ┼───┘    |
-// └────────┘
-func NewMixer(c *config.PipeSettings, l *slog.Logger, m core.Mixer, in <-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
-	switch c.Consistency {
-	case ConsistencyHard:
-		panic(errors.ErrUnsupported)
-	default:
-		return newMixerSoftUnit(m, in, c.Buffer)
-	}
-}
-
 // register plugin input channel in metrics system
 func registerChan(ch <-chan *core.Event, p any, desc metrics.ChanDesc, kind string, extra ...string) metrics.ChanStatsFunc {
 	var e string
