@@ -40,6 +40,7 @@ func (cr *collectorsRunner) Run(ctx context.Context, interval time.Duration) {
 	metrics.ExposeMetadata(true)
 	ticker := time.NewTicker(interval)
 	go func() {
+		logger.Default.Info("metric collectors runner started")
 		defer ticker.Stop()
 		defer logger.Default.Info("metric collectors runner exited")
 
@@ -48,11 +49,11 @@ func (cr *collectorsRunner) Run(ctx context.Context, interval time.Duration) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				logger.Default.Info("metric collectors runner - collection cycle started")
+				logger.Default.Debug("metric collectors runner - collection cycle started")
 				for _, c := range cr.collectors {
 					c.Collect()
 				}
-				logger.Default.Info("metric collectors runner - collection cycle done")
+				logger.Default.Debug("metric collectors runner - collection cycle done")
 			}
 		}
 	}()

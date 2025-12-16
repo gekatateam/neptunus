@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"sync"
+	"sync/atomic"
 
 	dynamic "github.com/gekatateam/dynamic-level-handler"
 
@@ -35,10 +36,10 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/serializers"
 )
 
-type state int
+type state int32
 
 const (
-	StateCreated state = iota + 1
+	StateCreated state = iota
 	StateBuilding
 	StateStarting
 	StateRunning
@@ -90,7 +91,7 @@ type Pipeline struct {
 	config *config.Pipeline
 	log    *slog.Logger
 
-	state   state
+	state   *atomic.Int32
 	lastErr error
 	aliases map[string]struct{}
 
@@ -106,7 +107,7 @@ func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 	return &Pipeline{
 		config:  config,
 		log:     log,
-		state:   StateCreated,
+		state:   &atomic.Int32{},
 		aliases: make(map[string]struct{}),
 		keepers: make(map[string]core.Keykeeper),
 		outs:    make([]outputSet, 0, len(config.Outputs)),
@@ -125,7 +126,7 @@ func (p *Pipeline) ChansStats() []metrics.ChanStats {
 }
 
 func (p *Pipeline) State() state {
-	return p.state
+	return state(p.state.Load())
 }
 
 func (p *Pipeline) LastError() error {
@@ -215,11 +216,11 @@ PIPELINE_TEST_FAILED:
 }
 
 func (p *Pipeline) Build() (err error) {
-	p.state = StateBuilding
+	p.state.Store(int32(StateBuilding))
 	defer func() {
 		p.lastErr = err
 		if p.lastErr != nil {
-			p.state = StateStopped
+			p.state.Store(int32(StateStopped))
 		}
 	}()
 
@@ -247,7 +248,7 @@ func (p *Pipeline) Build() (err error) {
 }
 
 func (p *Pipeline) Run(ctx context.Context) {
-	p.state = StateStarting
+	p.state.Store(int32(StateStarting))
 	p.log.Info("starting pipeline")
 
 	wg := &sync.WaitGroup{}
@@ -329,12 +330,12 @@ func (p *Pipeline) Run(ctx context.Context) {
 		wg.Go(outputUnit.Run)
 	}
 
-	p.state = StateRunning
+	p.state.Store(int32(StateRunning))
 	p.log.Info("pipeline started")
 
 	<-ctx.Done()
 
-	p.state = StateStopping
+	p.state.Store(int32(StateStopping))
 	p.log.Info("stop signal received, stopping pipeline")
 	for _, stop := range inputsStopChannels {
 		stop <- struct{}{}
@@ -342,7 +343,7 @@ func (p *Pipeline) Run(ctx context.Context) {
 	wg.Wait()
 
 	p.log.Info("pipeline stopped")
-	p.state = StateStopped
+	p.state.Store(int32(StateStopped))
 }
 
 func (p *Pipeline) configureKeykeepers() error {
