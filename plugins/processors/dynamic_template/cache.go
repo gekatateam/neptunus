@@ -20,6 +20,10 @@ type templateCache struct {
 	mu *sync.Mutex
 }
 
+func (c *templateCache) Size() int {
+	return len(c.m)
+}
+
 func (c *templateCache) Reg() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -64,8 +68,9 @@ func (c *templateCache) Leave() {
 	defer c.mu.Unlock()
 
 	c.u--
-	if c.u == 0 {
+	if c.u <= 0 {
 		clear(c.m)
 		clear(c.d)
+		c.u = 0
 	}
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
-	pluginstats "github.com/gekatateam/neptunus/plugins/common/metrics"
+	cachestats "github.com/gekatateam/neptunus/plugins/common/metrics"
 )
 
 var noLabelsSlice = make([]metricLabel, 0)
@@ -108,8 +108,8 @@ func (p *Stats) SetId(id uint64) {
 
 func (p *Stats) Run() {
 	if p.EnableMetrics {
-		pluginstats.RegisterStatsCache(p.Pipeline, p.Plugin, p.cache)
-		defer pluginstats.UnregisterStatsCache(p.Pipeline, p.Plugin)
+		cachestats.RegisterCache(p.Pipeline, p.Alias, "stats", p.cache)
+		defer cachestats.UnregisterCache(p.Pipeline, p.Alias, "stats")
 	}
 
 	flushTicker := time.NewTicker(p.Period)

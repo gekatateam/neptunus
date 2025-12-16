@@ -9,7 +9,7 @@ import (
 )
 
 type cache interface {
-	StatsCached() int
+	Size() int
 
 	observe(m *metric, b map[float64]float64, v float64)
 	flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event))
@@ -66,7 +66,7 @@ func (c individualCache) clear() {
 	clear(c.d)
 }
 
-func (c individualCache) StatsCached() int {
+func (c individualCache) Size() int {
 	return len(c.c)
 }
 
@@ -161,9 +161,9 @@ func (c *sharedCache) clear() {
 	}
 }
 
-func (c *sharedCache) StatsCached() int {
+func (c *sharedCache) Size() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return c.cache.StatsCached()
+	return c.cache.Size()
 }

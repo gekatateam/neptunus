@@ -12,11 +12,13 @@ import (
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
+	cachestats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	cte "github.com/gekatateam/neptunus/plugins/common/template"
 )
 
 type DynamicTemplate struct {
 	*core.BaseProcessor `mapstructure:"-"`
+	EnableMetrics       bool          `mapstructure:"enable_metrics"`
 	TemplateTTL         time.Duration `mapstructure:"template_ttl"`
 	Labels              []string      `mapstructure:"labels"`
 	Fields              []string      `mapstructure:"fields"`
@@ -39,6 +41,11 @@ func (p *DynamicTemplate) Run() {
 	clearTicker := time.NewTicker(time.Minute)
 	if p.TemplateTTL == 0 {
 		clearTicker.Stop()
+	}
+
+	if p.EnableMetrics {
+		cachestats.RegisterCache(p.Pipeline, p.Alias, "templates", &cache)
+		defer cachestats.UnregisterCache(p.Pipeline, p.Alias, "templates")
 	}
 
 MAIN_LOOP:

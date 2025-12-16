@@ -936,11 +936,12 @@ Labels:
  - **plugin_name** - plugin name (alias)
  - **driver** - driver name
 
-### Stats Metrics Cache
+### Internal Caches
 
-#### Gauge `plugin_stats_metrics_cached`
-Number of cached metrics.
+#### Gauge `plugin_cache_size`
+Number of cached objects.
 
 Labels:
  - **pipeline** - pipeline Id
  - **plugin_name** - plugin name (alias)
+ - **items** - what kind of objects stored in cache

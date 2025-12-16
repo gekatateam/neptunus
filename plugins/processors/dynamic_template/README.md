@@ -8,10 +8,16 @@ Plugin uses [wrapped events](../../common/template/README.md).
 
 If template execution fails, event is marked as failed, but other templates execution continues.
 
+> [!TIP]  
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#internal-caches)
+
 ## Configuration
 ```toml
 [[processors]]
   [processors.dynamic_template]
+    # if true, plugin metrics cache length exposed as metric
+    enable_metrics = false
+
     # compiled template TTL
     template_ttl = "1h"
 

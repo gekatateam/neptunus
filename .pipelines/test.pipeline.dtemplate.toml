@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.dtemplate"
   lines = 2
-  run = false
+  run = true
   buffer = 5
 
 [[inputs]]
@@ -19,14 +19,19 @@
 [[processors]]
  [processors.defaults.labels]
    tmplabel = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
+  [processors.defaults.fields]
+   tmpfield = '{{ .RoutingKey }}-{{ .Timestamp.Format "2006-01-02" }}'
 
 [[processors]]
   [processors.dynamic_template]
+      enable_metrics = true
+      template_ttl = "1m"
       labels = [ "tmplabel" ]
-      fields = [ "annotations", "legend", "reason", "number" ]
+      fields = [ "tmpfield" ]
 
 [[processors]]
   [processors.stats]
+    enable_metrics = true
     mode = "shared"
     period = "15s"
     metric_ttl = "1m"
