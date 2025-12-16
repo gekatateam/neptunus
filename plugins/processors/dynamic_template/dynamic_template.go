@@ -45,7 +45,7 @@ func (p *DynamicTemplate) Run() {
 
 	if p.EnableMetrics {
 		cachestats.RegisterCache(p.Pipeline, p.Alias, "templates", &cache)
-		cachestats.UnregisterCache(p.Pipeline, p.Alias, "templates")
+		defer cachestats.UnregisterCache(p.Pipeline, p.Alias, "templates")
 	}
 
 MAIN_LOOP:

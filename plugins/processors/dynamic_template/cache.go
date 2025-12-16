@@ -68,12 +68,9 @@ func (c *templateCache) Leave() {
 	defer c.mu.Unlock()
 
 	c.u--
-	if c.u == 0 {
+	if c.u <= 0 {
 		clear(c.m)
 		clear(c.d)
-	}
-
-	if c.u < 0 {
 		c.u = 0
 	}
 }

@@ -32,7 +32,7 @@ This is the format of stats event:
 ```
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#stats-metrics-cache)
+> This plugin may write it's own [metrics](../../../docs/METRICS.md#internal-caches)
 
 ## Configuration
 ```toml
