@@ -29,8 +29,9 @@ func (p *Line) SetLine(line int) {
 }
 
 func (p *Line) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 		e.SetLabel(p.Label, p.line)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))

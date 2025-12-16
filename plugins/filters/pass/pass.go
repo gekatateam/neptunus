@@ -21,8 +21,9 @@ func (f *Pass) Close() error {
 }
 
 func (f *Pass) Run() {
+	var now time.Time
 	for e := range f.In {
-		now := time.Now()
+		now = time.Now()
 		f.Acc <- e
 		f.Observe(metrics.EventAccepted, time.Since(now))
 	}

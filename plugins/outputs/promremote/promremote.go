@@ -100,11 +100,12 @@ func (o *Promremote) Init() error {
 }
 
 func (o *Promremote) Run() {
+	var now time.Time
 	o.Batcher.Run(o.In, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
 		}
-		now := time.Now()
+		now = time.Now()
 
 		body, err := o.Marshal(buf)
 		if err != nil {

@@ -42,11 +42,12 @@ type requester struct {
 func (r *requester) Run() {
 	r.Log.Info(fmt.Sprintf("requester for %v spawned", r.uri))
 
+	var now time.Time
 	r.Batcher.Run(r.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
 		}
-		now := time.Now()
+		now = time.Now()
 
 		header := r.headers.Clone()
 		for k, v := range r.headerlabels {

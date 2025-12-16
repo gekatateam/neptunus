@@ -62,8 +62,10 @@ func (w *topicWriter) Run() {
 		messages := []kafka.Message{}
 		readyEvents := make(map[uuid.UUID]*eventMsgStatus)
 
+		var now time.Time
 		for _, e := range buf {
-			now := time.Now()
+			now = time.Now()
+
 			event, err := w.ser.Serialize(e)
 			if err != nil {
 				w.Log.Error("serialization failed, event skipped",

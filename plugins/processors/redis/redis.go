@@ -100,8 +100,9 @@ func (p *Redis) SetId(id uint64) {
 }
 
 func (p *Redis) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		args, err := commandArgs(p.args, e)
 		if err != nil {

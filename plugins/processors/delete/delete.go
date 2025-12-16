@@ -23,8 +23,9 @@ func (p *Delete) Close() error {
 }
 
 func (p *Delete) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		for _, label := range p.Labels {
 			e.DeleteLabel(label)

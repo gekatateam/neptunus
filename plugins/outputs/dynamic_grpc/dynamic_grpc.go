@@ -146,6 +146,7 @@ func (o *DynamicGRPC) Run() {
 		clearTicker.Stop()
 	}
 
+	var now time.Time
 MAIN_LOOP:
 	for {
 		select {
@@ -155,7 +156,7 @@ MAIN_LOOP:
 				break MAIN_LOOP
 			}
 
-			now := time.Now()
+			now = time.Now()
 			if (o.callersPool.LastWrite(e.RoutingKey) != time.Time{}) {
 				goto DESCRIPTOR_FOUND_AND_CORRECT
 			}

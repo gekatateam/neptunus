@@ -21,8 +21,9 @@ func (f *NoErrors) Close() error {
 }
 
 func (f *NoErrors) Run() {
+	var now time.Time
 	for e := range f.In {
-		now := time.Now()
+		now = time.Now()
 		if len(e.Errors) > 0 {
 			f.Rej <- e
 			f.Observe(metrics.EventRejected, time.Since(now))

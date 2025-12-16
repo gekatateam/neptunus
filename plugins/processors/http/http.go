@@ -148,8 +148,9 @@ func (p *Http) SetId(id uint64) {
 }
 
 func (p *Http) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		header := p.headers.Clone()
 		for k, v := range p.Headerlabels {

@@ -33,12 +33,12 @@ type querier struct {
 func (q *querier) Run() {
 	q.Log.Info(fmt.Sprintf("queryer for table %v spawned", q.tableName))
 
+	var now time.Time
 	q.Batcher.Run(q.input, func(buf []*core.Event) {
 		if len(buf) == 0 {
 			return
 		}
-
-		now := time.Now()
+		now = time.Now()
 
 		rawArgs := make([]map[string]any, len(buf))
 		for i, e := range buf {

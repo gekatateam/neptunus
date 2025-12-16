@@ -34,7 +34,7 @@ func (f *Glob) Init() error {
 	for _, value := range f.RK {
 		glob, err := glob.Compile(value)
 		if err != nil {
-			return fmt.Errorf("routing key glob %v compilation failed: %v", value, err.Error())
+			return fmt.Errorf("routing key glob %v compilation failed: %w", value, err)
 		}
 		f.rk = append(f.rk, glob)
 	}
@@ -43,7 +43,7 @@ func (f *Glob) Init() error {
 		for _, value := range values {
 			glob, err := glob.Compile(value)
 			if err != nil {
-				return fmt.Errorf("field glob %v:%v compilation failed: %v", key, value, err.Error())
+				return fmt.Errorf("field glob %v:%v compilation failed: %w", key, value, err)
 			}
 			f.fields[key] = append(f.fields[key], glob)
 		}
@@ -53,7 +53,7 @@ func (f *Glob) Init() error {
 		for _, value := range values {
 			glob, err := glob.Compile(value)
 			if err != nil {
-				return fmt.Errorf("label glob %v:%v compilation failed: %v", key, value, err.Error())
+				return fmt.Errorf("label glob %v:%v compilation failed: %w", key, value, err)
 			}
 			f.labels[key] = append(f.labels[key], glob)
 		}
@@ -67,8 +67,9 @@ func (f *Glob) Close() error {
 }
 
 func (f *Glob) Run() {
+	var now time.Time
 	for e := range f.In {
-		now := time.Now()
+		now = time.Now()
 		if f.match(e) {
 			f.Acc <- e
 			f.Observe(metrics.EventAccepted, time.Since(now))

@@ -42,15 +42,16 @@ func (p *Log) SetSerializer(s core.Serializer) {
 }
 
 func (p *Log) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 		event, err := p.ser.Serialize(e)
 		if err != nil {
 			p.Log.Error("event serialization failed",
 				"error", err.Error(),
 				elog.EventGroup(e),
 			)
-			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
+			e.StackError(fmt.Errorf("log processor: event serialization failed: %w", err))
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue

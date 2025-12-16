@@ -43,9 +43,10 @@ type consumer struct {
 func (c *consumer) Run() {
 	c.Log.Info(fmt.Sprintf("consumer for quene %v started", c.queue.Name))
 
+	var now time.Time
 CONSUME_LOOP:
 	for msg := range c.input {
-		now := time.Now()
+		now = time.Now()
 
 		c.Log.Debug("message consumed",
 			msgLogAttrs(msg, "queue", c.queue.Name)...,

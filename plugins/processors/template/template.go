@@ -76,10 +76,11 @@ func (p *Template) Close() error {
 }
 
 func (p *Template) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
 		hasError := false
 		te := cte.New(e)
+		now = time.Now()
 
 		if len(p.Id) > 0 {
 			if err := p.id.Execute(p.buf, te); err != nil {

@@ -26,8 +26,9 @@ func (p *Rename) Close() error {
 }
 
 func (p *Rename) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		for to, from := range p.Labels {
 			if value, ok := e.GetLabel(from); ok {

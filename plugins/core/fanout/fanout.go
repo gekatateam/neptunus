@@ -25,8 +25,9 @@ func (c *FanOut) SetChannels(in <-chan *core.Event, outs []chan<- *core.Event) {
 }
 
 func (c *FanOut) Run() {
+	var now time.Time
 	for e := range c.in {
-		now := time.Now()
+		now = time.Now()
 		for i, out := range c.outs {
 			if i == len(c.outs)-1 { // send origin event to last consumer
 				out <- e

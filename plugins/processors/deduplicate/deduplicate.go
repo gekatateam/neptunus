@@ -104,8 +104,9 @@ func (p *Deduplicate) SetId(id uint64) {
 }
 
 func (p *Deduplicate) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 		e.SetLabel("::duplicate", "false")
 
 		key, ok := e.GetLabel(p.IdempotencyKey)

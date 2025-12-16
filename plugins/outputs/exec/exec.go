@@ -32,8 +32,9 @@ func (o *Exec) Init() error {
 }
 
 func (o *Exec) Run() {
+	var now time.Time
 	for e := range o.In {
-		now := time.Now()
+		now = time.Now()
 
 		envs, err := o.unpackEnvs(e)
 		if err != nil {

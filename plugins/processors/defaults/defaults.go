@@ -25,9 +25,9 @@ func (p *Defaults) Close() error {
 }
 
 func (p *Defaults) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
-		hasError := false
+		now = time.Now()
 
 		for k, v := range p.Labels {
 			if _, ok := e.GetLabel(k); !ok {
@@ -35,6 +35,7 @@ func (p *Defaults) Run() {
 			}
 		}
 
+		hasError := false
 		for k, v := range p.Fields {
 			if _, err := e.GetField(k); err != nil {
 				if err := e.SetField(k, v); err != nil {

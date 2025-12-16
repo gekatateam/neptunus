@@ -22,8 +22,9 @@ func (p *Through) Close() error {
 }
 
 func (p *Through) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		if p.Sleep > 0 {
 			time.Sleep(p.Sleep)

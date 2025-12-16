@@ -42,15 +42,16 @@ func (f *Starlark) Close() error {
 }
 
 func (f *Starlark) Run() {
+	var now time.Time
 	for e := range f.In {
-		now := time.Now()
+		now = time.Now()
 		result, err := starlark.Call(f.stThread, f.stFunc, []starlark.Value{common.ROEvent(e)}, nil)
 		if err != nil {
 			f.Log.Error("exec failed",
 				"error", err,
 				elog.EventGroup(e),
 			)
-			e.StackError(fmt.Errorf("exec failed: %v", err))
+			e.StackError(fmt.Errorf("exec failed: %w", err))
 			f.Rej <- e
 			f.Observe(metrics.EventRejected, time.Since(now))
 			continue
@@ -62,7 +63,7 @@ func (f *Starlark) Run() {
 				"error", err,
 				elog.EventGroup(e),
 			)
-			e.StackError(fmt.Errorf("exec failed: %v", err))
+			e.StackError(fmt.Errorf("exec failed: %w", err))
 			f.Rej <- e
 			f.Observe(metrics.EventRejected, time.Since(now))
 			continue

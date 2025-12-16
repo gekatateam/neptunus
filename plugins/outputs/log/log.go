@@ -41,8 +41,10 @@ func (o *Log) SetSerializer(s core.Serializer) {
 }
 
 func (o *Log) Run() {
+	var now time.Time
 	for e := range o.In {
-		now := time.Now()
+		now = time.Now()
+
 		event, err := o.ser.Serialize(e)
 		if err != nil {
 			o.Log.Error("serialization failed",

@@ -76,8 +76,9 @@ func (p *Mixer) SetChannels(in <-chan *core.Event, out chan<- *core.Event, _ cha
 }
 
 func (p *Mixer) Run() {
+	var now time.Time
 	for e := range p.in {
-		now := time.Now()
+		now = time.Now()
 
 		p.Log.Debug(fmt.Sprintf("event consumed from chan %v", p.line),
 			elog.EventGroup(e),

@@ -48,6 +48,7 @@ func (p *DynamicTemplate) Run() {
 		defer cachestats.UnregisterCache(p.Pipeline, p.Alias, "templates")
 	}
 
+	var now time.Time
 MAIN_LOOP:
 	for {
 		select {
@@ -57,7 +58,7 @@ MAIN_LOOP:
 				break MAIN_LOOP
 			}
 
-			now := time.Now()
+			now = time.Now()
 			if p.process(e) {
 				p.Observe(metrics.EventAccepted, time.Since(now))
 			} else {

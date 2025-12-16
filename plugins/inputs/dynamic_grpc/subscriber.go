@@ -76,6 +76,7 @@ STREAM_INVOKE_LOOP:
 		goto STREAM_INVOKE_LOOP
 	}
 
+	var now time.Time
 STREAM_READ_LOOP:
 	for {
 		select {
@@ -86,7 +87,7 @@ STREAM_READ_LOOP:
 			return
 		default:
 			msg, err := ss.RecvMsg()
-			now := time.Now()
+			now = time.Now()
 			if err != nil {
 				// io.EOF means stream is closed gracefuly
 				if errors.Is(err, io.EOF) {

@@ -62,13 +62,13 @@ func (i *Httpl) Init() error {
 	if i.TLSServerConfig.Enable {
 		l, err := tls.Listen("tcp", i.Address, tlsConfig)
 		if err != nil {
-			return fmt.Errorf("error creating TLS listener: %v", err)
+			return fmt.Errorf("error creating TLS listener: %w", err)
 		}
 		listener = l
 	} else {
 		l, err := net.Listen("tcp", i.Address)
 		if err != nil {
-			return fmt.Errorf("error creating listener: %v", err)
+			return fmt.Errorf("error creating listener: %w", err)
 		}
 		listener = l
 	}
@@ -153,9 +153,10 @@ func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg := &sync.WaitGroup{}
 
 	var cursor, events = 0, 0
+	var now time.Time
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
-		now := time.Now()
+		now = time.Now()
 		cursor++
 
 		if err := scanner.Err(); err != nil {

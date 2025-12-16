@@ -60,10 +60,12 @@ func (r *topicReader) Run(rCtx context.Context) {
 	}
 
 	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v spawned", r.topic, r.partition))
+
+	var now time.Time
 FETCH_LOOP:
 	for {
 		msg, err := r.reader.FetchMessage(rCtx)
-		now := time.Now()
+		now = time.Now()
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				r.Log.Debug(fmt.Sprintf("consumer for topic %v and partition %v context canceled", r.topic, r.partition))

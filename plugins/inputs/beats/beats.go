@@ -58,13 +58,13 @@ func (i *Beats) Init() error {
 	if i.TLSServerConfig.Enable {
 		l, err := tls.Listen("tcp", i.Address, tlsConfig)
 		if err != nil {
-			return fmt.Errorf("error creating TLS listener: %v", err)
+			return fmt.Errorf("error creating TLS listener: %w", err)
 		}
 		listener = l
 	} else {
 		l, err := net.Listen("tcp", i.Address)
 		if err != nil {
-			return fmt.Errorf("error creating listener: %v", err)
+			return fmt.Errorf("error creating listener: %w", err)
 		}
 		listener = l
 	}
@@ -104,14 +104,12 @@ func (i *Beats) Run() {
 
 	wg := &sync.WaitGroup{}
 	for j := 0; j < i.NumWorkers; j++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
+			var now time.Time
 			batchWg := &sync.WaitGroup{}
 			for ljBatch := range i.server.ReceiveChan() {
 				for _, v := range ljBatch.Events {
-					now := time.Now()
+					now = time.Now()
 					event, err := i.toEvent(v)
 					if err != nil {
 						i.Log.Error("beat event reading error",
@@ -152,7 +150,7 @@ func (i *Beats) Run() {
 				batchWg.Wait()
 				ljBatch.ACK()
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

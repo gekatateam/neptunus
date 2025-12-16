@@ -35,8 +35,9 @@ func (p *Rk) Close() error {
 }
 
 func (p *Rk) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		if newKey, ok := p.index[e.RoutingKey]; ok {
 			e.RoutingKey = newKey

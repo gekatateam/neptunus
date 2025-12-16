@@ -31,8 +31,9 @@ func (c *FanIn) Run() {
 	for _, inputCh := range c.ins {
 		c.wg.Add(1)
 		go func(ch <-chan *core.Event) {
+			var now time.Time
 			for e := range ch {
-				now := time.Now()
+				now = time.Now()
 				c.out <- e
 				c.Observe(metrics.EventAccepted, time.Since(now))
 			}

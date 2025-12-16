@@ -121,6 +121,7 @@ func (p *Stats) Run() {
 		clearTicker.Stop()
 	}
 
+	var now time.Time
 	for {
 		select {
 		case <-clearTicker.C:
@@ -133,7 +134,7 @@ func (p *Stats) Run() {
 				return
 			}
 
-			now := time.Now()
+			now = time.Now()
 			p.Observe(e)
 			if p.DropOrigin {
 				p.Drop <- e

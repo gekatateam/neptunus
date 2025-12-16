@@ -41,10 +41,12 @@ func (h *Handler) HandleClientStream(_ any, stream grpc.ServerStream) error {
 	}
 
 	wg := &sync.WaitGroup{}
+
+	var now time.Time
 	for {
 		m := dynamicpb.NewMessage(h.RecvMsg)
 		err := stream.RecvMsg(m)
-		now := time.Now()
+		now = time.Now()
 
 		if err != nil && errors.Is(err, io.EOF) {
 			h.Log.Info("client stream closed",

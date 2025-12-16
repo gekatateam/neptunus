@@ -28,8 +28,9 @@ func (p *Clone) Close() error {
 }
 
 func (p *Clone) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		for range p.Count {
 			cloned := e.Clone()

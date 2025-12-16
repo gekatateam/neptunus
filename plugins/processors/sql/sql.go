@@ -118,8 +118,9 @@ func (p *Sql) Run() {
 		defer dbstats.UnregisterDB(p.Pipeline, p.Alias, p.Driver)
 	}
 
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		rawArgs := make(map[string]any, len(p.Columns))
 		for column, field := range p.Columns {

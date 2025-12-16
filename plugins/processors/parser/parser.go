@@ -54,9 +54,10 @@ func (p *Parser) SetParser(parser core.Parser) {
 }
 
 func (p *Parser) Run() {
+	var now time.Time
 MAIN_LOOP:
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		rawField, err := e.GetField(p.From)
 		if err != nil {

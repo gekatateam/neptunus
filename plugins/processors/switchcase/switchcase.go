@@ -49,8 +49,9 @@ func (p *SwitchCase) Close() error {
 }
 
 func (p *SwitchCase) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 
 		for label, index := range p.labelsIndex {
 			oldValue, ok := e.GetLabel(label)

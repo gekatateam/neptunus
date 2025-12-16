@@ -126,10 +126,11 @@ func (p *Converter) Close() error {
 }
 
 func (p *Converter) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
-		var hasError bool
+		now = time.Now()
 
+		var hasError bool
 		for _, c := range p.conversions {
 			if err := p.converter.Convert(e, c); err != nil {
 				p.Log.Error("conversion failed",

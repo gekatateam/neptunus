@@ -22,8 +22,9 @@ func (p *Drop) Close() error {
 }
 
 func (p *Drop) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 		p.Drop <- e
 		p.Log.Debug("event dropped",
 			elog.EventGroup(e),

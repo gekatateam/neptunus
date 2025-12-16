@@ -27,7 +27,7 @@ func (p *Regex) Init() error {
 	for k, v := range p.Labels {
 		regex, err := regexp.Compile(v)
 		if err != nil {
-			return fmt.Errorf("label %v regex compilation failed: %v", k, err)
+			return fmt.Errorf("label %v regex compilation failed: %w", k, err)
 		}
 		p.labels[k] = regex
 	}
@@ -35,7 +35,7 @@ func (p *Regex) Init() error {
 	for k, v := range p.Fields {
 		regex, err := regexp.Compile(v)
 		if err != nil {
-			return fmt.Errorf("field %v regex compilation failed: %v", k, err)
+			return fmt.Errorf("field %v regex compilation failed: %w", k, err)
 		}
 		p.fields[k] = regex
 	}
@@ -48,8 +48,9 @@ func (p *Regex) Close() error {
 }
 
 func (p *Regex) Run() {
+	var now time.Time
 	for e := range p.In {
-		now := time.Now()
+		now = time.Now()
 		p.process(e)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))

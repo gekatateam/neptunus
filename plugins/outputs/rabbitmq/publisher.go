@@ -68,8 +68,11 @@ func (p *publisher) Run() {
 		}
 
 		pubs := make([]eventPublishing, 0, len(buf))
+
+		var now time.Time
 		for _, e := range buf {
-			now := time.Now()
+			now = time.Now()
+
 			event, err := p.ser.Serialize(e)
 			if err != nil {
 				p.Log.Error("serialization failed, event skipped",
@@ -138,7 +141,7 @@ func (p *publisher) Run() {
 			return
 		}
 
-		now := time.Now()
+		now = time.Now()
 		pubs, _ = p.produce(pubs)
 		dur := durationPerEvent(time.Since(now), len(pubs))
 
