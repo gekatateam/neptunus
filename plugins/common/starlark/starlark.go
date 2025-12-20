@@ -50,7 +50,7 @@ func (p *Starlark) Init(alias string, log *slog.Logger) error {
 	if len(p.File) > 0 {
 		script, err := os.ReadFile(p.File)
 		if err != nil {
-			return fmt.Errorf("failed to load %v script: %v", p.File, err)
+			return fmt.Errorf("failed to load %v script: %w", p.File, err)
 		}
 		p.Code = string(script)
 	}
@@ -139,12 +139,12 @@ SCRIPT_LOADED:
 
 	_, program, err := starlark.SourceProgramOptions(opts, p.File, p.Code, builtins.Has)
 	if err != nil {
-		return fmt.Errorf("compilation failed: %v", err)
+		return fmt.Errorf("compilation failed: %w", err)
 	}
 
 	globals, err := program.Init(p.thread, builtins)
 	if err != nil {
-		return fmt.Errorf("initialization failed: %v", err)
+		return fmt.Errorf("initialization failed: %w", err)
 	}
 	p.globals = globals
 

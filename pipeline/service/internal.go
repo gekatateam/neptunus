@@ -269,7 +269,7 @@ func (m *internalService) startPipeline(pipeUnit pipeUnit) error {
 				"id", id,
 			),
 		)
-		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v build failed: %v", id, err)}
+		return &pipeline.ValidationError{Err: fmt.Errorf("pipeline %v build failed: %w", id, err)}
 	}
 
 	if err := m.s.Acquire(id); err != nil {
@@ -280,7 +280,7 @@ func (m *internalService) startPipeline(pipeUnit pipeUnit) error {
 				"id", id,
 			),
 		)
-		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline %v lock failed: %v", id, err)}
+		return &pipeline.ConflictError{Err: fmt.Errorf("pipeline %v lock failed: %w", id, err)}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
