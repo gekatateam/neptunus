@@ -30,7 +30,7 @@ func (t *TLSClientConfig) Config() (*tls.Config, error) {
 		MinMaxVersion(t.MinVersion, "").
 		Build()
 	if err != nil {
-		return nil, fmt.Errorf("tls: %v", err)
+		return nil, fmt.Errorf("tls: %w", err)
 	}
 
 	return cfg, nil
@@ -60,7 +60,7 @@ func (t *TLSServerConfig) Config() (*tls.Config, error) {
 
 	cfg, err := builder.Build()
 	if err != nil {
-		return nil, fmt.Errorf("tls: %v", err)
+		return nil, fmt.Errorf("tls: %w", err)
 	}
 
 	return cfg, nil

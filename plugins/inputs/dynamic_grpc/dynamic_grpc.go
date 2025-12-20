@@ -188,7 +188,7 @@ func (i *DynamicGRPC) prepareServer() error {
 
 	listener, err := net.Listen("tcp", i.Server.Address)
 	if err != nil {
-		return fmt.Errorf("error creating listener: %v", err)
+		return fmt.Errorf("error creating listener: %w", err)
 	}
 	i.listener = listener
 
