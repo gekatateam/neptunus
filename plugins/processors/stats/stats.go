@@ -126,26 +126,26 @@ func (p *Stats) Run() {
 		case <-clearTicker.C:
 			p.cache.dropOlderThan(p.MetricTTL)
 		case <-flushTicker.C:
-			p.Flush()
+			p.flush()
 		case e, ok := <-p.In:
 			if !ok {
-				p.Flush()
+				p.flush()
 				return
 			}
 
 			now := time.Now()
-			p.Observe(e)
+			p.observe(e)
 			if p.DropOrigin {
 				p.Drop <- e
 			} else {
 				p.Out <- e
 			}
-			p.BaseProcessor.Observe(metrics.EventAccepted, time.Since(now))
+			p.Observe(metrics.EventAccepted, time.Since(now))
 		}
 	}
 }
 
-func (p *Stats) Flush() {
+func (p *Stats) flush() {
 	now := time.Now()
 
 	p.cache.flush(p.Out, func(m *metric, ch chan<- *core.Event) {
@@ -210,7 +210,7 @@ func (p *Stats) Flush() {
 	})
 }
 
-func (p *Stats) Observe(e *core.Event) {
+func (p *Stats) observe(e *core.Event) {
 	// it is okay if multiple stats will store one label set
 	// because there is no race condition
 	labels, ok := p.labelsFunc(e)

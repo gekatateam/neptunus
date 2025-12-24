@@ -27,10 +27,6 @@ func (d *tracker) Copy() *tracker {
 	return d
 }
 
-func (d *tracker) Increace() {
-	atomic.AddInt32(&d.duty, 1)
-}
-
 func (d *tracker) Decreace() {
 	n := atomic.AddInt32(&d.duty, -1)
 
