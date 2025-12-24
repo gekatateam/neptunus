@@ -48,3 +48,5 @@ If your plugin is an `input`, you need to handle this call, free all resources a
 If your plugin is a `filter`, `processor` or `output`, you must break the loop when plugin input channel closes. After that, the engine will call the `Close() error` method itself.
 
 There is no guarantee that the close method will be called exactly once, so it MUST be idempotent.
+
+If your streaming plugin uses some callable plugins, you need to close it in `Close() error`.
