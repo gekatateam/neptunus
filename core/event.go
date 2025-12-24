@@ -161,7 +161,6 @@ func ShareTracker(from, to *Event) {
 	}
 
 	if t := from.tracker; t != nil {
-		t.Increace()
-		to.tracker = t
+		to.tracker = t.Copy()
 	}
 }
