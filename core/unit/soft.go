@@ -66,8 +66,8 @@ func (u *procSoftUnit) Run() {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
 			f.Run() // blocking call, loop inside
-			close(c)
 			f.Close()
+			close(c)
 			u.wg.Done()
 		}(v.f, v.c)
 	}
@@ -136,8 +136,8 @@ func (u *outSoftUnit) Run() {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
 			f.Run() // blocking call, loop inside
-			close(c)
 			f.Close()
+			close(c)
 			u.wg.Done()
 		}(v.f, v.c)
 	}
@@ -216,8 +216,8 @@ func (u *inSoftUnit) Run() {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
 			f.Run() // blocking call, loop inside
-			close(c)
 			f.Close()
+			close(c)
 			u.wg.Done()
 		}(v.f, v.c)
 	}

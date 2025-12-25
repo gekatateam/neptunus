@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -16,8 +15,7 @@ var outs = &sync.Map{}
 
 type outputChans struct {
 	mu *sync.RWMutex
-	c  *atomic.Int32
-	ch []chan<- *core.Event
+	ch map[int]chan<- *core.Event
 }
 
 type Mixer struct {
@@ -45,7 +43,14 @@ func (p *Mixer) Close() error {
 		return nil
 	}
 
-	if curr.(outputChans).c.Add(-1) == 0 {
+	stored := curr.(outputChans)
+	stored.mu.Lock()
+	defer stored.mu.Unlock()
+
+	delete(stored.ch, p.line)
+	p.Log.Info(fmt.Sprintf("event output chan deleted on line %v; channels total: %v", p.line, len(stored.ch)))
+
+	if len(stored.ch) == 0 {
 		outs.Delete(p.id)
 	}
 	return nil
@@ -54,25 +59,23 @@ func (p *Mixer) Close() error {
 func (p *Mixer) SetChannels(in <-chan *core.Event, out chan<- *core.Event, _ chan<- *core.Event) {
 	p.in = in
 	curr, ok := outs.Load(p.id)
+	var stored outputChans
+
 	if !ok {
-		stored := outputChans{
+		stored = outputChans{
 			mu: &sync.RWMutex{},
-			c:  &atomic.Int32{},
-			ch: []chan<- *core.Event{out},
+			ch: make(map[int]chan<- *core.Event, 5),
 		}
-		stored.c.Add(1)
-		outs.Store(p.id, stored)
-		return
+	} else {
+		stored = curr.(outputChans)
 	}
 
-	stored := curr.(outputChans)
 	stored.mu.Lock()
 	defer stored.mu.Unlock()
 
-	stored.c.Add(1)
-	stored.ch = append(stored.ch, out)
-
+	stored.ch[p.line] = out
 	outs.Store(p.id, stored)
+	p.Log.Info(fmt.Sprintf("event output chan handled on line %v; channels total: %v", p.line, len(stored.ch)))
 }
 
 func (p *Mixer) Run() {
@@ -96,11 +99,11 @@ func (p *Mixer) Run() {
 			})
 		}
 
-		stored.mu.RUnlock()
 		chosen, _, _ := reflect.Select(cases)
 		p.Log.Debug(fmt.Sprintf("event sent to chan %v", chosen),
 			elog.EventGroup(e),
 		)
+		stored.mu.RUnlock()
 
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
