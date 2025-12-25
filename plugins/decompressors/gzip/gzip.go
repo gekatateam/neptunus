@@ -23,8 +23,7 @@ func (c *Gzip) Close() error {
 }
 
 func (c *Gzip) Decompress(data []byte) ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 1024))
-	buf.Write(data)
+	buf := bytes.NewBuffer(data)
 
 	var r *gzip.Reader
 	if poolReader := readersPool.Get(); poolReader == nil {
@@ -37,6 +36,8 @@ func (c *Gzip) Decompress(data []byte) ([]byte, error) {
 		r = poolReader.(*gzip.Reader)
 		r.Reset(buf)
 	}
+
+	defer readersPool.Put(r)
 	defer r.Close()
 
 	data, err := io.ReadAll(r)

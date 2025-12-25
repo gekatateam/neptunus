@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = false
+  run = true
   buffer = 5
   log_level = "info"
 
@@ -15,7 +15,7 @@
     # this job is used to create table partitions
     [[inputs.cronjob.jobs]]
       name = "partition.create"
-      schedule = "@every 5s"
+      schedule = "@every 1s"
       force = true
 
 [[processors]]
@@ -41,6 +41,10 @@ def process(event):
 
     return events
     '''
+
+[[processors]]
+  [processors.through]
+#    sleep = "1s"
 
 [[processors]]
   [processors.mixer]
