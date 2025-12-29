@@ -68,8 +68,9 @@ type Sql struct {
 	keepIndex  map[string]int
 	keepValues map[string]any
 
-	stopCh chan struct{}
-	doneCh chan struct{}
+	fetchCtx   context.Context
+	cancelFunc context.CancelFunc
+	doneCh     chan struct{}
 
 	txLevel sql.IsolationLevel
 	db      *sqlx.DB
@@ -168,14 +169,14 @@ func (i *Sql) Init() error {
 		}
 	}
 
-	i.stopCh = make(chan struct{})
+	i.fetchCtx, i.cancelFunc = context.WithCancel(context.Background())
 	i.doneCh = make(chan struct{})
 
 	return nil
 }
 
 func (i *Sql) Close() error {
-	i.stopCh <- struct{}{}
+	i.cancelFunc()
 	<-i.doneCh
 	return i.db.Close()
 }
@@ -192,17 +193,17 @@ func (i *Sql) Run() {
 			select {
 			case <-ticker.C:
 				i.poll()
-			case <-i.stopCh:
+			case <-i.fetchCtx.Done():
 				ticker.Stop()
-				i.doneCh <- struct{}{}
+				close(i.doneCh)
 				return
 			}
 		}
 	} else {
 		for {
 			select {
-			case <-i.stopCh:
-				i.doneCh <- struct{}{}
+			case <-i.fetchCtx.Done():
+				close(i.doneCh)
 				return
 			default:
 				i.poll()

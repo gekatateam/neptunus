@@ -33,9 +33,9 @@
 
 [[outputs]]
   [outputs.rabbitmq]
-    brokers        = [ "amqp://rabbit-1:5672", "amqp://rabbit-2:5672", "amqp://rabbit-3:5672" ]
+    brokers        = [ "amqp://localhost:5672" ]
     username       = "user"
-    password       = "pass"
+    password       = "bitnami"
     retry_attempts = 0
     idle_timeout   = "90s"
   [outputs.rabbitmq.serializer]
