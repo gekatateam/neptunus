@@ -259,7 +259,7 @@ CONNECT_LOOP:
 	}
 	wg.Wait()
 
-	i.doneCh <- struct{}{}
+	close(i.doneCh)
 }
 
 func (i *RabbitMQ) ValidateDeclarations() error {
