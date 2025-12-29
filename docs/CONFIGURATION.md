@@ -85,7 +85,7 @@ Minimalistic example:
 ```
 
 <details>
-  <summary>How to manage pipelines with locks</summary>
+  <summary>How to manage pipelines with locks:</summary>
   
   If you run neptunus in Kubernetes or similar runtime and you need to manage pipelines without stop, update and start your pods, you can create your own event bus for it. Here is an examples based on RabbitMQ - how to [handle stop/start requests](examples/selfmanage.consume.toml) and how to [broadcast it to all running engines](examples/selfmanage.process.toml).
 
