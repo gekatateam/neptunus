@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -66,11 +67,12 @@ func (p *Pool[T, K]) Remove(key K) {
 }
 
 func (p *Pool[T, K]) Close() error {
+	var err error
 	for key, runner := range p.runners {
-		runner.Close()
+		err = errors.Join(err, runner.Close())
 		delete(p.runners, key)
 	}
 
 	p.wg.Wait()
-	return nil
+	return err
 }
