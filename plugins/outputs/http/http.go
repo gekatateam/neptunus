@@ -158,9 +158,8 @@ MAIN_LOOP:
 }
 
 func (o *Http) Close() error {
-	o.ser.Close()
 	o.client.CloseIdleConnections()
-	return nil
+	return o.ser.Close()
 }
 
 func (o *Http) newRequester(path string) pool.Runner[*core.Event] {

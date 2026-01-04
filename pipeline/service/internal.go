@@ -264,7 +264,7 @@ func (m *internalService) startPipeline(pipeUnit pipeUnit) error {
 	if err := pipeUnit.p.Build(); err != nil {
 		pipeUnit.p.Close()
 		m.log.Error("pipeline building failed, pipeline closed as not ready for event processing",
-			"error", err.Error(),
+			"error", err,
 			slog.Group("pipeline",
 				"id", id,
 			),
@@ -289,10 +289,18 @@ func (m *internalService) startPipeline(pipeUnit pipeUnit) error {
 
 	m.wg.Add(1)
 	go func(p *pipeline.Pipeline) {
+		defer m.wg.Done()
+		defer cancel()
 		p.Run(ctx)
-		p.Close()
-		m.wg.Done()
-		cancel()
+
+		if err := p.Close(); err != nil {
+			m.log.Error("pipeline closed with error",
+				"error", err,
+				slog.Group("pipeline",
+					"id", id,
+				),
+			)
+		}
 	}(pipeUnit.p)
 
 	return nil

@@ -47,10 +47,10 @@ func (p *Log) Run() {
 		event, err := p.ser.Serialize(e)
 		if err != nil {
 			p.Log.Error("event serialization failed",
-				"error", err.Error(),
+				"error", err,
 				elog.EventGroup(e),
 			)
-			e.StackError(fmt.Errorf("log processor: event serialization failed: %v", err.Error()))
+			e.StackError(fmt.Errorf("log processor: event serialization failed: %w", err))
 			p.Out <- e
 			p.Observe(metrics.EventFailed, time.Since(now))
 			continue

@@ -41,8 +41,11 @@ func (i *Cronjob) Init() error {
 }
 
 func (i *Cronjob) Close() error {
-	i.cron.Stop()
 	return nil
+}
+
+func (i *Cronjob) Stop() {
+	<-i.cron.Stop().Done()
 }
 
 func (i *Cronjob) Run() {

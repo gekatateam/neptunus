@@ -135,7 +135,7 @@ func (i *Http) Run() {
 	i.Log.Info(fmt.Sprintf("starting http server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.Log.Error("http server startup failed",
-			"error", err.Error(),
+			"error", err,
 		)
 	} else {
 		i.Log.Info("stopping http server")
@@ -143,22 +143,18 @@ func (i *Http) Run() {
 }
 
 func (i *Http) Close() error {
+	return errors.Join(i.listener.Close(), i.parser.Close())
+}
+
+func (i *Http) Stop() {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
 	if err := i.server.Shutdown(ctx); err != nil {
 		i.Log.Error("http server graceful shutdown ended with error",
-			"error", err.Error(),
+			"error", err,
 		)
 	}
-
-	if err := i.parser.Close(); err != nil {
-		i.Log.Error("parser closed with error",
-			"error", err.Error(),
-		)
-	}
-
-	return i.listener.Close()
 }
 
 func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {

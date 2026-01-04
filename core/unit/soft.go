@@ -66,7 +66,6 @@ func (u *procSoftUnit) Run() {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
 			f.Run() // blocking call, loop inside
-			f.Close()
 			close(c)
 			u.wg.Done()
 		}(v.f, v.c)
@@ -82,11 +81,10 @@ func (u *procSoftUnit) Run() {
 	}()
 
 	// run processor
-	// processor will stop when its input channel closes
+	// processor will stop when its input channel closed
 	// it will happen when all filters are stopped
 	// or, if no filters are set, when the u.in channel is closed
-	u.p.Run() // blocking call, loop inside
-	u.p.Close()
+	u.p.Run()     // blocking call, loop inside
 	close(u.drop) // close drop events channel
 
 	// then, we wait until all goroutines are finished
@@ -136,7 +134,6 @@ func (u *outSoftUnit) Run() {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
 			f.Run() // blocking call, loop inside
-			f.Close()
 			close(c)
 			u.wg.Done()
 		}(v.f, v.c)
@@ -161,8 +158,7 @@ func (u *outSoftUnit) Run() {
 	}()
 
 	// run output
-	u.o.Run() // blocking call, loop inside
-	u.o.Close()
+	u.o.Run()     // blocking call, loop inside
 	close(u.rej)  // close rejected events chan
 	close(u.done) // close done events chan
 
@@ -216,7 +212,6 @@ func (u *inSoftUnit) Run() {
 		u.wg.Add(1)
 		go func(f core.Filter, c chan<- *core.Event) {
 			f.Run() // blocking call, loop inside
-			f.Close()
 			close(c)
 			u.wg.Done()
 		}(v.f, v.c)
@@ -232,7 +227,7 @@ func (u *inSoftUnit) Run() {
 	}()
 
 	<-u.stop     // wait for stop signal
-	u.i.Close()  // then close the input
+	u.i.Stop()   // then stop the input
 	u.wg.Wait()  // wait for all goroutines stopped
 	close(u.rej) // rejected chan can be closed only when all filters stopped
 	rejWg.Wait() // and wait for rejection goroutine

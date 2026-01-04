@@ -176,9 +176,12 @@ func (i *Sql) Init() error {
 }
 
 func (i *Sql) Close() error {
+	return i.db.Close()
+}
+
+func (i *Sql) Stop() {
 	i.cancelFunc()
 	<-i.doneCh
-	return i.db.Close()
 }
 
 func (i *Sql) Run() {

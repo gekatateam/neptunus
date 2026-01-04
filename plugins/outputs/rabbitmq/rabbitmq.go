@@ -101,8 +101,7 @@ func (o *RabbitMQ) SetSerializer(s core.Serializer) {
 }
 
 func (o *RabbitMQ) Close() error {
-	o.ser.Close()
-	return o.conn.Close()
+	return errors.Join(o.conn.Close(), o.ser.Close())
 }
 
 func (o *RabbitMQ) Run() {

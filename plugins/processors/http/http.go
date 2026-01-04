@@ -127,12 +127,10 @@ func (p *Http) Init() error {
 }
 
 func (p *Http) Close() error {
-	p.ser.Close()
-	p.parser.Close()
 	if clientStorage.Leave(p.id) {
 		p.client.CloseIdleConnections()
 	}
-	return nil
+	return errors.Join(p.parser.Close(), p.ser.Close())
 }
 
 func (p *Http) SetSerializer(s core.Serializer) {

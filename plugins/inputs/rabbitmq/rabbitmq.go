@@ -137,10 +137,12 @@ func (i *RabbitMQ) SetParser(p core.Parser) {
 }
 
 func (i *RabbitMQ) Close() error {
+	return errors.Join(i.conn.Close(), i.parser.Close())
+}
+
+func (i *RabbitMQ) Stop() {
 	i.cancelFunc()
 	<-i.doneCh
-	i.parser.Close()
-	return i.conn.Close()
 }
 
 func (i *RabbitMQ) Run() {

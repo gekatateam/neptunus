@@ -15,6 +15,7 @@ type Runner interface {
 // input plugin consumes events from outer world
 type Input interface {
 	SetChannels(out chan<- *Event)
+	Stop()
 	io.Closer
 	Runner
 	Initer

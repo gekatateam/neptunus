@@ -189,6 +189,14 @@ func (i *Kafka) SetParser(p core.Parser) {
 	i.parser = p
 }
 
+func (i *Kafka) Close() error {
+	return i.parser.Close()
+}
+
+func (i *Kafka) Stop() {
+	i.cancelFunc()
+}
+
 func (i *Kafka) Run() {
 	wg := &sync.WaitGroup{}
 	cg, _ := kafka.NewConsumerGroup(i.cgConfig) // because config validated before, no err possible here
@@ -268,7 +276,7 @@ GENERATION_LOOP:
 							Topic:            topic,
 							Partition:        partitionAssigment.ID,
 							MaxBytes:         int(i.MaxBatchSize.Bytes()),
-							QueueCapacity:    100, // <-
+							QueueCapacity:    100, // <- prefetch batch size?
 							MaxAttempts:      1,
 							Dialer:           i.dialer,
 							ReadBatchTimeout: i.ReadBatchTimeout,
@@ -285,11 +293,6 @@ GENERATION_LOOP:
 	}
 
 	wg.Wait()
-}
-
-func (i *Kafka) Close() error {
-	i.cancelFunc()
-	return nil
 }
 
 func (i *Kafka) testConn(dialer *kafka.Dialer) error {
