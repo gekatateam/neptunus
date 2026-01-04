@@ -9,6 +9,7 @@ The daemon part configures Neptunus app and pipelines engine.
 You can also use environment variables in daemon config with `${MY_VAR}` syntax. Please note than replacement occurs before file parsing.
 
 **Common** section used for low-level settings:
+ - **graceful_timeout**: timeout in seconds for graceful shutdown.
  - **log_level**: Logging level, global setting for all application, accepts `debug`, `info`, `warn` and `error`.
  - **log_format**: Logging format, supports `pretty`, `logfmt` and `json` formats.
  - **http_port**: Address for the HTTP API server. See more in the [API documentation](API.md).
@@ -21,6 +22,7 @@ Here is a common part example:
   log_level = "info"
   log_format = "logfmt"
   http_port = ":9600"
+  graceful_timeout = 15
   [common.log_fields]
     stage = "dev"
     dc = "east-01"

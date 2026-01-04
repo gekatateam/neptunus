@@ -13,9 +13,10 @@ import (
 var (
 	Default = Config{
 		Common: Common{
-			LogLevel:  "info",
-			LogFormat: "logfmt",
-			HttpPort:  ":9600",
+			LogLevel:        "info",
+			LogFormat:       "logfmt",
+			HttpPort:        ":9600",
+			GracefulTimeout: 15,
 		},
 		Engine: Engine{
 			Storage:  "fs",
@@ -35,18 +36,19 @@ type Config struct {
 }
 
 type Common struct {
-	LogLevel    string            `toml:"log_level"    yaml:"log_level"    json:"log_level"`
-	LogFormat   string            `toml:"log_format"   yaml:"log_format"   json:"log_format"`
-	LogFields   map[string]string `toml:"log_fields"   yaml:"log_fields"   json:"log_fields"`
-	LogReplaces map[string]string `toml:"log_replaces" yaml:"log_replaces" json:"log_replaces"`
-	HttpPort    string            `toml:"http_port"    yaml:"http_port"    json:"http_port"`
+	LogLevel        string            `toml:"log_level"        yaml:"log_level"        json:"log_level"`
+	LogFormat       string            `toml:"log_format"       yaml:"log_format"       json:"log_format"`
+	LogFields       map[string]string `toml:"log_fields"       yaml:"log_fields"       json:"log_fields"`
+	LogReplaces     map[string]string `toml:"log_replaces"     yaml:"log_replaces"     json:"log_replaces"`
+	HttpPort        string            `toml:"http_port"        yaml:"http_port"        json:"http_port"`
+	GracefulTimeout int               `toml:"graceful_timeout" yaml:"graceful_timeout" json:"graceful_timeout"`
 }
 
 type Runtime struct {
-	GCPercent  string `toml:"gcpercent"   yaml:"gcpercent"   json:"gcpercent"`
-	MemLimit   string `toml:"memlimit"    yaml:"memlimit"    json:"memlimit"`
-	MaxThreads int    `toml:"maxthreads"  yaml:"maxthreads"  json:"maxthreads"`
-	MaxProcs   int    `toml:"maxprocs"    yaml:"maxprocs"    json:"maxprocs"`
+	GCPercent  string `toml:"gcpercent"  yaml:"gcpercent"  json:"gcpercent"`
+	MemLimit   string `toml:"memlimit"   yaml:"memlimit"   json:"memlimit"`
+	MaxThreads int    `toml:"maxthreads" yaml:"maxthreads" json:"maxthreads"`
+	MaxProcs   int    `toml:"maxprocs"   yaml:"maxprocs"   json:"maxprocs"`
 }
 
 type Engine struct {
@@ -99,5 +101,13 @@ func ReadConfig(file string) (*Config, error) {
 		return &config, fmt.Errorf("unknown configuration file extension: %v", e)
 	}
 
-	return &config, nil
+	return SetConfigDefaults(&config), nil
+}
+
+func SetConfigDefaults(cfg *Config) *Config {
+	if cfg.Common.GracefulTimeout <= 0 {
+		cfg.Common.GracefulTimeout = Default.Common.GracefulTimeout
+	}
+
+	return cfg
 }

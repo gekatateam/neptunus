@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"time"
 
 	"sync"
 	"syscall"
@@ -92,6 +93,7 @@ func run(cCtx *cli.Context) error {
 	}
 
 	metrics.GlobalCollectorsRunner.Run(ctx, metrics.DefaultMetricCollectInterval)
+
 	wg.Go(func() {
 		if err := httpServer.Serve(); err != nil {
 			logger.Default.Error("http server startup failed",
@@ -102,6 +104,17 @@ func run(cCtx *cli.Context) error {
 	})
 
 	<-ctx.Done()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+			return
+		case <-time.After(time.Duration(cfg.Common.GracefulTimeout) * time.Second):
+			logger.Default.Error("graceful timeout reached, forcing shutdown")
+			os.Exit(1)
+		}
+	}()
+
 	if err := httpServer.Shutdown(context.Background()); err != nil {
 		logger.Default.Warn("http server stopped with error",
 			"error", err,
@@ -117,6 +130,7 @@ func run(cCtx *cli.Context) error {
 	}
 
 	wg.Wait()
+	close(done)
 	logger.Default.Info("we're done here")
 
 	return nil
