@@ -108,7 +108,7 @@ func run(cCtx *cli.Context) error {
 	go func() {
 		select {
 		case <-done:
-			return 
+			return
 		case <-time.After(time.Duration(cfg.Common.GracefulTimeout) * time.Second):
 			logger.Default.Error("graceful timeout reached, forcing shutdown")
 			os.Exit(1)

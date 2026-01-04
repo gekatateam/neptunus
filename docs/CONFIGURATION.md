@@ -22,6 +22,7 @@ Here is a common part example:
   log_level = "info"
   log_format = "logfmt"
   http_port = ":9600"
+  graceful_timeout = 15
   [common.log_fields]
     stage = "dev"
     dc = "east-01"

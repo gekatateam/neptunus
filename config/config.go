@@ -45,10 +45,10 @@ type Common struct {
 }
 
 type Runtime struct {
-	GCPercent  string `toml:"gcpercent"   yaml:"gcpercent"   json:"gcpercent"`
-	MemLimit   string `toml:"memlimit"    yaml:"memlimit"    json:"memlimit"`
-	MaxThreads int    `toml:"maxthreads"  yaml:"maxthreads"  json:"maxthreads"`
-	MaxProcs   int    `toml:"maxprocs"    yaml:"maxprocs"    json:"maxprocs"`
+	GCPercent  string `toml:"gcpercent"  yaml:"gcpercent"  json:"gcpercent"`
+	MemLimit   string `toml:"memlimit"   yaml:"memlimit"   json:"memlimit"`
+	MaxThreads int    `toml:"maxthreads" yaml:"maxthreads" json:"maxthreads"`
+	MaxProcs   int    `toml:"maxprocs"   yaml:"maxprocs"   json:"maxprocs"`
 }
 
 type Engine struct {
@@ -101,5 +101,13 @@ func ReadConfig(file string) (*Config, error) {
 		return &config, fmt.Errorf("unknown configuration file extension: %v", e)
 	}
 
-	return &config, nil
+	return SetConfigDefaults(&config), nil
+}
+
+func SetConfigDefaults(cfg *Config) *Config {
+	if cfg.Common.GracefulTimeout <= 0 {
+		cfg.Common.GracefulTimeout = Default.Common.GracefulTimeout
+	}
+
+	return cfg
 }
