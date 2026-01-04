@@ -268,7 +268,7 @@ GENERATION_LOOP:
 							Topic:            topic,
 							Partition:        partitionAssigment.ID,
 							MaxBytes:         int(i.MaxBatchSize.Bytes()),
-							QueueCapacity:    100, // <-
+							QueueCapacity:    100, // <- prefetch batch size?
 							MaxAttempts:      1,
 							Dialer:           i.dialer,
 							ReadBatchTimeout: i.ReadBatchTimeout,
@@ -288,8 +288,11 @@ GENERATION_LOOP:
 }
 
 func (i *Kafka) Close() error {
+	return i.parser.Close()
+}
+
+func (i *Kafka) Stop() {
 	i.cancelFunc()
-	return nil
 }
 
 func (i *Kafka) testConn(dialer *kafka.Dialer) error {

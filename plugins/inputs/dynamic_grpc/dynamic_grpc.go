@@ -127,13 +127,23 @@ func (i *DynamicGRPC) Init() error {
 func (i *DynamicGRPC) Close() error {
 	switch i.Mode {
 	case modeServerSideStream:
+		return i.clientConn.Close()
+	case modeAsServer:
+		return i.listener.Close()
+	default:
+		// btw unreachable code, mode checks on init
+		panic(fmt.Errorf("unknown mode: %v", i.Mode))
+	}
+}
+
+func (i *DynamicGRPC) Stop() {
+	switch i.Mode {
+	case modeServerSideStream:
 		i.cancelFunc()
 		<-i.doneCh
-		return i.clientConn.Close()
 	case modeAsServer:
 		i.server.GracefulStop()
 		<-i.doneCh
-		return i.listener.Close()
 	default:
 		// btw unreachable code, mode checks on init
 		panic(fmt.Errorf("unknown mode: %v", i.Mode))

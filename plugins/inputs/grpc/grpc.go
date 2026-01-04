@@ -65,10 +65,12 @@ type ServerOptions struct {
 }
 
 func (i *Grpc) Close() error {
-	i.Log.Debug("closing plugin")
+	return i.listener.Close()
+}
+
+func (i *Grpc) Stop() {
 	close(i.closeCh)
 	i.server.GracefulStop()
-	return i.listener.Close()
 }
 
 func (i *Grpc) Init() error {

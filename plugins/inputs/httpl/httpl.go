@@ -119,6 +119,10 @@ func (i *Httpl) Run() {
 }
 
 func (i *Httpl) Close() error {
+	return errors.Join(i.listener.Close(), i.parser.Close())
+}
+
+func (i *Httpl) Stop() {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	i.server.SetKeepAlivesEnabled(false)
@@ -127,14 +131,6 @@ func (i *Httpl) Close() error {
 			"error", err.Error(),
 		)
 	}
-
-	if err := i.parser.Close(); err != nil {
-		i.Log.Error("parser closed with error",
-			"error", err.Error(),
-		)
-	}
-
-	return i.listener.Close()
 }
 
 func (i *Httpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {

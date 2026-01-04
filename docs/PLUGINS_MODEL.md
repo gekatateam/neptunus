@@ -38,7 +38,7 @@ func init() {
 
 ## Plugin lifecycle
 
-Any plugin lifecycle is `create` -> `init` -> `set channels (for streaming plugins)` -> `run/call` -> `close`, and the engine takes care of some stages.
+Any plugin lifecycle is `create` -> `init` -> `set channels (for streaming plugins)` -> `run/call` -> `stop (for streaming plugins)` -> `close`, and the engine takes care of some stages.
 
 ### Create
 
@@ -73,13 +73,16 @@ You can find some heplers in [plugins/common/](../plugins/common/) dir, such as 
 
 In case of callable plugins, please remember that a plugin may be called simultaneously from multiple goroutines, so, make it concurrent-safety.
 
+### Stop
+When the engine receives a signal to stop a pipeline, it calls inputs `Stop()` method.
+
+If your plugin is an `input`, you need to handle this call, stop consuming events and break the `Run()` loop. Do not close the output channel! Engine will do this automatically.
+
+If your plugin is a `filter`, `processor` or `output`, you must break the loop when plugin input channel closes.
+
 ### Close
 
-When the engine receives a signal to stop a pipeline, it calls inputs `Close() error` method.
-
-If your plugin is an `input`, you need to handle this call, free all resources and break the `Run()` loop. Do not close the output channel! Engine will do this automatically.
-
-If your plugin is a `filter`, `processor` or `output`, you must break the loop when plugin input channel closes. After that, the engine will call the `Close() error` method itself.
+When pipeline fully stopped, engine calls plugins `Close() error` method - and it the place where you MUST free all resources. 
 
 There is no guarantee that the close method will be called exactly once, so it MUST be idempotent.
 

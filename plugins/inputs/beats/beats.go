@@ -74,6 +74,10 @@ func (i *Beats) Init() error {
 }
 
 func (i *Beats) Close() error {
+	return i.listener.Close()
+}
+
+func (i *Beats) Stop() {
 	if i.server != nil {
 		if err := i.server.Close(); err != nil {
 			i.Log.Error("beats server graceful shutdown ended with error",
@@ -81,11 +85,10 @@ func (i *Beats) Close() error {
 			)
 		}
 	}
-
-	return i.listener.Close()
 }
 
 func (i *Beats) Run() {
+START_SERVER:
 	i.Log.Info(fmt.Sprintf("starting lumberjack server on %v", i.Address))
 	if server, err := lumber.NewWithListener(i.listener,
 		lumber.Keepalive(i.KeepaliveTimeout),
@@ -96,7 +99,8 @@ func (i *Beats) Run() {
 		i.Log.Error("lumberjack server startup failed",
 			"error", err.Error(),
 		)
-		return
+		time.Sleep(i.NetworkTimeout)
+		goto START_SERVER
 	} else {
 		i.Log.Info("lumberjack server started")
 		i.server = server
