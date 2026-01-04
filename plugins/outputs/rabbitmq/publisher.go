@@ -159,7 +159,9 @@ func (p *publisher) Run() {
 		}
 	})
 
-	p.channel.Close()
+	if p.channel != nil && !p.channel.IsClosed() {
+		p.channel.Close()
+	}
 	p.Log.Info(fmt.Sprintf("publisher for exchange %v closed", p.exchange))
 }
 
