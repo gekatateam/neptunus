@@ -81,7 +81,7 @@ func (i *Beats) Stop() {
 	if i.server != nil {
 		if err := i.server.Close(); err != nil {
 			i.Log.Error("beats server graceful shutdown ended with error",
-				"error", err.Error(),
+				"error", err,
 			)
 		}
 	}
@@ -97,7 +97,7 @@ START_SERVER:
 		lumber.JSONDecoder(json.Unmarshal),
 	); err != nil {
 		i.Log.Error("lumberjack server startup failed",
-			"error", err.Error(),
+			"error", err,
 		)
 		time.Sleep(i.NetworkTimeout)
 		goto START_SERVER

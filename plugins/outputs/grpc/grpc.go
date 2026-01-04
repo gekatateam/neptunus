@@ -121,7 +121,7 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 		event, err := o.ser.Serialize(e)
 		if err != nil {
 			o.Log.Error("serialization failed",
-				"error", err.Error(),
+				"error", err,
 				elog.EventGroup(e),
 			)
 			o.Done <- e
@@ -153,7 +153,7 @@ func (o *Grpc) sendOne(ch <-chan *core.Event) {
 			o.Observe(metrics.EventAccepted, time.Since(now))
 		} else {
 			o.Log.Error("event send failed",
-				"error", err.Error(),
+				"error", err,
 				elog.EventGroup(e),
 			)
 			o.Observe(metrics.EventFailed, time.Since(now))
@@ -175,7 +175,7 @@ func (o *Grpc) sendBulk(ch <-chan *core.Event) {
 			event, err := o.ser.Serialize(e)
 			if err != nil {
 				o.Log.Error("serialization failed",
-					"error", err.Error(),
+					"error", err,
 					elog.EventGroup(e),
 				)
 				o.Done <- e
@@ -260,7 +260,7 @@ MAIN_LOOP:
 			event, err := o.ser.Serialize(e)
 			if err != nil {
 				o.Log.Error("serialization failed",
-					"error", err.Error(),
+					"error", err,
 					elog.EventGroup(e),
 				)
 				o.Done <- e

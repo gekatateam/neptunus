@@ -131,7 +131,7 @@ func (i *Grpc) Run() {
 	i.Log.Info(fmt.Sprintf("starting grpc server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil {
 		i.Log.Error("grpc server startup failed",
-			"error", err.Error(),
+			"error", err,
 		)
 	} else {
 		i.Log.Info("grpc server stopped")

@@ -135,7 +135,7 @@ func (i *Http) Run() {
 	i.Log.Info(fmt.Sprintf("starting http server on %v", i.Address))
 	if err := i.server.Serve(i.listener); err != nil && err != http.ErrServerClosed {
 		i.Log.Error("http server startup failed",
-			"error", err.Error(),
+			"error", err,
 		)
 	} else {
 		i.Log.Info("stopping http server")
@@ -152,7 +152,7 @@ func (i *Http) Stop() {
 	i.server.SetKeepAlivesEnabled(false)
 	if err := i.server.Shutdown(ctx); err != nil {
 		i.Log.Error("http server graceful shutdown ended with error",
-			"error", err.Error(),
+			"error", err,
 		)
 	}
 }
