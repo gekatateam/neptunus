@@ -19,10 +19,12 @@
 
 [[outputs]]
   [outputs.rabbitmq]
+    log_level = "debug"
     brokers = [ "amqp://localhost:5672" ]
     username = "user"
     password = "bitnami"
-    retry_attempts = 0
+    batch_interval = "20s"
+    retry_attempts = 3
     idle_timeout = "90s"
   [outputs.rabbitmq.serializer]
     type = "json"

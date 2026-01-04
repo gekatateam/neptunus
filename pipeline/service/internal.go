@@ -294,7 +294,7 @@ func (m *internalService) startPipeline(pipeUnit pipeUnit) error {
 		p.Run(ctx)
 
 		if err := p.Close(); err != nil {
-			m.log.Error("pipeline closed with error",
+			m.log.Warn("pipeline closed with error",
 				"error", err,
 				slog.Group("pipeline",
 					"id", id,
