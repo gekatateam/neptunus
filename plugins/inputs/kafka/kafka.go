@@ -189,6 +189,14 @@ func (i *Kafka) SetParser(p core.Parser) {
 	i.parser = p
 }
 
+func (i *Kafka) Close() error {
+	return i.parser.Close()
+}
+
+func (i *Kafka) Stop() {
+	i.cancelFunc()
+}
+
 func (i *Kafka) Run() {
 	wg := &sync.WaitGroup{}
 	cg, _ := kafka.NewConsumerGroup(i.cgConfig) // because config validated before, no err possible here
@@ -285,14 +293,6 @@ GENERATION_LOOP:
 	}
 
 	wg.Wait()
-}
-
-func (i *Kafka) Close() error {
-	return i.parser.Close()
-}
-
-func (i *Kafka) Stop() {
-	i.cancelFunc()
 }
 
 func (i *Kafka) testConn(dialer *kafka.Dialer) error {

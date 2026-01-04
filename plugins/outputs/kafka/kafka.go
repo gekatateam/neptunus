@@ -236,8 +236,7 @@ MAIN_LOOP:
 }
 
 func (o *Kafka) Close() error {
-	o.ser.Close()
-	return nil
+	return o.ser.Close()
 }
 
 func (o *Kafka) testConn(writer *kafka.Writer) error {

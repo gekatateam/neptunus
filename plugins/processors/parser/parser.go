@@ -46,7 +46,7 @@ func (p *Parser) Init() error {
 }
 
 func (p *Parser) Close() error {
-	return nil
+	return p.parser.Close()
 }
 
 func (p *Parser) SetParser(parser core.Parser) {

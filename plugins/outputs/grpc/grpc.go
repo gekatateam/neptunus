@@ -112,7 +112,7 @@ func (o *Grpc) Run() {
 }
 
 func (o *Grpc) Close() error {
-	return o.conn.Close()
+	return errors.Join(o.conn.Close(), o.ser.Close())
 }
 
 func (o *Grpc) sendOne(ch <-chan *core.Event) {

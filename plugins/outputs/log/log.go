@@ -63,7 +63,7 @@ func (o *Log) Run() {
 }
 
 func (o *Log) Close() error {
-	return nil
+	return o.ser.Close()
 }
 
 func init() {
