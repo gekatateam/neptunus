@@ -138,31 +138,33 @@ func (p *Pipeline) Config() *config.Pipeline {
 }
 
 func (p *Pipeline) Close() error {
+	var err error
+
 	for _, k := range p.keepers {
-		k.Close()
+		err = errors.Join(err, core.FullCloseError(k))
 	}
 
 	for _, set := range p.ins {
-		set.i.Close()
+		err = errors.Join(err, core.FullCloseError(set.i))
 		for _, f := range set.f {
-			f.Close()
+			err = errors.Join(err, core.FullCloseError(f))
 		}
 	}
 
 	for i := range p.procs {
 		for _, set := range p.procs[i] {
 			for _, f := range set.f {
-				f.Close()
+				err = errors.Join(err, core.FullCloseError(f))
 			}
-			set.p.Close()
+			err = errors.Join(err, core.FullCloseError(set.p))
 		}
 	}
 
 	for _, set := range p.outs {
 		for _, f := range set.f {
-			f.Close()
+			err = errors.Join(err, core.FullCloseError(f))
 		}
-		set.o.Close()
+		err = errors.Join(err, core.FullCloseError(set.o))
 	}
 
 	p.aliases = make(map[string]struct{})
@@ -172,7 +174,7 @@ func (p *Pipeline) Close() error {
 	p.ins = make([]inputSet, 0, len(p.config.Inputs))
 	p.chansStatsFuncs = nil
 
-	return nil
+	return err
 }
 
 func (p *Pipeline) Test() (err error) {
