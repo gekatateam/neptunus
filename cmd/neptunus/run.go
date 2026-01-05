@@ -63,6 +63,7 @@ func run(cCtx *cli.Context) error {
 			"kind", "internal",
 		),
 	))
+
 	metrics.CollectPipes(s.Stats)
 
 	restApi := api.Rest(s, logger.Default.With(
@@ -92,7 +93,9 @@ func run(cCtx *cli.Context) error {
 		}
 	}
 
-	metrics.GlobalCollectorsRunner.Run(ctx, metrics.DefaultMetricCollectInterval)
+	wg.Go(func() {
+		metrics.GlobalCollectorsRunner.Run(ctx, metrics.DefaultMetricCollectInterval)
+	})
 
 	wg.Go(func() {
 		if err := httpServer.Serve(); err != nil {
@@ -104,36 +107,35 @@ func run(cCtx *cli.Context) error {
 	})
 
 	<-ctx.Done()
+	logger.Default.Info("shutdown signal received, exiting...")
 	done := make(chan struct{})
-	go func() {
-		select {
-		case <-done:
-			return
-		case <-time.After(time.Duration(cfg.Common.GracefulTimeout) * time.Second):
-			logger.Default.Error("graceful timeout reached, forcing shutdown")
-			os.Exit(1)
+	go func() { // all shutdown logic must be here
+		if err := httpServer.Shutdown(context.Background()); err != nil {
+			logger.Default.Warn("http server stopped with error",
+				"error", err,
+			)
 		}
+
+		wg.Wait()
+
+		s.StopAll()
+
+		if err := storage.Close(); err != nil {
+			logger.Default.Warn("storage closed with error",
+				"error", err,
+			)
+		}
+
+		close(done)
 	}()
 
-	if err := httpServer.Shutdown(context.Background()); err != nil {
-		logger.Default.Warn("http server stopped with error",
-			"error", err,
-		)
+	select {
+	case <-done:
+		logger.Default.Info("we're done here")
+		return nil
+	case <-time.After(time.Duration(cfg.Common.GracefulTimeout) * time.Second):
+		return errors.New("graceful timeout reached, shutdown forced")
 	}
-
-	s.StopAll()
-
-	if err := storage.Close(); err != nil {
-		logger.Default.Warn("storage closed with error",
-			"error", err,
-		)
-	}
-
-	wg.Wait()
-	close(done)
-	logger.Default.Info("we're done here")
-
-	return nil
 }
 
 func SetRuntimeParameters(config *config.Runtime) error {

@@ -176,8 +176,9 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logger.Default.Error("application startup failed",
+		logger.Default.Error("we're failed",
 			"error", err,
 		)
+		os.Exit(1)
 	}
 }
