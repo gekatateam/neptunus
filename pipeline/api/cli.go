@@ -1,12 +1,10 @@
 package api
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"text/tabwriter"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
@@ -29,28 +27,35 @@ func (c *cliApi) Init(cCtx *cli.Context) error {
 	return nil
 }
 
-func (c *cliApi) List(_ *cli.Context) error {
+func (c *cliApi) List(cCtx *cli.Context) error {
 	pipes, err := c.gw.List()
 	if err != nil {
 		fmt.Printf("cli list: exec failed - %v\n", err)
 		os.Exit(1)
 	}
 
-	b := new(bytes.Buffer)
-	w := tabwriter.NewWriter(b, 1, 1, 1, ' ', 0)
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "id", "state", "autorun", "error")
-	fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "--", "-----", "-------", "-----")
-
+	var info []pipelineShortInfo
 	for _, pipe := range pipes {
 		state, lastErr, err := c.gw.State(pipe.Settings.Id)
 		if err != nil {
 			fmt.Printf("cli list: exec failed - %v", err)
 			os.Exit(1)
 		}
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pipe.Settings.Id, state, pipe.Settings.Run, lastErr)
+		info = append(info, pipelineShortInfo{
+			Id:      pipe.Settings.Id,
+			State:   state,
+			Autorun: pipe.Settings.Run,
+			LastErr: errAsString(lastErr),
+		})
 	}
-	w.Flush()
-	fmt.Print(b.String())
+
+	result, err := printShortInfo(cCtx.String("format"), info)
+	if err != nil {
+		fmt.Printf("cli list: exec failed - %v", err)
+		os.Exit(1)
+	}
+
+	fmt.Print(result)
 
 	return nil
 }
@@ -74,18 +79,13 @@ func (c *cliApi) Describe(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	rawPipe, err := config.MarshalPipeline(pipe, "."+cCtx.String("format"))
+	rawPipe, err := printFullInfo(cCtx.String("format"), pipe, state, lastErr)
 	if err != nil {
 		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
 		os.Exit(1)
 	}
 
-	fmt.Printf("Manifest:\n")
-	fmt.Printf("%v\n", string(rawPipe))
-	fmt.Printf("\n")
-	fmt.Printf("Runtime:\n")
-	fmt.Printf("state: %v\n", state)
-	fmt.Printf("error: %v\n", lastErr)
+	fmt.Print(rawPipe)
 
 	return nil
 }

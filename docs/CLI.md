@@ -16,17 +16,19 @@ neptunus pipeline COMMAND -h
 List all pipelines  
 Returns pipelines table
 ```
-id              state   autorun error
---              -----   ------- -----
+id              state   autorun last_error
+--              -----   ------- ----------
 test.pipeline.1 running true    <nil>
 test.pipeline.2 created false   <nil>
 ```
 
-Flags: **No**.
+Flags:
+ - *--format* - list format (plain, json, yaml supported)
 
 #### `describe`
 Describe pipeline by name (Id)  
-Returns pipeline configuration in specified format
+Returns pipeline configuration in specified format  
+Additional info included in `runtime` block - current state and last error
 
 Flags:
  - **--name** - Pipeline name
