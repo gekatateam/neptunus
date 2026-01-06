@@ -45,7 +45,7 @@ func (c *cliApi) List(cCtx *cli.Context) error {
 			Id:      pipe.Settings.Id,
 			State:   state,
 			Autorun: pipe.Settings.Run,
-			LastErr: lastErr,
+			LastErr: errAsString(lastErr),
 		})
 	}
 
@@ -79,18 +79,13 @@ func (c *cliApi) Describe(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	rawPipe, err := config.MarshalPipeline(pipe, "."+cCtx.String("format"))
+	rawPipe, err := printFullInfo(cCtx.String("format"), pipe, state, lastErr)
 	if err != nil {
 		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
 		os.Exit(1)
 	}
 
-	fmt.Printf("Manifest:\n")
-	fmt.Printf("%v\n", string(rawPipe))
-	fmt.Printf("\n")
-	fmt.Printf("Runtime:\n")
-	fmt.Printf("state: %v\n", state)
-	fmt.Printf("error: %v\n", lastErr)
+	fmt.Print(rawPipe)
 
 	return nil
 }
