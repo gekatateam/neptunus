@@ -67,9 +67,6 @@ func FullCloseError(plugin io.Closer) error {
 			base := b.Interface().(*BaseFilter)
 			return fmt.Errorf("filter %s %s: %w", base.Plugin, base.Alias, err)
 		}
-
-		panic(fmt.Errorf("unsupported plugin type: %T", plugin))
-	default:
-		panic(fmt.Errorf("unsupported plugin type: %T", plugin))
 	}
+	panic(fmt.Errorf("unsupported plugin type: %T", plugin))
 }

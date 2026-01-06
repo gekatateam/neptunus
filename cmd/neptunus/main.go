@@ -73,8 +73,15 @@ func main() {
 				Subcommands: []*cli.Command{
 					{
 						Name:   "list",
-						Usage:  "list all pipelines",
+						Usage:  "list all pipelines (short info)",
 						Action: cliController.List,
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:  "format",
+								Value: "plain",
+								Usage: "list format (plain, json, yaml supported)",
+							},
+						},
 					},
 					{
 						Name:      "describe",
@@ -83,7 +90,7 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:     "name",
-								Aliases:  []string{"n"},
+								Aliases:  []string{"n", "id"},
 								Required: true,
 								Usage:    "pipeline name",
 							},
@@ -130,7 +137,7 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:     "name",
-								Aliases:  []string{"n"},
+								Aliases:  []string{"n", "id"},
 								Required: true,
 								Usage:    "pipeline name",
 							},
@@ -149,7 +156,7 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:     "name",
-								Aliases:  []string{"n"},
+								Aliases:  []string{"n", "id"},
 								Required: true,
 								Usage:    "pipeline name",
 							},
@@ -163,7 +170,7 @@ func main() {
 						Flags: []cli.Flag{
 							&cli.StringFlag{
 								Name:     "name",
-								Aliases:  []string{"n"},
+								Aliases:  []string{"n", "id"},
 								Required: true,
 								Usage:    "pipeline name",
 							},
