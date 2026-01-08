@@ -279,12 +279,7 @@ func JsonStrictNumberUnmarshal(dec *jsontext.Decoder, val *any) error {
 	return json.SkipFunc
 }
 
-func JsonUnmarshalVars(data []byte, vars *map[string]any) error {
-	return json.Unmarshal(data, &vars,
-		json.WithUnmarshalers(json.UnmarshalFromFunc(JsonStrictNumberUnmarshal)))
-}
-
-func JsonUnmarshalPluginSet(data []byte, set *[]PluginSet) error {
-	return json.Unmarshal(data, &set,
+func JsonUnmarshalStrict[T any](data []byte, vars T) error {
+	return json.Unmarshal(data, vars,
 		json.WithUnmarshalers(json.UnmarshalFromFunc(JsonStrictNumberUnmarshal)))
 }

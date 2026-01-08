@@ -74,4 +74,4 @@ tasks:
   tests:
     desc: Run tests
     cmds:
-    - go test ./... -v
+    - task: generics:test

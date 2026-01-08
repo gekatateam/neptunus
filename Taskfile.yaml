@@ -7,6 +7,7 @@ includes:
 
 vars:
   NEPTUNUS_BUILD_DIR: "builds"
+  NEPTUNUS_BUILD_GOEXPERIMENT: "greenteagc,jsonv2"
   NEPTUNUS_BUILD_VERSION:
     sh: echo "$(git describe --abbrev=0 --tags)-$(git log -n 1 --format=%h)"
 

@@ -434,23 +434,23 @@ func storedToConfig(p storedPipeline) (*config.Pipeline, error) {
 		},
 	}
 
-	if err := config.JsonUnmarshalVars(p.Vars, &cfg.Vars); err != nil {
+	if err := config.JsonUnmarshalStrict(p.Vars, &cfg.Vars); err != nil {
 		return nil, fmt.Errorf("unmarshal vars: %w", err)
 	}
 
-	if err := config.JsonUnmarshalPluginSet(p.Keykeepers, &cfg.Keykeepers); err != nil {
+	if err := config.JsonUnmarshalStrict(p.Keykeepers, &cfg.Keykeepers); err != nil {
 		return nil, fmt.Errorf("unmarshal keykeepers: %w", err)
 	}
 
-	if err := config.JsonUnmarshalPluginSet(p.Inputs, &cfg.Inputs); err != nil {
+	if err := config.JsonUnmarshalStrict(p.Inputs, &cfg.Inputs); err != nil {
 		return nil, fmt.Errorf("unmarshal inputs: %w", err)
 	}
 
-	if err := config.JsonUnmarshalPluginSet(p.Processors, &cfg.Processors); err != nil {
+	if err := config.JsonUnmarshalStrict(p.Processors, &cfg.Processors); err != nil {
 		return nil, fmt.Errorf("unmarshal processors: %w", err)
 	}
 
-	if err := config.JsonUnmarshalPluginSet(p.Outputs, &cfg.Outputs); err != nil {
+	if err := config.JsonUnmarshalStrict(p.Outputs, &cfg.Outputs); err != nil {
 		return nil, fmt.Errorf("unmarshal outputs: %w", err)
 	}
 
