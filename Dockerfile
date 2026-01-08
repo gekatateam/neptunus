@@ -9,7 +9,7 @@ WORKDIR /build
 
 COPY . . 
 
-RUN GOEXPERIMENT=greenteagc go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
+RUN GOEXPERIMENT=greenteagc,jsonv2 go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
 
 ### create final image
 FROM alpine:3

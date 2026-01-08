@@ -1,9 +1,11 @@
 package config
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -198,11 +200,12 @@ func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
 			return &pipeline, err
 		}
 	case ".json":
-		if err := json.Unmarshal(data, &pipeline); err != nil {
+		if err := json.Unmarshal(data, &pipeline,
+			json.WithUnmarshalers(json.UnmarshalFromFunc(JsonStrictNumberUnmarshal))); err != nil {
 			return &pipeline, err
 		}
 	default:
-		return &pipeline, fmt.Errorf("unknown pipeline file extension: %v", format)
+		return &pipeline, fmt.Errorf("unknown pipeline extension: %v", format)
 	}
 
 	return SetPipelineDefaults(&pipeline), nil
@@ -226,7 +229,7 @@ func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unknown pipeline file extension: %v", format)
+		return nil, fmt.Errorf("unknown pipeline extension: %v", format)
 	}
 
 	return content, nil
@@ -246,4 +249,42 @@ func SetPipelineDefaults(pipe *Pipeline) *Pipeline {
 	}
 
 	return pipe
+}
+
+func JsonStrictNumberUnmarshal(dec *jsontext.Decoder, val *any) error {
+	if dec.PeekKind() == '0' {
+		v, err := dec.ReadValue()
+		if err != nil {
+			return err
+		}
+
+		if i, err := strconv.ParseInt(string(v), 10, 64); err == nil {
+			*val = i
+			return nil
+		}
+
+		if u, err := strconv.ParseUint(string(v), 10, 64); err == nil {
+			*val = u
+			return nil
+		}
+
+		if f, err := strconv.ParseFloat(string(v), 64); err == nil {
+			*val = f
+			return nil
+		}
+
+		return fmt.Errorf("cannot parse number: %s; int, uint, float failed", string(v))
+	}
+
+	return json.SkipFunc
+}
+
+func JsonUnmarshalVars(data []byte, vars *map[string]any) error {
+	return json.Unmarshal(data, &vars,
+		json.WithUnmarshalers(json.UnmarshalFromFunc(JsonStrictNumberUnmarshal)))
+}
+
+func JsonUnmarshalPluginSet(data []byte, set *[]PluginSet) error {
+	return json.Unmarshal(data, &set,
+		json.WithUnmarshalers(json.UnmarshalFromFunc(JsonStrictNumberUnmarshal)))
 }

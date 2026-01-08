@@ -1,7 +1,7 @@
 package config
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,10 +91,6 @@ func ReadConfig(file string) (*Config, error) {
 		}
 	case ".yaml", ".yml":
 		if err := yaml.Unmarshal(buf, &config); err != nil {
-			return &config, err
-		}
-	case "json":
-		if err := json.Unmarshal(buf, &config); err != nil {
 			return &config, err
 		}
 	default:

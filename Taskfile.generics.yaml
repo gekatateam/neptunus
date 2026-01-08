@@ -14,7 +14,7 @@ tasks:
         powershell New-Item -ItemType Directory -Force \
         -Path {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
     - cmd: |
-        export GOEXPERIMENT=greenteagc
+        export GOEXPERIMENT=greenteagc,jsonv2
         export GOOS="{{ .NEPTUNUS_BUILD_GOOS }}"
         export GOARCH="{{ .NEPTUNUS_BUILD_GOARCH }}"
         go build \
