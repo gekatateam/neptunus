@@ -156,7 +156,7 @@ func (a *restApi) Get() http.Handler {
 		pipe, err := a.s.Get(id)
 		switch {
 		case err == nil:
-			data, _ := json.Marshal(pipe)
+			data, _ := config.MarshalPipeline(pipe, ".json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(data)
 		case errors.As(err, &pipeline.NotFoundErr):
@@ -200,9 +200,8 @@ func (a *restApi) Add() http.Handler {
 		err = a.s.Add(pipe)
 		switch {
 		case err == nil:
-			data, _ := json.Marshal(pipe)
 			w.WriteHeader(http.StatusCreated)
-			w.Write(data)
+			w.Write(model.OkToJson("added", nil))
 		case errors.As(err, &pipeline.ConflictErr):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(model.ErrToJson(err.Error()))
@@ -240,9 +239,8 @@ func (a *restApi) Update() http.Handler {
 		err = a.s.Update(pipe)
 		switch {
 		case err == nil:
-			data, _ := json.Marshal(pipe)
 			w.WriteHeader(http.StatusOK)
-			w.Write(data)
+			w.Write(model.OkToJson("updated", nil))
 		case errors.As(err, &pipeline.NotFoundErr):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))

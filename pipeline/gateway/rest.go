@@ -166,9 +166,11 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
-		rawBody, _ := io.ReadAll(res.Body)
-		json.Unmarshal(rawBody, pipe)
-		return pipe, nil
+		rawBody, err := io.ReadAll(res.Body)
+		if err != nil {
+			return pipe, err
+		}
+		return config.UnmarshalPipeline(rawBody, ".json")
 	case http.StatusNotFound:
 		return pipe, &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	default:
