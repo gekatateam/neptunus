@@ -101,12 +101,12 @@ func readPipeline(file string) (*config.Pipeline, error) {
 		return nil, &pipeline.IOError{Err: err}
 	}
 
-	pipe, err := config.UnmarshalPipeline(buf, filepath.Ext(file))
-	if err != nil {
+	pipe := new(config.Pipeline)
+	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if err := config.UnmarshalPipeline(buf, pipe, filepath.Ext(file)); err != nil {
 		return nil, &pipeline.ValidationError{Err: err}
 	}
 
-	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	return pipe, nil
 }
 

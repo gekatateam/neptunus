@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
@@ -142,8 +143,9 @@ func (c *cliApi) Deploy(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	pipe, err := config.UnmarshalPipeline(rawPipe, filepath.Ext(file))
-	if err != nil {
+	pipe := new(config.Pipeline)
+	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if err := config.UnmarshalPipeline(rawPipe, pipe, filepath.Ext(file)); err != nil {
 		fmt.Printf("cli deploy: exec failed - unmarshal pipeline error: %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -173,8 +175,9 @@ func (c *cliApi) Update(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	pipe, err := config.UnmarshalPipeline(rawPipe, filepath.Ext(file))
-	if err != nil {
+	pipe := new(config.Pipeline)
+	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if err := config.UnmarshalPipeline(rawPipe, pipe, filepath.Ext(file)); err != nil {
 		fmt.Printf("cli update: exec failed - unmarshal pipeline error: %v\n", err.Error())
 		os.Exit(1)
 	}

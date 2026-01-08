@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -128,7 +127,7 @@ func (a *restApi) List() http.Handler {
 		pipes, err := a.s.List()
 		switch {
 		case err == nil:
-			data, _ := json.Marshal(pipes)
+			data, _ := config.MarshalPipeline(pipes, ".json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(data)
 		case errors.As(err, &pipeline.ValidationErr):
@@ -184,7 +183,8 @@ func (a *restApi) Add() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
 
-		pipe, err := config.UnmarshalPipeline(data, ".json")
+		pipe := new(config.Pipeline)
+		err := config.UnmarshalPipeline(data, pipe, ".json")
 		switch {
 		case err == nil:
 		default:
@@ -227,7 +227,8 @@ func (a *restApi) Update() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
 
-		pipe, err := config.UnmarshalPipeline(data, ".json")
+		pipe := new(config.Pipeline)
+		err := config.UnmarshalPipeline(data, pipe, ".json")
 		switch {
 		case err == nil:
 			pipe.Settings.Id = chi.URLParam(r, "id")
