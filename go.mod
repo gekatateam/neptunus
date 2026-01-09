@@ -80,7 +80,7 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
 	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/elastic/go-elasticsearch/v8 v8.17.1
