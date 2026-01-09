@@ -13,12 +13,13 @@ import (
 )
 
 type Pipeline struct {
-	Settings   PipeSettings `toml:"settings"   yaml:"settings"   json:"settings"`
-	Vars       PipeVars     `toml:"vars"       yaml:"vars"       json:"vars"`
-	Inputs     []PluginSet  `toml:"inputs"     yaml:"inputs"     json:"inputs"`
-	Processors []PluginSet  `toml:"processors" yaml:"processors" json:"processors"`
-	Outputs    []PluginSet  `toml:"outputs"    yaml:"outputs"    json:"outputs"`
-	Keykeepers []PluginSet  `toml:"keykeepers" yaml:"keykeepers" json:"keykeepers"`
+	Settings   PipeSettings `toml:"settings"          yaml:"settings"          json:"settings"`
+	Vars       PipeVars     `toml:"vars"              yaml:"vars"              json:"vars"`
+	Inputs     []PluginSet  `toml:"inputs"            yaml:"inputs"            json:"inputs"`
+	Processors []PluginSet  `toml:"processors"        yaml:"processors"        json:"processors"`
+	Outputs    []PluginSet  `toml:"outputs"           yaml:"outputs"           json:"outputs"`
+	Keykeepers []PluginSet  `toml:"keykeepers"        yaml:"keykeepers"        json:"keykeepers"`
+	Runtime    *PipeRuntime `toml:"runtime,omitempty" yaml:"runtime,omitempty" json:"runtime,omitempty"`
 }
 
 type PipeSettings struct {
@@ -28,6 +29,11 @@ type PipeSettings struct {
 	Buffer      int    `toml:"buffer"      yaml:"buffer"      json:"buffer"`
 	Consistency string `toml:"consistency" yaml:"consistency" json:"consistency"`
 	LogLevel    string `toml:"log_level"   yaml:"log_level"   json:"log_level"`
+}
+
+type PipeRuntime struct {
+	State     string `toml:"state"      yaml:"state"      json:"state"`
+	LastError string `toml:"last_error" yaml:"last_error" json:"last_error"`
 }
 
 type PipeVars map[string]any
@@ -201,7 +207,11 @@ func SetPipelineDefaults(settings *PipeSettings) {
 	}
 }
 
-func UnmarshalPipeline[T *PipeSettings | *Pipeline | *[]*Pipeline | *PipeVars | *[]PluginSet](data []byte, dest T, format string) error {
+type Marshalable interface {
+	PipeSettings | Pipeline | []*Pipeline | PipeVars | []PluginSet
+}
+
+func UnmarshalPipeline[T Marshalable](data []byte, dest *T, format string) error {
 	switch d := any(dest).(type) {
 	case *PipeSettings:
 		if err := UnmarshalFormat(data, d, format); err != nil {
@@ -232,7 +242,7 @@ func UnmarshalPipeline[T *PipeSettings | *Pipeline | *[]*Pipeline | *PipeVars | 
 	}
 }
 
-func MarshalPipeline[T PipeSettings | *Pipeline | []*Pipeline | PipeVars | []PluginSet](src T, format string) ([]byte, error) {
+func MarshalPipeline[T Marshalable](src T, format string) ([]byte, error) {
 	switch format {
 	case ".toml":
 		return toml.Marshal(src)

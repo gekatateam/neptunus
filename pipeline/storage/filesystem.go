@@ -111,7 +111,7 @@ func readPipeline(file string) (*config.Pipeline, error) {
 }
 
 func writePipeline(pipe *config.Pipeline, file string) error {
-	data, err := config.MarshalPipeline(pipe, filepath.Ext(file))
+	data, err := config.MarshalPipeline(*pipe, filepath.Ext(file))
 	if err != nil {
 		return &pipeline.ValidationError{Err: err}
 	}

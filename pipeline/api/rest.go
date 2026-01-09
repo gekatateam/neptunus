@@ -127,15 +127,14 @@ func (a *restApi) List() http.Handler {
 		pipes, err := a.s.List()
 		switch {
 		case err == nil:
-			data, _ := config.MarshalPipeline(pipes, ".json")
-			w.WriteHeader(http.StatusOK)
-			w.Write(data)
 		case errors.As(err, &pipeline.ValidationErr):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
+			return
 		case errors.As(err, &pipeline.IOErr):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
+			return
 		default:
 			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
@@ -143,7 +142,27 @@ func (a *restApi) List() http.Handler {
 			)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
+			return
 		}
+
+		for _, p := range pipes {
+			state, lastErr, err := a.s.State(p.Settings.Id)
+			if err != nil {
+				p.Runtime = &config.PipeRuntime{
+					LastError: err.Error(),
+				}
+				continue
+			}
+
+			p.Runtime = &config.PipeRuntime{
+				State:     state,
+				LastError: errAsString(lastErr),
+			}
+		}
+
+		data, _ := config.MarshalPipeline(pipes, ".json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
 	})
 }
 
@@ -155,7 +174,7 @@ func (a *restApi) Get() http.Handler {
 		pipe, err := a.s.Get(id)
 		switch {
 		case err == nil:
-			data, _ := config.MarshalPipeline(pipe, ".json")
+			data, _ := config.MarshalPipeline(*pipe, ".json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(data)
 		case errors.As(err, &pipeline.NotFoundErr):
@@ -184,10 +203,7 @@ func (a *restApi) Add() http.Handler {
 		data, _ := io.ReadAll(r.Body)
 
 		pipe := new(config.Pipeline)
-		err := config.UnmarshalPipeline(data, pipe, ".json")
-		switch {
-		case err == nil:
-		default:
+		if err := config.UnmarshalPipeline(data, pipe, ".json"); err != nil {
 			a.log.Error("internal error occurred",
 				"url", r.URL.Path,
 				"error", err,
@@ -197,7 +213,7 @@ func (a *restApi) Add() http.Handler {
 			return
 		}
 
-		err = a.s.Add(pipe)
+		err := a.s.Add(pipe)
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusCreated)
@@ -228,16 +244,18 @@ func (a *restApi) Update() http.Handler {
 		data, _ := io.ReadAll(r.Body)
 
 		pipe := new(config.Pipeline)
-		err := config.UnmarshalPipeline(data, pipe, ".json")
-		switch {
-		case err == nil:
-			pipe.Settings.Id = chi.URLParam(r, "id")
-		default:
+		if err := config.UnmarshalPipeline(data, pipe, ".json"); err != nil {
+			a.log.Error("internal error occurred",
+				"url", r.URL.Path,
+				"error", err,
+			)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(model.ErrToJson(err.Error()))
+			return
 		}
 
-		err = a.s.Update(pipe)
+		pipe.Settings.Id = chi.URLParam(r, "id")
+		err := a.s.Update(pipe)
 		switch {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)

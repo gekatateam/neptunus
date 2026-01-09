@@ -184,7 +184,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	pipeRaw, err := config.MarshalPipeline(pipe, ".json")
+	pipeRaw, err := config.MarshalPipeline(*pipe, ".json")
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	pipeRaw, err := config.MarshalPipeline(pipe, ".json")
+	pipeRaw, err := config.MarshalPipeline(*pipe, ".json")
 	if err != nil {
 		return err
 	}
