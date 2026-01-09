@@ -16,10 +16,10 @@ neptunus pipeline COMMAND -h
 List all pipelines  
 Returns pipelines table
 ```
-id              state   autorun last_error
---              -----   ------- ----------
-test.pipeline.1 running true    <nil>
-test.pipeline.2 created false   <nil>
+id                        autorun state   last_error
+--                        ------- -----   ----------
+realtime.orderbook.FUTURE true    running <nil>
+test.pipeline.beats       false   created <nil>
 ```
 
 Flags:

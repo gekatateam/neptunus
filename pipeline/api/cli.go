@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
@@ -36,16 +37,11 @@ func (c *cliApi) List(cCtx *cli.Context) error {
 
 	var info []pipelineShortInfo
 	for _, pipe := range pipes {
-		state, lastErr, err := c.gw.State(pipe.Settings.Id)
-		if err != nil {
-			fmt.Printf("cli list: exec failed - %v", err)
-			os.Exit(1)
-		}
 		info = append(info, pipelineShortInfo{
 			Id:      pipe.Settings.Id,
-			State:   state,
 			Autorun: pipe.Settings.Run,
-			LastErr: errAsString(lastErr),
+			State:   pipe.Runtime.State,
+			LastErr: pipe.Runtime.LastError,
 		})
 	}
 
@@ -79,13 +75,18 @@ func (c *cliApi) Describe(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	rawPipe, err := printFullInfo(cCtx.String("format"), pipe, state, lastErr)
+	pipe.Runtime = &config.PipeRuntime{
+		State:     state,
+		LastError: errAsString(lastErr),
+	}
+
+	rawPipe, err := config.MarshalPipeline(*pipe, "."+cCtx.String("format"))
 	if err != nil {
 		fmt.Printf("cli describe: exec failed - %v\n", err.Error())
 		os.Exit(1)
 	}
 
-	fmt.Print(rawPipe)
+	fmt.Print(string(rawPipe))
 
 	return nil
 }
@@ -142,8 +143,9 @@ func (c *cliApi) Deploy(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	pipe, err := config.UnmarshalPipeline(rawPipe, filepath.Ext(file))
-	if err != nil {
+	pipe := new(config.Pipeline)
+	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if err := config.UnmarshalPipeline(rawPipe, pipe, filepath.Ext(file)); err != nil {
 		fmt.Printf("cli deploy: exec failed - unmarshal pipeline error: %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -173,8 +175,9 @@ func (c *cliApi) Update(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	pipe, err := config.UnmarshalPipeline(rawPipe, filepath.Ext(file))
-	if err != nil {
+	pipe := new(config.Pipeline)
+	pipe.Settings.Id = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if err := config.UnmarshalPipeline(rawPipe, pipe, filepath.Ext(file)); err != nil {
 		fmt.Printf("cli update: exec failed - unmarshal pipeline error: %v\n", err.Error())
 		os.Exit(1)
 	}

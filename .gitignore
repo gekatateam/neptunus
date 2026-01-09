@@ -25,4 +25,4 @@ go.work.sum
 .env
 
 .stash
-.pipelines/test.pipeline.grpcserverstream.toml
+.pipelines/realtime.orderbook.FUTRGBI09250.toml

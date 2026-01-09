@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -434,27 +433,27 @@ func storedToConfig(p storedPipeline) (*config.Pipeline, error) {
 		},
 	}
 
-	if err := p.Vars.Unmarshal(&cfg.Vars); err != nil {
+	if err := config.UnmarshalPipeline(p.Vars, &cfg.Vars, ".json"); err != nil {
 		return nil, fmt.Errorf("unmarshal vars: %w", err)
 	}
 
-	if err := p.Keykeepers.Unmarshal(&cfg.Keykeepers); err != nil {
+	if err := config.UnmarshalPipeline(p.Keykeepers, &cfg.Keykeepers, ".json"); err != nil {
 		return nil, fmt.Errorf("unmarshal keykeepers: %w", err)
 	}
 
-	if err := p.Inputs.Unmarshal(&cfg.Inputs); err != nil {
+	if err := config.UnmarshalPipeline(p.Inputs, &cfg.Inputs, ".json"); err != nil {
 		return nil, fmt.Errorf("unmarshal inputs: %w", err)
 	}
 
-	if err := p.Processors.Unmarshal(&cfg.Processors); err != nil {
+	if err := config.UnmarshalPipeline(p.Processors, &cfg.Processors, ".json"); err != nil {
 		return nil, fmt.Errorf("unmarshal processors: %w", err)
 	}
 
-	if err := p.Outputs.Unmarshal(&cfg.Outputs); err != nil {
+	if err := config.UnmarshalPipeline(p.Outputs, &cfg.Outputs, ".json"); err != nil {
 		return nil, fmt.Errorf("unmarshal outputs: %w", err)
 	}
 
-	return config.SetPipelineDefaults(&cfg), nil
+	return &cfg, nil
 }
 
 func configToStored(c *config.Pipeline) (storedPipeline, error) {
@@ -475,7 +474,7 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 	if len(c.Vars) == 0 {
 		pipe.Vars = emptyVars
 	} else {
-		vars, err := json.Marshal(c.Vars)
+		vars, err := config.MarshalPipeline(c.Vars, ".json")
 		if err != nil {
 			return storedPipeline{}, fmt.Errorf("marshal vars: %w", err)
 		}
@@ -485,7 +484,7 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 	if len(c.Keykeepers) == 0 {
 		pipe.Keykeepers = emptyList
 	} else {
-		keykeepers, err := json.Marshal(c.Keykeepers)
+		keykeepers, err := config.MarshalPipeline(c.Keykeepers, ".json")
 		if err != nil {
 			return storedPipeline{}, fmt.Errorf("marshal keykeepers: %w", err)
 		}
@@ -495,7 +494,7 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 	if len(c.Inputs) == 0 {
 		pipe.Inputs = emptyList
 	} else {
-		inputs, err := json.Marshal(c.Inputs)
+		inputs, err := config.MarshalPipeline(c.Inputs, ".json")
 		if err != nil {
 			return storedPipeline{}, fmt.Errorf("marshal inputs: %w", err)
 		}
@@ -505,7 +504,7 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 	if len(c.Processors) == 0 {
 		pipe.Processors = emptyList
 	} else {
-		processors, err := json.Marshal(c.Processors)
+		processors, err := config.MarshalPipeline(c.Processors, ".json")
 		if err != nil {
 			return storedPipeline{}, fmt.Errorf("marshal processors: %w", err)
 		}
@@ -515,7 +514,7 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 	if len(c.Outputs) == 0 {
 		pipe.Outputs = emptyList
 	} else {
-		outputs, err := json.Marshal(c.Outputs)
+		outputs, err := config.MarshalPipeline(c.Outputs, ".json")
 		if err != nil {
 			return storedPipeline{}, fmt.Errorf("marshal outputs: %w", err)
 		}

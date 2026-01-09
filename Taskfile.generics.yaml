@@ -1,10 +1,19 @@
 version: 3
 
 tasks:
+  test:
+    internal: true
+    requires:
+      vars: [ NEPTUNUS_BUILD_GOEXPERIMENT ]
+    cmds:
+    - cmd: |
+        export GOEXPERIMENT="{{ .NEPTUNUS_BUILD_GOEXPERIMENT }}"
+        go test ./... -v
+
   build:
     internal: true
     requires:
-      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION ]
+      vars: [ NEPTUNUS_BUILD_DIR, NEPTUNUS_BUILD_GOOS, NEPTUNUS_BUILD_GOARCH, NEPTUNUS_BUILD_VERSION, NEPTUNUS_BUILD_GOEXPERIMENT ]
     cmds:
     - platforms: [ linux, darwin ]
       cmd: |
@@ -14,7 +23,7 @@ tasks:
         powershell New-Item -ItemType Directory -Force \
         -Path {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}
     - cmd: |
-        export GOEXPERIMENT=greenteagc
+        export GOEXPERIMENT="{{ .NEPTUNUS_BUILD_GOEXPERIMENT }}"
         export GOOS="{{ .NEPTUNUS_BUILD_GOOS }}"
         export GOARCH="{{ .NEPTUNUS_BUILD_GOARCH }}"
         go build \
@@ -33,12 +42,12 @@ tasks:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt
     - test -f LICENCE
     cmds:
-    - |
-      tar \
-        -czvf {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz \
-        -C {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }} \
-        -C ../../{{ .NEPTUNUS_BUILD_DIR }} NOTICE.txt \
-        -C ../ LICENCE
+    - cmd: |
+        tar \
+          -czvf {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz \
+          -C {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} neptunus{{ if eq .NEPTUNUS_BUILD_GOOS "windows" }}.exe{{ end }} \
+          -C ../../{{ .NEPTUNUS_BUILD_DIR }} NOTICE.txt \
+          -C ../ LICENCE
     status:
     - test -f {{ .NEPTUNUS_BUILD_DIR }}/neptunus-{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }}.tar.gz
 
@@ -94,13 +103,14 @@ tasks:
   container:
     internal: true
     requires:
-      vars: [ NEPTUNUS_BUILD_VERSION, NEPTUNUS_CONTAINER_TOOL ]
+      vars: [ NEPTUNUS_BUILD_VERSION, NEPTUNUS_CONTAINER_TOOL, NEPTUNUS_BUILD_GOEXPERIMENT ]
     cmds:
-    - |
-      {{ .NEPTUNUS_CONTAINER_TOOL }} build \
-        --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
-        -t ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }} \
-        .
+    - cmd: |
+        {{ .NEPTUNUS_CONTAINER_TOOL }} build \
+          --build-arg NEPTUNUS_VERSION={{ .NEPTUNUS_BUILD_VERSION }} \
+          --build-arg NEPTUNUS_GOEXPERIMENT={{ .NEPTUNUS_BUILD_GOEXPERIMENT }} \
+          -t ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }} \
+          .
     status:
     - |
       {{ .NEPTUNUS_CONTAINER_TOOL }} inspect --type=image ghcr.io/gekatateam/neptunus:{{ trimPrefix "v" .NEPTUNUS_BUILD_VERSION }}

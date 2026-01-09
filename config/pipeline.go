@@ -1,9 +1,11 @@
 package config
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -11,12 +13,13 @@ import (
 )
 
 type Pipeline struct {
-	Settings   PipeSettings   `toml:"settings"   yaml:"settings"   json:"settings"`
-	Vars       map[string]any `toml:"vars"       yaml:"vars"       json:"vars"`
-	Inputs     []PluginSet    `toml:"inputs"     yaml:"inputs"     json:"inputs"`
-	Processors []PluginSet    `toml:"processors" yaml:"processors" json:"processors"`
-	Outputs    []PluginSet    `toml:"outputs"    yaml:"outputs"    json:"outputs"`
-	Keykeepers []PluginSet    `toml:"keykeepers" yaml:"keykeepers" json:"keykeepers"`
+	Settings   PipeSettings `toml:"settings"          yaml:"settings"          json:"settings"`
+	Vars       PipeVars     `toml:"vars"              yaml:"vars"              json:"vars"`
+	Inputs     []PluginSet  `toml:"inputs"            yaml:"inputs"            json:"inputs"`
+	Processors []PluginSet  `toml:"processors"        yaml:"processors"        json:"processors"`
+	Outputs    []PluginSet  `toml:"outputs"           yaml:"outputs"           json:"outputs"`
+	Keykeepers []PluginSet  `toml:"keykeepers"        yaml:"keykeepers"        json:"keykeepers"`
+	Runtime    *PipeRuntime `toml:"runtime,omitempty" yaml:"runtime,omitempty" json:"runtime,omitempty"`
 }
 
 type PipeSettings struct {
@@ -27,6 +30,13 @@ type PipeSettings struct {
 	Consistency string `toml:"consistency" yaml:"consistency" json:"consistency"`
 	LogLevel    string `toml:"log_level"   yaml:"log_level"   json:"log_level"`
 }
+
+type PipeRuntime struct {
+	State     string `toml:"state"      yaml:"state"      json:"state"`
+	LastError string `toml:"last_error" yaml:"last_error" json:"last_error"`
+}
+
+type PipeVars map[string]any
 
 type PluginSet map[string]Plugin
 
@@ -183,67 +193,106 @@ func (p Plugin) Decompressor() (Plugin, string) {
 	return decompressor, decompressorName
 }
 
-func UnmarshalPipeline(data []byte, format string) (*Pipeline, error) {
-	pipeline := Pipeline{
-		Vars: make(map[string]any),
+func SetPipelineDefaults(settings *PipeSettings) {
+	if settings.Lines <= 0 {
+		settings.Lines = 1
 	}
 
-	switch format {
-	case ".toml":
-		if err := toml.Unmarshal(data, &pipeline); err != nil {
-			return &pipeline, err
-		}
-	case ".yaml", ".yml":
-		if err := yaml.Unmarshal(data, &pipeline); err != nil {
-			return &pipeline, err
-		}
-	case ".json":
-		if err := json.Unmarshal(data, &pipeline); err != nil {
-			return &pipeline, err
-		}
-	default:
-		return &pipeline, fmt.Errorf("unknown pipeline file extension: %v", format)
+	if settings.Buffer < 0 {
+		settings.Buffer = 0
 	}
 
-	return SetPipelineDefaults(&pipeline), nil
+	if settings.Consistency == "" {
+		settings.Consistency = "soft"
+	}
 }
 
-func MarshalPipeline(pipe *Pipeline, format string) ([]byte, error) {
-	var content = []byte{}
-	var err error
-
-	switch format {
-	case ".toml":
-		if content, err = toml.Marshal(pipe); err != nil {
-			return nil, err
-		}
-	case ".yaml", ".yml":
-		if content, err = yaml.Marshal(pipe); err != nil {
-			return nil, err
-		}
-	case ".json":
-		if content, err = json.Marshal(pipe); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("unknown pipeline file extension: %v", format)
-	}
-
-	return content, nil
+type Marshalable interface {
+	PipeSettings | Pipeline | []*Pipeline | PipeVars | []PluginSet
 }
 
-func SetPipelineDefaults(pipe *Pipeline) *Pipeline {
-	if pipe.Settings.Lines <= 0 {
-		pipe.Settings.Lines = 1
+func UnmarshalPipeline[T Marshalable](data []byte, dest *T, format string) error {
+	switch d := any(dest).(type) {
+	case *PipeSettings:
+		if err := UnmarshalFormat(data, d, format); err != nil {
+			return err
+		}
+		SetPipelineDefaults(d)
+		return nil
+	case *Pipeline:
+		if err := UnmarshalFormat(data, d, format); err != nil {
+			return err
+		}
+		SetPipelineDefaults(&d.Settings)
+		return nil
+	case *[]*Pipeline:
+		if err := UnmarshalFormat(data, d, format); err != nil {
+			return err
+		}
+		for _, p := range *d {
+			SetPipelineDefaults(&p.Settings)
+		}
+		return nil
+	case *PipeVars:
+		return UnmarshalFormat(data, d, format)
+	case *[]PluginSet:
+		return UnmarshalFormat(data, d, format)
+	default:
+		return fmt.Errorf("unmarshal pipeline: unsupported type: %T", dest)
+	}
+}
+
+func MarshalPipeline[T Marshalable](src T, format string) ([]byte, error) {
+	switch format {
+	case ".toml":
+		return toml.Marshal(src)
+	case ".yaml", ".yml":
+		return yaml.Marshal(src)
+	case ".json":
+		return json.Marshal(src)
+	default:
+		return nil, fmt.Errorf("unknown format: %v", format)
+	}
+}
+
+func UnmarshalFormat(data []byte, dest any, format string) error {
+	switch format {
+	case ".toml":
+		return toml.Unmarshal(data, dest)
+	case ".yaml", ".yml":
+		return yaml.Unmarshal(data, dest)
+	case ".json":
+		return json.Unmarshal(data, dest,
+			json.WithUnmarshalers(json.UnmarshalFromFunc(jsonUnmarshalNumberStrict)))
+	default:
+		return fmt.Errorf("unknown format: %v", format)
+	}
+}
+
+func jsonUnmarshalNumberStrict(dec *jsontext.Decoder, val *any) error {
+	if dec.PeekKind() == '0' {
+		v, err := dec.ReadValue()
+		if err != nil {
+			return err
+		}
+
+		if i, err := strconv.ParseInt(string(v), 10, 64); err == nil {
+			*val = i
+			return nil
+		}
+
+		if u, err := strconv.ParseUint(string(v), 10, 64); err == nil {
+			*val = u
+			return nil
+		}
+
+		if f, err := strconv.ParseFloat(string(v), 64); err == nil {
+			*val = f
+			return nil
+		}
+
+		return fmt.Errorf("cannot parse number: %s; int, uint, float failed", string(v))
 	}
 
-	if pipe.Settings.Buffer < 0 {
-		pipe.Settings.Buffer = 0
-	}
-
-	if pipe.Settings.Consistency == "" {
-		pipe.Settings.Consistency = "soft"
-	}
-
-	return pipe
+	return json.SkipFunc
 }

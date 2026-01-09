@@ -139,9 +139,11 @@ func (g *restGateway) List() ([]*config.Pipeline, error) {
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
-		rawBody, _ := io.ReadAll(res.Body)
-		json.Unmarshal(rawBody, &pipes)
-		return pipes, nil
+		rawBody, err := io.ReadAll(res.Body)
+		if err != nil {
+			return pipes, err
+		}
+		return pipes, config.UnmarshalPipeline(rawBody, &pipes, ".json")
 	default:
 		return pipes, unpackApiError(res.Body)
 	}
@@ -166,9 +168,11 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
-		rawBody, _ := io.ReadAll(res.Body)
-		json.Unmarshal(rawBody, pipe)
-		return pipe, nil
+		rawBody, err := io.ReadAll(res.Body)
+		if err != nil {
+			return pipe, err
+		}
+		return pipe, config.UnmarshalPipeline(rawBody, pipe, ".json")
 	case http.StatusNotFound:
 		return pipe, &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	default:
@@ -180,7 +184,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	pipeRaw, err := config.MarshalPipeline(pipe, ".json")
+	pipeRaw, err := config.MarshalPipeline(*pipe, ".json")
 	if err != nil {
 		return err
 	}
@@ -213,7 +217,7 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	ctx, cancel := context.WithTimeout(g.ctx, g.t)
 	defer cancel()
 
-	pipeRaw, err := config.MarshalPipeline(pipe, ".json")
+	pipeRaw, err := config.MarshalPipeline(*pipe, ".json")
 	if err != nil {
 		return err
 	}
@@ -272,7 +276,11 @@ func (g *restGateway) Delete(id string) error {
 }
 
 func unpackApiError(resBody io.ReadCloser) error {
-	rawBody, _ := io.ReadAll(resBody)
+	rawBody, err := io.ReadAll(resBody)
+	if err != nil {
+		return err
+	}
+
 	structBody := &model.ErrResponse{}
 	json.Unmarshal(rawBody, structBody)
 	return errors.New(structBody.Error)

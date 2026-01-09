@@ -4,12 +4,13 @@
 FROM golang:1.25.2 AS builder
 
 ARG NEPTUNUS_VERSION
+ARG NEPTUNUS_GOEXPERIMENT
 
 WORKDIR /build
 
 COPY . . 
 
-RUN GOEXPERIMENT=greenteagc go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
+RUN GOEXPERIMENT=$NEPTUNUS_GOEXPERIMENT go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
 
 ### create final image
 FROM alpine:3
