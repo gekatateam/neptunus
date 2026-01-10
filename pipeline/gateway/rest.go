@@ -3,11 +3,12 @@ package gateway
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gekatateam/neptunus/config"
@@ -18,26 +19,40 @@ import (
 var _ pipeline.Service = (*restGateway)(nil)
 
 type restGateway struct {
-	addr string
-	c    *http.Client
-	t    time.Duration
+	url *url.URL
+	c   *http.Client
+	t   time.Duration
 }
 
-func Rest(addr, path string, timeout time.Duration) *restGateway {
-	return &restGateway{
-		addr: fmt.Sprintf("%v/%v", addr, path),
+func Rest(addr, path string, timeout time.Duration) (*restGateway, error) {
+	url, err := url.Parse(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	url = url.JoinPath(path)
+	gw := &restGateway{
+		url: url,
 		c: &http.Client{
 			Timeout: timeout,
 		},
 		t: timeout,
 	}
+
+	if url.Scheme == "https" {
+		gw.c.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{},
+		}
+	}
+
+	return gw, nil
 }
 
 func (g *restGateway) Start(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/%v/start", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.url.JoinPath(id, "start").String(), nil)
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
@@ -65,7 +80,7 @@ func (g *restGateway) Stop(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/%v/stop", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.url.JoinPath(id, "stop").String(), nil)
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
@@ -93,7 +108,7 @@ func (g *restGateway) State(id string) (string, error, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/%v/state", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url.JoinPath(id, "state").String(), nil)
 	if err != nil {
 		return "", nil, &pipeline.IOError{Err: err}
 	}
@@ -133,7 +148,7 @@ func (g *restGateway) List() ([]*config.Pipeline, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/", g.addr), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url.String(), nil)
 	if err != nil {
 		return nil, &pipeline.IOError{Err: err}
 	}
@@ -167,7 +182,7 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/%v", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url.JoinPath(id).String(), nil)
 	if err != nil {
 		return nil, &pipeline.IOError{Err: err}
 	}
@@ -207,7 +222,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/", g.addr), buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.url.String(), buf)
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
@@ -241,7 +256,7 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id), buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, g.url.JoinPath(pipe.Settings.Id).String(), buf)
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
@@ -271,7 +286,7 @@ func (g *restGateway) Delete(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%v/%v", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, g.url.JoinPath(id).String(), nil)
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
