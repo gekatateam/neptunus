@@ -112,7 +112,10 @@ func (g *restGateway) State(id string) (string, error, error) {
 		}
 
 		structBody := &model.OkResponse{}
-		json.Unmarshal(rawBody, structBody)
+		if err := json.Unmarshal(rawBody, structBody); err != nil {
+			return "", nil, &pipeline.IOError{Err: err}
+		}
+
 		if len(structBody.Error) > 0 {
 			return structBody.Status, errors.New(structBody.Error), nil
 		}
