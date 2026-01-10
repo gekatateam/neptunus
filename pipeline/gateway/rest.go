@@ -3,11 +3,12 @@ package gateway
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gekatateam/neptunus/config"
@@ -18,97 +19,118 @@ import (
 var _ pipeline.Service = (*restGateway)(nil)
 
 type restGateway struct {
-	addr string
-	c    *http.Client
-	t    time.Duration
-	ctx  context.Context
+	url *url.URL
+	c   *http.Client
+	t   time.Duration
 }
 
-func Rest(addr, path string, timeout time.Duration) *restGateway {
-	return &restGateway{
-		addr: fmt.Sprintf("%v/%v", addr, path),
+func Rest(addr, path string, timeout time.Duration) (*restGateway, error) {
+	url, err := url.Parse(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	url = url.JoinPath(path)
+	gw := &restGateway{
+		url: url,
 		c: &http.Client{
 			Timeout: timeout,
 		},
-		t:   timeout,
-		ctx: context.Background(),
+		t: timeout,
 	}
+
+	if url.Scheme == "https" {
+		gw.c.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{},
+		}
+	}
+
+	return gw, nil
 }
 
 func (g *restGateway) Start(id string) error {
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/%v/start", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.url.JoinPath(id, "start").String(), nil)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
+		io.Copy(io.Discard, res.Body)
 		return nil
 	case http.StatusNotFound:
 		return &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	case http.StatusConflict:
 		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
 	default:
-		return unpackApiError(res.Body)
+		return &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
 func (g *restGateway) Stop(id string) error {
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/%v/stop", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.url.JoinPath(id, "stop").String(), nil)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
+		io.Copy(io.Discard, res.Body)
 		return nil
 	case http.StatusNotFound:
 		return &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	case http.StatusConflict:
 		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
 	default:
-		return unpackApiError(res.Body)
+		return &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
 func (g *restGateway) State(id string) (string, error, error) {
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/%v/state", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url.JoinPath(id, "state").String(), nil)
 	if err != nil {
-		return "", nil, err
+		return "", nil, &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return "", nil, err
+		return "", nil, &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
-		rawBody, _ := io.ReadAll(res.Body)
+		rawBody, err := io.ReadAll(res.Body)
+		if err != nil {
+			return "", nil, &pipeline.IOError{Err: err}
+		}
+
 		structBody := &model.OkResponse{}
-		json.Unmarshal(rawBody, structBody)
+		if err := json.Unmarshal(rawBody, structBody); err != nil {
+			return "", nil, &pipeline.IOError{Err: err}
+		}
+
 		if len(structBody.Error) > 0 {
 			return structBody.Status, errors.New(structBody.Error), nil
 		}
@@ -116,24 +138,24 @@ func (g *restGateway) State(id string) (string, error, error) {
 	case http.StatusNotFound:
 		return "", nil, &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	default:
-		return "", nil, unpackApiError(res.Body)
+		return "", nil, &pipeline.IOError{Err: err}
 	}
 }
 
 func (g *restGateway) List() ([]*config.Pipeline, error) {
 	var pipes = []*config.Pipeline{}
 
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/", g.addr), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url.String(), nil)
 	if err != nil {
-		return pipes, err
+		return nil, &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return pipes, err
+		return nil, &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
@@ -141,28 +163,33 @@ func (g *restGateway) List() ([]*config.Pipeline, error) {
 	case http.StatusOK:
 		rawBody, err := io.ReadAll(res.Body)
 		if err != nil {
-			return pipes, err
+			return nil, &pipeline.IOError{Err: err}
 		}
-		return pipes, config.UnmarshalPipeline(rawBody, &pipes, ".json")
+
+		// io error here because unmarshalling fail means data couldn't be read properly
+		if err := config.UnmarshalPipeline(rawBody, &pipes, ".json"); err != nil {
+			return nil, &pipeline.IOError{Err: err}
+		}
+		return pipes, nil
 	default:
-		return pipes, unpackApiError(res.Body)
+		return pipes, &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
 func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	var pipe = &config.Pipeline{}
 
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%v/%v", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url.JoinPath(id).String(), nil)
 	if err != nil {
-		return pipe, err
+		return nil, &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return pipe, err
+		return nil, &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
@@ -170,72 +197,79 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	case http.StatusOK:
 		rawBody, err := io.ReadAll(res.Body)
 		if err != nil {
-			return pipe, err
+			return pipe, &pipeline.IOError{Err: err}
 		}
-		return pipe, config.UnmarshalPipeline(rawBody, pipe, ".json")
+
+		// io error here because unmarshalling fail means data couldn't be read properly
+		if err := config.UnmarshalPipeline(rawBody, pipe, ".json"); err != nil {
+			return nil, &pipeline.IOError{Err: err}
+		}
+		return pipe, nil
 	case http.StatusNotFound:
 		return pipe, &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	default:
-		return pipe, unpackApiError(res.Body)
+		return pipe, &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
 func (g *restGateway) Add(pipe *config.Pipeline) error {
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
 	pipeRaw, err := config.MarshalPipeline(*pipe, ".json")
 	if err != nil {
-		return err
+		return &pipeline.ValidationError{Err: err}
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%v/", g.addr), buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.url.String(), buf)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusCreated:
+		io.Copy(io.Discard, res.Body)
 		return nil
 	case http.StatusConflict:
 		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
 	case http.StatusBadRequest:
 		return &pipeline.ValidationError{Err: unpackApiError(res.Body)}
 	default:
-		return unpackApiError(res.Body)
+		return &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
 func (g *restGateway) Update(pipe *config.Pipeline) error {
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
 	pipeRaw, err := config.MarshalPipeline(*pipe, ".json")
 	if err != nil {
-		return err
+		return &pipeline.ValidationError{Err: err}
 	}
 	buf := bytes.NewBuffer(pipeRaw)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%v/%v", g.addr, pipe.Settings.Id), buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, g.url.JoinPath(pipe.Settings.Id).String(), buf)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
+		io.Copy(io.Discard, res.Body)
 		return nil
 	case http.StatusNotFound:
 		return &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
@@ -244,34 +278,35 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	case http.StatusBadRequest:
 		return &pipeline.ValidationError{Err: unpackApiError(res.Body)}
 	default:
-		return unpackApiError(res.Body)
+		return &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
 func (g *restGateway) Delete(id string) error {
-	ctx, cancel := context.WithTimeout(g.ctx, g.t)
+	ctx, cancel := context.WithTimeout(context.Background(), g.t)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%v/%v", g.addr, id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, g.url.JoinPath(id).String(), nil)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	res, err := g.c.Do(req)
 	if err != nil {
-		return err
+		return &pipeline.IOError{Err: err}
 	}
 
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
+		io.Copy(io.Discard, res.Body)
 		return nil
 	case http.StatusNotFound:
 		return &pipeline.NotFoundError{Err: unpackApiError(res.Body)}
 	case http.StatusConflict:
 		return &pipeline.ConflictError{Err: unpackApiError(res.Body)}
 	default:
-		return unpackApiError(res.Body)
+		return &pipeline.IOError{Err: unpackApiError(res.Body)}
 	}
 }
 
@@ -282,6 +317,9 @@ func unpackApiError(resBody io.ReadCloser) error {
 	}
 
 	structBody := &model.ErrResponse{}
-	json.Unmarshal(rawBody, structBody)
+	if err := json.Unmarshal(rawBody, structBody); err != nil {
+		return err
+	}
+
 	return errors.New(structBody.Error)
 }
