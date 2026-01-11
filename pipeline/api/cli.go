@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
 	"github.com/gekatateam/neptunus/pipeline/gateway"
-	"github.com/urfave/cli/v2"
+	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
 type cliApi struct {
@@ -24,7 +26,16 @@ func Cli(gateway pipeline.Service) *cliApi {
 }
 
 func (c *cliApi) Init(cCtx *cli.Context) error {
-	gw, err := gateway.Rest(cCtx.String("server-address"), "api/v1/pipelines", cCtx.Duration("request-timeout"))
+	cfg, err := pkg.NewConfigBuilder().
+		RootCaFile(cCtx.String("tls-ca-file")).
+		KeyPairFile(cCtx.String("tls-cert-file"), cCtx.String("tls-key-file")).
+		SkipVerify(cCtx.Bool("tls-skip-verify")).
+		Build()
+	if err != nil {
+		return fmt.Errorf("tls: %w", err)
+	}
+
+	gw, err := gateway.Rest(cCtx.String("server-address"), "/api/v1/pipelines", cfg, cCtx.Duration("request-timeout"))
 	if err != nil {
 		return err
 	}
