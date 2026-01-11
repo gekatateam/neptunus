@@ -24,7 +24,7 @@ type restGateway struct {
 	t   time.Duration
 }
 
-func Rest(addr, path string, timeout time.Duration) (*restGateway, error) {
+func Rest(addr, path string, tls *tls.Config, timeout time.Duration) (*restGateway, error) {
 	url, err := url.Parse(addr)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func Rest(addr, path string, timeout time.Duration) (*restGateway, error) {
 
 	if url.Scheme == "https" {
 		gw.c.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{},
+			TLSClientConfig: tls,
 		}
 	}
 

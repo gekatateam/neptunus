@@ -29,11 +29,11 @@
 
 [[processors]]
   [processors.template.labels]
-    request-uri = '/pipelines/{{ .GetField "id" }}/{{ .GetField "action" }}'
+    request-uri = '/api/v1/pipelines/{{ .GetField "id" }}/{{ .GetField "action" }}'
 
 [[processors]]
   [processors.http]
-    host             = "http://localhost:9601/api/v1"
+    host             = "http://localhost:9601"
     method           = "POST"
     path_label       = "request-uri"
     retry_attempts   = 3
