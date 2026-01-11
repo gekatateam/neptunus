@@ -12,11 +12,11 @@
     max_connections   = 10
     query_params_to   = "."
     wait_for_delivery = true
-    paths             = [ "/pipelines/{id}/stop", "/pipelines/{id}/start" ]
+    paths             = [ "/api/v1/pipelines/{id}/stop", "/api/v1/pipelines/{id}/start" ]
     methods           = [ "POST" ]
     path_values       = [ "id" ]
-    basic_username    = "user"
-    basic_password    = "pass"
+    # basic_username    = "user"
+    # basic_password    = "pass"
   [inputs.http.parser]
     type = "json"
 
@@ -24,11 +24,11 @@
 [[processors]]
   [processors.template.fields]
     id     = '{{ .GetLabel "id" }}'
-    action = '{{ with $x := split "/" .RoutingKey }}{{ $x._3 }}{{ end }}'
+    action = '{{ with $x := split "/" .RoutingKey }}{{ $x._5 }}{{ end }}'
 
 [[processors]]
   [processors.rk.mapping]
-    "neptunus.events.pipeline" = [ "/pipelines/{id}/stop", "/pipelines/{id}/start" ]
+    "neptunus.events.pipeline" = [ "/api/v1/pipelines/{id}/stop", "/api/v1/pipelines/{id}/start" ]
 
 
 [[outputs]]
