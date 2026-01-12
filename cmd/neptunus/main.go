@@ -92,6 +92,11 @@ func main() {
 						Value:   false,
 						Usage:   "skip TLS certificate verification",
 					},
+					&cli.StringSliceFlag{
+						Name:    "header",
+						Aliases: []string{"H"},
+						Usage:   "custom header to add to request (can be repeated), format: Key:Value",
+					},
 				},
 				Before: cliController.Init,
 				Subcommands: []*cli.Command{
