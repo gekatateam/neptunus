@@ -4,8 +4,18 @@
 
 Usage: 
 ```
-neptunus pipeline [--server-address http://localhost:9600] [--request-timeout 10s] COMMAND [FLAGS]
+neptunus pipeline [OPTIONS] COMMAND [FLAGS]
 ```
+
+Options:
+ - *--server-address*/*-s* - daemon http api server address; if sheme is HTTPS, tls 
+transport will be used (default: "http://localhost:9600")
+ - *--request-timeout*/*-t* - api call timeout (default: 10s)
+ - *--tls-key-file*/*--tk* - path to TLS key file
+ - *--tls-cert-file*/*--tc* - path to TLS certificate file
+ - *--tls-ca-file*/*--ta* - path to TLS CA file
+ - *--tls-skip-verify*/*--ts* - skip TLS certificate verification (default: false)     
+ - *--header*/*-H* - custom header to add to request (can be repeated), format: Key:Value
 
 Get help:
 ```
@@ -31,7 +41,7 @@ Returns pipeline configuration in specified format
 Additional info included in `runtime` block - current state and last error
 
 Flags:
- - **--name** - Pipeline name
+ - **--name**/**--id** - Pipeline name
  - *--format* - pipeline printing format (json, toml, yaml supported)
 
 #### `deploy`
@@ -50,16 +60,16 @@ Flags:
 Delete pipeline by name (Id)
 
 Flags:
- - **--name** - Pipeline name
+ - **--name**/**--id** - Pipeline name
 
 #### `start`
 Start pipeline by name (Id)
 
 Flags:
- - **--name** - Pipeline name
+ - **--name**/**--id** - Pipeline name
 
 #### `stop`
 Stop pipeline by name (Id)
 
 Flags:
- - **--name** - Pipeline name
+ - **--name**/**--id** - Pipeline name

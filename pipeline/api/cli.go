@@ -3,6 +3,8 @@ package api
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,21 +28,41 @@ func Cli(gateway pipeline.Service) *cliApi {
 }
 
 func (c *cliApi) Init(cCtx *cli.Context) error {
-	cfg, err := pkg.NewConfigBuilder().
-		RootCaFile(cCtx.String("tls-ca-file")).
-		KeyPairFile(cCtx.String("tls-cert-file"), cCtx.String("tls-key-file")).
-		SkipVerify(cCtx.Bool("tls-skip-verify")).
-		Build()
-	if err != nil {
-		return fmt.Errorf("tls: %w", err)
-	}
-
-	gw, err := gateway.Rest(cCtx.String("server-address"), "/api/v1/pipelines", cfg, cCtx.Duration("request-timeout"))
+	url, err := url.Parse(cCtx.String("server-address"))
 	if err != nil {
 		return err
 	}
+	url = url.JoinPath("/api/v1/pipelines")
 
-	c.gw = gw
+	client := &http.Client{
+		Timeout: cCtx.Duration("request-timeout"),
+	}
+
+	if url.Scheme == "https" {
+		cfg, err := pkg.NewConfigBuilder().
+			RootCaFile(cCtx.String("tls-ca-file")).
+			KeyPairFile(cCtx.String("tls-cert-file"), cCtx.String("tls-key-file")).
+			SkipVerify(cCtx.Bool("tls-skip-verify")).
+			Build()
+		if err != nil {
+			return fmt.Errorf("tls: %w", err)
+		}
+
+		client.Transport = &http.Transport{
+			TLSClientConfig: cfg,
+		}
+	}
+
+	headers := make(http.Header, len(cCtx.StringSlice("header")))
+	for _, h := range cCtx.StringSlice("header") {
+		key, value, ok := strings.Cut(h, ":")
+		if !ok {
+			return fmt.Errorf("invalid header format: %s", h)
+		}
+		headers.Set(strings.TrimSpace(key), strings.TrimSpace(value))
+	}
+
+	c.gw = gateway.Rest(url, client, headers, cCtx.Duration("request-timeout"))
 	return nil
 }
 

@@ -3,7 +3,6 @@ package gateway
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -22,30 +21,16 @@ type restGateway struct {
 	url *url.URL
 	c   *http.Client
 	t   time.Duration
+	h   http.Header
 }
 
-func Rest(addr, path string, tls *tls.Config, timeout time.Duration) (*restGateway, error) {
-	url, err := url.Parse(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	url = url.JoinPath(path)
-	gw := &restGateway{
+func Rest(url *url.URL, client *http.Client, headers http.Header, timeout time.Duration) *restGateway {
+	return &restGateway{
 		url: url,
-		c: &http.Client{
-			Timeout: timeout,
-		},
-		t: timeout,
+		c:   client,
+		t:   timeout,
+		h:   headers,
 	}
-
-	if url.Scheme == "https" {
-		gw.c.Transport = &http.Transport{
-			TLSClientConfig: tls,
-		}
-	}
-
-	return gw, nil
 }
 
 func (g *restGateway) Start(id string) error {
@@ -56,6 +41,7 @@ func (g *restGateway) Start(id string) error {
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -84,6 +70,7 @@ func (g *restGateway) Stop(id string) error {
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -112,6 +99,7 @@ func (g *restGateway) State(id string) (string, error, error) {
 	if err != nil {
 		return "", nil, &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -152,6 +140,7 @@ func (g *restGateway) List() ([]*config.Pipeline, error) {
 	if err != nil {
 		return nil, &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -186,6 +175,7 @@ func (g *restGateway) Get(id string) (*config.Pipeline, error) {
 	if err != nil {
 		return nil, &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -226,6 +216,7 @@ func (g *restGateway) Add(pipe *config.Pipeline) error {
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -260,6 +251,7 @@ func (g *restGateway) Update(pipe *config.Pipeline) error {
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {
@@ -290,6 +282,7 @@ func (g *restGateway) Delete(id string) error {
 	if err != nil {
 		return &pipeline.IOError{Err: err}
 	}
+	req.Header = g.h.Clone()
 
 	res, err := g.c.Do(req)
 	if err != nil {

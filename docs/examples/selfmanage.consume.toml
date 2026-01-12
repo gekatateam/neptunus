@@ -15,8 +15,8 @@
     paths             = [ "/api/v1/pipelines/{id}/stop", "/api/v1/pipelines/{id}/start" ]
     methods           = [ "POST" ]
     path_values       = [ "id" ]
-    # basic_username    = "user"
-    # basic_password    = "pass"
+    basic_username    = "user"
+    basic_password    = "pass"
   [inputs.http.parser]
     type = "json"
 
