@@ -31,6 +31,8 @@ type Http struct {
 	Address         string            `mapstructure:"address"`
 	Paths           []string          `mapstructure:"paths"`
 	PathValues      []string          `mapstructure:"path_values"`
+	SuccessCode     int               `mapstructure:"success_code"`
+	SuccessBody     string            `mapstructure:"success_body"`
 	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
 	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
@@ -47,7 +49,8 @@ type Http struct {
 	listener net.Listener
 	parser   core.Parser
 
-	allowedMethods map[string]struct{}
+	allowedMethods  map[string]struct{}
+	successResponse []byte
 }
 
 func (i *Http) Init() error {
@@ -93,6 +96,10 @@ func (i *Http) Init() error {
 		i.Log.Debug(fmt.Sprintf("listener is limited to %v simultaneous connections", i.MaxConnections))
 	}
 
+	if len(i.SuccessBody) > 0 {
+		i.successResponse = []byte(i.SuccessBody)
+	}
+
 	i.listener = listener
 	mux := http.NewServeMux()
 
@@ -110,7 +117,7 @@ func (i *Http) Init() error {
 			mux.Handle(path, handler)
 		}
 		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, true, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "page not found", http.StatusNotFound)
+			http.NotFound(w, r)
 		})))
 	} else {
 		mux.Handle("/", handler)
@@ -159,7 +166,7 @@ func (i *Http) Stop() {
 
 func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, ok := i.allowedMethods[r.Method]; !ok {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -251,9 +258,8 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	wg.Wait()
 
-	w.WriteHeader(http.StatusOK)
-	_, err = fmt.Fprintf(w, "accepted events: %v", len(e))
-	if err != nil {
+	w.WriteHeader(i.SuccessCode)
+	if _, err := w.Write(i.successResponse); err != nil {
 		i.Log.Warn("all events accepted, but sending response to client failed",
 			"error", err,
 		)
@@ -267,6 +273,7 @@ func init() {
 			ReadTimeout:     10 * time.Second,
 			WriteTimeout:    10 * time.Second,
 			MaxConnections:  0,
+			SuccessCode:     http.StatusOK,
 			AllowedMethods:  []string{"POST", "PUT"},
 			BasicAuth:       &basic.BasicAuth{},
 			Ider:            &ider.Ider{},
