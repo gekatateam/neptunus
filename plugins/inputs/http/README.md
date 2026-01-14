@@ -84,12 +84,17 @@ This plugin produce events with routing key as request path (or matched pattern 
       body = "parsing failed: %v"
 
     # response if request method is not in "allowed_methods"
-    [inputs.http.on_parser_error]
+    [inputs.http.on_wrong_method]
       code = 405
       body = "method not allowed"
 
+    # response if request request path not in configured paths
+    [inputs.http.on_wrong_path]
+      code = 404
+      body = "not found"
+
     # response if basic auth failed
-    [inputs.http.on_parser_error]
+    [inputs.http.on_failed_auth]
       code = 401
       body = "unauthorized"
 
