@@ -19,7 +19,7 @@ func (r *statusRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
-func HttpServerMiddleware(pipeline string, pluginName string, pathsConfigured bool, next http.Handler) http.Handler {
+func HttpServerMiddleware(pipeline string, pluginName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		begin := time.Now()
 
@@ -30,11 +30,9 @@ func HttpServerMiddleware(pipeline string, pluginName string, pathsConfigured bo
 
 		next.ServeHTTP(s, r)
 
-		var path string
-		if pathsConfigured {
+		path := r.URL.Path
+		if len(r.Pattern) > 0 {
 			path = r.Pattern
-		} else {
-			path = r.URL.Path
 		}
 
 		metrics.PluginsSet.GetOrCreateSummaryExt(
