@@ -4,9 +4,9 @@ The `http` input plugin serves requests on configured address. This plugin requi
 
 Unlike [httpl input](../httpl/), this plugin fully reads request body before parsing stage, and also takes into account URL-encoded request params.
 
-If body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
+Plugin behaviour can be configured using `on_*` params.
 
-This plugin produce events with routing key as request path (or matched pattern if `Paths` configured), `server` label with configured address, `sender` label with request RemoteAddr address and `method` with request HTTP method.
+This plugin produce events with routing key as request path (or matched pattern if `paths` configured), `server` label with configured address, `sender` label with request RemoteAddr address and `method` with request HTTP method.
 
 > [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#http-server)
@@ -70,6 +70,39 @@ This plugin produce events with routing key as request path (or matched pattern 
     # not limited by default
     tls_min_version = "TLS12"
     tls_max_version = "TLS13"
+
+    # response if all events successfully accepted by plugin
+    # body may be an fmt template where param is an events count
+    [inputs.http.on_success]
+      code = 200
+      body = "accepted events: %v"
+
+    # response if body parsing failed
+    # body may be an fmt template where param is error returned by parser
+    [inputs.http.on_parser_error]
+      code = 400
+      body = "parsing failed: %v"
+
+    # response if request method is not in "allowed_methods"
+    [inputs.http.on_wrong_method]
+      code = 405
+      body = "method not allowed"
+
+    # response if request request path not in configured paths
+    [inputs.http.on_wrong_path]
+      code = 404
+      body = "not found"
+
+    # response if basic auth failed
+    [inputs.http.on_failed_auth]
+      code = 401
+      body = "unauthorized"
+
+    # response if any other error occurred
+    # body may be an fmt template where param is occurred error
+    [inputs.http.on_other_error]
+      code = 500
+      body = "internal error occured: %v"
 
     # a "label name <- header" map
     # if request header exists, it will be saved as configured label
