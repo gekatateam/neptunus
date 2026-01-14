@@ -24,7 +24,7 @@ func (b *BasicAuth) Init() bool {
 	return len(b.encoded) > 0
 }
 
-func (b *BasicAuth) Handler(next http.Handler) http.Handler {
+func (b *BasicAuth) Handler(code int, body string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if len(auth) == 0 {

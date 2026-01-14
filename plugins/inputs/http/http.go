@@ -31,8 +31,6 @@ type Http struct {
 	Address         string            `mapstructure:"address"`
 	Paths           []string          `mapstructure:"paths"`
 	PathValues      []string          `mapstructure:"path_values"`
-	SuccessCode     int               `mapstructure:"success_code"`
-	SuccessBody     string            `mapstructure:"success_body"`
 	ReadTimeout     time.Duration     `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration     `mapstructure:"write_timeout"`
 	WaitForDelivery bool              `mapstructure:"wait_for_delivery"`
@@ -40,6 +38,13 @@ type Http struct {
 	QueryParamsTo   string            `mapstructure:"query_params_to"`
 	MaxConnections  int               `mapstructure:"max_connections"`
 	LabelHeaders    map[string]string `mapstructure:"labelheaders"`
+
+	OnSuccess     OnResult `mapstructure:"on_success"`
+	OnParserError OnResult `mapstructure:"on_parser_error"`
+	OnWrongMethod OnResult `mapstructure:"on_wrong_method"`
+	OnWrongPath   OnResult `mapstructure:"on_wrong_path"`
+	OnFailedAuth  OnResult `mapstructure:"on_failed_auth"`
+	OnOtherError  OnResult `mapstructure:"on_other_error"`
 
 	*basic.BasicAuth        `mapstructure:",squash"`
 	*ider.Ider              `mapstructure:",squash"`
@@ -49,8 +54,12 @@ type Http struct {
 	listener net.Listener
 	parser   core.Parser
 
-	allowedMethods  map[string]struct{}
-	successResponse []byte
+	allowedMethods map[string]struct{}
+}
+
+type OnResult struct {
+	Code int
+	Body string
 }
 
 func (i *Http) Init() error {
@@ -96,16 +105,12 @@ func (i *Http) Init() error {
 		i.Log.Debug(fmt.Sprintf("listener is limited to %v simultaneous connections", i.MaxConnections))
 	}
 
-	if len(i.SuccessBody) > 0 {
-		i.successResponse = []byte(i.SuccessBody)
-	}
-
 	i.listener = listener
 	mux := http.NewServeMux()
 
 	var handler http.Handler = i
 	if i.BasicAuth.Init() {
-		handler = i.BasicAuth.Handler(handler)
+		handler = i.BasicAuth.Handler(i.OnFailedAuth.Code, i.OnFailedAuth.Body, handler)
 	}
 
 	if i.EnableMetrics {
@@ -117,7 +122,8 @@ func (i *Http) Init() error {
 			mux.Handle(path, handler)
 		}
 		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, true, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.NotFound(w, r)
+			w.WriteHeader(i.OnWrongPath.Code)
+			w.Write([]byte(i.OnWrongPath.Body))
 		})))
 	} else {
 		mux.Handle("/", handler)
@@ -145,7 +151,7 @@ func (i *Http) Run() {
 			"error", err,
 		)
 	} else {
-		i.Log.Info("stopping http server")
+		i.Log.Info("http server stopped")
 	}
 }
 
@@ -166,7 +172,8 @@ func (i *Http) Stop() {
 
 func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, ok := i.allowedMethods[r.Method]; !ok {
-		http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(i.OnWrongMethod.Code)
+		w.Write([]byte(i.OnWrongMethod.Body))
 		return
 	}
 
@@ -180,10 +187,11 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
-		i.Log.Error("body read error",
+		i.Log.Error("body reading failed",
 			"error", err,
 		)
-		http.Error(w, fmt.Sprintf("body read error: %v", err.Error()), http.StatusInternalServerError)
+		w.WriteHeader(i.OnOtherError.Code)
+		fmt.Fprintf(w, i.OnOtherError.Body, err)
 		i.Observe(metrics.EventFailed, time.Since(now))
 		return
 	}
@@ -195,17 +203,18 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
 	}
 
-	e, err := i.parser.Parse(buf.Bytes(), path)
+	events, err := i.parser.Parse(buf.Bytes(), path)
 	if err != nil {
-		i.Log.Error("parser error",
+		i.Log.Error("parsing failed",
 			"error", err,
 		)
-		http.Error(w, fmt.Sprintf("parser error: %v", err), http.StatusBadRequest)
+		w.WriteHeader(i.OnParserError.Code)
+		fmt.Fprintf(w, i.OnParserError.Body, err)
 		i.Observe(metrics.EventFailed, time.Since(now))
 		return
 	}
 
-	for _, event := range e {
+	for _, event := range events {
 		event.SetLabel("server", i.Address)
 		event.SetLabel("sender", r.RemoteAddr)
 		event.SetLabel("method", r.Method)
@@ -258,12 +267,8 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	wg.Wait()
 
-	w.WriteHeader(i.SuccessCode)
-	if _, err := w.Write(i.successResponse); err != nil {
-		i.Log.Warn("all events accepted, but sending response to client failed",
-			"error", err,
-		)
-	}
+	w.WriteHeader(i.OnSuccess.Code)
+	fmt.Fprintf(w, i.OnSuccess.Body, len(events))
 }
 
 func init() {
@@ -273,11 +278,35 @@ func init() {
 			ReadTimeout:     10 * time.Second,
 			WriteTimeout:    10 * time.Second,
 			MaxConnections:  0,
-			SuccessCode:     http.StatusOK,
 			AllowedMethods:  []string{"POST", "PUT"},
 			BasicAuth:       &basic.BasicAuth{},
 			Ider:            &ider.Ider{},
 			TLSServerConfig: &pkgtls.TLSServerConfig{},
+
+			OnSuccess: OnResult{
+				Code: http.StatusOK,
+				Body: "accepted events: %v",
+			},
+			OnParserError: OnResult{
+				Code: http.StatusBadRequest,
+				Body: "parsing failed: %v",
+			},
+			OnWrongMethod: OnResult{
+				Code: http.StatusMethodNotAllowed,
+				Body: "method not allowed",
+			},
+			OnWrongPath: OnResult{
+				Code: http.StatusNotFound,
+				Body: "not found",
+			},
+			OnFailedAuth: OnResult{
+				Code: http.StatusUnauthorized,
+				Body: "unauthorized",
+			},
+			OnOtherError: OnResult{
+				Code: http.StatusInternalServerError,
+				Body: "internal error occured: %v",
+			},
 		}
 	})
 }

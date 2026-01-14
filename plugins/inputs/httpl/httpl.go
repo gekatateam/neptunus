@@ -83,7 +83,7 @@ func (i *Httpl) Init() error {
 
 	var handler http.Handler = i
 	if i.BasicAuth.Init() {
-		handler = i.BasicAuth.Handler(handler)
+		handler = i.BasicAuth.Handler(http.StatusUnauthorized, "unauthorized", handler)
 	}
 
 	if i.EnableMetrics {
