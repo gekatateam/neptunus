@@ -44,6 +44,7 @@ type Kafka struct {
 	StartOffset          string            `mapstructure:"start_offset"`
 	MaxBatchSize         datasize.Size     `mapstructure:"max_batch_size"`
 	MaxUncommitted       int               `mapstructure:"max_uncommitted"`
+	PrefetchCount        int               `mapstructure:"prefetch_count"`
 	CommitInterval       time.Duration     `mapstructure:"commit_interval"`
 	SASL                 SASL              `mapstructure:"sasl"`
 	LabelHeaders         map[string]string `mapstructure:"labelheaders"`
@@ -90,6 +91,10 @@ func (i *Kafka) Init() (err error) {
 
 	if i.MaxUncommitted < 0 {
 		i.MaxUncommitted = 100
+	}
+
+	if i.PrefetchCount < 1 {
+		i.PrefetchCount = 1
 	}
 
 	i.Topics = slices.Compact(i.Topics)
@@ -236,6 +241,7 @@ GENERATION_LOOP:
 					commitInterval:  i.CommitInterval,
 					commitQueues:    make(map[int]*orderedmap.OrderedMap[int64, *trackedMessage]),
 					commitSemaphore: semCh,
+					readersCount:    len(topicAssigment),
 
 					gen:      gen,
 					fetchCh:  fetchCh,
@@ -276,7 +282,7 @@ GENERATION_LOOP:
 							Topic:            topic,
 							Partition:        partitionAssigment.ID,
 							MaxBytes:         int(i.MaxBatchSize.Bytes()),
-							QueueCapacity:    100, // <- prefetch batch size?
+							QueueCapacity:    i.PrefetchCount,
 							MaxAttempts:      1,
 							Dialer:           i.dialer,
 							ReadBatchTimeout: i.ReadBatchTimeout,
@@ -324,6 +330,7 @@ func init() {
 			ReadBatchTimeout:  3 * time.Second,
 			WaitBatchTimeout:  3 * time.Second,
 			MaxUncommitted:    100,
+			PrefetchCount:     100,
 			CommitInterval:    1 * time.Second,
 			MaxBatchSize:      datasize.Mebibyte, // 1 MiB,
 			SASL: SASL{

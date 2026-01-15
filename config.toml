@@ -2,6 +2,7 @@
   log_level = "info"
   log_format = "logfmt"
   http_port = ":9601"
+  graceful_timeout = 180
   [common.log_fields]
     runner = "local"
     dc = "east-01"
