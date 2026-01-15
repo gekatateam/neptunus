@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = false
+  run = true
   buffer = 5
   log_level = "info"
 
@@ -17,6 +17,10 @@
       name = "partition.create"
       schedule = "@every 1s"
       force = true
+
+[[processors]]
+  [processors.through]
+    sleep = "5s"
 
 [[processors]]
   [processors.starlark]
