@@ -47,12 +47,11 @@ func (p *Mixer) Close() error {
 	stored.mu.Lock()
 	defer stored.mu.Unlock()
 
-	delete(stored.ch, p.line)
-	p.Log.Info(fmt.Sprintf("event output chan deleted on line %v; channels total: %v", p.line, len(stored.ch)))
-
 	if len(stored.ch) == 0 {
 		outs.Delete(p.id)
+		p.Log.Info("no output channels left, chans set deleted")
 	}
+
 	return nil
 }
 
@@ -107,4 +106,16 @@ func (p *Mixer) Run() {
 
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
+
+	curr, ok := outs.Load(p.id)
+	if !ok {
+		return
+	}
+
+	stored := curr.(outputChans)
+	stored.mu.Lock()
+	defer stored.mu.Unlock()
+
+	delete(stored.ch, p.line)
+	p.Log.Info(fmt.Sprintf("event output chan deleted on line %v; channels total: %v", p.line, len(stored.ch)))
 }
