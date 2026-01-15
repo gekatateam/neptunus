@@ -17,7 +17,7 @@ func (k *Self) Init() error {
 
 func (k *Self) SetConfig(config *config.Pipeline) {
 	k.cfg = make(map[string]any)
-	k.cfg["vars"] = config.Vars
+	k.cfg["vars"] = map[string]any(config.Vars)
 	k.cfg["settings"] = map[string]any{
 		"id":          config.Settings.Id,
 		"lines":       config.Settings.Lines,

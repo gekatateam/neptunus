@@ -5,6 +5,9 @@
   buffer = 5
   log_level = "info"
 
+[vars]
+  statsmode = "shared"
+
 [[keykeepers]]
   [keykeepers.self]
     alias = "self"
@@ -56,7 +59,7 @@ def process(event):
 
 [[processors]]
   [processors.stats]
-    mode = "shared"
+    mode = "@{self:vars.statsmode}"
     period = "2s"
     [processors.stats.fields]
       c = [ "gauge", "count", "sum" ]
