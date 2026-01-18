@@ -83,6 +83,9 @@ If commit queue is full, fetching is suspended until at least one message is com
     # maximum length of internal uncommitted messages queue
     max_uncommitted = 100
 
+    # mumber of messages to prefetch from topic into memory; cannot be less than 1
+    prefetch_count = 100
+
     # interval between commit queue scans
     commit_interval = "1s"
 

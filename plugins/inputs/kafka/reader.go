@@ -165,14 +165,8 @@ FETCH_LOOP:
 		}
 	}
 
-	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v done, waiting for events delivery", r.topic, r.partition))
-	select {
-	// multiple goroutines can write to this channel, but only one reads
-	// this is a bit dirty hack that doesn't block forever second and other writing goroutines
-	case r.exitCh <- struct{}{}:
-	default:
-	}
-
+	r.exitCh <- struct{}{}
+	r.Log.Info(fmt.Sprintf("consumer for topic %v and partition %v is done, waiting for events delivery", r.topic, r.partition))
 	<-r.doneCh
 
 	r.Log.Info(fmt.Sprintf("commit queue is empty now, closing consumer for topic %v and partition %v", r.topic, r.partition))
@@ -208,16 +202,18 @@ type commitController struct {
 	exitIfQueueEmpty bool
 	commitInterval   time.Duration
 
-	fetchCh  chan *trackedMessage // for new messages to push in commitQueue
-	commitCh chan commitMessage   // for offsets that ready to be committed
-	exitCh   chan struct{}        // for exit preparation signal
-	doneCh   chan struct{}        // done signal, channel will be closed just before watch() returns
+	readersCount int
+	fetchCh      chan *trackedMessage // for new messages to push in commitQueue
+	commitCh     chan commitMessage   // for offsets that ready to be committed
+	exitCh       chan struct{}        // for exit preparation signal
+	doneCh       chan struct{}        // done signal, channel will be closed just before watch() returns
 
 	log *slog.Logger
 }
 
 func (c *commitController) Run() {
 	ticker := time.NewTicker(c.commitInterval)
+	defer c.log.Info(fmt.Sprintf("commit controller for generation with member id: %v, generation id: %v is done", c.gen.MemberID, c.gen.ID))
 
 	for {
 		select {
@@ -309,7 +305,13 @@ func (c *commitController) Run() {
 				return
 			}
 		case <-c.exitCh:
-			c.log.Info(fmt.Sprintf("left in global queue: %v", len(c.commitSemaphore)))
+			c.readersCount--
+			if c.readersCount > 0 {
+				c.log.Info(fmt.Sprintf("stop signal received, but %v consumers still working, waiting for them to exit", c.readersCount))
+				continue
+			}
+
+			c.log.Info(fmt.Sprintf("all consumers exited, left in global commit queue: %v", len(c.commitSemaphore)))
 			c.exitIfQueueEmpty = true
 			if len(c.commitSemaphore) == 0 {
 				ticker.Stop()
