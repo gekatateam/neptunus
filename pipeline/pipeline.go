@@ -470,6 +470,19 @@ func (p *Pipeline) configureOutputs() error {
 				parserNeedy.SetParser(parser)
 			}
 
+			if lookupNeedy, ok := output.(core.SetLookup); ok {
+				lookupName := outputCfg.Lookup()
+				if lookupName == "" {
+					return fmt.Errorf("%v output requires lookup, but no lookup name provided", plugin)
+				}
+
+				lookup, ok := p.lookups[lookupName]
+				if !ok {
+					return fmt.Errorf("%v output requires lookup %v, but no such lookup configured", plugin, lookupName)
+				}
+				lookupNeedy.SetLookup(lookup)
+			}
+
 			if idNeedy, ok := output.(core.SetId); ok {
 				idNeedy.SetId(outputCfg.Id())
 			}
@@ -560,6 +573,19 @@ func (p *Pipeline) configureProcessors() error {
 						return fmt.Errorf("%v processor parser configuration error: %v", plugin, err.Error())
 					}
 					parserNeedy.SetParser(parser)
+				}
+
+				if lookupNeedy, ok := processor.(core.SetLookup); ok {
+					lookupName := processorCfg.Lookup()
+					if lookupName == "" {
+						return fmt.Errorf("%v processor requires lookup, but no lookup name provided", plugin)
+					}
+
+					lookup, ok := p.lookups[lookupName]
+					if !ok {
+						return fmt.Errorf("%v processor requires lookup %v, but no such lookup configured", plugin, lookupName)
+					}
+					lookupNeedy.SetLookup(lookup)
 				}
 
 				if idNeedy, ok := processor.(core.SetId); ok {
@@ -669,6 +695,19 @@ func (p *Pipeline) configureInputs() error {
 					return fmt.Errorf("%v input parser configuration error: %v", plugin, err.Error())
 				}
 				parserNeedy.SetParser(parser)
+			}
+
+			if lookupNeedy, ok := input.(core.SetLookup); ok {
+				lookupName := inputCfg.Lookup()
+				if lookupName == "" {
+					return fmt.Errorf("%v input requires lookup, but no lookup name provided", plugin)
+				}
+
+				lookup, ok := p.lookups[lookupName]
+				if !ok {
+					return fmt.Errorf("%v input requires lookup %v, but no such lookup configured", plugin, lookupName)
+				}
+				lookupNeedy.SetLookup(lookup)
 			}
 
 			if idNeedy, ok := input.(core.SetId); ok {

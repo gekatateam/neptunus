@@ -82,13 +82,11 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 // and provides it to other plugins on demand
 // no channels, no filters, just endless update loop
 //
-//	┌─────────┐
-//	│  ┌───┐<─┼───
-//
+//   ┌─────────┐
+//   │  ┌───┐<─┼───
 // <─┼─>│ L │  │
-//
-//	│  └───┘──┼──>
-//	└─────────┘
+//   │  └───┘──┼──>
+//   └─────────┘
 func NewLookup(c *config.PipeSettings, l *slog.Logger, lu core.Lookup, stop <-chan struct{}) (unit core.Runner) {
 	switch c.Consistency {
 	case ConsistencyHard:
