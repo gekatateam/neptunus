@@ -49,6 +49,9 @@ func FullCloseError(plugin io.Closer) error {
 	case Keykeeper:
 		b := reflect.ValueOf(p).Elem().FieldByName(KindKeykeeper).Interface().(*BaseKeykeeper)
 		return fmt.Errorf("keykeeper %s %s: %w", b.Plugin, b.Alias, err)
+	case Lookup:
+		b := reflect.ValueOf(p).Elem().FieldByName(KindLookup).Interface().(*BaseLookup)
+		return fmt.Errorf("lookup %s %s: %w", b.Plugin, b.Alias, err)
 	case Input:
 		b := reflect.ValueOf(p).Elem().FieldByName(KindInput).Interface().(*BaseInput)
 		return fmt.Errorf("input %s %s: %w", b.Plugin, b.Alias, err)

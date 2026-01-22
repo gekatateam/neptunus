@@ -96,6 +96,7 @@ type Pipeline struct {
 	aliases map[string]struct{}
 
 	keepers map[string]core.Keykeeper
+	lookups map[string]core.Lookup
 	outs    []outputSet
 	procs   [][]procSet
 	ins     []inputSet
@@ -167,8 +168,13 @@ func (p *Pipeline) Close() error {
 		err = errors.Join(err, core.FullCloseError(set.o))
 	}
 
+	for _, l := range p.lookups {
+		err = errors.Join(err, core.FullCloseError(l))
+	}
+
 	p.aliases = make(map[string]struct{})
 	p.keepers = make(map[string]core.Keykeeper)
+	p.lookups = make(map[string]core.Lookup)
 	p.outs = make([]outputSet, 0, len(p.config.Outputs))
 	p.procs = make([][]procSet, 0, p.config.Settings.Lines)
 	p.ins = make([]inputSet, 0, len(p.config.Inputs))
@@ -255,6 +261,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	wg := &sync.WaitGroup{}
 
+	p.log.Info("starting lookups")
+	var lookupsStopChannels = make([]chan struct{}, 0, len(p.lookups))
+	for _, lookup := range p.lookups {
+		stop := make(chan struct{})
+		lookupsStopChannels = append(lookupsStopChannels, stop)
+		lookupUnit := unit.NewLookup(&p.config.Settings, p.log, lookup, stop)
+		wg.Go(lookupUnit.Run)
+	}
+
 	p.log.Info("starting inputs")
 	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins))
 	var inputsOutChannels = make([]<-chan *core.Event, 0, len(p.ins))
@@ -339,6 +354,9 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.state.Store(int32(StateStopping))
 	p.log.Info("stop signal received, stopping pipeline")
+	for _, stop := range lookupsStopChannels {
+		stop <- struct{}{}
+	}
 	for _, stop := range inputsStopChannels {
 		stop <- struct{}{}
 	}

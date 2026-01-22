@@ -233,6 +233,32 @@ func (u *inSoftUnit) Run() {
 	rejWg.Wait() // and wait for rejection goroutine
 }
 
+type lookupSoftUnit struct {
+	l    core.Lookup
+	wg   *sync.WaitGroup
+	stop <-chan struct{}
+}
+
+func newLookupSoftUnit(l core.Lookup, stop <-chan struct{}) (unit *lookupSoftUnit) {
+	return &lookupSoftUnit{
+		l:    l,
+		wg:   &sync.WaitGroup{},
+		stop: stop,
+	}
+}
+
+func (u *lookupSoftUnit) Run() {
+	u.wg.Add(1)
+	go func() {
+		<-u.stop   // wait for stop signal
+		u.l.Stop() // then stop the lookup
+		u.wg.Done()
+	}()
+
+	u.l.Run() // blocking call, loop inside
+	u.wg.Wait()
+}
+
 type fanOutSoftUnit struct {
 	c    core.FanOut
 	in   <-chan *core.Event
