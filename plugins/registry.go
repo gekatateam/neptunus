@@ -6,11 +6,33 @@ import (
 	"github.com/gekatateam/neptunus/core"
 )
 
+type (
+	processorFunc    func() core.Processor
+	filterFunc       func() core.Filter
+	inputFunc        func() core.Input
+	outputFunc       func() core.Output
+	parserFunc       func() core.Parser
+	serializerFunc   func() core.Serializer
+	keykeeperFunc    func() core.Keykeeper
+	lookupFunc       func() core.Lookup
+	compressorFunc   func() core.Compressor
+	decompressorFunc func() core.Decompressor
+)
+
+var (
+	processors    = make(map[string]processorFunc)
+	filters       = make(map[string]filterFunc)
+	inputs        = make(map[string]inputFunc)
+	outputs       = make(map[string]outputFunc)
+	parsers       = make(map[string]parserFunc)
+	serializers   = make(map[string]serializerFunc)
+	keykeepers    = make(map[string]keykeeperFunc)
+	lookups       = make(map[string]lookupFunc)
+	compressors   = make(map[string]compressorFunc)
+	decompressors = make(map[string]decompressorFunc)
+)
+
 // processors
-type processorFunc func() core.Processor
-
-var processors = make(map[string]processorFunc)
-
 func AddProcessor(key string, p processorFunc) {
 	if _, exists := processors[key]; exists {
 		panic(fmt.Errorf("duplicate processor func added: %v", key))
@@ -25,10 +47,6 @@ func GetProcessor(key string) (processorFunc, bool) {
 }
 
 // filters
-type filterFunc func() core.Filter
-
-var filters = make(map[string]filterFunc)
-
 func AddFilter(key string, f filterFunc) {
 	if _, exists := filters[key]; exists {
 		panic(fmt.Errorf("duplicate filter func added: %v", key))
@@ -43,10 +61,6 @@ func GetFilter(key string) (filterFunc, bool) {
 }
 
 // inputs
-type inputFunc func() core.Input
-
-var inputs = make(map[string]inputFunc)
-
 func AddInput(key string, i inputFunc) {
 	if _, exists := inputs[key]; exists {
 		panic(fmt.Errorf("duplicate input func added: %v", key))
@@ -61,10 +75,6 @@ func GetInput(key string) (inputFunc, bool) {
 }
 
 // outputs
-type outputFunc func() core.Output
-
-var outputs = make(map[string]outputFunc)
-
 func AddOutput(key string, o outputFunc) {
 	if _, exists := outputs[key]; exists {
 		panic(fmt.Errorf("duplicate output func added: %v", key))
@@ -79,10 +89,6 @@ func GetOutput(key string) (outputFunc, bool) {
 }
 
 // parsers
-type parserFunc func() core.Parser
-
-var parsers = make(map[string]parserFunc)
-
 func AddParser(key string, p parserFunc) {
 	if _, exists := parsers[key]; exists {
 		panic(fmt.Errorf("duplicate parser func added: %v", key))
@@ -97,10 +103,6 @@ func GetParser(key string) (parserFunc, bool) {
 }
 
 // serializers
-type serializerFunc func() core.Serializer
-
-var serializers = make(map[string]serializerFunc)
-
 func AddSerializer(key string, p serializerFunc) {
 	if _, exists := serializers[key]; exists {
 		panic(fmt.Errorf("duplicate serializer func added: %v", key))
@@ -115,10 +117,6 @@ func GetSerializer(key string) (serializerFunc, bool) {
 }
 
 // keykeepers
-type keykeeperFunc func() core.Keykeeper
-
-var keykeepers = make(map[string]keykeeperFunc)
-
 func AddKeykeeper(key string, p keykeeperFunc) {
 	if _, exists := keykeepers[key]; exists {
 		panic(fmt.Errorf("duplicate keykeeper func added: %v", key))
@@ -132,11 +130,21 @@ func GetKeykeeper(key string) (keykeeperFunc, bool) {
 	return p, ok
 }
 
+// lookups
+func AddLookup(key string, p lookupFunc) {
+	if _, exists := lookups[key]; exists {
+		panic(fmt.Errorf("duplicate lookup func added: %v", key))
+	}
+
+	lookups[key] = p
+}
+
+func GetLookup(key string) (lookupFunc, bool) {
+	p, ok := lookups[key]
+	return p, ok
+}
+
 // compressors
-type compressorFunc func() core.Compressor
-
-var compressors = make(map[string]compressorFunc)
-
 func AddCompressor(key string, p compressorFunc) {
 	if _, exists := compressors[key]; exists {
 		panic(fmt.Errorf("duplicate compressor func added: %v", key))
@@ -151,10 +159,6 @@ func GetCompressor(key string) (compressorFunc, bool) {
 }
 
 // decompressors
-type decompressorFunc func() core.Decompressor
-
-var decompressors = make(map[string]decompressorFunc)
-
 func AddDecompressor(key string, p decompressorFunc) {
 	if _, exists := decompressors[key]; exists {
 		panic(fmt.Errorf("duplicate decompressor func added: %v", key))

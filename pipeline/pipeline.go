@@ -192,6 +192,14 @@ func (p *Pipeline) Test() (err error) {
 	}
 	p.log.Info("keykeepers confiruration has no errors")
 
+	if err = p.configureLookups(); err != nil {
+		p.log.Error("lookups confiruration test failed",
+			"error", err.Error(),
+		)
+		goto PIPELINE_TEST_FAILED
+	}
+	p.log.Info("lookups confiruration has no errors")
+
 	if err = p.configureInputs(); err != nil {
 		p.log.Error("inputs confiruration test failed",
 			"error", err.Error(),
@@ -236,6 +244,11 @@ func (p *Pipeline) Build() (err error) {
 		return
 	}
 	p.log.Debug("keykeepers confiruration has no errors")
+
+	if err = p.configureLookups(); err != nil {
+		return
+	}
+	p.log.Debug("lookups confiruration has no errors")
 
 	if err = p.configureInputs(); err != nil {
 		return
@@ -416,6 +429,83 @@ func (p *Pipeline) configureKeykeepers() error {
 			}
 
 			p.keepers[alias] = keykeeper
+		}
+	}
+	return nil
+}
+
+func (p *Pipeline) configureLookups() error {
+	for index, lookups := range p.config.Lookups {
+		for plugin, lookupCfg := range lookups {
+			lookupFunc, ok := plugins.GetLookup(plugin)
+			if !ok {
+				return fmt.Errorf("unknown lookup plugin in pipeline configuration: %v", plugin)
+			}
+			lookup := lookupFunc()
+
+			var alias = fmt.Sprintf("lookup:%v:%v", plugin, index)
+			if len(lookupCfg.Alias()) > 0 {
+				alias = lookupCfg.Alias()
+			}
+
+			if _, ok := p.aliases[alias]; ok {
+				return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v lookup", alias, plugin)
+			}
+			p.aliases[alias] = struct{}{}
+
+			if serializerNeedy, ok := lookup.(core.SetSerializer); ok {
+				serializerCfg := lookupCfg.Serializer()
+				if serializerCfg == nil {
+					return fmt.Errorf("%v lookup requires serializer, but no serializer configuration provided", plugin)
+				}
+
+				serializer, err := p.configureSerializer(serializerCfg, alias)
+				if err != nil {
+					return fmt.Errorf("%v lookup serializer configuration error: %v", plugin, err.Error())
+				}
+				serializerNeedy.SetSerializer(serializer)
+			}
+
+			if parserNeedy, ok := lookup.(core.SetParser); ok {
+				cfgParser := lookupCfg.Parser()
+				if cfgParser == nil {
+					return fmt.Errorf("%v lookup requires parser, but no parser configuration provided", plugin)
+				}
+
+				parser, err := p.configureParser(cfgParser, alias)
+				if err != nil {
+					return fmt.Errorf("%v lookup parser configuration error: %v", plugin, err.Error())
+				}
+				parserNeedy.SetParser(parser)
+			}
+
+			log := p.log.With(slog.Group("keykeeper",
+				"plugin", plugin,
+				"name", alias,
+			))
+			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(lookupCfg.LogLevel()))
+
+			baseField := reflect.ValueOf(lookup).Elem().FieldByName(core.KindLookup)
+			if baseField.IsValid() && baseField.CanSet() {
+				baseField.Set(reflect.ValueOf(&core.BaseLookup{
+					Alias:    alias,
+					Plugin:   plugin,
+					Pipeline: p.config.Settings.Id,
+					Log:      log,
+				}))
+			} else {
+				return fmt.Errorf("%v lookup plugin does not contains BaseLookup", plugin)
+			}
+
+			if err := mapstructure.Decode(lookupCfg, lookup, p.decodeHook()); err != nil {
+				return fmt.Errorf("%v lookup configuration mapping error: %v", plugin, err.Error())
+			}
+
+			if err := lookup.Init(); err != nil {
+				return fmt.Errorf("%v lookup initialization error: %v", plugin, err.Error())
+			}
+
+			p.lookups[alias] = lookup
 		}
 	}
 	return nil

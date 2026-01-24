@@ -67,7 +67,7 @@ type Keykeeper interface {
 
 type Lookup interface {
 	Stop()
-	Get() (lookup any, updated bool)
+	Get(key string) (data any, updated bool)
 	io.Closer
 	Runner
 	Initer
