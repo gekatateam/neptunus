@@ -18,9 +18,7 @@ type File struct {
 	File             string        `mapstructure:"file"`
 	Interval         time.Duration `mapstructure:"interval"`
 
-	data any
-	err  error
-
+	data       any
 	parser     core.Parser
 	fetchCtx   context.Context
 	cancelFunc context.CancelFunc
@@ -91,19 +89,16 @@ func (l *File) update() error {
 
 	content, err := os.ReadFile(l.File)
 	if err != nil {
-		l.err = err
 		return err
 	}
 
 	event, err := l.parser.Parse(content, "")
 	if err != nil {
-		l.err = err
 		return err
 	}
 
 	if len(event) == 0 {
 		err := errors.New("parser returns zero events, nothing to store")
-		l.err = err
 		return err
 	}
 
@@ -112,7 +107,6 @@ func (l *File) update() error {
 	}
 
 	l.data = event[0].Data
-	l.err = nil
 	return nil
 }
 
