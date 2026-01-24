@@ -250,12 +250,12 @@ func newLookupSoftUnit(l core.Lookup, stop <-chan struct{}) (unit *lookupSoftUni
 func (u *lookupSoftUnit) Run() {
 	u.wg.Add(1)
 	go func() {
-		<-u.stop   // wait for stop signal
-		u.l.Stop() // then stop the lookup
+		u.l.Run() // blocking call, loop inside
 		u.wg.Done()
 	}()
 
-	u.l.Run() // blocking call, loop inside
+	<-u.stop   // wait for stop signal
+	u.l.Stop() // then stop the lookup
 	u.wg.Wait()
 }
 
