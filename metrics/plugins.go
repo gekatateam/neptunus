@@ -17,6 +17,14 @@ type ObserveFunc func(plugin, name, pipeline string, status EventStatus, t time.
 
 func ObserveMock(plugin, name, pipeline string, status EventStatus, t time.Duration) {}
 
+func ObserveLookupSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
+	CoreSet.GetOrCreateSummaryExt(
+		fmt.Sprintf("lookup_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),
+		DefaultMetricWindow,
+		DefaultSummaryQuantiles,
+	).Update(t.Seconds())
+}
+
 func ObserveInputSummary(plugin, name, pipeline string, status EventStatus, t time.Duration) {
 	CoreSet.GetOrCreateSummaryExt(
 		fmt.Sprintf("input_plugin_processed_events{plugin=%q,name=%q,pipeline=%q,status=%q}", plugin, name, pipeline, status),

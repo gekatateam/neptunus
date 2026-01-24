@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = false
+  run = true
   buffer = 5
   log_level = "info"
 
@@ -11,6 +11,16 @@
 [[keykeepers]]
   [keykeepers.self]
     alias = "self"
+
+[[lookups]]
+  [lookups.file]
+    log_level = "debug"
+    alias = "licenses"
+    file = ".github/li-checker-rules.json"
+    interval = "10s"
+    [lookups.file.parser]
+      type = "json"
+      split_array = false
 
 [[inputs]]
   [inputs.cronjob]

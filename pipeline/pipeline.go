@@ -30,6 +30,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
 	_ "github.com/gekatateam/neptunus/plugins/keykeepers"
+	_ "github.com/gekatateam/neptunus/plugins/lookups"
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
 	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
@@ -111,6 +112,7 @@ func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 		state:   &atomic.Int32{},
 		aliases: make(map[string]struct{}),
 		keepers: make(map[string]core.Keykeeper),
+		lookups: make(map[string]core.Lookup),
 		outs:    make([]outputSet, 0, len(config.Outputs)),
 		procs:   make([][]procSet, 0, config.Settings.Lines),
 		ins:     make([]inputSet, 0, len(config.Inputs)),
@@ -368,10 +370,10 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.state.Store(int32(StateStopping))
 	p.log.Info("stop signal received, stopping pipeline")
 	for _, stop := range lookupsStopChannels {
-		stop <- struct{}{}
+		close(stop)
 	}
 	for _, stop := range inputsStopChannels {
-		stop <- struct{}{}
+		close(stop)
 	}
 	wg.Wait()
 
@@ -479,7 +481,7 @@ func (p *Pipeline) configureLookups() error {
 				parserNeedy.SetParser(parser)
 			}
 
-			log := p.log.With(slog.Group("keykeeper",
+			log := p.log.With(slog.Group("lookup",
 				"plugin", plugin,
 				"name", alias,
 			))
@@ -492,6 +494,7 @@ func (p *Pipeline) configureLookups() error {
 					Plugin:   plugin,
 					Pipeline: p.config.Settings.Id,
 					Log:      log,
+					Obs:      metrics.ObserveLookupSummary,
 				}))
 			} else {
 				return fmt.Errorf("%v lookup plugin does not contains BaseLookup", plugin)
