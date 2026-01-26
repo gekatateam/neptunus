@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS pipelines (
 	, log_level   TEXT NOT NULL
 	, vars        JSON NOT NULL
 	, keykeepers  JSON NOT NULL
+	, lookups     JSON NOT NULL
 	, inputs      JSON NOT NULL
 	, processors  JSON NOT NULL
 	, outputs     JSON NOT NULL
@@ -50,9 +51,9 @@ CREATE TABLE IF NOT EXISTS pipelines_locks (
 
 	pipeline_add = `
 INSERT INTO pipelines 
-(id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs)
+(id, lines, run, buffer, consistency, log_level, vars, keykeepers, lookups, inputs, processors, outputs)
 VALUES
-(:id, :lines, :run, :buffer, :consistency, :log_level, :vars, :keykeepers, :inputs, :processors, :outputs);`
+(:id, :lines, :run, :buffer, :consistency, :log_level, :vars, :keykeepers, :lookups, :inputs, :processors, :outputs);`
 
 	pipeline_check = `
 SELECT id, deleted_at FROM pipelines
@@ -79,18 +80,19 @@ SET
 	, log_level   = :log_level
 	, vars        = :vars
 	, keykeepers  = :keykeepers
+	, lookups     = :lookups
 	, inputs      = :inputs
 	, processors  = :processors
 	, outputs     = :outputs
 WHERE id = :id;`
 
 	pipeline_get = `
-SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
+SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, lookups, inputs, processors, outputs
 FROM pipelines
 WHERE id = $1 and deleted_at IS NULL;`
 
 	pipeline_list = `
-SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, inputs, processors, outputs
+SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, lookups, inputs, processors, outputs
 FROM pipelines
 WHERE deleted_at IS NULL;`
 
@@ -137,6 +139,7 @@ type storedPipeline struct {
 	LogLevel    string         `db:"log_level"`
 	Vars        types.JSONText `db:"vars"`
 	Keykeepers  types.JSONText `db:"keykeepers"`
+	Lookups     types.JSONText `db:"lookups"`
 	Inputs      types.JSONText `db:"inputs"`
 	Processors  types.JSONText `db:"processors"`
 	Outputs     types.JSONText `db:"outputs"`
@@ -441,6 +444,10 @@ func storedToConfig(p storedPipeline) (*config.Pipeline, error) {
 		return nil, fmt.Errorf("unmarshal keykeepers: %w", err)
 	}
 
+	if err := config.UnmarshalPipeline(p.Lookups, &cfg.Lookups, ".json"); err != nil {
+		return nil, fmt.Errorf("unmarshal lookups: %w", err)
+	}
+
 	if err := config.UnmarshalPipeline(p.Inputs, &cfg.Inputs, ".json"); err != nil {
 		return nil, fmt.Errorf("unmarshal inputs: %w", err)
 	}
@@ -466,6 +473,7 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 		LogLevel:    c.Settings.LogLevel,
 		Vars:        types.JSONText{},
 		Keykeepers:  types.JSONText{},
+		Lookups:     types.JSONText{},
 		Inputs:      types.JSONText{},
 		Processors:  types.JSONText{},
 		Outputs:     types.JSONText{},
@@ -489,6 +497,16 @@ func configToStored(c *config.Pipeline) (storedPipeline, error) {
 			return storedPipeline{}, fmt.Errorf("marshal keykeepers: %w", err)
 		}
 		pipe.Keykeepers = keykeepers
+	}
+
+	if len(c.Lookups) == 0 {
+		pipe.Lookups = emptyList
+	} else {
+		lookups, err := config.MarshalPipeline(c.Lookups, ".json")
+		if err != nil {
+			return storedPipeline{}, fmt.Errorf("marshal lookups: %w", err)
+		}
+		pipe.Lookups = lookups
 	}
 
 	if len(c.Inputs) == 0 {
