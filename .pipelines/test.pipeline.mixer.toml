@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = false
+  run = true
   buffer = 5
   log_level = "info"
 
@@ -11,6 +11,16 @@
 [[keykeepers]]
   [keykeepers.self]
     alias = "self"
+
+[[lookups]]
+  [lookups.file]
+    log_level = "debug"
+    alias = "licenses"
+    file = ".github/li-checker-rules.json"
+    interval = "10s"
+    [lookups.file.parser]
+      type = "json"
+      split_array = false
 
 [[inputs]]
   [inputs.cronjob]
@@ -23,7 +33,8 @@
 
 [[processors]]
   [processors.through]
-    sleep = "5s"
+#    sleep = "5s"
+
 
 [[processors]]
   [processors.starlark]
@@ -49,23 +60,16 @@ def process(event):
     return events
     '''
 
-[[processors]]
-  [processors.through]
-#    sleep = "1s"
+
 
 [[processors]]
   [processors.mixer]
-#    log_level = "debug"
 
 [[processors]]
-  [processors.stats]
-    mode = "@{self:vars.statsmode}"
-    period = "2s"
-    [processors.stats.fields]
-      c = [ "gauge", "count", "sum" ]
-
-[[processors]]
-  [processors.drop]
+  [processors.lookup]
+    lookup = "licenses"
+    [processors.lookup.fields]
+      allowed = "allowlist"
 
 [[outputs]]
   [outputs.log]
@@ -74,4 +78,4 @@ def process(event):
       type = "json"
       data_only = false
     [outputs.log.filters.glob]
-      routing_key = [ "neptunus.generated.metric" ]
+      routing_key = [ "expeditions_*" ]

@@ -65,6 +65,14 @@ type Keykeeper interface {
 	Initer
 }
 
+type Lookup interface {
+	Stop()
+	Get(key string) (any, error)
+	io.Closer
+	Runner
+	Initer
+}
+
 type Compressor interface {
 	Compress([]byte) ([]byte, error)
 	io.Closer
@@ -77,14 +85,19 @@ type Decompressor interface {
 	Initer
 }
 
-// plugins that need parsers must implement this interface
+// plugins that need parser must implement this interface
 type SetParser interface {
 	SetParser(p Parser)
 }
 
-// plugins that need serializers must implement this interface
+// plugins that need serializer must implement this interface
 type SetSerializer interface {
 	SetSerializer(s Serializer)
+}
+
+// plugins that need lookup must implement this interface
+type SetLookup interface {
+	SetLookup(l Lookup)
 }
 
 // plugins that need unique id must implement this interface

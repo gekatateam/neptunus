@@ -30,6 +30,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/filters"
 	_ "github.com/gekatateam/neptunus/plugins/inputs"
 	_ "github.com/gekatateam/neptunus/plugins/keykeepers"
+	_ "github.com/gekatateam/neptunus/plugins/lookups"
 	_ "github.com/gekatateam/neptunus/plugins/outputs"
 	_ "github.com/gekatateam/neptunus/plugins/parsers"
 	_ "github.com/gekatateam/neptunus/plugins/processors"
@@ -96,6 +97,7 @@ type Pipeline struct {
 	aliases map[string]struct{}
 
 	keepers map[string]core.Keykeeper
+	lookups map[string]core.Lookup
 	outs    []outputSet
 	procs   [][]procSet
 	ins     []inputSet
@@ -110,6 +112,7 @@ func New(config *config.Pipeline, log *slog.Logger) *Pipeline {
 		state:   &atomic.Int32{},
 		aliases: make(map[string]struct{}),
 		keepers: make(map[string]core.Keykeeper),
+		lookups: make(map[string]core.Lookup),
 		outs:    make([]outputSet, 0, len(config.Outputs)),
 		procs:   make([][]procSet, 0, config.Settings.Lines),
 		ins:     make([]inputSet, 0, len(config.Inputs)),
@@ -167,8 +170,13 @@ func (p *Pipeline) Close() error {
 		err = errors.Join(err, core.FullCloseError(set.o))
 	}
 
+	for _, l := range p.lookups {
+		err = errors.Join(err, core.FullCloseError(l))
+	}
+
 	p.aliases = make(map[string]struct{})
 	p.keepers = make(map[string]core.Keykeeper)
+	p.lookups = make(map[string]core.Lookup)
 	p.outs = make([]outputSet, 0, len(p.config.Outputs))
 	p.procs = make([][]procSet, 0, p.config.Settings.Lines)
 	p.ins = make([]inputSet, 0, len(p.config.Inputs))
@@ -185,6 +193,14 @@ func (p *Pipeline) Test() (err error) {
 		goto PIPELINE_TEST_FAILED
 	}
 	p.log.Info("keykeepers confiruration has no errors")
+
+	if err = p.configureLookups(); err != nil {
+		p.log.Error("lookups confiruration test failed",
+			"error", err.Error(),
+		)
+		goto PIPELINE_TEST_FAILED
+	}
+	p.log.Info("lookups confiruration has no errors")
 
 	if err = p.configureInputs(); err != nil {
 		p.log.Error("inputs confiruration test failed",
@@ -231,6 +247,11 @@ func (p *Pipeline) Build() (err error) {
 	}
 	p.log.Debug("keykeepers confiruration has no errors")
 
+	if err = p.configureLookups(); err != nil {
+		return
+	}
+	p.log.Debug("lookups confiruration has no errors")
+
 	if err = p.configureInputs(); err != nil {
 		return
 	}
@@ -254,6 +275,15 @@ func (p *Pipeline) Run(ctx context.Context) {
 	p.log.Info("starting pipeline")
 
 	wg := &sync.WaitGroup{}
+
+	p.log.Info("starting lookups")
+	var lookupsStopChannels = make([]chan struct{}, 0, len(p.lookups))
+	for _, lookup := range p.lookups {
+		stop := make(chan struct{})
+		lookupsStopChannels = append(lookupsStopChannels, stop)
+		lookupUnit := unit.NewLookup(&p.config.Settings, p.log, lookup, stop)
+		wg.Go(lookupUnit.Run)
+	}
 
 	p.log.Info("starting inputs")
 	var inputsStopChannels = make([]chan struct{}, 0, len(p.ins))
@@ -339,8 +369,11 @@ func (p *Pipeline) Run(ctx context.Context) {
 
 	p.state.Store(int32(StateStopping))
 	p.log.Info("stop signal received, stopping pipeline")
+	for _, stop := range lookupsStopChannels {
+		close(stop)
+	}
 	for _, stop := range inputsStopChannels {
-		stop <- struct{}{}
+		close(stop)
 	}
 	wg.Wait()
 
@@ -403,6 +436,84 @@ func (p *Pipeline) configureKeykeepers() error {
 	return nil
 }
 
+func (p *Pipeline) configureLookups() error {
+	for index, lookups := range p.config.Lookups {
+		for plugin, lookupCfg := range lookups {
+			lookupFunc, ok := plugins.GetLookup(plugin)
+			if !ok {
+				return fmt.Errorf("unknown lookup plugin in pipeline configuration: %v", plugin)
+			}
+			lookup := lookupFunc()
+
+			var alias = fmt.Sprintf("lookup:%v:%v", plugin, index)
+			if len(lookupCfg.Alias()) > 0 {
+				alias = lookupCfg.Alias()
+			}
+
+			if _, ok := p.aliases[alias]; ok {
+				return fmt.Errorf("duplicate alias detected in pipeline configuration: %v, from %v lookup", alias, plugin)
+			}
+			p.aliases[alias] = struct{}{}
+
+			if serializerNeedy, ok := lookup.(core.SetSerializer); ok {
+				serializerCfg := lookupCfg.Serializer()
+				if serializerCfg == nil {
+					return fmt.Errorf("%v lookup requires serializer, but no serializer configuration provided", plugin)
+				}
+
+				serializer, err := p.configureSerializer(serializerCfg, alias)
+				if err != nil {
+					return fmt.Errorf("%v lookup serializer configuration error: %v", plugin, err.Error())
+				}
+				serializerNeedy.SetSerializer(serializer)
+			}
+
+			if parserNeedy, ok := lookup.(core.SetParser); ok {
+				cfgParser := lookupCfg.Parser()
+				if cfgParser == nil {
+					return fmt.Errorf("%v lookup requires parser, but no parser configuration provided", plugin)
+				}
+
+				parser, err := p.configureParser(cfgParser, alias)
+				if err != nil {
+					return fmt.Errorf("%v lookup parser configuration error: %v", plugin, err.Error())
+				}
+				parserNeedy.SetParser(parser)
+			}
+
+			log := p.log.With(slog.Group("lookup",
+				"plugin", plugin,
+				"name", alias,
+			))
+			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(lookupCfg.LogLevel()))
+
+			baseField := reflect.ValueOf(lookup).Elem().FieldByName(core.KindLookup)
+			if baseField.IsValid() && baseField.CanSet() {
+				baseField.Set(reflect.ValueOf(&core.BaseLookup{
+					Alias:    alias,
+					Plugin:   plugin,
+					Pipeline: p.config.Settings.Id,
+					Log:      log,
+					Obs:      metrics.ObserveLookupSummary,
+				}))
+			} else {
+				return fmt.Errorf("%v lookup plugin does not contains BaseLookup", plugin)
+			}
+
+			if err := mapstructure.Decode(lookupCfg, lookup, p.decodeHook()); err != nil {
+				return fmt.Errorf("%v lookup configuration mapping error: %v", plugin, err.Error())
+			}
+
+			if err := lookup.Init(); err != nil {
+				return fmt.Errorf("%v lookup initialization error: %v", plugin, err.Error())
+			}
+
+			p.lookups[alias] = lookup
+		}
+	}
+	return nil
+}
+
 func (p *Pipeline) configureOutputs() error {
 	if len(p.config.Outputs) == 0 {
 		return errors.New("at least one output required")
@@ -450,6 +561,19 @@ func (p *Pipeline) configureOutputs() error {
 					return fmt.Errorf("%v output parser configuration error: %v", plugin, err.Error())
 				}
 				parserNeedy.SetParser(parser)
+			}
+
+			if lookupNeedy, ok := output.(core.SetLookup); ok {
+				lookupName := outputCfg.Lookup()
+				if lookupName == "" {
+					return fmt.Errorf("%v output requires lookup, but no lookup name provided", plugin)
+				}
+
+				lookup, ok := p.lookups[lookupName]
+				if !ok {
+					return fmt.Errorf("%v output requires lookup %v, but no such lookup configured", plugin, lookupName)
+				}
+				lookupNeedy.SetLookup(lookup)
 			}
 
 			if idNeedy, ok := output.(core.SetId); ok {
@@ -542,6 +666,19 @@ func (p *Pipeline) configureProcessors() error {
 						return fmt.Errorf("%v processor parser configuration error: %v", plugin, err.Error())
 					}
 					parserNeedy.SetParser(parser)
+				}
+
+				if lookupNeedy, ok := processor.(core.SetLookup); ok {
+					lookupName := processorCfg.Lookup()
+					if lookupName == "" {
+						return fmt.Errorf("%v processor requires lookup, but no lookup name provided", plugin)
+					}
+
+					lookup, ok := p.lookups[lookupName]
+					if !ok {
+						return fmt.Errorf("%v processor requires lookup %v, but no such lookup configured", plugin, lookupName)
+					}
+					lookupNeedy.SetLookup(lookup)
 				}
 
 				if idNeedy, ok := processor.(core.SetId); ok {
@@ -651,6 +788,19 @@ func (p *Pipeline) configureInputs() error {
 					return fmt.Errorf("%v input parser configuration error: %v", plugin, err.Error())
 				}
 				parserNeedy.SetParser(parser)
+			}
+
+			if lookupNeedy, ok := input.(core.SetLookup); ok {
+				lookupName := inputCfg.Lookup()
+				if lookupName == "" {
+					return fmt.Errorf("%v input requires lookup, but no lookup name provided", plugin)
+				}
+
+				lookup, ok := p.lookups[lookupName]
+				if !ok {
+					return fmt.Errorf("%v input requires lookup %v, but no such lookup configured", plugin, lookupName)
+				}
+				lookupNeedy.SetLookup(lookup)
 			}
 
 			if idNeedy, ok := input.(core.SetId); ok {

@@ -22,11 +22,11 @@ const (
 // accepted events are going to next filter or processor
 //
 // ┌────────────────┐
-// |┌───┐           |
-// ┼┤ f ├┬─────────┐|
-// |└─┬┬┴┴─┐ ┌────┐||
-// |  └┤ f ├─┤proc├┴┼─
-// |   └───┘ └────┘ |
+// │┌───┐           │
+// ┼┤ f ├┬─────────┐│
+// │└─┬┬┴┴─┐ ┌────┐││
+// │  └┤ f ├─┤proc├┴┼─
+// │   └───┘ └────┘ │
 // └────────────────┘
 func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []core.Filter, in <-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
@@ -42,11 +42,11 @@ func NewProcessor(c *config.PipeSettings, l *slog.Logger, p core.Processor, f []
 // rejected events are not going to next filter or output
 //
 // ┌────────────────┐
-// |┌───┐           |
-// ┼┤ f ├┬────────Θ |
-// |└─┬┬┴┴─┐ ┌────┐ |
-// |  └┤ f ├─┤out>| |
-// |   └───┘ └────┘ |
+// │┌───┐           │
+// ┼┤ f ├┬────────Θ │
+// │└─┬┬┴┴─┐ ┌────┐ │
+// │  └┤ f ├─┤out>│ │
+// │   └───┘ └────┘ │
 // └────────────────┘
 func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.Filter, in <-chan *core.Event) (unit core.Runner, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
@@ -63,11 +63,11 @@ func NewOutput(c *config.PipeSettings, l *slog.Logger, o core.Output, f []core.F
 // rejected events are not going to next filter or processor
 //
 // ┌────────────────┐
-// |┌───┐ ┌───┐     |
-// ||>in├─┤ f ├┬──Θ |
-// |└───┘ └─┬┬┴┴─┐  |
-// |        └┤ f ├──┼─
-// |         └───┘  |
+// │┌───┐ ┌───┐     │
+// ││>in├─┤ f ├┬──Θ │
+// │└───┘ └─┬┬┴┴─┐  │
+// │        └┤ f ├──┼─
+// │         └───┘  │
 // └────────────────┘
 func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Filter, stop <-chan struct{}) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
@@ -78,14 +78,32 @@ func NewInput(c *config.PipeSettings, l *slog.Logger, i core.Input, f []core.Fil
 	}
 }
 
+// lookup unit fetches data from outside world
+// and provides it to other plugins on demand
+// no channels, no filters, just endless update loop
+//
+// ┌──────────┐
+// │   ┌───┐<─┼───
+// ┼<─>│ L │  │
+// │   └───┘──┼──>
+// └──────────┘
+func NewLookup(c *config.PipeSettings, l *slog.Logger, lu core.Lookup, stop <-chan struct{}) (unit core.Runner) {
+	switch c.Consistency {
+	case ConsistencyHard:
+		panic(errors.ErrUnsupported)
+	default:
+		return newLookupSoftUnit(lu, stop)
+	}
+}
+
 // fan-out unit consumes events from input
 // and sends clones of each event to all outputs
 // this unit uses plugin for avoid concrete metrics writing in core
 //
 // ┌────────┐
-// |   ┌────┼─
+// │   ┌────┼─
 // ┼───█────┼─
-// |   └────┼─
+// │   └────┼─
 // └────────┘
 func NewFanOut(c *config.PipeSettings, l *slog.Logger, b core.FanOut, in <-chan *core.Event, outsCount int) (unit core.Runner, unitOuts []<-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {
@@ -101,9 +119,9 @@ func NewFanOut(c *config.PipeSettings, l *slog.Logger, b core.FanOut, in <-chan 
 // this unit uses plugin for avoid concrete metrics writing in core
 //
 // ┌────────┐
-// ┼───┐    |
+// ┼───┐    │
 // ┼───█────┼─
-// ┼───┘    |
+// ┼───┘    │
 // └────────┘
 func NewFanIn(c *config.PipeSettings, l *slog.Logger, f core.FanIn, ins []<-chan *core.Event) (unit core.Runner, unitOut <-chan *core.Event, chansStats []metrics.ChanStatsFunc) {
 	switch c.Consistency {

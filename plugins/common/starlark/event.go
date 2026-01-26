@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/gekatateam/neptunus/core"
 	"go.starlark.net/starlark"
+
+	"github.com/gekatateam/neptunus/core"
 )
 
 var (

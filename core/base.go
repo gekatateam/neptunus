@@ -18,6 +18,7 @@ var (
 	KindParser     = reflect.ValueOf(BaseParser{}).Type().Name()
 	KindSerializer = reflect.ValueOf(BaseSerializer{}).Type().Name()
 	KindKeykeeper  = reflect.ValueOf(BaseKeykeeper{}).Type().Name()
+	KindLookup     = reflect.ValueOf(BaseLookup{}).Type().Name()
 )
 
 type BaseInput struct {
@@ -154,6 +155,19 @@ type BaseKeykeeper struct {
 	Pipeline string
 
 	Log *slog.Logger
+}
+
+type BaseLookup struct {
+	Alias    string
+	Plugin   string
+	Pipeline string
+
+	Log *slog.Logger
+	Obs metrics.ObserveFunc
+}
+
+func (b *BaseLookup) Observe(status metrics.EventStatus, dur time.Duration) {
+	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
 }
 
 type SerializerComperssor struct {

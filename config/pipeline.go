@@ -12,6 +12,21 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// reserved plugin configuration keys
+const (
+	KeyPluginId     = "::plugin_id"
+	KeyAlias        = "alias"
+	KeyReverse      = "reverse"
+	KeyType         = "type"
+	KeyLogLevel     = "log_level"
+	KeyLookup       = "lookup"
+	KeyParser       = "parser"
+	KeySerializer   = "serializer"
+	KeyFilters      = "filters"
+	KeyCompressor   = "compressor"
+	KeyDecompressor = "decompressor"
+)
+
 type Pipeline struct {
 	Settings   PipeSettings `toml:"settings"          yaml:"settings"          json:"settings"`
 	Vars       PipeVars     `toml:"vars"              yaml:"vars"              json:"vars"`
@@ -19,6 +34,7 @@ type Pipeline struct {
 	Processors []PluginSet  `toml:"processors"        yaml:"processors"        json:"processors"`
 	Outputs    []PluginSet  `toml:"outputs"           yaml:"outputs"           json:"outputs"`
 	Keykeepers []PluginSet  `toml:"keykeepers"        yaml:"keykeepers"        json:"keykeepers"`
+	Lookups    []PluginSet  `toml:"lookups"           yaml:"lookups"           json:"lookups"`
 	Runtime    *PipeRuntime `toml:"runtime,omitempty" yaml:"runtime,omitempty" json:"runtime,omitempty"`
 }
 
@@ -43,19 +59,19 @@ type PluginSet map[string]Plugin
 type Plugin map[string]any
 
 func (p Plugin) Id() uint64 {
-	if rawId, ok := p["::plugin_id"]; ok {
+	if rawId, ok := p[KeyPluginId]; ok {
 		if id, ok := rawId.(uint64); ok {
 			return id
 		}
 	}
 
 	id := rand.Uint64()
-	p["::plugin_id"] = id
+	p[KeyPluginId] = id
 	return id
 }
 
 func (p Plugin) Alias() string {
-	aliasRaw, ok := p["alias"]
+	aliasRaw, ok := p[KeyAlias]
 	if !ok {
 		return ""
 	}
@@ -67,7 +83,7 @@ func (p Plugin) Alias() string {
 }
 
 func (p Plugin) Reverse() bool {
-	reverseRaw, ok := p["reverse"]
+	reverseRaw, ok := p[KeyReverse]
 	if !ok {
 		return false
 	}
@@ -79,7 +95,7 @@ func (p Plugin) Reverse() bool {
 }
 
 func (p Plugin) Type() string {
-	typeRaw, ok := p["type"]
+	typeRaw, ok := p[KeyType]
 	if !ok {
 		return ""
 	}
@@ -91,7 +107,7 @@ func (p Plugin) Type() string {
 }
 
 func (p Plugin) LogLevel() string {
-	logLevelRaw, ok := p["log_level"]
+	logLevelRaw, ok := p[KeyLogLevel]
 	if !ok {
 		return ""
 	}
@@ -102,8 +118,20 @@ func (p Plugin) LogLevel() string {
 	return logLevel
 }
 
+func (p Plugin) Lookup() string {
+	lookupRaw, ok := p[KeyLookup]
+	if !ok {
+		return ""
+	}
+	lookup, ok := lookupRaw.(string)
+	if !ok {
+		return ""
+	}
+	return lookup
+}
+
 func (p Plugin) Parser() Plugin {
-	parserRaw, ok := p["parser"]
+	parserRaw, ok := p[KeyParser]
 	if !ok {
 		return nil
 	}
@@ -117,7 +145,7 @@ func (p Plugin) Parser() Plugin {
 }
 
 func (p Plugin) Serializer() Plugin {
-	serializerRaw, ok := p["serializer"]
+	serializerRaw, ok := p[KeySerializer]
 	if !ok {
 		return nil
 	}
@@ -131,7 +159,7 @@ func (p Plugin) Serializer() Plugin {
 }
 
 func (p Plugin) Filters() PluginSet {
-	filtersRaw, ok := p["filters"]
+	filtersRaw, ok := p[KeyFilters]
 	if !ok {
 		return nil
 	}
@@ -152,7 +180,7 @@ func (p Plugin) Filters() PluginSet {
 }
 
 func (p Plugin) Compressor() (Plugin, string) {
-	compressorNameRaw, ok := p["compressor"]
+	compressorNameRaw, ok := p[KeyCompressor]
 	if !ok {
 		return nil, ""
 	}
@@ -173,7 +201,7 @@ func (p Plugin) Compressor() (Plugin, string) {
 }
 
 func (p Plugin) Decompressor() (Plugin, string) {
-	decompressorNameRaw, ok := p["decompressor"]
+	decompressorNameRaw, ok := p[KeyDecompressor]
 	if !ok {
 		return nil, ""
 	}
