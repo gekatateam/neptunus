@@ -80,7 +80,12 @@ func (l *File) Get(key string) (any, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
-	return mappath.Get(l.data, key)
+	data, err := mappath.Get(l.data, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return mappath.Clone(data), nil
 }
 
 func (l *File) update() error {

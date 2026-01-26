@@ -12,6 +12,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/http"
 	_ "github.com/gekatateam/neptunus/plugins/processors/line"
 	_ "github.com/gekatateam/neptunus/plugins/processors/log"
+	_ "github.com/gekatateam/neptunus/plugins/processors/lookup"
 	_ "github.com/gekatateam/neptunus/plugins/processors/mixer"
 	_ "github.com/gekatateam/neptunus/plugins/processors/parser"
 	_ "github.com/gekatateam/neptunus/plugins/processors/redis"
