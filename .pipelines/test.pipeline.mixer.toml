@@ -48,7 +48,7 @@ load("fs.star",   "fs")
 def process(event):
     events = []
 
-    for i in range(300):
+    for i in range(3):
         t = time.now() + time.hour * 24 * i
         e = newEvent("expeditions_" + t.format("2006_01_02"))
         e.setField("weekday", date.weekday_of(t))

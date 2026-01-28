@@ -22,6 +22,7 @@ import (
 
 	"github.com/gekatateam/neptunus/plugins/core/fanin"
 	"github.com/gekatateam/neptunus/plugins/core/fanout"
+	lwrapper "github.com/gekatateam/neptunus/plugins/core/lookup"
 	"github.com/gekatateam/neptunus/plugins/core/mixer"
 	"github.com/gekatateam/neptunus/plugins/core/self"
 
@@ -455,30 +456,14 @@ func (p *Pipeline) configureLookups() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if serializerNeedy, ok := lookup.(core.SetSerializer); ok {
-				serializerCfg := lookupCfg.Serializer()
-				if serializerCfg == nil {
-					return fmt.Errorf("%v lookup requires serializer, but no serializer configuration provided", plugin)
+			if wrapper, ok := lookup.(*lwrapper.Lookup); ok {
+				if err := p.configureCallable(wrapper.LazyLookup, lookupCfg, alias); err != nil {
+					return fmt.Errorf("%v lookup: %w", plugin, err)
 				}
-
-				serializer, err := p.configureSerializer(serializerCfg, alias)
-				if err != nil {
-					return fmt.Errorf("%v lookup serializer configuration error: %v", plugin, err.Error())
+			} else {
+				if err := p.configureCallable(lookup, lookupCfg, alias); err != nil {
+					return fmt.Errorf("%v lookup: %w", plugin, err)
 				}
-				serializerNeedy.SetSerializer(serializer)
-			}
-
-			if parserNeedy, ok := lookup.(core.SetParser); ok {
-				cfgParser := lookupCfg.Parser()
-				if cfgParser == nil {
-					return fmt.Errorf("%v lookup requires parser, but no parser configuration provided", plugin)
-				}
-
-				parser, err := p.configureParser(cfgParser, alias)
-				if err != nil {
-					return fmt.Errorf("%v lookup parser configuration error: %v", plugin, err.Error())
-				}
-				parserNeedy.SetParser(parser)
 			}
 
 			log := p.log.With(slog.Group("lookup",
@@ -537,41 +522,19 @@ func (p *Pipeline) configureOutputs() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if serializerNeedy, ok := output.(core.SetSerializer); ok {
-				serializerCfg := outputCfg.Serializer()
-				if serializerCfg == nil {
-					return fmt.Errorf("%v output requires serializer, but no serializer configuration provided", plugin)
-				}
-
-				serializer, err := p.configureSerializer(serializerCfg, alias)
-				if err != nil {
-					return fmt.Errorf("%v output serializer configuration error: %v", plugin, err.Error())
-				}
-				serializerNeedy.SetSerializer(serializer)
-			}
-
-			if parserNeedy, ok := output.(core.SetParser); ok {
-				cfgParser := outputCfg.Parser()
-				if cfgParser == nil {
-					return fmt.Errorf("%v output requires parser, but no parser configuration provided", plugin)
-				}
-
-				parser, err := p.configureParser(cfgParser, alias)
-				if err != nil {
-					return fmt.Errorf("%v output parser configuration error: %v", plugin, err.Error())
-				}
-				parserNeedy.SetParser(parser)
+			if err := p.configureCallable(output, outputCfg, alias); err != nil {
+				return fmt.Errorf("%v output: %w", plugin, err)
 			}
 
 			if lookupNeedy, ok := output.(core.SetLookup); ok {
 				lookupName := outputCfg.Lookup()
 				if lookupName == "" {
-					return fmt.Errorf("%v output requires lookup, but no lookup name provided", plugin)
+					return fmt.Errorf("%v output: plugin requires lookup, but no lookup name provided", plugin)
 				}
 
 				lookup, ok := p.lookups[lookupName]
 				if !ok {
-					return fmt.Errorf("%v output requires lookup %v, but no such lookup configured", plugin, lookupName)
+					return fmt.Errorf("%v output: plugin requires lookup %v, but no such lookup configured", plugin, lookupName)
 				}
 				lookupNeedy.SetLookup(lookup)
 			}
@@ -642,41 +605,19 @@ func (p *Pipeline) configureProcessors() error {
 				}
 				p.aliases[alias] = struct{}{}
 
-				if serializerNeedy, ok := processor.(core.SetSerializer); ok {
-					serializerCfg := processorCfg.Serializer()
-					if serializerCfg == nil {
-						return fmt.Errorf("%v processor requires serializer, but no serializer configuration provided", plugin)
-					}
-
-					serializer, err := p.configureSerializer(serializerCfg, alias)
-					if err != nil {
-						return fmt.Errorf("%v processor serializer configuration error: %v", plugin, err.Error())
-					}
-					serializerNeedy.SetSerializer(serializer)
-				}
-
-				if parserNeedy, ok := processor.(core.SetParser); ok {
-					cfgParser := processorCfg.Parser()
-					if cfgParser == nil {
-						return fmt.Errorf("%v processor requires parser, but no parser configuration provided", plugin)
-					}
-
-					parser, err := p.configureParser(cfgParser, alias)
-					if err != nil {
-						return fmt.Errorf("%v processor parser configuration error: %v", plugin, err.Error())
-					}
-					parserNeedy.SetParser(parser)
+				if err := p.configureCallable(processor, processorCfg, alias); err != nil {
+					return fmt.Errorf("%v processor: %w", plugin, err)
 				}
 
 				if lookupNeedy, ok := processor.(core.SetLookup); ok {
 					lookupName := processorCfg.Lookup()
 					if lookupName == "" {
-						return fmt.Errorf("%v processor requires lookup, but no lookup name provided", plugin)
+						return fmt.Errorf("%v processor: plugin requires lookup, but no lookup name provided", plugin)
 					}
 
 					lookup, ok := p.lookups[lookupName]
 					if !ok {
-						return fmt.Errorf("%v processor requires lookup %v, but no such lookup configured", plugin, lookupName)
+						return fmt.Errorf("%v processor: plugin requires lookup %v, but no such lookup configured", plugin, lookupName)
 					}
 					lookupNeedy.SetLookup(lookup)
 				}
@@ -777,30 +718,8 @@ func (p *Pipeline) configureInputs() error {
 				serializerNeedy.SetSerializer(serializer)
 			}
 
-			if parserNeedy, ok := input.(core.SetParser); ok {
-				cfgParser := inputCfg.Parser()
-				if cfgParser == nil {
-					return fmt.Errorf("%v input requires parser, but no parser configuration provided", plugin)
-				}
-
-				parser, err := p.configureParser(cfgParser, alias)
-				if err != nil {
-					return fmt.Errorf("%v input parser configuration error: %v", plugin, err.Error())
-				}
-				parserNeedy.SetParser(parser)
-			}
-
-			if lookupNeedy, ok := input.(core.SetLookup); ok {
-				lookupName := inputCfg.Lookup()
-				if lookupName == "" {
-					return fmt.Errorf("%v input requires lookup, but no lookup name provided", plugin)
-				}
-
-				lookup, ok := p.lookups[lookupName]
-				if !ok {
-					return fmt.Errorf("%v input requires lookup %v, but no such lookup configured", plugin, lookupName)
-				}
-				lookupNeedy.SetLookup(lookup)
+			if err := p.configureCallable(input, inputCfg, alias); err != nil {
+				return fmt.Errorf("%v input: %w", plugin, err)
 			}
 
 			if idNeedy, ok := input.(core.SetId); ok {
@@ -864,30 +783,8 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		}
 		p.aliases[alias] = struct{}{}
 
-		if serializerNeedy, ok := filter.(core.SetSerializer); ok {
-			serializerCfg := filterCfg.Serializer()
-			if serializerCfg == nil {
-				return nil, fmt.Errorf("%v filter requires serializer, but no serializer configuration provided", plugin)
-			}
-
-			serializer, err := p.configureSerializer(serializerCfg, alias)
-			if err != nil {
-				return nil, fmt.Errorf("%v filter serializer configuration error: %v", plugin, err.Error())
-			}
-			serializerNeedy.SetSerializer(serializer)
-		}
-
-		if parserNeedy, ok := filter.(core.SetParser); ok {
-			cfgParser := filterCfg.Parser()
-			if cfgParser == nil {
-				return nil, fmt.Errorf("%v filter requires parser, but no parser configuration provided", plugin)
-			}
-
-			parser, err := p.configureParser(cfgParser, alias)
-			if err != nil {
-				return nil, fmt.Errorf("%v filter parser configuration error: %v", plugin, err.Error())
-			}
-			parserNeedy.SetParser(parser)
+		if err := p.configureCallable(filter, filterCfg, alias); err != nil {
+			return nil, fmt.Errorf("%v filter: %w", plugin, err)
 		}
 
 		if idNeedy, ok := filter.(core.SetId); ok {
@@ -1063,6 +960,36 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 	}
 
 	return &core.SerializerComperssor{S: serializer, C: compressor}, nil
+}
+
+func (p *Pipeline) configureCallable(plugin any, pluginCfg config.Plugin, parentAlias string) error {
+	if serializerNeedy, ok := plugin.(core.SetSerializer); ok {
+		serializerCfg := pluginCfg.Serializer()
+		if serializerCfg == nil {
+			return fmt.Errorf("plugin requires serializer, but no serializer configuration provided")
+		}
+
+		serializer, err := p.configureSerializer(serializerCfg, parentAlias)
+		if err != nil {
+			return fmt.Errorf("serializer configuration error: %w", err)
+		}
+		serializerNeedy.SetSerializer(serializer)
+	}
+
+	if parserNeedy, ok := plugin.(core.SetParser); ok {
+		cfgParser := pluginCfg.Parser()
+		if cfgParser == nil {
+			return fmt.Errorf("plugin requires parser, but no parser configuration provided")
+		}
+
+		parser, err := p.configureParser(cfgParser, parentAlias)
+		if err != nil {
+			return fmt.Errorf("parser configuration error: %w", err)
+		}
+		parserNeedy.SetParser(parser)
+	}
+
+	return nil
 }
 
 func (p *Pipeline) decodeHook() func(f reflect.Type, _ reflect.Type, data any) (any, error) {

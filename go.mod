@@ -89,6 +89,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/go-task/slim-sprig/v3 v3.0.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-json v0.10.5
 	github.com/goccy/go-yaml v1.17.1
@@ -98,7 +99,6 @@ require (
 	github.com/jhump/protoreflect/v2 v2.0.0-beta.2
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/microsoft/go-mssqldb v1.8.0
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/opensearch-project/opensearch-go/v3 v3.1.0
 	github.com/prometheus/prometheus v0.304.0
 	github.com/qri-io/starlib v0.5.0

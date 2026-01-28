@@ -2,7 +2,7 @@
 
 This section is for developers who want to create a new plugin.
 
-There a nine types of plugins and some of it works directly with channels (we call it streaming plugins), and some of it not (callable or child plugins). Start by looking at the interfaces that plugins must conform to and some base structs that must be embedded - [here](../core/plugin.go) and [here](../core/base.go).
+There a ten types of plugins and some of it works directly with channels (we call it streaming plugins), and some of it not (callable or child plugins). Start by looking at the interfaces that plugins must conform to and some base structs that must be embedded - [here](../core/plugin.go) and [here](../core/base.go).
 
 ## Registration
 
@@ -47,7 +47,7 @@ So, at the creation stage engine do some work:
  - if required, set child plugins, already created and initialized;
  - decode configuration to plugin struct.
 
-Configuration decoder uses old good [mapstructure](https://github.com/mitchellh/mapstructure) with custom decode hooks - for time, duration and [datasize](https://pkg.go.dev/kythe.io/kythe/go/util/datasize#Size). See [kafka](../plugins/inputs/kafka/) as an example of datasize usage.
+Configuration decoder uses old good [mapstructure](github.com/go-viper/mapstructure/v2) with custom decode hooks - for time, duration and [datasize](https://pkg.go.dev/kythe.io/kythe/go/util/datasize#Size). See [kafka](../plugins/inputs/kafka/) as an example of datasize usage.
 
 ### Init and set channels
 
@@ -74,6 +74,7 @@ You can find some heplers in [plugins/common/](../plugins/common/) dir, such as 
 In case of callable plugins, please remember that a plugin may be called simultaneously from multiple goroutines, so, make it concurrent-safety.
 
 ### Stop
+
 When the engine receives a signal to stop a pipeline, it calls inputs `Stop()` method.
 
 If your plugin is an `input`, you need to handle this call, stop consuming events and break the `Run()` loop. Do not close the output channel! Engine will do this automatically.
@@ -87,3 +88,17 @@ When pipeline fully stopped, engine calls plugins `Close() error` method - and i
 There is no guarantee that the close method will be called exactly once, so it MUST be idempotent.
 
 If your streaming plugin uses some callable plugins, you need to close it in `Close() error`.
+
+## Lookups and Keykeepers
+
+We have two specific types of plugins with similar functionality but different purposes:
+ - `keykeepers` - which are only used at pipeline startup - for configuration from external sources;
+ - `lookups` - that always running in the background - for obtaining data at runtime.
+
+Keykeeper lifecycle is identical to that of callable plugins. After successfull initialization, pipeline call `Get(key string) (any, error)` method. The key format is specified by the keykeeper. As an examples, see [valut](../plugins/keykeepers/vault/) or [env](../plugins/keykeepers/env/).
+
+Lookup, in the other hand, closer to streaming plugins - just like `input`, it has `Run()` loop and `Stop()` method. Inside this loop lookup updates stored data and provides it on `Get(key string) (any, error)` call. The key format here is always a dot-separated keypath, like in [event fields API](./DATA_MODEL.md).
+
+Lookup `Get` method may be called simultaneously from multiple goroutines, so, make it concurrent-safety with internal data updates. `Get` method also MUST return copy of the data.
+
+If you want to make simple lookup without specific update logic, you can wrap it with [core plugin](../plugins/core/lookup/lookup.go) that perofrms update loop every configured interval and protects data with read-write mutex. See [file lookup](../plugins/lookups/file/) as an example.
