@@ -285,8 +285,8 @@ func TestStats_WithLabelsConfigured(t *testing.T) {
 				test.input <- e
 			}
 			close(test.input)
-			processor.Close()
 			wg.Wait()
+			processor.Close()
 			close(test.drop)
 			close(test.output)
 
@@ -466,8 +466,8 @@ func TestStats_NoLabelsConfigured(t *testing.T) {
 				test.input <- e
 			}
 			close(test.input)
-			processor.Close()
 			wg.Wait()
+			processor.Close()
 			close(test.drop)
 			close(test.output)
 
@@ -674,8 +674,8 @@ func TestStats_WithoutLabelsConfigured(t *testing.T) {
 				test.input <- e
 			}
 			close(test.input)
-			processor.Close()
 			wg.Wait()
+			processor.Close()
 			close(test.drop)
 			close(test.output)
 

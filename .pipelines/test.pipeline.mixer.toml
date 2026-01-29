@@ -48,7 +48,7 @@ load("fs.star",   "fs")
 def process(event):
     events = []
 
-    for i in range(3):
+    for i in range(300):
         t = time.now() + time.hour * 24 * i
         e = newEvent("expeditions_" + t.format("2006_01_02"))
         e.setField("weekday", date.weekday_of(t))
@@ -73,7 +73,7 @@ def process(event):
 
 [[outputs]]
   [outputs.log]
-    level = "info"
+    level = "debug"
     [outputs.log.serializer]
       type = "json"
       data_only = false

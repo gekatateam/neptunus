@@ -76,7 +76,7 @@ func init() {
 	plugins.AddLookup("exec", func() core.Lookup {
 		return &lookup.Lookup{
 			LazyLookup: &Exec{
-				Timeout: 30 * time.Second,
+				Timeout: 10 * time.Second,
 			},
 			Interval: 30 * time.Second,
 		}
