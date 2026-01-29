@@ -73,7 +73,7 @@ def process(event):
 
 [[outputs]]
   [outputs.log]
-    level = "info"
+    level = "debug"
     [outputs.log.serializer]
       type = "json"
       data_only = false

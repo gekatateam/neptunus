@@ -6,7 +6,7 @@ import (
 
 	"kythe.io/kythe/go/util/datasize"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {

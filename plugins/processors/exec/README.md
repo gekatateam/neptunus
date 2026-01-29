@@ -22,6 +22,9 @@ The `exec` processor executes configured command on each event.
     # path to set process combined output
     exec_output_to = "exec.output"
 
+    # exec timeout
+    timeout = "10s"
+
     # a "env name <- label" map
     # each configured will be added to the environment 
     # of the process in the "env_name=label_value" form

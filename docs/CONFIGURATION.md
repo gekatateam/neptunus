@@ -280,6 +280,19 @@ Keykeepers are initialized before other plugins. Also, you can use key substitut
       secret_id = "@{envs:HASHICORP_VAULT_SECRET_ID}"
 ```
 
+Similar to keykeepers, but for runtime - [lookups](../plugins/lookups/). Working in the background, lookups receive data from outside sources every `interval`. Then, you can get it using [lookup processor](../plugins/processors/lookup/). Profit? Less calls to external systems:
+```toml
+[[lookups]]
+  [lookups.sql]
+    alias = "settings_table"
+
+[[processors]]
+  [processors.lookup]
+    lookup = "settings_table"
+    [processors.lookup.labels]
+      syscodes = "syscodes"
+```
+
 ### About plugins configuration
 
 First of all, keykeepers, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:

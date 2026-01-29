@@ -16,6 +16,9 @@ The `exec` output executes configured command on each event.
     # otherwise, field will be used as is
     args = ["."]
 
+    # exec timeout
+    timeout = "10s"
+
     # a "env name <- label" map
     # each configured will be added to the environment 
     # of the process in the "env_name=label_value" form
