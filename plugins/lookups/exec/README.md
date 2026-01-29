@@ -9,7 +9,7 @@ The `exec` lookup executes configured command with args and stores the result as
     alias = "token.renew"
 
     # command to execute
-    command = "roles_whitelist.json"
+    command = "kubectl"
 
     # command args, strings list
     args = []
