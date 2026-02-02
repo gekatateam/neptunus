@@ -13,12 +13,18 @@
     alias = "self"
 
 [[lookups]]
-  [lookups.file]
+  [lookups.http]
+    alias = "posts"
     log_level = "debug"
-    alias = "licenses"
-    file = ".github/li-checker-rules.json"
+    host = "http://localhost:9200"
+    fallbacks = [ "https://jsonplaceholder.typicode.com/posts" ]
+    method = "GET"
+    retry_attempts = 1
+    retry_after = "1s"
+    tls_enable = true
+    tls_insecure_skip_verify = true
     interval = "10s"
-    [lookups.file.parser]
+    [lookups.http.parser]
       type = "json"
       split_array = false
 
@@ -48,7 +54,7 @@ load("fs.star",   "fs")
 def process(event):
     events = []
 
-    for i in range(300):
+    for i in range(3):
         t = time.now() + time.hour * 24 * i
         e = newEvent("expeditions_" + t.format("2006_01_02"))
         e.setField("weekday", date.weekday_of(t))
@@ -66,14 +72,17 @@ def process(event):
   [processors.mixer]
 
 [[processors]]
+  [processors.through]
+
+[[processors]]
   [processors.lookup]
-    lookup = "licenses"
+    lookup = "posts"
     [processors.lookup.fields]
-      allowed = "allowlist"
+      posted = "0"
 
 [[outputs]]
   [outputs.log]
-    level = "debug"
+    level = "info"
     [outputs.log.serializer]
       type = "json"
       data_only = false

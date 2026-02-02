@@ -167,15 +167,15 @@ Typical pipeline consists of at least one input, at least one output and, not ne
 ### Settings
 
 > [!NOTE]  
-> Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). A form in which the configuration is stored depends on a storage.
+> Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). A form in which the configuration is stored may be different.
 
-Pipeline settings are not directly related to event processing, these parameters are needed for the engine:
+Pipeline settings are not directly related to events processing, these parameters are needed for the engine:
  - **id** - Pipeline identifier. Must be unique within a storage.
  - **lines** - Number of parallel streams of pipeline processors. This can be useful in cases where events are consumed and produced faster than they are transformed in a single stream.
  - **run** - Should engine starts pipeline at daemon startup.
- - **buffer** - Buffer size of channels connecting a plugins.
- - **consistency** - Pipeline consistency mode; `soft` by default, `hard` mode will be added in future releases.
- - **log_level** - Pipeline log level. Overrides application log level setting for concrete pipeline and it's plugins.
+ - **buffer** - Buffer size of plugins channels.
+ - **consistency** - Pipeline consistency mode; `soft` by default, other mods will be added in future releases.
+ - **log_level** - Pipeline log level. Overrides an application log level setting for concrete pipeline and it's plugins.
 
 > [!IMPORTANT]
 > Processors scaling can reduce performance if the lines cumulatively process events faster than outputs can send them (due to channels buffer overflow). You should test this thoroughly before using it in production.  
@@ -190,7 +190,7 @@ Settings example:
 ```
 
 ### Vars
-This section is intended for storing general parameters that can be used via [`self` keykeeper](../plugins/keykeepers/self/). Well, `settings` block is also available:
+This section is intended for general parameters that can be used via [self keykeeper](../plugins/keykeepers/self/):
 ```toml
 [vars]
   max_connections = 10
@@ -212,9 +212,9 @@ After processors, events are cloned to each output. For better performance, you 
 
 Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters. Each filter can be reversed using `reverse` parameter. If it's `true`, rejected events goes to accept flow, and accepted events goes to reject.
 
-In inputs and outputs case, if any filter rejects event, the event is dropped from pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
+In inputs and outputs case rejected event will be removed from the pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
 
-Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/) (it depends on plugin). One plugin can have only one parser and one serializer.
+Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/). One plugin can have only one parser and one serializer.
 
 [Compressors](../plugins/compressors/) and [Decompressors](../plugins/decompressors/) are used as part of the serializers and parsers configuration. Сompressor compresses data after serialization, and decompressor unpacks data before parsing:
 <table>
@@ -263,7 +263,7 @@ A special plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference
     group_id = "@{envs:NEPTUNUS_KAFKA_INPUT_CONSUMER_GROUP}"
 ```
 
-Key request format depends on concrete keykeeper used.
+Key request format depends on concrete keykeeper.
 
 Keykeepers are initialized before other plugins. Also, you can use key substitutions in other keykeepers configuration if they are declared after:
 ```toml
@@ -280,7 +280,7 @@ Keykeepers are initialized before other plugins. Also, you can use key substitut
       secret_id = "@{envs:HASHICORP_VAULT_SECRET_ID}"
 ```
 
-Similar to keykeepers, but for runtime - [lookups](../plugins/lookups/). Working in the background, lookups receive data from outside sources every `interval`. Then, you can get it using [lookup processor](../plugins/processors/lookup/). Profit? Less calls to external systems:
+Similar to keykeepers, but for runtime - [Lookups](../plugins/lookups/). Working in the background, lookups receive data from outside sources every `interval`. Then, you can get it using [lookup processor](../plugins/processors/lookup/). Profit? Less calls to external systems:
 ```toml
 [[lookups]]
   [lookups.sql]
@@ -295,7 +295,7 @@ Similar to keykeepers, but for runtime - [lookups](../plugins/lookups/). Working
 
 ### About plugins configuration
 
-First of all, keykeepers, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
+First of all, keykeepers, lookups, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
 <table>
 <tr>
 <td> Toml </td> <td> Yaml </td> <td> Json </td>
@@ -421,8 +421,8 @@ outputs:
 </tr>
 </table>
 
-This also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
+It also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
 
-An alias can be assigned to each plugin - this will affect logs and metrics. Each alias must be unique.
+An alias can be assigned to each plugin - it will be applied to logs and metrics. Each alias must be unique across all pipeline.
 
 Also, you can override concrete plugin log level using `log_level` parameter. It overrides pipeline (if configured) and application level.

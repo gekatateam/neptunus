@@ -34,7 +34,7 @@ func ToTimeHookFunc() mapstructure.DecodeHookFunc {
 		f reflect.Type,
 		t reflect.Type,
 		data any) (any, error) {
-		if t != reflect.TypeOf(time.Time{}) {
+		if t != reflect.TypeFor[time.Time]() {
 			return data, nil
 		}
 
@@ -56,7 +56,7 @@ func ToTimeDurationHookFunc() mapstructure.DecodeHookFunc {
 		f reflect.Type,
 		t reflect.Type,
 		data any) (any, error) {
-		if t != reflect.TypeOf(time.Duration(5)) {
+		if t != reflect.TypeFor[time.Duration]() {
 			return data, nil
 		}
 
@@ -76,7 +76,7 @@ func ToByteSizeHookFunc() mapstructure.DecodeHookFunc {
 		f reflect.Type,
 		t reflect.Type,
 		data any) (any, error) {
-		if t != reflect.TypeOf(datasize.Size(5)) {
+		if t != reflect.TypeFor[datasize.Size]() {
 			return data, nil
 		}
 
