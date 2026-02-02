@@ -72,7 +72,7 @@ The `http` lookup stores HTTP response body as a lookup data. This plugin requir
     tls_insecure_skip_verify = false
 
     # static headers that will be used on each request
-    [processors.http.headers]
+    [lookups.http.headers]
       authorization = "@{envs:BEARER_TOKEN}"
 
     [lookups.http.parser]
