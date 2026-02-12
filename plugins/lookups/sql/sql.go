@@ -17,6 +17,11 @@ import (
 	"github.com/gekatateam/neptunus/plugins/core/lookup"
 )
 
+const (
+	ModeHorizontal = "horizontal"
+	ModeVertical   = "vertical"
+)
+
 type Sql struct {
 	*core.BaseLookup `mapstructure:"-"`
 	EnableMetrics    bool           `mapstructure:"enable_metrics"`
@@ -57,8 +62,8 @@ func (l *Sql) Init() error {
 	}
 
 	switch l.Mode {
-	case "horizontal":
-	case "vertical":
+	case ModeHorizontal:
+	case ModeVertical:
 		if len(l.KeyColumn) == 0 {
 			return errors.New("key column required")
 		}
@@ -105,9 +110,9 @@ func (l *Sql) Update() (any, error) {
 	defer rows.Close()
 
 	switch l.Mode {
-	case "horizotal":
+	case ModeHorizontal:
 		return l.scanHorizontal(rows)
-	case "vertical":
+	case ModeVertical:
 		return l.scanVertical(rows)
 	default:
 		panic(fmt.Errorf("totally unexpected - how you start it with this mode? %v", l.Mode))
@@ -164,7 +169,7 @@ func init() {
 				ConnsMaxOpen:     2,
 				ConnsMaxIdle:     1,
 				Timeout:          30 * time.Second,
-				Mode:             "vertical",
+				Mode:             ModeVertical,
 				TLSClientConfig:  &tls.TLSClientConfig{},
 			},
 			Interval: 30 * time.Second,
