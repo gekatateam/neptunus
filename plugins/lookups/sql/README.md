@@ -5,12 +5,10 @@ The `sql` lookup plugin performs SQL query for reading lookup data. This plugin 
 A few words about plugin modes.
 
 In `horizontal` mode plugin stores query result as a list of maps. For example, if your query returns table like this:
-```
 | role        | description |
 | ----------- | ----------- |
 | admin       | Full access |
 | user        | Just user   |
-```
 
 The lookup data will be:
 ```json
@@ -21,12 +19,10 @@ The lookup data will be:
 ```
 
 More classic case, `vertical`, takes `key_column` column as a map key:
-```
 | param_name  | value       | description   |
 | ----------- | ----------- | ------------- |
 | currency    | USDT        | Main currency |
 | fee_percent | 2           | Transfer fee  |
-```
 
 And transforms query result into map of maps:
 ```json

@@ -119,8 +119,8 @@ func (l *Sql) Update() (any, error) {
 	}
 }
 
-func (l *Sql) scanHorizontal(rows *sql.Rows) ([]map[string]any, error) {
-	result := []map[string]any{}
+func (l *Sql) scanHorizontal(rows *sql.Rows) ([]any, error) {
+	result := []any{}
 
 	for rows.Next() {
 		fetchedRow := make(map[string]any)
@@ -134,8 +134,8 @@ func (l *Sql) scanHorizontal(rows *sql.Rows) ([]map[string]any, error) {
 	return result, nil
 }
 
-func (l *Sql) scanVertical(rows *sql.Rows) (map[string]map[string]any, error) {
-	result := map[string]map[string]any{}
+func (l *Sql) scanVertical(rows *sql.Rows) (map[string]any, error) {
+	result := map[string]any{}
 
 	for rows.Next() {
 		fetchedRow := make(map[string]any)
