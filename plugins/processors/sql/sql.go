@@ -2,7 +2,6 @@ package sql
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -26,44 +25,22 @@ var clientStorage = sharedstorage.New[*sqlx.DB, uint64]()
 
 type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	EnableMetrics       bool          `mapstructure:"enable_metrics"`
-	Driver              string        `mapstructure:"driver"`
-	Dsn                 string        `mapstructure:"dsn"`
-	Username            string        `mapstructure:"username"`
-	Password            string        `mapstructure:"password"`
-	ConnsMaxIdleTime    time.Duration `mapstructure:"conns_max_idle_time"`
-	ConnsMaxLifetime    time.Duration `mapstructure:"conns_max_life_time"`
-	ConnsMaxOpen        int           `mapstructure:"conns_max_open"`
-	ConnsMaxIdle        int           `mapstructure:"conns_max_idle"`
-	QueryTimeout        time.Duration `mapstructure:"query_timeout"`
+	*csql.Connector     `mapstructure:",squash"`
+	EnableMetrics       bool              `mapstructure:"enable_metrics"`
+	TablePlaceholder    string            `mapstructure:"table_placeholder"`
+	TableLabel          string            `mapstructure:"table_label"`
+	OnEvent             csql.QueryInfo    `mapstructure:"on_event"`
+	Columns             map[string]string `mapstructure:"columns"`
+	Fields              map[string]string `mapstructure:"fields"`
 
-	TablePlaceholder string            `mapstructure:"table_placeholder"`
-	TableLabel       string            `mapstructure:"table_label"`
-	OnEvent          csql.QueryInfo    `mapstructure:"on_event"`
-	Columns          map[string]string `mapstructure:"columns"`
-	Fields           map[string]string `mapstructure:"fields"`
-
-	*tls.TLSClientConfig `mapstructure:",squash"`
-	*retryer.Retryer     `mapstructure:",squash"`
+	*retryer.Retryer `mapstructure:",squash"`
 
 	db *sqlx.DB
 	id uint64
 }
 
 func (p *Sql) Init() error {
-	if len(p.Dsn) == 0 {
-		return errors.New("dsn required")
-	}
-
-	if len(p.Driver) == 0 {
-		return errors.New("driver required")
-	}
-
-	if len(p.OnEvent.File) == 0 && len(p.OnEvent.Query) == 0 {
-		return errors.New("onEvent.query or onEvent.file required")
-	}
-
-	if err := p.OnEvent.Init(); err != nil {
+	if err := p.OnEvent.Init(true); err != nil {
 		return fmt.Errorf("onEvent: %w", err)
 	}
 
@@ -71,27 +48,12 @@ func (p *Sql) Init() error {
 		p.TablePlaceholder = tablePlaceholder
 	}
 
-	tlsConfig, err := p.TLSClientConfig.Config()
+	db, err := p.Connector.Init()
 	if err != nil {
 		return err
 	}
-
-	db, err := csql.OpenDB(p.Driver, p.Dsn, p.Username, p.Password, tlsConfig)
-	if err != nil {
-		return err
-	}
-
-	db.DB.SetConnMaxIdleTime(p.ConnsMaxIdleTime)
-	db.DB.SetConnMaxLifetime(p.ConnsMaxLifetime)
-	db.DB.SetMaxIdleConns(p.ConnsMaxIdle)
-	db.DB.SetMaxOpenConns(p.ConnsMaxOpen)
 
 	p.db = clientStorage.CompareAndStore(p.id, db)
-
-	if err := p.db.Ping(); err != nil {
-		defer p.db.Close()
-		return err
-	}
 
 	testArgs := map[string]any{}
 	for k, v := range p.Columns {
@@ -220,14 +182,15 @@ func (p *Sql) Close() error {
 func init() {
 	plugins.AddProcessor("sql", func() core.Processor {
 		return &Sql{
-			ConnsMaxIdleTime: 10 * time.Minute,
-			ConnsMaxLifetime: 10 * time.Minute,
-			ConnsMaxOpen:     2,
-			ConnsMaxIdle:     1,
-			QueryTimeout:     10 * time.Second,
 			TablePlaceholder: tablePlaceholder,
-
-			TLSClientConfig: &tls.TLSClientConfig{},
+			Connector: &csql.Connector{
+				ConnsMaxIdleTime: 10 * time.Minute,
+				ConnsMaxLifetime: 10 * time.Minute,
+				ConnsMaxOpen:     2,
+				ConnsMaxIdle:     1,
+				QueryTimeout:     30 * time.Second,
+				TLSClientConfig:  &tls.TLSClientConfig{},
+			},
 			Retryer: &retryer.Retryer{
 				RetryAttempts: 0,
 				RetryAfter:    5 * time.Second,

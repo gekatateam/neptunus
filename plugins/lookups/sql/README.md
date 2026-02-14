@@ -54,7 +54,7 @@ And transforms query result into map of maps:
     password = ""
 
     # queries execution timeout
-    timeout = "30s"
+    query_timeout = "30s"
 
     # plugin mode, "vertical" or "horizontal"
     mode = "vertical"

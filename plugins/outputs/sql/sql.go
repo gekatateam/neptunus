@@ -2,7 +2,6 @@ package sql
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -23,16 +22,8 @@ const tablePlaceholder = ":table_name"
 
 type Sql struct {
 	*core.BaseOutput `mapstructure:"-"`
+	*csql.Connector  `mapstructure:",squash"`
 	EnableMetrics    bool          `mapstructure:"enable_metrics"`
-	Driver           string        `mapstructure:"driver"`
-	Dsn              string        `mapstructure:"dsn"`
-	Username         string        `mapstructure:"username"`
-	Password         string        `mapstructure:"password"`
-	ConnsMaxIdleTime time.Duration `mapstructure:"conns_max_idle_time"`
-	ConnsMaxLifetime time.Duration `mapstructure:"conns_max_life_time"`
-	ConnsMaxOpen     int           `mapstructure:"conns_max_open"`
-	ConnsMaxIdle     int           `mapstructure:"conns_max_idle"`
-	QueryTimeout     time.Duration `mapstructure:"query_timeout"`
 	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
 
 	TablePlaceholder string            `mapstructure:"table_placeholder"`
@@ -40,7 +31,6 @@ type Sql struct {
 	OnPush           csql.QueryInfo    `mapstructure:"on_push"`
 	Columns          map[string]string `mapstructure:"columns"`
 
-	*tls.TLSClientConfig          `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
 
@@ -49,23 +39,11 @@ type Sql struct {
 }
 
 func (o *Sql) Init() error {
-	if len(o.Dsn) == 0 {
-		return errors.New("dsn required")
-	}
-
-	if len(o.Driver) == 0 {
-		return errors.New("driver required")
-	}
-
-	if len(o.OnPush.File) == 0 && len(o.OnPush.Query) == 0 {
-		return errors.New("onPush.query or onPush.file required")
-	}
-
-	if err := o.OnInit.Init(); err != nil {
+	if err := o.OnInit.Init(false); err != nil {
 		return fmt.Errorf("onInit: %w", err)
 	}
 
-	if err := o.OnPush.Init(); err != nil {
+	if err := o.OnPush.Init(true); err != nil {
 		return fmt.Errorf("onPush: %w", err)
 	}
 
@@ -81,23 +59,8 @@ func (o *Sql) Init() error {
 		o.Batcher.Buffer = 1
 	}
 
-	tlsConfig, err := o.TLSClientConfig.Config()
+	db, err := o.Connector.Init()
 	if err != nil {
-		return err
-	}
-
-	db, err := csql.OpenDB(o.Driver, o.Dsn, o.Username, o.Password, tlsConfig)
-	if err != nil {
-		return err
-	}
-
-	db.DB.SetConnMaxIdleTime(o.ConnsMaxIdleTime)
-	db.DB.SetConnMaxLifetime(o.ConnsMaxLifetime)
-	db.DB.SetMaxIdleConns(o.ConnsMaxIdle)
-	db.DB.SetMaxOpenConns(o.ConnsMaxOpen)
-
-	if err := db.Ping(); err != nil {
-		defer db.Close()
 		return err
 	}
 	o.db = db
@@ -187,15 +150,16 @@ func (o *Sql) newQueryer(key string) pool.Runner[*core.Event] {
 func init() {
 	plugins.AddOutput("sql", func() core.Output {
 		return &Sql{
-			ConnsMaxIdleTime: 10 * time.Minute,
-			ConnsMaxLifetime: 10 * time.Minute,
-			ConnsMaxOpen:     2,
-			ConnsMaxIdle:     1,
-			QueryTimeout:     10 * time.Second,
 			IdleTimeout:      5 * time.Minute,
 			TablePlaceholder: tablePlaceholder,
-
-			TLSClientConfig: &tls.TLSClientConfig{},
+			Connector: &csql.Connector{
+				ConnsMaxIdleTime: 10 * time.Minute,
+				ConnsMaxLifetime: 10 * time.Minute,
+				ConnsMaxOpen:     2,
+				ConnsMaxIdle:     1,
+				QueryTimeout:     30 * time.Second,
+				TLSClientConfig:  &tls.TLSClientConfig{},
+			},
 			Batcher: &batcher.Batcher[*core.Event]{
 				Buffer:   100,
 				Interval: 5 * time.Second,

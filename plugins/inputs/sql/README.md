@@ -43,7 +43,7 @@ Drivers use plugin TLS configuration.
     wait_for_delivery = true
 
     # queries execution timeout
-    timeout = "30s"
+    query_timeout = "30s"
 
     # database connection params - https://pkg.go.dev/database/sql#DB.SetConnMaxIdleTime
     conns_max_idle_time = "10m"

@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -38,19 +37,11 @@ var txIsolationLevels = map[string]sql.IsolationLevel{
 }
 
 type Sql struct {
-	*core.BaseInput  `mapstructure:"-"`
-	EnableMetrics    bool          `mapstructure:"enable_metrics"`
-	Driver           string        `mapstructure:"driver"`
-	Dsn              string        `mapstructure:"dsn"`
-	Username         string        `mapstructure:"username"`
-	Password         string        `mapstructure:"password"`
-	ConnsMaxIdleTime time.Duration `mapstructure:"conns_max_idle_time"`
-	ConnsMaxLifetime time.Duration `mapstructure:"conns_max_life_time"`
-	ConnsMaxOpen     int           `mapstructure:"conns_max_open"`
-	ConnsMaxIdle     int           `mapstructure:"conns_max_idle"`
-	Timeout          time.Duration `mapstructure:"timeout"`
-	Interval         time.Duration `mapstructure:"interval"`
-	WaitForDelivery  bool          `mapstructure:"wait_for_delivery"`
+	*core.BaseInput `mapstructure:"-"`
+	*csql.Connector `mapstructure:",squash"`
+	EnableMetrics   bool          `mapstructure:"enable_metrics"`
+	Interval        time.Duration `mapstructure:"interval"`
+	WaitForDelivery bool          `mapstructure:"wait_for_delivery"`
 
 	Transactional  bool   `mapstructure:"transactional"`
 	IsolationLevel string `mapstructure:"isolation_level"`
@@ -62,8 +53,7 @@ type Sql struct {
 	KeepValues   KeepValues        `mapstructure:"keep_values"`
 	LabelColumns map[string]string `mapstructure:"labelcolumns"`
 
-	*ider.Ider           `mapstructure:",squash"`
-	*tls.TLSClientConfig `mapstructure:",squash"`
+	*ider.Ider `mapstructure:",squash"`
 
 	keepIndex  map[string]int
 	keepValues map[string]any
@@ -83,22 +73,6 @@ type KeepValues struct {
 }
 
 func (i *Sql) Init() error {
-	if len(i.Dsn) == 0 {
-		return errors.New("dsn required")
-	}
-
-	if len(i.Driver) == 0 {
-		return errors.New("driver required")
-	}
-
-	if len(i.OnPoll.File) == 0 && len(i.OnPoll.Query) == 0 {
-		return errors.New("onPoll.query or onPoll.file required")
-	}
-
-	if err := i.Ider.Init(); err != nil {
-		return err
-	}
-
 	if i.Transactional {
 		var ok bool
 		if i.txLevel, ok = txIsolationLevels[i.IsolationLevel]; !ok {
@@ -129,42 +103,31 @@ func (i *Sql) Init() error {
 		i.keepIndex[v] = keepAll
 	}
 
-	if err := i.OnInit.Init(); err != nil {
+	if err := i.OnInit.Init(false); err != nil {
 		return fmt.Errorf("onInit: %w", err)
 	}
 
-	if err := i.OnPoll.Init(); err != nil {
+	if err := i.OnPoll.Init(true); err != nil {
 		return fmt.Errorf("onPoll: %w", err)
 	}
 
-	if err := i.OnDone.Init(); err != nil {
+	if err := i.OnDone.Init(false); err != nil {
 		return fmt.Errorf("onDone: %w", err)
 	}
 
-	tlsConfig, err := i.TLSClientConfig.Config()
-	if err != nil {
+	if err := i.Ider.Init(); err != nil {
 		return err
 	}
 
-	db, err := csql.OpenDB(i.Driver, i.Dsn, i.Username, i.Password, tlsConfig)
+	db, err := i.Connector.Init()
 	if err != nil {
-		return err
-	}
-
-	db.DB.SetConnMaxIdleTime(i.ConnsMaxIdleTime)
-	db.DB.SetConnMaxLifetime(i.ConnsMaxLifetime)
-	db.DB.SetMaxIdleConns(i.ConnsMaxIdle)
-	db.DB.SetMaxOpenConns(i.ConnsMaxOpen)
-
-	if err := db.Ping(); err != nil {
-		defer db.Close()
 		return err
 	}
 	i.db = db
 
 	if len(i.OnInit.Query) > 0 {
 		if err := i.init(); err != nil {
-			defer i.db.Close()
+			i.db.Close()
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
 	}
@@ -216,7 +179,7 @@ func (i *Sql) Run() {
 }
 
 func (i *Sql) init() error {
-	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), i.QueryTimeout)
 	defer cancel()
 
 	rows, err := i.db.QueryContext(ctx, i.OnInit.Query)
@@ -244,7 +207,7 @@ func (i *Sql) init() error {
 
 func (i *Sql) poll() {
 	now := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), i.QueryTimeout)
 	defer cancel()
 
 	var querier sqlx.ExtContext = i.db
@@ -393,18 +356,19 @@ func (i *Sql) keepColumns(from, to map[string]any, first, last bool) {
 func init() {
 	plugins.AddInput("sql", func() core.Input {
 		return &Sql{
-			ConnsMaxIdleTime: 10 * time.Minute,
-			ConnsMaxLifetime: 10 * time.Minute,
-			ConnsMaxOpen:     2,
-			ConnsMaxIdle:     1,
-			Transactional:    false,
-			IsolationLevel:   "Default",
-			Timeout:          30 * time.Second,
-			Interval:         0,
-			WaitForDelivery:  true,
-
+			Connector: &csql.Connector{
+				ConnsMaxIdleTime: 10 * time.Minute,
+				ConnsMaxLifetime: 10 * time.Minute,
+				ConnsMaxOpen:     2,
+				ConnsMaxIdle:     1,
+				QueryTimeout:     30 * time.Second,
+				TLSClientConfig:  &tls.TLSClientConfig{},
+			},
+			Transactional:   false,
+			IsolationLevel:  "Default",
+			Interval:        0,
+			WaitForDelivery: true,
 			Ider:            &ider.Ider{},
-			TLSClientConfig: &tls.TLSClientConfig{},
 		}
 	})
 }

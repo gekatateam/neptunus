@@ -120,7 +120,11 @@ type QueryInfo struct {
 	File  string `mapstructure:"file"`
 }
 
-func (q *QueryInfo) Init() error {
+func (q *QueryInfo) Init(required bool) error {
+	if required && len(q.File) == 0 && len(q.Query) == 0 {
+		return errors.New("query or file required")
+	}
+
 	if len(q.File) > 0 {
 		rawQuery, err := os.ReadFile(q.File)
 		if err != nil {

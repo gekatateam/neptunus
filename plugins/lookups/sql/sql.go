@@ -24,40 +24,16 @@ const (
 
 type Sql struct {
 	*core.BaseLookup `mapstructure:"-"`
-	EnableMetrics    bool           `mapstructure:"enable_metrics"`
-	Driver           string         `mapstructure:"driver"`
-	Dsn              string         `mapstructure:"dsn"`
-	Username         string         `mapstructure:"username"`
-	Password         string         `mapstructure:"password"`
-	ConnsMaxIdleTime time.Duration  `mapstructure:"conns_max_idle_time"`
-	ConnsMaxLifetime time.Duration  `mapstructure:"conns_max_life_time"`
-	ConnsMaxOpen     int            `mapstructure:"conns_max_open"`
-	ConnsMaxIdle     int            `mapstructure:"conns_max_idle"`
-	Timeout          time.Duration  `mapstructure:"timeout"`
+	*csql.Connector  `mapstructure:",squash"`
 	OnUpdate         csql.QueryInfo `mapstructure:"on_update"`
-
-	Mode      string `mapstructure:"mode"`
-	KeyColumn string `mapstructure:"key_column"`
-
-	*tls.TLSClientConfig `mapstructure:",squash"`
+	Mode             string         `mapstructure:"mode"`
+	KeyColumn        string         `mapstructure:"key_column"`
 
 	db *sqlx.DB
 }
 
 func (l *Sql) Init() error {
-	if len(l.Dsn) == 0 {
-		return errors.New("dsn required")
-	}
-
-	if len(l.Driver) == 0 {
-		return errors.New("driver required")
-	}
-
-	if len(l.OnUpdate.File) == 0 && len(l.OnUpdate.Query) == 0 {
-		return errors.New("onUpdate.query or onUpdate.file required")
-	}
-
-	if err := l.OnUpdate.Init(); err != nil {
+	if err := l.OnUpdate.Init(true); err != nil {
 		return fmt.Errorf("onUpdate: %w", err)
 	}
 
@@ -71,27 +47,12 @@ func (l *Sql) Init() error {
 		return fmt.Errorf("unknown mode: %v", l.Mode)
 	}
 
-	tlsConfig, err := l.TLSClientConfig.Config()
+	db, err := l.Connector.Init()
 	if err != nil {
 		return err
 	}
 
-	db, err := csql.OpenDB(l.Driver, l.Dsn, l.Username, l.Password, tlsConfig)
-	if err != nil {
-		return err
-	}
-
-	db.DB.SetConnMaxIdleTime(l.ConnsMaxIdleTime)
-	db.DB.SetConnMaxLifetime(l.ConnsMaxLifetime)
-	db.DB.SetMaxIdleConns(l.ConnsMaxIdle)
-	db.DB.SetMaxOpenConns(l.ConnsMaxOpen)
-
-	if err := db.Ping(); err != nil {
-		defer db.Close()
-		return err
-	}
 	l.db = db
-
 	return nil
 }
 
@@ -100,7 +61,7 @@ func (l *Sql) Close() error {
 }
 
 func (l *Sql) Update() (any, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), l.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), l.QueryTimeout)
 	defer cancel()
 
 	rows, err := l.db.QueryContext(ctx, l.OnUpdate.Query)
@@ -164,13 +125,15 @@ func init() {
 	plugins.AddLookup("sql", func() core.Lookup {
 		return &lookup.Lookup{
 			LazyLookup: &Sql{
-				ConnsMaxIdleTime: 10 * time.Minute,
-				ConnsMaxLifetime: 10 * time.Minute,
-				ConnsMaxOpen:     2,
-				ConnsMaxIdle:     1,
-				Timeout:          30 * time.Second,
-				Mode:             ModeVertical,
-				TLSClientConfig:  &tls.TLSClientConfig{},
+				Connector: &csql.Connector{
+					ConnsMaxIdleTime: 10 * time.Minute,
+					ConnsMaxLifetime: 10 * time.Minute,
+					ConnsMaxOpen:     2,
+					ConnsMaxIdle:     1,
+					QueryTimeout:     30 * time.Second,
+					TLSClientConfig:  &tls.TLSClientConfig{},
+				},
+				Mode: ModeVertical,
 			},
 			Interval: 30 * time.Second,
 		}
