@@ -87,7 +87,7 @@ func (i *Httpl) Init() error {
 	}
 
 	if i.EnableMetrics {
-		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, handler)
+		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, false, handler)
 	}
 
 	mux.Handle("/", handler)

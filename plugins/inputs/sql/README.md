@@ -1,6 +1,6 @@
 # Sql Input Plugin
 
-The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
+The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See drivers list [here](../../common/sql/DRIVERS.md).
 
 > [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
@@ -43,7 +43,7 @@ Drivers use plugin TLS configuration.
     wait_for_delivery = true
 
     # queries execution timeout
-    timeout = "30s"
+    query_timeout = "30s"
 
     # database connection params - https://pkg.go.dev/database/sql#DB.SetConnMaxIdleTime
     conns_max_idle_time = "10m"

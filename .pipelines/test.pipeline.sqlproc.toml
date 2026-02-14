@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.sqlproc"
   lines = 2
-  run = false
+  run = true
   buffer = 5
 
 [[inputs]]
@@ -19,18 +19,28 @@
       split_array = true
 
 [[processors]]
+  [processors.log]
+    log_level = "debug"
+    level = "debug"
+    [processors.log.serializer]
+      type = "json"
+      data_only = false
+
+[[processors]]
   [processors.starlark]
     code = '''
 def process(event):
-    event.setRK(event.getRK().strip("/"))
+    event.setLabel("table", event.getRK().strip("/"))
     return event
     '''
 
 [[processors]]
   [processors.sql]
+    log_level = "debug"
     driver = "pgx"
     dsn = "postgres://postgres:pguser@localhost:5432/postgres"
     retry_attempts = 3
+    table_label = "table"
     [processors.sql.columns]
       expedition_type = "type"
       expedition_region = "region"

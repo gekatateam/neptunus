@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = true
+  run = false
   buffer = 5
   log_level = "info"
 
@@ -13,20 +13,16 @@
     alias = "self"
 
 [[lookups]]
-  [lookups.http]
+  [lookups.sql]
     alias = "posts"
-    log_level = "debug"
-    host = "http://localhost:9200"
-    fallbacks = [ "https://jsonplaceholder.typicode.com/posts" ]
-    method = "GET"
-    retry_attempts = 1
-    retry_after = "1s"
-    tls_enable = true
-    tls_insecure_skip_verify = true
+    driver = "pgx"
+    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
+    mode = "vertical"
+    key_column = "param_name"
     interval = "10s"
-    [lookups.http.parser]
-      type = "json"
-      split_array = false
+    tls_enable = true
+    [lookups.sql.on_update]
+      query = 'SELECT * FROM SETTINGS_TABLE;'
 
 [[inputs]]
   [inputs.cronjob]
@@ -78,7 +74,7 @@ def process(event):
   [processors.lookup]
     lookup = "posts"
     [processors.lookup.fields]
-      posted = "0"
+      posted = "currency.value"
 
 [[outputs]]
   [outputs.log]

@@ -114,14 +114,14 @@ func (i *Http) Init() error {
 	}
 
 	if i.EnableMetrics {
-		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, handler)
+		handler = httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, len(i.Paths) > 0, handler)
 	}
 
 	if len(i.Paths) > 0 {
 		for _, path := range slices.Unique(i.Paths) {
 			mux.Handle(path, handler)
 		}
-		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("/", httpstats.HttpServerMiddleware(i.Pipeline, i.Alias, len(i.Paths) > 0, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(i.OnWrongPath.Code)
 			w.Write([]byte(i.OnWrongPath.Body))
 		})))
@@ -197,7 +197,7 @@ func (i *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := r.URL.Path
-	if len(r.Pattern) > 0 {
+	if len(i.Paths) > 0 {
 		path = r.Pattern
 	}
 
