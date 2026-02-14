@@ -26,14 +26,13 @@ var clientStorage = sharedstorage.New[*sqlx.DB, uint64]()
 type Sql struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	*csql.Connector     `mapstructure:",squash"`
+	*retryer.Retryer    `mapstructure:",squash"`
 	EnableMetrics       bool              `mapstructure:"enable_metrics"`
 	TablePlaceholder    string            `mapstructure:"table_placeholder"`
 	TableLabel          string            `mapstructure:"table_label"`
 	OnEvent             csql.QueryInfo    `mapstructure:"on_event"`
 	Columns             map[string]string `mapstructure:"columns"`
 	Fields              map[string]string `mapstructure:"fields"`
-
-	*retryer.Retryer `mapstructure:",squash"`
 
 	db *sqlx.DB
 	id uint64
@@ -63,7 +62,7 @@ func (p *Sql) Init() error {
 	if _, _, err := csql.BindNamed(
 		strings.Replace(p.OnEvent.Query, p.TablePlaceholder, "TEST_TABLE_NAME", 1),
 		testArgs, p.db); err != nil {
-		defer p.db.Close()
+		p.db.Close()
 		return fmt.Errorf("query test binding failed: %w", err)
 	}
 

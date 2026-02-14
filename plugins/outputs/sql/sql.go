@@ -21,18 +21,16 @@ import (
 const tablePlaceholder = ":table_name"
 
 type Sql struct {
-	*core.BaseOutput `mapstructure:"-"`
-	*csql.Connector  `mapstructure:",squash"`
-	EnableMetrics    bool          `mapstructure:"enable_metrics"`
-	IdleTimeout      time.Duration `mapstructure:"idle_timeout"`
-
-	TablePlaceholder string            `mapstructure:"table_placeholder"`
-	OnInit           csql.QueryInfo    `mapstructure:"on_init"`
-	OnPush           csql.QueryInfo    `mapstructure:"on_push"`
-	Columns          map[string]string `mapstructure:"columns"`
-
+	*core.BaseOutput              `mapstructure:"-"`
+	*csql.Connector               `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
+	EnableMetrics                 bool              `mapstructure:"enable_metrics"`
+	IdleTimeout                   time.Duration     `mapstructure:"idle_timeout"`
+	TablePlaceholder              string            `mapstructure:"table_placeholder"`
+	OnInit                        csql.QueryInfo    `mapstructure:"on_init"`
+	OnPush                        csql.QueryInfo    `mapstructure:"on_push"`
+	Columns                       map[string]string `mapstructure:"columns"`
 
 	queryersPool *pool.Pool[*core.Event, string]
 	db           *sqlx.DB
@@ -73,13 +71,13 @@ func (o *Sql) Init() error {
 	if _, _, err := csql.BindNamed(
 		strings.Replace(o.OnPush.Query, o.TablePlaceholder, "TEST_TABLE_NAME", 1),
 		testArgs, o.db); err != nil {
-		defer o.db.Close()
+		o.db.Close()
 		return fmt.Errorf("query test binding failed: %w", err)
 	}
 
 	if len(o.OnInit.Query) > 0 {
 		if err := o.init(); err != nil {
-			defer o.db.Close()
+			o.db.Close()
 			return fmt.Errorf("onInit query failed: %w", err)
 		}
 	}

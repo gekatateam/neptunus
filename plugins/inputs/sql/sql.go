@@ -39,6 +39,7 @@ var txIsolationLevels = map[string]sql.IsolationLevel{
 type Sql struct {
 	*core.BaseInput `mapstructure:"-"`
 	*csql.Connector `mapstructure:",squash"`
+	*ider.Ider      `mapstructure:",squash"`
 	EnableMetrics   bool          `mapstructure:"enable_metrics"`
 	Interval        time.Duration `mapstructure:"interval"`
 	WaitForDelivery bool          `mapstructure:"wait_for_delivery"`
@@ -52,8 +53,6 @@ type Sql struct {
 	OnDone       csql.QueryInfo    `mapstructure:"on_done"`
 	KeepValues   KeepValues        `mapstructure:"keep_values"`
 	LabelColumns map[string]string `mapstructure:"labelcolumns"`
-
-	*ider.Ider `mapstructure:",squash"`
 
 	keepIndex  map[string]int
 	keepValues map[string]any
