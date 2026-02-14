@@ -36,8 +36,6 @@ func (c *Connector) Init() (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	println(tlsConfig == nil)
-
 	db, err := OpenDB(c.Driver, c.Dsn, c.Username, c.Password, tlsConfig)
 	if err != nil {
 		return nil, err

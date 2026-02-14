@@ -20,6 +20,7 @@
     mode = "vertical"
     key_column = "param_name"
     interval = "10s"
+    tls_enable = true
     [lookups.sql.on_update]
       query = 'SELECT * FROM SETTINGS_TABLE;'
 
