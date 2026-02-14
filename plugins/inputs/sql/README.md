@@ -1,6 +1,6 @@
 # Sql Input Plugin
 
-The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
+The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See drivers list [here](../../common/sql/DRIVERS.md).
 
 > [!TIP]  
 > This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)

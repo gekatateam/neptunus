@@ -1,6 +1,6 @@
 # Sql Processor Pluign
 
-The `sql` processor plugin performs SQL query using incoming events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
+The `sql` processor plugin performs SQL query using incoming events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See drivers list [here](../../common/sql/DRIVERS.md).
 
 An event label may be used as a table name using `table_placeholder` parameter.
 

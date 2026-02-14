@@ -1,6 +1,6 @@
 # Sql Lookup Plugin
 
-The `sql` lookup plugin performs SQL query for reading lookup data. This plugin is based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.
+The `sql` lookup plugin performs SQL query for reading lookup data. This plugin is based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.  See drivers list [here](../../common/sql/DRIVERS.md).
 
 A few words about plugin modes.
 
