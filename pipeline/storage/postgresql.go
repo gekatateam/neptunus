@@ -94,7 +94,8 @@ WHERE id = $1 and deleted_at IS NULL;`
 	pipeline_list = `
 SELECT id, lines, run, buffer, consistency, log_level, vars, keykeepers, lookups, inputs, processors, outputs
 FROM pipelines
-WHERE deleted_at IS NULL;`
+WHERE deleted_at IS NULL
+ORDER BY id ASC;`
 
 	lock_acquire = `
 INSERT INTO pipelines_locks
