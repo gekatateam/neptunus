@@ -1,6 +1,7 @@
 package mapstructure
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 
@@ -9,11 +10,14 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 )
 
+const unknownTypeErrorFormat = "cannot decode value of type %s into type %s"
+
 func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 	hooks = append(hooks,
 		ToTimeHookFunc(),
 		ToTimeDurationHookFunc(),
 		ToByteSizeHookFunc(),
+		ToRuneHookFunc(),
 	)
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -30,10 +34,7 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 }
 
 func ToTimeHookFunc() mapstructure.DecodeHookFunc {
-	return func(
-		f reflect.Type,
-		t reflect.Type,
-		data any) (any, error) {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeFor[time.Time]() {
 			return data, nil
 		}
@@ -46,16 +47,13 @@ func ToTimeHookFunc() mapstructure.DecodeHookFunc {
 		case reflect.Int64:
 			return time.Unix(0, data.(int64)*int64(time.Millisecond)), nil
 		default:
-			return data, nil
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}
 	}
 }
 
 func ToTimeDurationHookFunc() mapstructure.DecodeHookFunc {
-	return func(
-		f reflect.Type,
-		t reflect.Type,
-		data any) (any, error) {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeFor[time.Duration]() {
 			return data, nil
 		}
@@ -66,16 +64,13 @@ func ToTimeDurationHookFunc() mapstructure.DecodeHookFunc {
 		case reflect.Int64:
 			return time.Duration(data.(int64)), nil
 		default:
-			return data, nil
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}
 	}
 }
 
 func ToByteSizeHookFunc() mapstructure.DecodeHookFunc {
-	return func(
-		f reflect.Type,
-		t reflect.Type,
-		data any) (any, error) {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeFor[datasize.Size]() {
 			return data, nil
 		}
@@ -86,7 +81,28 @@ func ToByteSizeHookFunc() mapstructure.DecodeHookFunc {
 		case reflect.Uint64:
 			return datasize.Size(data.(uint64)), nil
 		default:
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
+		}
+	}
+}
+
+func ToRuneHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeFor[rune]() {
 			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			r := []rune(data.(string))
+			if len(r) != 1 {
+				return nil, fmt.Errorf("cannot convert string of length %d to rune", len(r))
+			}
+			return r[0], nil
+		case reflect.Int32:
+			return rune(data.(int32)), nil
+		default:
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}
 	}
 }

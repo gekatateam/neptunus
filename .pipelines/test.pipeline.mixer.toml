@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.mixer"
   lines = 8
-  run = false
+  run = true
   buffer = 5
   log_level = "info"
 
@@ -13,16 +13,13 @@
     alias = "self"
 
 [[lookups]]
-  [lookups.sql]
+  [lookups.file]
     alias = "posts"
-    driver = "pgx"
-    dsn = "postgres://postgres:pguser@localhost:5432/postgres"
-    mode = "vertical"
-    key_column = "param_name"
-    interval = "10s"
-    tls_enable = true
-    [lookups.sql.on_update]
-      query = 'SELECT * FROM SETTINGS_TABLE;'
+    file = ".pipelines/headless.csv"
+    [lookups.file.parser]
+      type = "csv"
+      comma = ","
+      has_header = false
 
 [[inputs]]
   [inputs.cronjob]
@@ -30,12 +27,12 @@
     # this job is used to create table partitions
     [[inputs.cronjob.jobs]]
       name = "partition.create"
-      schedule = "@every 1s"
+      schedule = "@every 10s"
       force = true
 
 [[processors]]
   [processors.through]
-#    sleep = "5s"
+    # sleep = "5s"
 
 
 [[processors]]
@@ -74,7 +71,7 @@ def process(event):
   [processors.lookup]
     lookup = "posts"
     [processors.lookup.fields]
-      posted = "currency.value"
+      posted = "."
 
 [[outputs]]
   [outputs.log]
