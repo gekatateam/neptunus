@@ -19,7 +19,7 @@ Events will be:
 {"first_name": "Robert", "last_name": "Griesemer", "username": "gri"},
 ```
 
-In other mode, `vertical`, plugin takes `key_column` column as a map key, and returns one event with body as a map of maps:
+In other mode, `vertical`, plugin takes `key_column` column as a map key (`username` in this example), and returns one event with body as a map of maps:
 ```json
 {
   "rob": {"first_name": "Rob", "last_name": "Pike"},
