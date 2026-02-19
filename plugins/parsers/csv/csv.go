@@ -25,7 +25,7 @@ type Csv struct {
 	KeyColumn        string `mapstructure:"key_column"`
 	HasHeader        bool   `mapstructure:"has_header"`
 	LazyQuotes       bool   `mapstructure:"lazy_quotes"`
-	Comma            rune   `mapstructure:"comma"`
+	Delimeter        rune   `mapstructure:"delimeter"`
 	Comment          rune   `mapstructure:"comment"`
 
 	parseFunc func(data []byte, routingKey string) ([]*core.Event, error)
@@ -76,7 +76,7 @@ func (p *Csv) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 
 func (p *Csv) parseVertical(data []byte, routingKey string) ([]*core.Event, error) {
 	reader := csv.NewReader(bytes.NewReader(data))
-	reader.Comma = p.Comma
+	reader.Comma = p.Delimeter
 	reader.Comment = p.Comment
 	reader.LazyQuotes = p.LazyQuotes
 	reader.ReuseRecord = true
@@ -122,7 +122,7 @@ func (p *Csv) parseVertical(data []byte, routingKey string) ([]*core.Event, erro
 
 func (p *Csv) parseHorizontal(data []byte, routingKey string) ([]*core.Event, error) {
 	reader := csv.NewReader(bytes.NewReader(data))
-	reader.Comma = p.Comma
+	reader.Comma = p.Delimeter
 	reader.Comment = p.Comment
 	reader.LazyQuotes = p.LazyQuotes
 	reader.ReuseRecord = true
@@ -182,7 +182,7 @@ func init() {
 		return &Csv{
 			Mode:       ModeHorizontal,
 			HasHeader:  true,
-			Comma:      ';',
+			Delimeter:  ';',
 			Comment:    0,
 			LazyQuotes: false,
 		}
