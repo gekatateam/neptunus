@@ -43,14 +43,14 @@ In other mode, `vertical`, plugin takes `key_column` column as a map key, and re
     # if true, entries from first row will be used as a keys in result maps
     # otherwise, each line will be parsed into slice of strings
     # required in "vertical" mode 
-	  has_header = true
+    has_header = true
 
     # if true, a quote may appear in an unquoted field 
     # and a non-doubled quote may appear in a quoted field
-	  lazy_quotes = false
+    lazy_quotes = false
 
     # field delimiter, must be a valid rune
-	  delimeter = ";"
+    delimeter = ";"
 
     # ines beginning with the this character without preceding whitespace are ignored
     # must be a valid rune, not set by default
