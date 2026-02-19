@@ -15,11 +15,13 @@
 [[lookups]]
   [lookups.file]
     alias = "posts"
-    file = ".pipelines/headless.csv"
+    file = ".pipelines/headfull.csv"
     [lookups.file.parser]
       type = "csv"
       comma = ","
-      has_header = false
+      has_header = true
+      mode = "vertical"
+      key_column = "username"
 
 [[inputs]]
   [inputs.cronjob]
