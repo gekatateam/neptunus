@@ -12,7 +12,7 @@ Ken,Thompson,ken
 "Robert","Griesemer","gri"
 ```
 
-The events bodies will be:
+Events will be:
 ```json
 {"first_name": "Rob",    "last_name": "Pike",      "username": "rob"},
 {"first_name": "Ken",    "last_name": "Thompson",  "username": "ken"},
