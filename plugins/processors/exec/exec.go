@@ -68,20 +68,21 @@ func (p *Exec) Run() {
 
 		out, err := cmd.CombinedOutput()
 		cancel()
-		var exitErr *exec.ExitError
-		if err != nil && !errors.As(err, &exitErr) {
-			p.Log.Error("command execution failed",
-				"error", err,
-				elog.EventGroup(e),
-			)
-			e.StackError(err)
-			p.Out <- e
-			p.Observe(metrics.EventFailed, time.Since(now))
-		}
 
 		exitCode := 0
-		if err != nil && errors.As(err, &exitErr) {
-			exitCode = exitErr.ExitCode()
+		if err != nil {
+			if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
+				exitCode = exitError.ExitCode()
+			} else { // any other error means that command execution failed
+				p.Log.Error("command execution failed",
+					"error", err,
+					elog.EventGroup(e),
+				)
+				e.StackError(err)
+				p.Out <- e
+				p.Observe(metrics.EventFailed, time.Since(now))
+				continue
+			}
 		}
 
 		if err := e.SetField(p.ExecCodeTo, exitCode); err != nil {

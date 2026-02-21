@@ -59,7 +59,7 @@ func (m *internalService) StartAll() error {
 	}
 
 	if len(errs) > 0 {
-		return &errs
+		return errs
 	}
 
 	return nil
