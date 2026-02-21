@@ -22,7 +22,7 @@ import (
 
 	"github.com/gekatateam/neptunus/plugins/core/fanin"
 	"github.com/gekatateam/neptunus/plugins/core/fanout"
-	lwrapper "github.com/gekatateam/neptunus/plugins/core/lookup"
+	"github.com/gekatateam/neptunus/plugins/core/lookup"
 	"github.com/gekatateam/neptunus/plugins/core/mixer"
 	"github.com/gekatateam/neptunus/plugins/core/self"
 
@@ -389,7 +389,7 @@ func (p *Pipeline) configureKeykeepers() error {
 			if !ok {
 				return fmt.Errorf("unknown keykeeper plugin in pipeline configuration: %v", plugin)
 			}
-			keykeeper := keeperFunc()
+			_keykeeper := keeperFunc()
 
 			var alias = fmt.Sprintf("keykeeper:%v:%v", plugin, index)
 			if len(keeperCfg.Alias()) > 0 {
@@ -401,7 +401,7 @@ func (p *Pipeline) configureKeykeepers() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if self, ok := keykeeper.(*self.Self); ok {
+			if self, ok := _keykeeper.(*self.Self); ok {
 				self.SetConfig(p.config)
 			}
 
@@ -411,7 +411,7 @@ func (p *Pipeline) configureKeykeepers() error {
 			))
 			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(keeperCfg.LogLevel()))
 
-			baseField := reflect.ValueOf(keykeeper).Elem().FieldByName(core.KindKeykeeper)
+			baseField := reflect.ValueOf(_keykeeper).Elem().FieldByName(core.KindKeykeeper)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseKeykeeper{
 					Alias:    alias,
@@ -423,15 +423,15 @@ func (p *Pipeline) configureKeykeepers() error {
 				return fmt.Errorf("%v keykeeper plugin does not contains BaseKeykeeper", plugin)
 			}
 
-			if err := mapstructure.Decode(keeperCfg, keykeeper, p.decodeHook()); err != nil {
+			if err := mapstructure.Decode(keeperCfg, _keykeeper, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v keykeeper configuration mapping error: %v", plugin, err.Error())
 			}
 
-			if err := keykeeper.Init(); err != nil {
+			if err := _keykeeper.Init(); err != nil {
 				return fmt.Errorf("%v keykeeper initialization error: %v", plugin, err.Error())
 			}
 
-			p.keepers[alias] = keykeeper
+			p.keepers[alias] = _keykeeper
 		}
 	}
 	return nil
@@ -444,7 +444,7 @@ func (p *Pipeline) configureLookups() error {
 			if !ok {
 				return fmt.Errorf("unknown lookup plugin in pipeline configuration: %v", plugin)
 			}
-			lookup := lookupFunc()
+			_lookup := lookupFunc()
 
 			var alias = fmt.Sprintf("lookup:%v:%v", plugin, index)
 			if len(lookupCfg.Alias()) > 0 {
@@ -456,12 +456,12 @@ func (p *Pipeline) configureLookups() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if wrapper, ok := lookup.(*lwrapper.Lookup); ok {
+			if wrapper, ok := _lookup.(*lookup.Lookup); ok {
 				if err := p.configureCallable(wrapper.LazyLookup, lookupCfg, alias); err != nil {
 					return fmt.Errorf("%v lookup: %w", plugin, err)
 				}
 			} else {
-				if err := p.configureCallable(lookup, lookupCfg, alias); err != nil {
+				if err := p.configureCallable(_lookup, lookupCfg, alias); err != nil {
 					return fmt.Errorf("%v lookup: %w", plugin, err)
 				}
 			}
@@ -472,7 +472,7 @@ func (p *Pipeline) configureLookups() error {
 			))
 			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(lookupCfg.LogLevel()))
 
-			baseField := reflect.ValueOf(lookup).Elem().FieldByName(core.KindLookup)
+			baseField := reflect.ValueOf(_lookup).Elem().FieldByName(core.KindLookup)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseLookup{
 					Alias:    alias,
@@ -485,15 +485,15 @@ func (p *Pipeline) configureLookups() error {
 				return fmt.Errorf("%v lookup plugin does not contains BaseLookup", plugin)
 			}
 
-			if err := mapstructure.Decode(lookupCfg, lookup, p.decodeHook()); err != nil {
+			if err := mapstructure.Decode(lookupCfg, _lookup, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v lookup configuration mapping error: %v", plugin, err.Error())
 			}
 
-			if err := lookup.Init(); err != nil {
+			if err := _lookup.Init(); err != nil {
 				return fmt.Errorf("%v lookup initialization error: %v", plugin, err.Error())
 			}
 
-			p.lookups[alias] = lookup
+			p.lookups[alias] = _lookup
 		}
 	}
 	return nil
@@ -510,7 +510,7 @@ func (p *Pipeline) configureOutputs() error {
 			if !ok {
 				return fmt.Errorf("unknown output plugin in pipeline configuration: %v", plugin)
 			}
-			output := outputFunc()
+			_output := outputFunc()
 
 			var alias = fmt.Sprintf("output:%v:%v", plugin, index)
 			if len(outputCfg.Alias()) > 0 {
@@ -522,11 +522,11 @@ func (p *Pipeline) configureOutputs() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if err := p.configureCallable(output, outputCfg, alias); err != nil {
+			if err := p.configureCallable(_output, outputCfg, alias); err != nil {
 				return fmt.Errorf("%v output: %w", plugin, err)
 			}
 
-			if lookupNeedy, ok := output.(core.SetLookup); ok {
+			if lookupNeedy, ok := _output.(core.SetLookup); ok {
 				lookupName := outputCfg.Lookup()
 				if lookupName == "" {
 					return fmt.Errorf("%v output: plugin requires lookup, but no lookup name provided", plugin)
@@ -539,7 +539,7 @@ func (p *Pipeline) configureOutputs() error {
 				lookupNeedy.SetLookup(lookup)
 			}
 
-			if idNeedy, ok := output.(core.SetId); ok {
+			if idNeedy, ok := _output.(core.SetId); ok {
 				idNeedy.SetId(outputCfg.Id())
 			}
 
@@ -549,7 +549,7 @@ func (p *Pipeline) configureOutputs() error {
 			))
 			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(outputCfg.LogLevel()))
 
-			baseField := reflect.ValueOf(output).Elem().FieldByName(core.KindOutput)
+			baseField := reflect.ValueOf(_output).Elem().FieldByName(core.KindOutput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseOutput{
 					Alias:    alias,
@@ -562,11 +562,11 @@ func (p *Pipeline) configureOutputs() error {
 				return fmt.Errorf("%v output plugin does not contains BaseOutput", plugin)
 			}
 
-			if err := mapstructure.Decode(outputCfg, output, p.decodeHook()); err != nil {
+			if err := mapstructure.Decode(outputCfg, _output, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v output configuration mapping error: %v", plugin, err.Error())
 			}
 
-			if err := output.Init(); err != nil {
+			if err := _output.Init(); err != nil {
 				return fmt.Errorf("%v output initialization error: %v", plugin, err.Error())
 			}
 
@@ -575,7 +575,7 @@ func (p *Pipeline) configureOutputs() error {
 				return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
 			}
 
-			p.outs = append(p.outs, outputSet{output, filters})
+			p.outs = append(p.outs, outputSet{_output, filters})
 		}
 	}
 	return nil
@@ -593,7 +593,7 @@ func (p *Pipeline) configureProcessors() error {
 				if !ok {
 					return fmt.Errorf("unknown processor plugin in pipeline configuration: %v", plugin)
 				}
-				processor := processorFunc()
+				_processor := processorFunc()
 
 				var alias = fmt.Sprintf("processor:%v:%v:%v", plugin, index, i)
 				if len(processorCfg.Alias()) > 0 {
@@ -605,11 +605,11 @@ func (p *Pipeline) configureProcessors() error {
 				}
 				p.aliases[alias] = struct{}{}
 
-				if err := p.configureCallable(processor, processorCfg, alias); err != nil {
+				if err := p.configureCallable(_processor, processorCfg, alias); err != nil {
 					return fmt.Errorf("%v processor: %w", plugin, err)
 				}
 
-				if lookupNeedy, ok := processor.(core.SetLookup); ok {
+				if lookupNeedy, ok := _processor.(core.SetLookup); ok {
 					lookupName := processorCfg.Lookup()
 					if lookupName == "" {
 						return fmt.Errorf("%v processor: plugin requires lookup, but no lookup name provided", plugin)
@@ -622,11 +622,11 @@ func (p *Pipeline) configureProcessors() error {
 					lookupNeedy.SetLookup(lookup)
 				}
 
-				if idNeedy, ok := processor.(core.SetId); ok {
+				if idNeedy, ok := _processor.(core.SetId); ok {
 					idNeedy.SetId(processorCfg.Id())
 				}
 
-				if lineNeedy, ok := processor.(core.SetLine); ok {
+				if lineNeedy, ok := _processor.(core.SetLine); ok {
 					lineNeedy.SetLine(i)
 				}
 
@@ -636,7 +636,7 @@ func (p *Pipeline) configureProcessors() error {
 				))
 				dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(processorCfg.LogLevel()))
 
-				baseField := reflect.ValueOf(processor).Elem().FieldByName(core.KindProcessor)
+				baseField := reflect.ValueOf(_processor).Elem().FieldByName(core.KindProcessor)
 				if baseField.IsValid() && baseField.CanSet() {
 					baseField.Set(reflect.ValueOf(&core.BaseProcessor{
 						Alias:    alias,
@@ -649,17 +649,17 @@ func (p *Pipeline) configureProcessors() error {
 					return fmt.Errorf("%v processor plugin does not contains BaseProcessor", plugin)
 				}
 
-				if err := mapstructure.Decode(processorCfg, processor, p.decodeHook()); err != nil {
+				if err := mapstructure.Decode(processorCfg, _processor, p.decodeHook()); err != nil {
 					return fmt.Errorf("%v processor configuration mapping error: %v", plugin, err.Error())
 				}
 
-				if err := processor.Init(); err != nil {
+				if err := _processor.Init(); err != nil {
 					return fmt.Errorf("%v processor initialization error: %v", plugin, err.Error())
 				}
 
 				// as a core plugin, mixer has special precondition - it should never be first or last
 				// actually, it is not a requirement, just a recommendation
-				if _, ok := processor.(*mixer.Mixer); ok {
+				if _, ok := _processor.(*mixer.Mixer); ok {
 					if index == 0 {
 						return errors.New("mixer must never be the first processor")
 					}
@@ -674,7 +674,7 @@ func (p *Pipeline) configureProcessors() error {
 					return fmt.Errorf("%v processor filters configuration error: %v", plugin, err.Error())
 				}
 
-				sets = append(sets, procSet{processor, filters})
+				sets = append(sets, procSet{_processor, filters})
 			}
 		}
 		p.procs = append(p.procs, sets)
@@ -693,7 +693,7 @@ func (p *Pipeline) configureInputs() error {
 			if !ok {
 				return fmt.Errorf("unknown input plugin in pipeline configuration: %v", plugin)
 			}
-			input := inputFunc()
+			_input := inputFunc()
 
 			var alias = fmt.Sprintf("input:%v:%v", plugin, index)
 			if len(inputCfg.Alias()) > 0 {
@@ -705,7 +705,7 @@ func (p *Pipeline) configureInputs() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if serializerNeedy, ok := input.(core.SetSerializer); ok {
+			if serializerNeedy, ok := _input.(core.SetSerializer); ok {
 				serializerCfg := inputCfg.Serializer()
 				if serializerCfg == nil {
 					return fmt.Errorf("%v input requires serializer, but no serializer configuration provided", plugin)
@@ -718,11 +718,11 @@ func (p *Pipeline) configureInputs() error {
 				serializerNeedy.SetSerializer(serializer)
 			}
 
-			if err := p.configureCallable(input, inputCfg, alias); err != nil {
+			if err := p.configureCallable(_input, inputCfg, alias); err != nil {
 				return fmt.Errorf("%v input: %w", plugin, err)
 			}
 
-			if idNeedy, ok := input.(core.SetId); ok {
+			if idNeedy, ok := _input.(core.SetId); ok {
 				idNeedy.SetId(inputCfg.Id())
 			}
 
@@ -732,7 +732,7 @@ func (p *Pipeline) configureInputs() error {
 			))
 			dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(inputCfg.LogLevel()))
 
-			baseField := reflect.ValueOf(input).Elem().FieldByName(core.KindInput)
+			baseField := reflect.ValueOf(_input).Elem().FieldByName(core.KindInput)
 			if baseField.IsValid() && baseField.CanSet() {
 				baseField.Set(reflect.ValueOf(&core.BaseInput{
 					Alias:    alias,
@@ -745,11 +745,11 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("%v input plugin does not contains BaseInput", plugin)
 			}
 
-			if err := mapstructure.Decode(inputCfg, input, p.decodeHook()); err != nil {
+			if err := mapstructure.Decode(inputCfg, _input, p.decodeHook()); err != nil {
 				return fmt.Errorf("%v input configuration mapping error: %v", plugin, err.Error())
 			}
 
-			if err := input.Init(); err != nil {
+			if err := _input.Init(); err != nil {
 				return fmt.Errorf("%v input initialization error: %v", plugin, err.Error())
 			}
 
@@ -758,7 +758,7 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("%v input filters configuration error: %v", plugin, err.Error())
 			}
 
-			p.ins = append(p.ins, inputSet{input, filters})
+			p.ins = append(p.ins, inputSet{_input, filters})
 		}
 	}
 	return nil
@@ -771,7 +771,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		if !ok {
 			return nil, fmt.Errorf("unknown filter plugin in pipeline configuration: %v", plugin)
 		}
-		filter := filterFunc()
+		_filter := filterFunc()
 
 		var alias = fmt.Sprintf("filter:%v::%v", plugin, parentName)
 		if len(filterCfg.Alias()) > 0 {
@@ -783,11 +783,11 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		}
 		p.aliases[alias] = struct{}{}
 
-		if err := p.configureCallable(filter, filterCfg, alias); err != nil {
+		if err := p.configureCallable(_filter, filterCfg, alias); err != nil {
 			return nil, fmt.Errorf("%v filter: %w", plugin, err)
 		}
 
-		if idNeedy, ok := filter.(core.SetId); ok {
+		if idNeedy, ok := _filter.(core.SetId); ok {
 			idNeedy.SetId(filterCfg.Id())
 		}
 
@@ -797,7 +797,7 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 		))
 		dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(filterCfg.LogLevel()))
 
-		baseField := reflect.ValueOf(filter).Elem().FieldByName(core.KindFilter)
+		baseField := reflect.ValueOf(_filter).Elem().FieldByName(core.KindFilter)
 		if baseField.IsValid() && baseField.CanSet() {
 			baseField.Set(reflect.ValueOf(&core.BaseFilter{
 				Alias:    alias,
@@ -811,15 +811,15 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			return nil, fmt.Errorf("%v filter plugin does not contains BaseInput", plugin)
 		}
 
-		if err := mapstructure.Decode(filterCfg, filter, p.decodeHook()); err != nil {
+		if err := mapstructure.Decode(filterCfg, _filter, p.decodeHook()); err != nil {
 			return nil, fmt.Errorf("%v filter configuration mapping error: %v", plugin, err.Error())
 		}
 
-		if err := filter.Init(); err != nil {
+		if err := _filter.Init(); err != nil {
 			return nil, fmt.Errorf("%v filter initialization error: %v", plugin, err.Error())
 		}
 
-		filters = append(filters, filter)
+		filters = append(filters, _filter)
 	}
 	return filters, nil
 }
@@ -830,7 +830,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 	if !ok {
 		return nil, fmt.Errorf("unknown parser plugin in pipeline configuration: %v", plugin)
 	}
-	parser := parserFunc()
+	_parser := parserFunc()
 
 	var alias = fmt.Sprintf("parser:%v::%v", plugin, parentName)
 	if len(parserCfg.Alias()) > 0 {
@@ -842,7 +842,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 	}
 	p.aliases[alias] = struct{}{}
 
-	if idNeedy, ok := parser.(core.SetId); ok {
+	if idNeedy, ok := _parser.(core.SetId); ok {
 		idNeedy.SetId(parserCfg.Id())
 	}
 
@@ -852,7 +852,7 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 	))
 	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(parserCfg.LogLevel()))
 
-	baseField := reflect.ValueOf(parser).Elem().FieldByName(core.KindParser)
+	baseField := reflect.ValueOf(_parser).Elem().FieldByName(core.KindParser)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseParser{
 			Alias:    alias,
@@ -865,32 +865,32 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		return nil, fmt.Errorf("%v parser plugin does not contains BaseParser", plugin)
 	}
 
-	if err := mapstructure.Decode(parserCfg, parser, p.decodeHook()); err != nil {
+	if err := mapstructure.Decode(parserCfg, _parser, p.decodeHook()); err != nil {
 		return nil, fmt.Errorf("%v parser configuration mapping error: %v", plugin, err.Error())
 	}
 
-	if err := parser.Init(); err != nil {
+	if err := _parser.Init(); err != nil {
 		return nil, fmt.Errorf("%v parser initialization error: %v", plugin, err.Error())
 	}
 
-	var decompressor core.Decompressor
+	var _decompressor core.Decompressor
 	if decompressorCfg, decompressorName := parserCfg.Decompressor(); decompressorCfg != nil {
 		decompressorFunc, ok := plugins.GetDecompressor(decompressorName)
 		if !ok {
 			return nil, fmt.Errorf("%v parser: unknown decompressor plugin in pipeline configuration: %v", plugin, decompressorName)
 		}
-		decompressor = decompressorFunc()
+		_decompressor = decompressorFunc()
 
-		if err := mapstructure.Decode(decompressorCfg, decompressor, p.decodeHook()); err != nil {
+		if err := mapstructure.Decode(decompressorCfg, _decompressor, p.decodeHook()); err != nil {
 			return nil, fmt.Errorf("%v parser: %v decompressor: configuration mapping error: %v", plugin, decompressorName, err.Error())
 		}
 
-		if err := decompressor.Init(); err != nil {
+		if err := _decompressor.Init(); err != nil {
 			return nil, fmt.Errorf("%v parser: %v decompressor: initialization error: %v", plugin, decompressorName, err.Error())
 		}
 	}
 
-	return &core.ParserDecompressor{P: parser, D: decompressor}, nil
+	return &core.ParserDecompressor{P: _parser, D: _decompressor}, nil
 }
 
 func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName string) (core.Serializer, error) {
@@ -899,7 +899,7 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 	if !ok {
 		return nil, fmt.Errorf("unknown serializer plugin in pipeline configuration: %v", plugin)
 	}
-	serializer := serFunc()
+	_serializer := serFunc()
 
 	var alias = fmt.Sprintf("serializer:%v::%v", plugin, parentName)
 	if len(serializerCfg.Alias()) > 0 {
@@ -911,7 +911,7 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 	}
 	p.aliases[alias] = struct{}{}
 
-	if idNeedy, ok := serializer.(core.SetId); ok {
+	if idNeedy, ok := _serializer.(core.SetId); ok {
 		idNeedy.SetId(serializerCfg.Id())
 	}
 
@@ -921,7 +921,7 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 	))
 	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(serializerCfg.LogLevel()))
 
-	baseField := reflect.ValueOf(serializer).Elem().FieldByName(core.KindSerializer)
+	baseField := reflect.ValueOf(_serializer).Elem().FieldByName(core.KindSerializer)
 	if baseField.IsValid() && baseField.CanSet() {
 		baseField.Set(reflect.ValueOf(&core.BaseSerializer{
 			Alias:    alias,
@@ -934,32 +934,32 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 		return nil, fmt.Errorf("%v serializer plugin does not contains BaseSerializer", plugin)
 	}
 
-	if err := mapstructure.Decode(serializerCfg, serializer, p.decodeHook()); err != nil {
+	if err := mapstructure.Decode(serializerCfg, _serializer, p.decodeHook()); err != nil {
 		return nil, fmt.Errorf("%v serializer configuration mapping error: %v", plugin, err.Error())
 	}
 
-	if err := serializer.Init(); err != nil {
+	if err := _serializer.Init(); err != nil {
 		return nil, fmt.Errorf("%v serializer initialization error: %v", plugin, err.Error())
 	}
 
-	var compressor core.Compressor
+	var _compressor core.Compressor
 	if compressorCfg, compressorName := serializerCfg.Compressor(); compressorCfg != nil {
 		compressorFunc, ok := plugins.GetCompressor(compressorName)
 		if !ok {
 			return nil, fmt.Errorf("%v serializer: unknown compressor plugin in pipeline configuration: %v", plugin, compressorName)
 		}
-		compressor = compressorFunc()
+		_compressor = compressorFunc()
 
-		if err := mapstructure.Decode(compressorCfg, compressor, p.decodeHook()); err != nil {
+		if err := mapstructure.Decode(compressorCfg, _compressor, p.decodeHook()); err != nil {
 			return nil, fmt.Errorf("%v serializer: %v compressor: configuration mapping error: %v", plugin, compressorName, err.Error())
 		}
 
-		if err := compressor.Init(); err != nil {
+		if err := _compressor.Init(); err != nil {
 			return nil, fmt.Errorf("%v serializer: %v compressor: initialization error: %v", plugin, compressorName, err.Error())
 		}
 	}
 
-	return &core.SerializerComperssor{S: serializer, C: compressor}, nil
+	return &core.SerializerComperssor{S: _serializer, C: _compressor}, nil
 }
 
 func (p *Pipeline) configureCallable(plugin any, pluginCfg config.Plugin, parentAlias string) error {
