@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
 	"github.com/gekatateam/neptunus/pipeline/model"
+	xerrors "github.com/gekatateam/neptunus/pkg/errors"
 )
 
 type restApi struct {
@@ -47,16 +47,16 @@ func (a *restApi) Start() http.Handler {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
 			w.Write(model.OkToJson("starting", nil))
-		case errors.As(err, &pipeline.ValidationErr):
+		case xerrors.AsType[*pipeline.ValidationError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.NotFoundErr):
+		case xerrors.AsType[*pipeline.NotFoundError](err):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.ConflictErr):
+		case xerrors.AsType[*pipeline.ConflictError](err):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.IOErr):
+		case xerrors.AsType[*pipeline.IOError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
@@ -80,10 +80,10 @@ func (a *restApi) Stop() http.Handler {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
 			w.Write(model.OkToJson("stopping", nil))
-		case errors.As(err, &pipeline.ConflictErr):
+		case xerrors.AsType[*pipeline.ConflictError](err):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.NotFoundErr):
+		case xerrors.AsType[*pipeline.NotFoundError](err):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
@@ -107,7 +107,7 @@ func (a *restApi) State() http.Handler {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
 			w.Write(model.OkToJson(status, lastErr))
-		case errors.As(err, &pipeline.NotFoundErr):
+		case xerrors.AsType[*pipeline.NotFoundError](err):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
@@ -127,11 +127,11 @@ func (a *restApi) List() http.Handler {
 		pipes, err := a.s.List()
 		switch {
 		case err == nil:
-		case errors.As(err, &pipeline.ValidationErr):
+		case xerrors.AsType[*pipeline.ValidationError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 			return
-		case errors.As(err, &pipeline.IOErr):
+		case xerrors.AsType[*pipeline.IOError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 			return
@@ -177,13 +177,13 @@ func (a *restApi) Get() http.Handler {
 			data, _ := config.MarshalPipeline(*pipe, ".json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(data)
-		case errors.As(err, &pipeline.NotFoundErr):
+		case xerrors.AsType[*pipeline.NotFoundError](err):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.ValidationErr):
+		case xerrors.AsType[*pipeline.ValidationError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.IOErr):
+		case xerrors.AsType[*pipeline.IOError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
@@ -218,13 +218,13 @@ func (a *restApi) Add() http.Handler {
 		case err == nil:
 			w.WriteHeader(http.StatusCreated)
 			w.Write(model.OkToJson("added", nil))
-		case errors.As(err, &pipeline.ConflictErr):
+		case xerrors.AsType[*pipeline.ConflictError](err):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.ValidationErr):
+		case xerrors.AsType[*pipeline.ValidationError](err):
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.IOErr):
+		case xerrors.AsType[*pipeline.IOError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
@@ -260,16 +260,16 @@ func (a *restApi) Update() http.Handler {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
 			w.Write(model.OkToJson("updated", nil))
-		case errors.As(err, &pipeline.NotFoundErr):
+		case xerrors.AsType[*pipeline.NotFoundError](err):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.ConflictErr):
+		case xerrors.AsType[*pipeline.ConflictError](err):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.ValidationErr):
+		case xerrors.AsType[*pipeline.ValidationError](err):
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.IOErr):
+		case xerrors.AsType[*pipeline.IOError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:
@@ -293,13 +293,13 @@ func (a *restApi) Delete() http.Handler {
 		case err == nil:
 			w.WriteHeader(http.StatusOK)
 			w.Write(model.OkToJson("deleted", nil))
-		case errors.As(err, &pipeline.NotFoundErr):
+		case xerrors.AsType[*pipeline.NotFoundError](err):
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.ConflictErr):
+		case xerrors.AsType[*pipeline.ConflictError](err):
 			w.WriteHeader(http.StatusConflict)
 			w.Write(model.ErrToJson(err.Error()))
-		case errors.As(err, &pipeline.IOErr):
+		case xerrors.AsType[*pipeline.IOError](err):
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(model.ErrToJson(err.Error()))
 		default:

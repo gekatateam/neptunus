@@ -81,9 +81,8 @@ func run(cCtx *cli.Context) error {
 	})
 
 	if err := s.StartAll(); err != nil {
-		var pipelineErr *xerrors.Errorlist
 		// any other error means that app must die
-		if !errors.As(err, &pipelineErr) {
+		if _, ok := errors.AsType[xerrors.Errorlist](err); !ok {
 			return err
 		}
 

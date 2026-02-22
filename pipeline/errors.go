@@ -1,12 +1,5 @@
 package pipeline
 
-var (
-	NotFoundErr   *NotFoundError
-	ConflictErr   *ConflictError
-	IOErr         *IOError
-	ValidationErr *ValidationError
-)
-
 type NotFoundError struct{ Err error }
 
 func (e *NotFoundError) Error() string { return e.Err.Error() }

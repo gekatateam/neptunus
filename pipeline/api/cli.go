@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"
 	"github.com/gekatateam/neptunus/pipeline/gateway"
+	xerrors "github.com/gekatateam/neptunus/pkg/errors"
 	pkg "github.com/gekatateam/neptunus/pkg/tls"
 )
 
@@ -99,7 +99,7 @@ func (c *cliApi) Describe(cCtx *cli.Context) error {
 	pipe, err := c.gw.Get(id)
 	switch {
 	case err == nil:
-	case errors.As(err, &pipeline.NotFoundErr):
+	case xerrors.AsType[*pipeline.NotFoundError](err):
 		fmt.Printf("pipeline %v not found: %v\n", id, err.Error())
 		os.Exit(1)
 	default:
@@ -137,10 +137,10 @@ func (c *cliApi) Start(cCtx *cli.Context) error {
 	case err == nil:
 		fmt.Printf("pipeline %v accepts start signal\n", id)
 		return nil
-	case errors.As(err, &pipeline.NotFoundErr):
+	case xerrors.AsType[*pipeline.NotFoundError](err):
 		fmt.Printf("pipeline %v startup failed: pipeline not found: %v\n", id, err.Error())
 		os.Exit(1)
-	case errors.As(err, &pipeline.ConflictErr):
+	case xerrors.AsType[*pipeline.ConflictError](err):
 		fmt.Printf("pipeline %v startup failed: conflict state: %v\n", id, err.Error())
 		os.Exit(1)
 	default:
@@ -158,10 +158,10 @@ func (c *cliApi) Stop(cCtx *cli.Context) error {
 	case err == nil:
 		fmt.Printf("pipeline %v accepts stop signal\n", id)
 		return nil
-	case errors.As(err, &pipeline.NotFoundErr):
+	case xerrors.AsType[*pipeline.NotFoundError](err):
 		fmt.Printf("pipeline %v stop failed: pipeline not found: %v\n", id, err.Error())
 		os.Exit(1)
-	case errors.As(err, &pipeline.ConflictErr):
+	case xerrors.AsType[*pipeline.ConflictError](err):
 		fmt.Printf("pipeline %v stop failed: conflict state: %v\n", id, err.Error())
 		os.Exit(1)
 	default:
@@ -192,7 +192,7 @@ func (c *cliApi) Deploy(cCtx *cli.Context) error {
 	switch {
 	case err == nil:
 		fmt.Printf("pipeline %v successfully deployed\n", pipe.Settings.Id)
-	case errors.As(err, &pipeline.ConflictErr):
+	case xerrors.AsType[*pipeline.ConflictError](err):
 		fmt.Printf("pipeline %v deploy failed: conflict state: %v\n", pipe.Settings.Id, err.Error())
 		os.Exit(1)
 	default:
@@ -224,10 +224,10 @@ func (c *cliApi) Update(cCtx *cli.Context) error {
 	switch {
 	case err == nil:
 		fmt.Printf("pipeline %v successfully updated\n", pipe.Settings.Id)
-	case errors.As(err, &pipeline.NotFoundErr):
+	case xerrors.AsType[*pipeline.NotFoundError](err):
 		fmt.Printf("pipeline %v update failed: pipeline not found: %v\n", pipe.Settings.Id, err.Error())
 		os.Exit(1)
-	case errors.As(err, &pipeline.ConflictErr):
+	case xerrors.AsType[*pipeline.ConflictError](err):
 		fmt.Printf("pipeline %v update failed: conflict state: %v\n", pipe.Settings.Id, err.Error())
 		os.Exit(1)
 	default:
@@ -245,10 +245,10 @@ func (c *cliApi) Delete(cCtx *cli.Context) error {
 	switch {
 	case err == nil:
 		fmt.Printf("pipeline %v successfully deleted\n", id)
-	case errors.As(err, &pipeline.NotFoundErr):
+	case xerrors.AsType[*pipeline.NotFoundError](err):
 		fmt.Printf("pipeline %v delete failed: pipeline not found: %v\n", id, err.Error())
 		os.Exit(1)
-	case errors.As(err, &pipeline.ConflictErr):
+	case xerrors.AsType[*pipeline.ConflictError](err):
 		fmt.Printf("pipeline %v delete failed: conflict state: %v\n", id, err.Error())
 		os.Exit(1)
 	default:
