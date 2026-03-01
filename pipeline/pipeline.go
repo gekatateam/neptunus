@@ -705,17 +705,17 @@ func (p *Pipeline) configureInputs() error {
 			}
 			p.aliases[alias] = struct{}{}
 
-			if serializerNeedy, ok := _input.(core.SetSerializer); ok {
-				serializerCfg := inputCfg.Serializer()
-				if serializerCfg == nil {
-					return fmt.Errorf("%v input requires serializer, but no serializer configuration provided", plugin)
+			if lookupNeedy, ok := _input.(core.SetLookup); ok {
+				lookupName := inputCfg.Lookup()
+				if lookupName == "" {
+					return fmt.Errorf("%v input: plugin requires lookup, but no lookup name provided", plugin)
 				}
 
-				serializer, err := p.configureSerializer(serializerCfg, alias)
-				if err != nil {
-					return fmt.Errorf("%v input serializer configuration error: %v", plugin, err.Error())
+				lookup, ok := p.lookups[lookupName]
+				if !ok {
+					return fmt.Errorf("%v input: plugin requires lookup %v, but no such lookup configured", plugin, lookupName)
 				}
-				serializerNeedy.SetSerializer(serializer)
+				lookupNeedy.SetLookup(lookup)
 			}
 
 			if err := p.configureCallable(_input, inputCfg, alias); err != nil {
