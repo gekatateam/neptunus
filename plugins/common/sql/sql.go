@@ -35,6 +35,10 @@ func OpenDB(driverName, dsn, user, pass string, tlsConfig *tls.Config) (*sqlx.DB
 		}
 
 		cfg.TLSConfig = tlsConfig
+		for _, v := range cfg.Fallbacks {
+			v.TLSConfig = tlsConfig
+		}
+
 		db = pgxstd.OpenDB(*cfg)
 	case "mysql":
 		cfg, err := mysql.ParseDSN(dsn)
