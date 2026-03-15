@@ -87,23 +87,8 @@ func (p *Mixer) Run() {
 
 		curr, _ := outs.Load(p.id)
 		stored := curr.(outputChans)
-		stored.mu.RLock()
 
-		cases := make([]reflect.SelectCase, 0, len(stored.ch))
-		for _, out := range stored.ch {
-			cases = append(cases, reflect.SelectCase{
-				Dir:  reflect.SelectSend,
-				Chan: reflect.ValueOf(out),
-				Send: reflect.ValueOf(e),
-			})
-		}
-
-		chosen, _, _ := reflect.Select(cases)
-		p.Log.Debug(fmt.Sprintf("event sent to chan %v", chosen),
-			elog.EventGroup(e),
-		)
-		stored.mu.RUnlock()
-
+		p.selectOutputWithLock(stored, e)
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
 
@@ -118,4 +103,23 @@ func (p *Mixer) Run() {
 
 	delete(stored.ch, p.line)
 	p.Log.Info(fmt.Sprintf("event output chan deleted on line %v; channels total: %v", p.line, len(stored.ch)))
+}
+
+func (p *Mixer) selectOutputWithLock(stored outputChans, e *core.Event) {
+	stored.mu.RLock()
+	defer stored.mu.RUnlock()
+
+	cases := make([]reflect.SelectCase, 0, len(stored.ch))
+	for _, out := range stored.ch {
+		cases = append(cases, reflect.SelectCase{
+			Dir:  reflect.SelectSend,
+			Chan: reflect.ValueOf(out),
+			Send: reflect.ValueOf(e),
+		})
+	}
+
+	chosen, _, _ := reflect.Select(cases)
+	p.Log.Debug(fmt.Sprintf("event sent to chan %v", chosen),
+		elog.EventGroup(e),
+	)
 }
