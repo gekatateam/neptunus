@@ -34,7 +34,7 @@ func (o *Observer) Observe(status EventStatus, t time.Duration) {
 	// for future updates
 	metric, ok := o.m[status]
 	if !ok {
-		metric = CoreSet.NewSummaryExt(
+		metric = CoreSet.GetOrCreateSummaryExt(
 			fmt.Sprintf(pluginMetricName, o.d.Kind, o.d.Plugin, o.d.Name, o.d.Pipeline, status),
 			DefaultMetricWindow,
 			DefaultSummaryQuantiles,
@@ -45,9 +45,9 @@ func (o *Observer) Observe(status EventStatus, t time.Duration) {
 	metric.Update(t.Seconds())
 }
 
-func (o *Observer) Close() error {
-	for status := range o.m {
-		CoreSet.UnregisterMetric(fmt.Sprintf(pluginMetricName, o.d.Kind, o.d.Plugin, o.d.Name, o.d.Pipeline, status))
-	}
-	return nil
-}
+// func (o *Observer) Close() error {
+// 	for status := range o.m {
+// 		CoreSet.UnregisterMetric(fmt.Sprintf(pluginMetricName, o.d.Kind, o.d.Plugin, o.d.Name, o.d.Pipeline, status))
+// 	}
+// 	return nil
+// }

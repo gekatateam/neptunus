@@ -27,7 +27,7 @@ type BaseInput struct {
 	Pipeline string
 
 	Log *slog.Logger
-	Obs metrics.ObserveFunc
+	Obs *metrics.Observer
 	Out chan<- *Event
 }
 
@@ -36,7 +36,7 @@ func (b *BaseInput) SetChannels(out chan<- *Event) {
 }
 
 func (b *BaseInput) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseProcessor struct {
