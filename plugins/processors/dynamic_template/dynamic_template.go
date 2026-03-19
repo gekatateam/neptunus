@@ -166,6 +166,9 @@ func (p *DynamicTemplate) processTemplate(e *core.Event, te cte.TEvent, source, 
 		}
 
 		cache.Put(content, t)
+		p.Log.Debug(fmt.Sprintf("new template created: %q; from source: %v", content, source),
+			elog.EventGroup(e),
+		)
 	}
 
 	if err := t.Execute(p.buf, te); err != nil {
