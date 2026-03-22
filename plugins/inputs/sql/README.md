@@ -101,6 +101,13 @@ Drivers use plugin TLS configuration.
       last = [ "insert_timestamp" ]
       all = [ "id" ]
 
+    # initial values for onPoll query
+    # in case, when onInit query returns zero rows
+    # anyway, if onInit query successfully selected some values
+    # "initial_values" with same keys will be overrided
+    [inputs.sql.initial_values]
+      insert_timestamp = "2026-03-22 11:18:15.870331+00"
+
     # initializing query, executed once on plugin startup
     # if both, "file" and "query" are set, file is prioritized
     [inputs.sql.on_init]
