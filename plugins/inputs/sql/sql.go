@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -48,11 +49,12 @@ type Sql struct {
 	IsolationLevel string `mapstructure:"isolation_level"`
 	ReadOnly       bool   `mapstructure:"read_only"`
 
-	OnInit       csql.QueryInfo    `mapstructure:"on_init"`
-	OnPoll       csql.QueryInfo    `mapstructure:"on_poll"`
-	OnDone       csql.QueryInfo    `mapstructure:"on_done"`
-	KeepValues   KeepValues        `mapstructure:"keep_values"`
-	LabelColumns map[string]string `mapstructure:"labelcolumns"`
+	OnInit        csql.QueryInfo    `mapstructure:"on_init"`
+	OnPoll        csql.QueryInfo    `mapstructure:"on_poll"`
+	OnDone        csql.QueryInfo    `mapstructure:"on_done"`
+	KeepValues    KeepValues        `mapstructure:"keep_values"`
+	InitialValues map[string]any    `mapstructure:"initial_values"`
+	LabelColumns  map[string]string `mapstructure:"labelcolumns"`
 
 	keepIndex  map[string]int
 	keepValues map[string]any
@@ -79,7 +81,7 @@ func (i *Sql) Init() error {
 		}
 	}
 
-	i.keepValues = make(map[string]any)
+	i.keepValues = i.InitialValues
 	i.keepIndex = make(map[string]int)
 	for _, v := range i.KeepValues.First {
 		if _, ok := i.keepIndex[v]; ok {
@@ -200,7 +202,10 @@ func (i *Sql) init() error {
 		first = false
 	}
 
-	i.keepValues = keepValues
+	// add fetched values to keepValues
+	// override existing ones if duplicated, because fetched are more up to date
+	maps.Copy(i.keepValues, keepValues)
+
 	return nil
 }
 
@@ -363,6 +368,7 @@ func init() {
 				QueryTimeout:     30 * time.Second,
 				TLSClientConfig:  &tls.TLSClientConfig{},
 			},
+			InitialValues:   map[string]any{},
 			Transactional:   false,
 			IsolationLevel:  "Default",
 			Interval:        0,
