@@ -83,9 +83,7 @@ func (l *Lookup) Run() {
 					)
 					l.Observe(metrics.EventFailed, time.Since(now))
 				} else {
-					l.mu.Lock()
-					l.data = data
-					l.mu.Unlock()
+					l.setDataWithLock(data)
 					l.Log.Debug("lookup updated")
 					l.Observe(metrics.EventAccepted, time.Since(now))
 				}
@@ -104,4 +102,11 @@ func (l *Lookup) Get(key string) (any, error) {
 	}
 
 	return mappath.Clone(data), nil
+}
+
+func (l *Lookup) setDataWithLock(data any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.data = data
 }
