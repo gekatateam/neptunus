@@ -4,19 +4,24 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	"github.com/gekatateam/neptunus/plugins/common/refreshmap"
 )
+
+type storedTemplate struct {
+	t *template.Template
+	d time.Time
+}
 
 var cache = templateCache{
 	u:  0,
-	m:  make(map[string]*template.Template),
-	d:  make(map[string]time.Time),
+	m:  make(map[string]storedTemplate),
 	mu: &sync.Mutex{},
 }
 
 type templateCache struct {
 	u  int
-	m  map[string]*template.Template
-	d  map[string]time.Time
+	m  map[string]storedTemplate
 	mu *sync.Mutex
 }
 
@@ -37,30 +42,36 @@ func (c *templateCache) Get(key string) (*template.Template, bool) {
 
 	t, ok := c.m[key]
 	if ok {
-		c.d[key] = time.Now()
+		t.d = time.Now()
+		c.m[key] = t
 	}
 
-	return t, ok
+	return t.t, ok
 }
 
 func (c *templateCache) Put(key string, t *template.Template) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.m[key] = t
-	c.d[key] = time.Now()
+	c.m[key] = storedTemplate{
+		t: t,
+		d: time.Now(),
+	}
 }
 
 func (c *templateCache) DropOlderThan(olderThan time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for k, v := range c.d {
-		if time.Since(v) > olderThan {
-			delete(c.d, k)
+	prev := len(c.m)
+
+	for k, v := range c.m {
+		if time.Since(v.d) > olderThan {
 			delete(c.m, k)
 		}
 	}
+
+	c.m = refreshmap.RefreshIfNeeded(c.m, prev)
 }
 
 func (c *templateCache) Leave() {
@@ -70,7 +81,6 @@ func (c *templateCache) Leave() {
 	c.u--
 	if c.u <= 0 {
 		clear(c.m)
-		clear(c.d)
 		c.u = 0
 	}
 }

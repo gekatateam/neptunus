@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.dtemplate"
   lines = 2
-  run = false
+  run = true
   buffer = 5
 
 [[inputs]]
@@ -12,6 +12,8 @@
     query_params_to = ""
     wait_for_delivery = false
     tls_enable = false
+    [inputs.http.labelheaders]
+      iteration = "iteration"
     [inputs.http.parser]
       type = "json"
       split_array = true
@@ -36,6 +38,7 @@
     period = "15s"
     metric_ttl = "1m"
     routing_key = "neptunus.generated.metric"
+    with_labels = [ "iteration" ]
     [processors.stats.fields]
       "keysnum" = ["count", "sum", "avg", "gauge", "max", "min", "histogram"]
 

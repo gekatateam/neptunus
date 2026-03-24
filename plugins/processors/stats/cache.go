@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/plugins/common/refreshmap"
 )
 
 type cache interface {
@@ -17,53 +18,61 @@ type cache interface {
 	clear()
 }
 
+type storedMetric struct {
+	m *metric
+	d time.Time
+}
+
 type individualCache struct {
-	c map[uint64]*metric
-	d map[uint64]time.Time
+	c map[uint64]storedMetric
 }
 
 func newIndividualCache() individualCache {
 	return individualCache{
-		c: make(map[uint64]*metric),
-		d: make(map[uint64]time.Time),
+		c: make(map[uint64]storedMetric),
 	}
 }
 
 func (c individualCache) observe(m *metric, b map[float64]float64, v float64) {
 	hash := m.hash()
-	c.d[hash] = time.Now()
 
-	if metric, ok := c.c[hash]; ok {
-		m = metric
+	if stored, ok := c.c[hash]; ok {
+		m = stored.m
 	} else {
 		// hit an uncached metric
 		// add buckets into it, once
 		m.Value.Buckets = maps.Clone(b)
-		c.c[hash] = m
+	}
+
+	c.c[hash] = storedMetric{
+		m: m,
+		d: time.Now(),
 	}
 
 	m.observe(v)
 }
 
 func (c individualCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch chan<- *core.Event)) {
-	for _, m := range c.c {
-		flushFn(m, out)
-		m.reset()
+	for _, stored := range c.c {
+		flushFn(stored.m, out)
+		stored.m.reset()
 	}
 }
 
 func (c individualCache) dropOlderThan(olderThan time.Duration) {
-	for k, v := range c.d {
-		if time.Since(v) > olderThan {
-			delete(c.d, k)
+	prev := len(c.c)
+
+	for k, v := range c.c {
+		if time.Since(v.d) > olderThan {
 			delete(c.c, k)
 		}
 	}
+
+	c.c = refreshmap.RefreshIfNeeded(c.c, prev)
 }
 
 func (c individualCache) clear() {
 	clear(c.c)
-	clear(c.d)
 }
 
 func (c individualCache) Size() int {
@@ -134,10 +143,7 @@ func (c *sharedCache) flush(out chan<- *core.Event, flushFn func(m *metric, ch c
 
 	c.syncPoint++
 	if c.syncPoint == c.writers {
-		for _, m := range c.cache.c {
-			flushFn(m, out)
-			m.reset()
-		}
+		c.cache.flush(out, flushFn)
 		c.syncPoint = 0
 	}
 }
