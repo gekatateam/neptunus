@@ -15,4 +15,8 @@ The result of this plugin depends on passed data:
   [inputs.http.parser]
     type = "json"
     split_array = true
+
+    # "standard" - https://pkg.go.dev/encoding/json#Unmarshal
+    # "goccy" - https://pkg.go.dev/github.com/goccy/go-json#Unmarshal
+    unmarshaler = "standard"
 ```

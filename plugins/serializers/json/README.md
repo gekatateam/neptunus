@@ -21,4 +21,8 @@ The `json` serializer plugin converts events into json.
     # if true, parser ignores serialization errors
     # and skips failed events
     omit_failed = true
+
+    # "standard" - https://pkg.go.dev/encoding/json#Marshal
+    # "goccy" - https://pkg.go.dev/github.com/goccy/go-json#Marshal
+    marshaler = "standard"
 ```
