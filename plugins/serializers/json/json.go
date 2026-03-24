@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goccy/go-json"
+	std "encoding/json"
+
+	goccy "github.com/goccy/go-json"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -19,8 +21,10 @@ type Json struct {
 	DataOnly             bool   `mapstructure:"data_only"`
 	OmitFailed           bool   `mapstructure:"omit_failed"`
 	Mode                 string `mapstructure:"mode"`
+	Marshaler            string `mapstructure:"marshaler"`
 
 	serFunc func(buf *bytes.Buffer, events ...*core.Event) ([]byte, error)
+	marshal func(any) ([]byte, error)
 
 	delim string
 	start string
@@ -37,6 +41,15 @@ func (s *Json) Init() error {
 		s.end = "]"
 	default:
 		return fmt.Errorf("forbidden mode: %v, expected one of: jsonl, array", s.Mode)
+	}
+
+	switch s.Marshaler {
+	case "standard":
+		s.marshal = std.Marshal
+	case "goccy":
+		s.marshal = goccy.Marshal
+	default:
+		return fmt.Errorf("unknown marshaler: %v", s.Marshaler)
 	}
 
 	if s.OmitFailed {
@@ -136,9 +149,9 @@ func (s *Json) serializeFailFast(buf *bytes.Buffer, events ...*core.Event) ([]by
 
 func (s *Json) eventOrData(event *core.Event) ([]byte, error) {
 	if s.DataOnly {
-		return json.MarshalNoEscape(event.Data)
+		return s.marshal(event.Data)
 	}
-	return json.MarshalNoEscape(event)
+	return s.marshal(event)
 }
 
 func init() {
@@ -147,6 +160,7 @@ func init() {
 			DataOnly:   false,
 			Mode:       "jsonl",
 			OmitFailed: true,
+			Marshaler:  "standard",
 		}
 	})
 }

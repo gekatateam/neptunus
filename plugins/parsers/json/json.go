@@ -1,9 +1,12 @@
 package json
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/goccy/go-json"
+	std "encoding/json"
+
+	goccy "github.com/goccy/go-json"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -12,10 +15,22 @@ import (
 
 type Json struct {
 	*core.BaseParser `mapstructure:"-"`
-	SplitArray       bool `mapstructure:"split_array"`
+	Unmarshaler      string `mapstructure:"unmarshaler"`
+	SplitArray       bool   `mapstructure:"split_array"`
+
+	unmarshal func([]byte, any) error
 }
 
 func (p *Json) Init() error {
+	switch p.Unmarshaler {
+	case "standard":
+		p.unmarshal = std.Unmarshal
+	case "goccy":
+		p.unmarshal = goccy.Unmarshal
+	default:
+		return fmt.Errorf("unknown unmarshaler: %v", p.Unmarshaler)
+	}
+
 	return nil
 }
 
@@ -35,7 +50,7 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 
 	if data[0] == '[' { // array provided - [{...},{...},...]
 		eventData := []any{}
-		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {
+		if err := p.unmarshal(data, &eventData); err != nil {
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return nil, err
 		}
@@ -52,7 +67,7 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 		}
 	} else { // object provided - {...}
 		eventData := map[string]any{}
-		if err := json.UnmarshalNoEscape(data, &eventData); err != nil {
+		if err := p.unmarshal(data, &eventData); err != nil {
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return nil, err
 		}
@@ -65,7 +80,8 @@ func (p *Json) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 func init() {
 	plugins.AddParser("json", func() core.Parser {
 		return &Json{
-			SplitArray: true,
+			Unmarshaler: "standard",
+			SplitArray:  true,
 		}
 	})
 }
