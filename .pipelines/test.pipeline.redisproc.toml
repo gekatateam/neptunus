@@ -1,9 +1,16 @@
 [settings]
   id = "test.pipeline.redisproc"
   lines = 5
-  run = false
+  run = true
   buffer = 1_000
   log_level = "debug"
+
+[vars]
+  hset = "testspace:map"
+
+[[keykeepers]]
+  [keykeepers.self]
+    alias = "self"
 
 [[inputs]]
   [inputs.http]
@@ -18,13 +25,17 @@
 
 [[processors]]
   [processors.redis]
+    log_level = "debug"
     servers = [ "localhost:6379" ]
     password = "redis"
     retry_attempts = 1
     conns_max_open = 5
     conns_max_idle = 5
     result_to = "result"
-    command = [ "hsetex", "testspace:map", "ex", 3600, "fields", "{{- keysnum -}}", "{{- data -}}" ]
+    commands = [
+      [ "hset", "@{self:vars.hset}", "{{- data -}}" ],
+      [ "hexpire", "@{self:vars.hset}", "{{- ttl -}}", "fields", "{{- keysnum -}}", "{{- keys -}}" ],
+    ]
 
 [[processors]]
   [processors.redis]
@@ -34,7 +45,9 @@
     conns_max_open = 5
     conns_max_idle = 5
     result_to = "afterGet"
-    command = [ "hgetall", "testspace:map" ]
+    commands = [
+      [ "hgetall", "@{self:vars.hset}" ],
+    ]
 
 [[outputs]]
   [outputs.log]

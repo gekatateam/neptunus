@@ -1,6 +1,6 @@
 # Redis Processor Plugin
 
-The `redis` processor plugin processes configured `command` and saves it's result in `result_to` event field.
+The `redis` processor plugin executes configured `commands` in pipeline and saves it's result in `result_to` event field.
 
 Due to [Redis protocol spec](https://redis.io/docs/latest/develop/reference/protocol-spec/), command writes as an array of **command name** and **it's args**.
 
@@ -16,10 +16,11 @@ In configuration example below, this event body:
     "key": "test data",
     "another key": true,
     "more keys": 1337.42
-  }
+  },
+  "keys": ["key", "another key", "more keys"]
 }
 ```
-will be rendered to: `[ "hsetex", "testspace:map", "ex", 3600, "fields", 3, "key", "test data", "another key", true, "more keys", 1337.42 ]`.
+will be rendered to: `[ "hset", "testspace:map", "key", "test data", "another key", true, "more keys", 1337.42 ]`, `[ "hexpire", "testspace:map", 30, "fields", 3, "key", "another key", "more keys" ]`.
 
 ## Configuration
 ```toml
@@ -41,8 +42,11 @@ will be rendered to: `[ "hsetex", "testspace:map", "ex", 3600, "fields", 3, "key
     # interval between retries
     retry_after = "5s"
 
-    # command to execute
-    command = [ "hsetex", "testspace:map", "ex", 3600, "fields", "{{- keysnum -}}", "{{- data -}}" ]
+    # commands to execute
+    commands = [
+      [ "hset", "testspace:map", "{{- data -}}" ],
+      [ "hexpire", "testspace:map", 30, "fields", "{{- keysnum -}}", "{{- keys -}}" ],
+    ]
 
     # path to save command result
     # only used if not empty
@@ -68,5 +72,4 @@ will be rendered to: `[ "hsetex", "testspace:map", "ex", 3600, "fields", 3, "key
     tls_server_name = "exmple.svc.local"
     # use TLS but skip chain & host verification
     tls_insecure_skip_verify = false
-
 ```

@@ -30,29 +30,39 @@ type Redis struct {
 	ConnsMaxOpen        int           `mapstructure:"conns_max_open"`
 	ConnsMaxIdle        int           `mapstructure:"conns_max_idle"`
 
-	Command  []any  `mapstructure:"command"`
-	ResultTo string `mapstructure:"result_to"`
+	Commands [][]any `mapstructure:"commands"`
+	ResultTo string  `mapstructure:"result_to"`
 
 	*tls.TLSClientConfig `mapstructure:",squash"`
 	*retryer.Retryer     `mapstructure:",squash"`
 
 	id     uint64
 	client redis.UniversalClient
-	args   []pluginArg
+	args   [][]pluginArg
 }
 
 func (p *Redis) Init() error {
-	if len(p.Command) == 0 {
-		return errors.New("command required")
+	if len(p.Commands) == 0 {
+		return errors.New("at least one command required")
+	}
+
+	for i := range p.Commands {
+		if len(p.Commands[i]) == 0 {
+			return fmt.Errorf("command at index %v is empty", i)
+		}
 	}
 
 	if len(p.Servers) == 0 {
 		return errors.New("at least one Redis server address required")
 	}
 
-	p.args = make([]pluginArg, 0, len(p.Command))
-	for _, v := range p.Command {
-		p.args = append(p.args, newPluginArg(v))
+	p.args = make([][]pluginArg, 0, len(p.Commands))
+	for _, c := range p.Commands {
+		cmd := make([]pluginArg, 0, len(c))
+		for _, v := range c {
+			cmd = append(cmd, newPluginArg(v))
+		}
+		p.args = append(p.args, cmd)
 	}
 
 	tlsConfig, err := p.TLSClientConfig.Config()
@@ -103,7 +113,7 @@ func (p *Redis) Run() {
 	for e := range p.In {
 		now := time.Now()
 
-		args, err := commandArgs(p.args, e)
+		cmds, err := p.prepareCommands(e)
 		if err != nil {
 			p.Log.Error("command args preparation failed",
 				"error", err,
@@ -115,22 +125,7 @@ func (p *Redis) Run() {
 			continue
 		}
 
-		p.Log.Debug(fmt.Sprintf("prepared command: %v", args),
-			elog.EventGroup(e),
-		)
-
-		var result any
-		err = p.Retryer.Do("exec command", p.Log, func() error {
-			r, err := p.client.Do(context.Background(), args...).Result()
-			result = r
-
-			if err != nil && !errors.Is(err, redis.Nil) {
-				return err
-			}
-
-			return nil
-		})
-
+		cmders, err := p.execPipelined(cmds)
 		if err != nil {
 			p.Log.Error("command execution failed",
 				"error", err,
@@ -143,7 +138,7 @@ func (p *Redis) Run() {
 		}
 
 		if len(p.ResultTo) > 0 {
-			field, err := unpackResult(result)
+			field, err := p.unpackCmders(cmders)
 			if err != nil {
 				p.Log.Error("command result unpack failed",
 					"error", err,
@@ -167,12 +162,73 @@ func (p *Redis) Run() {
 			}
 		}
 
-		p.Log.Debug("command execution completed",
+		p.Log.Debug("commands execution completed",
 			elog.EventGroup(e),
 		)
 		p.Out <- e
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
+}
+
+func (p *Redis) prepareCommands(e *core.Event) ([][]any, error) {
+	cmds := make([][]any, 0, len(p.args))
+
+	for i, args := range p.args {
+		cmd, err := commandArgs(args, e)
+		if err != nil {
+			return nil, fmt.Errorf("command args preparation failed for command at index %v: %w", i, err)
+		}
+
+		p.Log.Debug(fmt.Sprintf("prepared command: %v at index %v", cmd, i),
+			elog.EventGroup(e),
+		)
+
+		cmds = append(cmds, cmd)
+	}
+	return cmds, nil
+}
+
+func (p *Redis) execPipelined(cmds [][]any) ([]redis.Cmder, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	defer cancel()
+
+	var pipelineResult []redis.Cmder
+	err := p.Retryer.Do("exec commands in pipeline", p.Log, func() error {
+		result, err := p.client.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			for _, cmd := range cmds {
+				pipe.Do(ctx, cmd...)
+			}
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		pipelineResult = result
+		return nil
+	})
+
+	return pipelineResult, err
+}
+
+func (p *Redis) unpackCmders(cmders []redis.Cmder) ([]any, error) {
+	result := make([]any, 0, len(cmders))
+
+	for i, cmd := range cmders {
+		r, err := cmd.(*redis.Cmd).Result()
+		if err != nil && !errors.Is(err, redis.Nil) {
+			return nil, fmt.Errorf("command result retrieval failed for command at index %v: %w", i, err)
+		}
+
+		field, err := unpackResult(r)
+		if err != nil {
+			return nil, fmt.Errorf("command result unpack failed for command at index %v: %w", i, err)
+		}
+		result = append(result, field)
+	}
+
+	return result, nil
 }
 
 func init() {
