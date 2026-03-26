@@ -1,11 +1,15 @@
 package dynamic_template
 
 import (
+	"maps"
 	"sync"
 	"text/template"
 	"time"
+)
 
-	"github.com/gekatateam/neptunus/plugins/common/refreshmap"
+const (
+	MapRefreshSize      = 1024
+	MapRefreshThreshold = 0.65
 )
 
 type storedTemplate struct {
@@ -20,9 +24,10 @@ var cache = templateCache{
 }
 
 type templateCache struct {
-	u  int
-	m  map[string]storedTemplate
-	mu *sync.Mutex
+	u   int
+	cap int
+	m   map[string]storedTemplate
+	mu  *sync.Mutex
 }
 
 func (c *templateCache) Size() int {
@@ -63,7 +68,7 @@ func (c *templateCache) DropOlderThan(olderThan time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	prev := len(c.m)
+	c.cap = max(c.cap, len(c.m))
 
 	for k, v := range c.m {
 		if time.Since(v.d) > olderThan {
@@ -71,7 +76,12 @@ func (c *templateCache) DropOlderThan(olderThan time.Duration) {
 		}
 	}
 
-	c.m = refreshmap.RefreshIfNeeded(c.m, prev)
+	if c.shouldShrink() {
+		newmap := make(map[string]storedTemplate, len(c.m))
+		maps.Copy(newmap, c.m)
+		c.m = newmap
+		c.cap = len(c.m)
+	}
 }
 
 func (c *templateCache) Leave() {
@@ -83,4 +93,9 @@ func (c *templateCache) Leave() {
 		clear(c.m)
 		c.u = 0
 	}
+}
+
+func (c *templateCache) shouldShrink() bool {
+	utilization := float64(len(c.m)) / float64(c.cap)
+	return len(c.m) > MapRefreshSize && utilization < MapRefreshThreshold
 }

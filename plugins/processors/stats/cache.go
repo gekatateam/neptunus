@@ -6,7 +6,11 @@ import (
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/plugins/common/refreshmap"
+)
+
+const (
+	MapRefreshSize      = 1024
+	MapRefreshThreshold = 0.65
 )
 
 type cache interface {
@@ -24,7 +28,8 @@ type storedMetric struct {
 }
 
 type individualCache struct {
-	c map[uint64]storedMetric
+	cap int
+	c   map[uint64]storedMetric
 }
 
 func newIndividualCache() individualCache {
@@ -60,7 +65,7 @@ func (c individualCache) flush(out chan<- *core.Event, flushFn func(m *metric, c
 }
 
 func (c individualCache) dropOlderThan(olderThan time.Duration) {
-	prev := len(c.c)
+	c.cap = max(c.cap, len(c.c))
 
 	for k, v := range c.c {
 		if time.Since(v.d) > olderThan {
@@ -68,11 +73,21 @@ func (c individualCache) dropOlderThan(olderThan time.Duration) {
 		}
 	}
 
-	c.c = refreshmap.RefreshIfNeeded(c.c, prev)
+	if c.shouldShrink() {
+		newmap := make(map[uint64]storedMetric, len(c.c))
+		maps.Copy(newmap, c.c)
+		c.c = newmap
+		c.cap = len(c.c)
+	}
 }
 
 func (c individualCache) clear() {
 	clear(c.c)
+}
+
+func (c individualCache) shouldShrink() bool {
+	utilization := float64(len(c.c)) / float64(c.cap)
+	return len(c.c) > MapRefreshSize && utilization < MapRefreshThreshold
 }
 
 func (c individualCache) Size() int {
