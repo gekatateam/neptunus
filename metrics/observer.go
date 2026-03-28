@@ -16,19 +16,24 @@ type PluginDescriptor struct {
 	Pipeline string
 }
 
-type Observer struct {
+type Observer interface {
+	Observe(status EventStatus, t time.Duration)
+	// Close() error
+}
+
+type VictoriaObserver struct {
 	d PluginDescriptor
 	m map[EventStatus]*metrics.Summary
 }
 
-func NewObserver(desc PluginDescriptor) *Observer {
-	return &Observer{
+func NewVictoriaObserver(desc PluginDescriptor) *VictoriaObserver {
+	return &VictoriaObserver{
 		d: desc,
 		m: make(map[EventStatus]*metrics.Summary, 3),
 	}
 }
 
-func (o *Observer) Observe(status EventStatus, t time.Duration) {
+func (o *VictoriaObserver) Observe(status EventStatus, t time.Duration) {
 	// long way, first initialization
 	// if there is no metric for passed status, we need to create and save it in local map
 	// for future updates
@@ -51,3 +56,11 @@ func (o *Observer) Observe(status EventStatus, t time.Duration) {
 // 	}
 // 	return nil
 // }
+
+type MockObserver struct{}
+
+func Mock() *MockObserver {
+	return &MockObserver{}
+}
+
+func (o *MockObserver) Observe(status EventStatus, t time.Duration) {}

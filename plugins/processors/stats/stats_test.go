@@ -263,7 +263,7 @@ func TestStats_WithLabelsConfigured(t *testing.T) {
 			processor := &stats.Stats{
 				BaseProcessor: &core.BaseProcessor{
 					Log: logger.Mock(),
-					Obs: metrics.ObserveMock,
+					Obs: metrics.Mock(),
 				},
 			}
 			if err := mapstructure.Decode(test.config, processor); err != nil {
@@ -444,7 +444,7 @@ func TestStats_NoLabelsConfigured(t *testing.T) {
 			processor := &stats.Stats{
 				BaseProcessor: &core.BaseProcessor{
 					Log: logger.Mock(),
-					Obs: metrics.ObserveMock,
+					Obs: metrics.Mock(),
 				},
 			}
 			if err := mapstructure.Decode(test.config, processor); err != nil {
@@ -652,7 +652,7 @@ func TestStats_WithoutLabelsConfigured(t *testing.T) {
 			processor := &stats.Stats{
 				BaseProcessor: &core.BaseProcessor{
 					Log: logger.Mock(),
-					Obs: metrics.ObserveMock,
+					Obs: metrics.Mock(),
 				},
 			}
 			if err := mapstructure.Decode(test.config, processor); err != nil {

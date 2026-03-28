@@ -136,7 +136,7 @@ func TestGlob(t *testing.T) {
 			filter := &glob.Glob{
 				BaseFilter: &core.BaseFilter{
 					Log: logger.Mock(),
-					Obs: metrics.ObserveMock,
+					Obs: metrics.Mock(),
 				},
 			}
 			if err := mapstructure.Decode(test.config, filter); err != nil {

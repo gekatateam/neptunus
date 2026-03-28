@@ -307,7 +307,7 @@ func TestParser(t *testing.T) {
 				Ider: &ider.Ider{},
 				BaseProcessor: &core.BaseProcessor{
 					Log: logger.Mock(),
-					Obs: metrics.ObserveMock,
+					Obs: metrics.Mock(),
 				},
 			}
 			if err := mapstructure.Decode(test.config, processor); err != nil {

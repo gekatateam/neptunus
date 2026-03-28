@@ -27,7 +27,8 @@ type BaseInput struct {
 	Pipeline string
 
 	Log *slog.Logger
-	Obs *metrics.Observer
+	Obs metrics.Observer
+
 	Out chan<- *Event
 }
 
@@ -44,8 +45,9 @@ type BaseProcessor struct {
 	Plugin   string
 	Pipeline string
 
-	Log  *slog.Logger
-	Obs  metrics.ObserveFunc
+	Log *slog.Logger
+	Obs metrics.Observer
+
 	In   <-chan *Event
 	Out  chan<- *Event
 	Drop chan<- *Event
@@ -58,7 +60,7 @@ func (b *BaseProcessor) SetChannels(in <-chan *Event, out chan<- *Event, drop ch
 }
 
 func (b *BaseProcessor) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseOutput struct {
@@ -66,8 +68,9 @@ type BaseOutput struct {
 	Plugin   string
 	Pipeline string
 
-	Log  *slog.Logger
-	Obs  metrics.ObserveFunc
+	Log *slog.Logger
+	Obs metrics.Observer
+
 	In   <-chan *Event
 	Done chan<- *Event
 }
@@ -78,7 +81,7 @@ func (b *BaseOutput) SetChannels(in <-chan *Event, done chan<- *Event) {
 }
 
 func (b *BaseOutput) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseFilter struct {
@@ -89,7 +92,8 @@ type BaseFilter struct {
 	Reverse bool
 
 	Log *slog.Logger
-	Obs metrics.ObserveFunc
+	Obs metrics.Observer
+
 	In  <-chan *Event
 	Rej chan<- *Event
 	Acc chan<- *Event
@@ -107,7 +111,7 @@ func (b *BaseFilter) SetChannels(in <-chan *Event, rejected chan<- *Event, accep
 }
 
 func (b *BaseFilter) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseParser struct {
@@ -116,11 +120,11 @@ type BaseParser struct {
 	Pipeline string
 
 	Log *slog.Logger
-	Obs metrics.ObserveFunc
+	Obs metrics.Observer
 }
 
 func (b *BaseParser) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseSerializer struct {
@@ -129,11 +133,11 @@ type BaseSerializer struct {
 	Pipeline string
 
 	Log *slog.Logger
-	Obs metrics.ObserveFunc
+	Obs metrics.Observer
 }
 
 func (b *BaseSerializer) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseCore struct {
@@ -142,11 +146,11 @@ type BaseCore struct {
 	Pipeline string
 
 	Log *slog.Logger
-	Obs metrics.ObserveFunc
+	Obs metrics.Observer
 }
 
 func (b *BaseCore) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type BaseKeykeeper struct {
@@ -163,11 +167,11 @@ type BaseLookup struct {
 	Pipeline string
 
 	Log *slog.Logger
-	Obs metrics.ObserveFunc
+	Obs metrics.Observer
 }
 
 func (b *BaseLookup) Observe(status metrics.EventStatus, dur time.Duration) {
-	b.Obs(b.Plugin, b.Alias, b.Pipeline, status, dur)
+	b.Obs.Observe(status, dur)
 }
 
 type SerializerComperssor struct {
