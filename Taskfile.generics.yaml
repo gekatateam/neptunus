@@ -95,6 +95,7 @@ tasks:
         go-licence-detector \
           -includeIndirect \
           -rules '.github/li-checker-rules.json' \
+          -overrides '.github/li-checker-overrides.json' \
           -noticeTemplate '.github/NOTICE.txt.tmpl' \
           -noticeOut '{{ .NEPTUNUS_BUILD_DIR }}/NOTICE.txt'   
     status:
