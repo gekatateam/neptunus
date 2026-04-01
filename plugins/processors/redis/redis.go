@@ -201,7 +201,7 @@ func (p *Redis) execPipelined(cmds [][]any) ([]redis.Cmder, error) {
 			return nil
 		})
 
-		if err != nil {
+		if err != nil && !errors.Is(err, redis.Nil) {
 			return err
 		}
 
