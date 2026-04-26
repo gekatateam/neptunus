@@ -2,6 +2,9 @@
 
 The `rk` processor plugin replaces an event routing key with a new one, depending on a current value.
 
+> [!CAUTION]
+> This plugin is deprecated. Please use [switchcase](../switchcase/) processor instead with `routing_keys` configuration
+
 ## Configuration
 ```toml
 [[processors]]
