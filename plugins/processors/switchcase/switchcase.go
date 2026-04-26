@@ -16,8 +16,11 @@ type SwitchCase struct {
 	*core.BaseProcessor `mapstructure:"-"`
 	Labels              map[string]Mapping `mapstructure:"labels"`
 	Fields              map[string]Mapping `mapstructure:"fields"`
-	labelsIndex         map[string]map[string]string
-	fieldsIndex         map[string]map[string]string
+	Rk                  Mapping            `mapstructure:"routing_keys"`
+
+	labelsIndex map[string]map[string]string
+	fieldsIndex map[string]map[string]string
+	rkIndex     map[string]string
 }
 
 func (p *SwitchCase) Init() error {
@@ -40,6 +43,12 @@ func (p *SwitchCase) Init() error {
 
 		p.fieldsIndex[field] = index
 	}
+
+	rkIndex, err := p.mappingToIndex(p.Rk)
+	if err != nil {
+		return fmt.Errorf("routing keys: %w", err)
+	}
+	p.rkIndex = rkIndex
 
 	return nil
 }
@@ -88,6 +97,10 @@ func (p *SwitchCase) Run() {
 
 			// if field exists, it can be set
 			e.SetField(field, newValue)
+		}
+
+		if newKey, ok := p.rkIndex[e.RoutingKey]; ok {
+			e.RoutingKey = newKey
 		}
 
 		p.Out <- e

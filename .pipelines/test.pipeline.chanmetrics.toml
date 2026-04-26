@@ -1,11 +1,22 @@
 [settings]
   id = "test.pipeline.chanmetrics"
   lines = 2
-  run = false
+  run = true
   buffer = 5
 
 [[keykeepers]]
   [keykeepers.env]
+
+[[lookups]]
+  [lookups.file]
+    alias = "posts"
+    file = ".pipelines/headfull.csv"
+    [lookups.file.parser]
+      type = "csv"
+      delimeter = ","
+      has_header = true
+      mode = "vertical"
+      key_column = "username"
 
 [[inputs]]
   [inputs.http]

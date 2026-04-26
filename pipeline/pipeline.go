@@ -431,6 +431,8 @@ func (p *Pipeline) configureKeykeepers() error {
 				return fmt.Errorf("%v keykeeper initialization error: %v", plugin, err.Error())
 			}
 
+			p.checkDeprecated(plugin, "keykeeper", alias, _keykeeper)
+
 			p.keepers[alias] = _keykeeper
 		}
 	}
@@ -491,6 +493,12 @@ func (p *Pipeline) configureLookups() error {
 
 			if err := _lookup.Init(); err != nil {
 				return fmt.Errorf("%v lookup initialization error: %v", plugin, err.Error())
+			}
+
+			if wrapper, ok := _lookup.(*lookup.Lookup); ok {
+				p.checkDeprecated(plugin, "lookup", alias, wrapper.LazyLookup)
+			} else {
+				p.checkDeprecated(plugin, "lookup", alias, _lookup)
 			}
 
 			p.lookups[alias] = _lookup
@@ -574,6 +582,8 @@ func (p *Pipeline) configureOutputs() error {
 			if err != nil {
 				return fmt.Errorf("%v output filters configuration error: %v", plugin, err.Error())
 			}
+
+			p.checkDeprecated(plugin, "output", alias, _output)
 
 			p.outs = append(p.outs, outputSet{_output, filters})
 		}
@@ -674,6 +684,8 @@ func (p *Pipeline) configureProcessors() error {
 					return fmt.Errorf("%v processor filters configuration error: %v", plugin, err.Error())
 				}
 
+				p.checkDeprecated(plugin, "processor", alias, _processor)
+
 				sets = append(sets, procSet{_processor, filters})
 			}
 		}
@@ -758,6 +770,8 @@ func (p *Pipeline) configureInputs() error {
 				return fmt.Errorf("%v input filters configuration error: %v", plugin, err.Error())
 			}
 
+			p.checkDeprecated(plugin, "input", alias, _input)
+
 			p.ins = append(p.ins, inputSet{_input, filters})
 		}
 	}
@@ -819,6 +833,8 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			return nil, fmt.Errorf("%v filter initialization error: %v", plugin, err.Error())
 		}
 
+		p.checkDeprecated(plugin, "filter", alias, _filter)
+
 		filters = append(filters, _filter)
 	}
 	return filters, nil
@@ -873,6 +889,8 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		return nil, fmt.Errorf("%v parser initialization error: %v", plugin, err.Error())
 	}
 
+	p.checkDeprecated(plugin, "parser", alias, _parser)
+
 	var _decompressor core.Decompressor
 	if decompressorCfg, decompressorName := parserCfg.Decompressor(); decompressorCfg != nil {
 		decompressorFunc, ok := plugins.GetDecompressor(decompressorName)
@@ -888,6 +906,8 @@ func (p *Pipeline) configureParser(parserCfg config.Plugin, parentName string) (
 		if err := _decompressor.Init(); err != nil {
 			return nil, fmt.Errorf("%v parser: %v decompressor: initialization error: %v", plugin, decompressorName, err.Error())
 		}
+
+		p.checkDeprecated(decompressorName, "decompressor", alias, _decompressor)
 	}
 
 	return &core.ParserDecompressor{P: _parser, D: _decompressor}, nil
@@ -942,6 +962,8 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 		return nil, fmt.Errorf("%v serializer initialization error: %v", plugin, err.Error())
 	}
 
+	p.checkDeprecated(plugin, "serializer", alias, _serializer)
+
 	var _compressor core.Compressor
 	if compressorCfg, compressorName := serializerCfg.Compressor(); compressorCfg != nil {
 		compressorFunc, ok := plugins.GetCompressor(compressorName)
@@ -957,6 +979,8 @@ func (p *Pipeline) configureSerializer(serializerCfg config.Plugin, parentName s
 		if err := _compressor.Init(); err != nil {
 			return nil, fmt.Errorf("%v serializer: %v compressor: initialization error: %v", plugin, compressorName, err.Error())
 		}
+
+		p.checkDeprecated(compressorName, "compressor", alias, _compressor)
 	}
 
 	return &core.SerializerComperssor{S: _serializer, C: _compressor}, nil
@@ -990,6 +1014,13 @@ func (p *Pipeline) configureCallable(plugin any, pluginCfg config.Plugin, parent
 	}
 
 	return nil
+}
+
+func (p *Pipeline) checkDeprecated(name, kind, alias string, plugin any) {
+	if deprecated, ok := plugin.(core.Deprecated); ok {
+		p.log.Warn(fmt.Sprintf("%v - %v %v is deprecated and may be deleted in future releases; %v",
+			alias, name, kind, deprecated.Deprecated()))
+	}
 }
 
 func (p *Pipeline) decodeHook() func(f reflect.Type, _ reflect.Type, data any) (any, error) {

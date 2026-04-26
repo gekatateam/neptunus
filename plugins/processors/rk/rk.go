@@ -15,6 +15,10 @@ type Rk struct {
 	index               map[string]string
 }
 
+func (p *Rk) Deprecated() (message string) {
+	return "please use switchcase processor instead with routing_keys configuration"
+}
+
 func (p *Rk) Init() error {
 	p.index = make(map[string]string)
 	for newKey, oldKeys := range p.Mapping {
