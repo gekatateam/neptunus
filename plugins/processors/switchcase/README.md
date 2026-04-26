@@ -37,4 +37,11 @@ case "3", "4", "5":
   [processors.switchcase.fields."status.code"]
     "success" = [ "0", "1", "2" ]
     "failed"  = [ "3", "4", "5" ]
+
+  # "routing_keys" is a "new key <- old keys" map
+  # event routing key will be replaced with a new value 
+  # if current key matches one in a list
+  [processors.switchcase.routing_keys]
+    "events.topic.0" = [ "/http", "input.queue" ]
+    "events.topic.1" = [ "/push" ]
 ```

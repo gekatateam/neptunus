@@ -12,6 +12,10 @@ type Runner interface {
 	Run()
 }
 
+type Deprecated interface {
+	Deprecated() (message string)
+}
+
 // input plugin consumes events from outer world
 type Input interface {
 	SetChannels(out chan<- *Event)
