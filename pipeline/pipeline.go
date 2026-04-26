@@ -1024,10 +1024,7 @@ func (p *Pipeline) checkDeprecated(name, kind, alias string, plugin any) {
 }
 
 func (p *Pipeline) decodeHook() func(f reflect.Type, _ reflect.Type, data any) (any, error) {
-	return func(
-		f reflect.Type,
-		_ reflect.Type,
-		data any) (any, error) {
+	return func(f reflect.Type, _ reflect.Type, data any) (any, error) {
 		if f.Kind() != reflect.String {
 			return data, nil
 		}
