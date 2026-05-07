@@ -26,17 +26,6 @@ const (
 	keepAll
 )
 
-var txIsolationLevels = map[string]sql.IsolationLevel{
-	"Default":         sql.LevelDefault,
-	"ReadUncommitted": sql.LevelReadUncommitted,
-	"ReadCommitted":   sql.LevelReadCommitted,
-	"WriteCommitted":  sql.LevelWriteCommitted,
-	"RepeatableRead":  sql.LevelRepeatableRead,
-	"Snapshot":        sql.LevelSnapshot,
-	"Serializable":    sql.LevelSerializable,
-	"Linearizable":    sql.LevelLinearizable,
-}
-
 type Sql struct {
 	*core.BaseInput `mapstructure:"-"`
 	*csql.Connector `mapstructure:",squash"`
@@ -45,9 +34,9 @@ type Sql struct {
 	Interval        time.Duration `mapstructure:"interval"`
 	WaitForDelivery bool          `mapstructure:"wait_for_delivery"`
 
-	Transactional  bool   `mapstructure:"transactional"`
-	IsolationLevel string `mapstructure:"isolation_level"`
-	ReadOnly       bool   `mapstructure:"read_only"`
+	Transactional  bool               `mapstructure:"transactional"`
+	ReadOnly       bool               `mapstructure:"read_only"`
+	IsolationLevel sql.IsolationLevel `mapstructure:"isolation_level"`
 
 	OnInit        csql.QueryInfo    `mapstructure:"on_init"`
 	OnPoll        csql.QueryInfo    `mapstructure:"on_poll"`
@@ -63,8 +52,7 @@ type Sql struct {
 	cancelFunc context.CancelFunc
 	doneCh     chan struct{}
 
-	txLevel sql.IsolationLevel
-	db      *sqlx.DB
+	db *sqlx.DB
 }
 
 type KeepValues struct {
@@ -74,13 +62,6 @@ type KeepValues struct {
 }
 
 func (i *Sql) Init() error {
-	if i.Transactional {
-		var ok bool
-		if i.txLevel, ok = txIsolationLevels[i.IsolationLevel]; !ok {
-			return fmt.Errorf("unknown tx isolation level: %v", i.IsolationLevel)
-		}
-	}
-
 	i.keepValues = i.InitialValues
 	i.keepIndex = make(map[string]int)
 	for _, v := range i.KeepValues.First {
@@ -216,7 +197,7 @@ func (i *Sql) poll() {
 
 	var querier sqlx.ExtContext = i.db
 	if i.Transactional {
-		tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.txLevel, ReadOnly: i.ReadOnly})
+		tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.IsolationLevel, ReadOnly: i.ReadOnly})
 		if err != nil {
 			i.Log.Error("tx begin failed",
 				"error", err,
@@ -370,7 +351,7 @@ func init() {
 			},
 			InitialValues:   map[string]any{},
 			Transactional:   false,
-			IsolationLevel:  "Default",
+			IsolationLevel:  sql.LevelDefault,
 			Interval:        0,
 			WaitForDelivery: true,
 			Ider:            &ider.Ider{},

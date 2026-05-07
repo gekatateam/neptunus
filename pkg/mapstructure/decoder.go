@@ -1,6 +1,7 @@
 package mapstructure
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"time"
@@ -18,6 +19,7 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 		ToTimeDurationHookFunc(),
 		ToByteSizeHookFunc(),
 		ToRuneHookFunc(),
+		ToSQLIsolationLevelHookFunc(),
 	)
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -101,6 +103,35 @@ func ToRuneHookFunc() mapstructure.DecodeHookFunc {
 			return r[0], nil
 		case reflect.Int32:
 			return rune(data.(int32)), nil
+		default:
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
+		}
+	}
+}
+
+var txIsolationLevels = map[string]sql.IsolationLevel{
+	"Default":         sql.LevelDefault,
+	"ReadUncommitted": sql.LevelReadUncommitted,
+	"ReadCommitted":   sql.LevelReadCommitted,
+	"WriteCommitted":  sql.LevelWriteCommitted,
+	"RepeatableRead":  sql.LevelRepeatableRead,
+	"Snapshot":        sql.LevelSnapshot,
+	"Serializable":    sql.LevelSerializable,
+	"Linearizable":    sql.LevelLinearizable,
+}
+
+func ToSQLIsolationLevelHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeFor[sql.IsolationLevel]() {
+			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			if level, ok := txIsolationLevels[data.(string)]; ok {
+				return level, nil
+			}
+			return nil, fmt.Errorf("unknown tx isolation level: %s", data.(string))
 		default:
 			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}
