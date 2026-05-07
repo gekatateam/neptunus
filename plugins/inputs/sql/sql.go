@@ -18,7 +18,6 @@ import (
 	dbstats "github.com/gekatateam/neptunus/plugins/common/metrics"
 	csql "github.com/gekatateam/neptunus/plugins/common/sql"
 	"github.com/gekatateam/neptunus/plugins/common/tls"
-	"github.com/gekatateam/neptunus/plugins/common/types"
 )
 
 const (
@@ -35,9 +34,9 @@ type Sql struct {
 	Interval        time.Duration `mapstructure:"interval"`
 	WaitForDelivery bool          `mapstructure:"wait_for_delivery"`
 
-	Transactional  bool                 `mapstructure:"transactional"`
-	ReadOnly       bool                 `mapstructure:"read_only"`
-	IsolationLevel types.IsolationLevel `mapstructure:"isolation_level"`
+	Transactional  bool               `mapstructure:"transactional"`
+	ReadOnly       bool               `mapstructure:"read_only"`
+	IsolationLevel sql.IsolationLevel `mapstructure:"isolation_level"`
 
 	OnInit        csql.QueryInfo    `mapstructure:"on_init"`
 	OnPoll        csql.QueryInfo    `mapstructure:"on_poll"`
@@ -198,7 +197,7 @@ func (i *Sql) poll() {
 
 	var querier sqlx.ExtContext = i.db
 	if i.Transactional {
-		tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.IsolationLevel.Unwrap(), ReadOnly: i.ReadOnly})
+		tx, err := i.db.BeginTxx(ctx, &sql.TxOptions{Isolation: i.IsolationLevel, ReadOnly: i.ReadOnly})
 		if err != nil {
 			i.Log.Error("tx begin failed",
 				"error", err,
@@ -352,7 +351,7 @@ func init() {
 			},
 			InitialValues:   map[string]any{},
 			Transactional:   false,
-			IsolationLevel:  types.IsolationLevel(sql.LevelDefault),
+			IsolationLevel:  sql.LevelDefault,
 			Interval:        0,
 			WaitForDelivery: true,
 			Ider:            &ider.Ider{},
