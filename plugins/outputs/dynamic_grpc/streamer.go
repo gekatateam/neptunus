@@ -2,13 +2,12 @@ package dynamicgrpc
 
 import (
 	"fmt"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
@@ -16,20 +15,23 @@ import (
 	"github.com/gekatateam/protomap/interceptors"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
 type Streamer struct {
 	*core.BaseOutput
 	Procedure string
+	Register func(procedure string, peer *peer.Peer) (events chan *core.Event, result chan error)
 
-	Recv   chan *core.Event
-	Result chan error
-
-	RespMsg protoreflect.MessageDescriptor
 	RecvMsg protoreflect.MessageDescriptor
+	RespMsg protoreflect.MessageDescriptor
 }
 
 func (s *Streamer) HandleServerStream(_ any, stream grpc.ServerStream) error {
+	peer, _ := peer.FromContext(stream.Context())
+	events, result := s.Register(s.Procedure, peer)
+	defer close(result)
+
 	headers, _ := metadata.FromIncomingContext(stream.Context())
 
 	m := dynamicpb.NewMessage(s.RecvMsg)
@@ -57,12 +59,29 @@ func (s *Streamer) HandleServerStream(_ any, stream grpc.ServerStream) error {
 	)
 DEBUG_INITIAL_MESSAGE_DONE:
 
-	e, ok := <-s.Recv
-	if !ok {
-		panic("recv chan closed before stream shutted down")
+	for e := range events {
+		m := dynamicpb.NewMessage(s.RespMsg)
+		if err := protomap.AnyToMessage(e.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
+			s.Log.Error("message encoding failed",
+				"error", err,
+				"procedure", s.Procedure,
+				elog.EventGroup(e),
+			)
+
+			result <- err
+			continue
+		}
+
+		if err := stream.SendMsg(m); err != nil {
+			s.Log.Error("message sending failed",
+				"error", err,
+				"procedure", s.Procedure,
+				elog.EventGroup(e),
+			)
+			result <- err
+			return err
+		}
 	}
 
-	m = dynamicpb.NewMessage(s.RespMsg)
-	protomap.AnyToMessage(e.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder)
-
+	return nil
 }

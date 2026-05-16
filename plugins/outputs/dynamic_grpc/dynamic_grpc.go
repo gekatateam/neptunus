@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
-	"google.golang.org/protobuf/reflect/protoreflect"
+	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/bufbuild/protocompile"
 	"github.com/bufbuild/protocompile/linker"
@@ -24,6 +24,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
@@ -78,6 +80,7 @@ type Client struct {
 type Server struct {
 	Procedures         []string `mapstructure:"procedures"`
 	dynamicgrpc.Server `mapstructure:",squash"`
+	*retryer.Retryer   `mapstructure:",squash"`
 }
 
 func (o *DynamicGRPC) Init() error {
@@ -301,8 +304,42 @@ func (o *DynamicGRPC) prepareServer() error {
 			services[m.Parent().FullName()] = service
 		}
 
+		s := &Streamer{
+			BaseOutput: o.BaseOutput,
+			Procedure:  rpc,
+			Register:   o.registerStream,
+			RecvMsg:    m.Input(),
+			RespMsg:    m.Output(),
+		}
+
+		service.Streams = append(service.Streams, grpc.StreamDesc{
+			StreamName:    string(m.Name()),
+			Handler:       s.HandleServerStream,
+			ServerStreams: true,
+			ClientStreams: false,
+		})
 	}
 
+	opts, err := o.Server.ServerOptions()
+	if err != nil {
+		return err
+	}
+	o.server = grpc.NewServer(opts...)
+
+	for _, service := range services {
+		o.server.RegisterService(service, nil)
+	}
+
+	return nil
+}
+
+func (o *DynamicGRPC) registerStream(procedure string, peer *peer.Peer) (chan *core.Event, chan error) {
+	events := make(chan *core.Event)
+	result := make(chan error)
+
+	o.Log.Info(fmt.Sprintf("new stream accepted from %v", peer.String()),
+		"procedure", procedure,
+	)
 }
 
 func init() {
@@ -318,6 +355,18 @@ func init() {
 				Batcher: &batcher.Batcher[*core.Event]{
 					Buffer:   100,
 					Interval: 5 * time.Second,
+				},
+				Retryer: &retryer.Retryer{
+					RetryAttempts: 0,
+					RetryAfter:    5 * time.Second,
+				},
+			},
+			Server: Server{
+				Server: dynamicgrpc.Server{
+					MaxMessageSize:       4 * datasize.Mebibyte,
+					NumStreamWorkers:     5,
+					MaxConcurrentStreams: 5,
+					TLSServerConfig:      &tls.TLSServerConfig{},
 				},
 				Retryer: &retryer.Retryer{
 					RetryAttempts: 0,
