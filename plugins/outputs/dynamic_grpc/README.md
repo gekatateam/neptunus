@@ -2,13 +2,19 @@
 
 The `dynamic_grpc` output can produce events using unary RPCs or client streams. Server streaming will be added in future releases.
 
+## Client mode
+
 Event routing key must be a full RPC name from `proto_files`. If RPC:
  - unary - an individual call is made for each event;
  - client stream - **one** stream is performed for each batch of events.
 
 Plugin creates one caller per each unique event routing key, with personal batch controller. By the way, gRPC client shares between callers.
 
-Each event will be encoded using [protomap](https://github.com/gekatateam/protomap). Concrete message descriptor takes from RPC input. 
+Each event will be encoded using [protomap](https://github.com/gekatateam/protomap). Concrete message descriptor takes from RPC input.
+
+## Server mode
+
+
 
 ## Configuration
 ```toml

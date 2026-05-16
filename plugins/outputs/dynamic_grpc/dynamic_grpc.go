@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 
 const (
 	modeAsClient = "AsClient"
+	modeAsServer = "AsServer"
 )
 
 type DynamicGRPC struct {
@@ -53,6 +55,11 @@ type DynamicGRPC struct {
 	successCodes map[codes.Code]struct{}
 	successMsg   *regexp.Regexp
 
+	// AsServer
+	Server   Server `mapstructure:"server"`
+	listener net.Listener
+	server   *grpc.Server
+
 	headers     metadata.MD
 	callersPool *pool.Pool[*core.Event, string]
 	resolver    linker.Resolver
@@ -66,6 +73,11 @@ type Client struct {
 	dynamicgrpc.Client            `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
+}
+
+type Server struct {
+	Procedures         []string `mapstructure:"procedures"`
+	dynamicgrpc.Server `mapstructure:",squash"`
 }
 
 func (o *DynamicGRPC) Init() error {
@@ -94,45 +106,13 @@ func (o *DynamicGRPC) Init() error {
 
 	switch o.Mode {
 	case modeAsClient:
-		if len(o.Client.Address) == 0 {
-			return errors.New("address required")
-		}
-
-		options, err := o.Client.DialOptions()
-		if err != nil {
+		if err := o.prepareClient(); err != nil {
 			return err
 		}
-
-		conn, err := grpc.NewClient(o.Client.Address, options...)
-		if err != nil {
+	case modeAsServer:
+		if err := o.prepareServer(); err != nil {
 			return err
 		}
-
-		o.successCodes = make(map[codes.Code]struct{})
-		for _, code := range o.Client.SuccessCodes {
-			if code == int32(codes.Unknown) {
-				o.Log.Warn("it is strongly recommended not to use Unknown (2) code as a successful one")
-			}
-
-			o.successCodes[codes.Code(code)] = struct{}{}
-		}
-
-		o.successMsg = nil
-		if len(o.Client.SuccessMessage) > 0 {
-			r, err := regexp.Compile(o.Client.SuccessMessage)
-			if err != nil {
-				return err
-			}
-
-			o.successMsg = r
-		}
-
-		if o.Client.IdleTimeout > 0 && o.Client.IdleTimeout < time.Minute {
-			o.Client.IdleTimeout = time.Minute
-		}
-
-		o.clientConn = conn
-		o.callersPool = pool.New(o.newCaller)
 	default:
 		return fmt.Errorf("unknown mode: %v", o.Mode)
 	}
@@ -234,6 +214,95 @@ func (o *DynamicGRPC) descriptorForClient(name protoreflect.FullName) (protorefl
 	}
 
 	return m, nil
+}
+
+func (o *DynamicGRPC) prepareClient() error {
+	if len(o.Client.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	options, err := o.Client.DialOptions()
+	if err != nil {
+		return err
+	}
+
+	conn, err := grpc.NewClient(o.Client.Address, options...)
+	if err != nil {
+		return err
+	}
+
+	o.successCodes = make(map[codes.Code]struct{})
+	for _, code := range o.Client.SuccessCodes {
+		if code == int32(codes.Unknown) {
+			o.Log.Warn("it is strongly recommended not to use Unknown (2) code as a successful one")
+		}
+
+		o.successCodes[codes.Code(code)] = struct{}{}
+	}
+
+	o.successMsg = nil
+	if len(o.Client.SuccessMessage) > 0 {
+		r, err := regexp.Compile(o.Client.SuccessMessage)
+		if err != nil {
+			return err
+		}
+
+		o.successMsg = r
+	}
+
+	if o.Client.IdleTimeout > 0 && o.Client.IdleTimeout < time.Minute {
+		o.Client.IdleTimeout = time.Minute
+	}
+
+	o.clientConn = conn
+	o.callersPool = pool.New(o.newCaller)
+
+	return nil
+}
+
+func (o *DynamicGRPC) prepareServer() error {
+	if len(o.Server.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	if len(o.Server.Procedures) == 0 {
+		return errors.New("at least one procedure required")
+	}
+
+	listener, err := net.Listen("tcp", o.Server.Address)
+	if err != nil {
+		return fmt.Errorf("error creating listener: %w", err)
+	}
+	o.listener = listener
+
+	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
+	for _, rpc := range o.Server.Procedures {
+		desc, err := o.resolver.FindDescriptorByName(protoreflect.FullName(rpc))
+		if err != nil {
+			return fmt.Errorf("%v search failed: %w", rpc, err)
+		}
+
+		if desc == nil {
+			return fmt.Errorf("no such descriptor: %v", rpc)
+		}
+
+		m, ok := desc.(protoreflect.MethodDescriptor)
+		if !ok {
+			return fmt.Errorf("%v is not a method", rpc)
+		}
+
+		if !(m.IsStreamingServer() && !m.IsStreamingClient()) {
+			return fmt.Errorf("%v is not a server stream", rpc)
+		}
+
+		service, ok := services[m.Parent().FullName()]
+		if !ok {
+			service = &grpc.ServiceDesc{ServiceName: string(m.Parent().FullName())}
+			services[m.Parent().FullName()] = service
+		}
+
+	}
+
 }
 
 func init() {
