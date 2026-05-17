@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"slices"
 	"sync"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
 	dynamicgrpc "github.com/gekatateam/neptunus/plugins/common/dynamic_grpc"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
@@ -84,8 +84,8 @@ func (i *DynamicGRPC) Init() error {
 		return errors.New("at least one procedure required")
 	}
 
-	i.Procedures = slices.CompactFunc(i.Procedures, func(a, b Procedure) bool {
-		return a.Name == b.Name
+	i.Procedures = slices.UniqueFunc(i.Procedures, func(p Procedure) string {
+		return p.Name
 	})
 
 	if err := i.Ider.Init(); err != nil {
@@ -241,11 +241,11 @@ func (i *DynamicGRPC) prepareServer() error {
 		h := &Handler{
 			BaseInput:       i.BaseInput,
 			Ider:            i.Ider,
-			LabelHeaders:    i.LabelHeaders,
-			WaitForDelivery: i.WaitForDelivery,
-			Procedure:       rpc.Name,
-			RespMsg:         respMsg,
-			RecvMsg:         m.Input(),
+			labelHeaders:    i.LabelHeaders,
+			waitForDelivery: i.WaitForDelivery,
+			procedure:       rpc.Name,
+			respMsg:         respMsg,
+			recvMsg:         m.Input(),
 		}
 
 		if m.IsStreamingClient() {
