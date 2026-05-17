@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/jhump/protoreflect/v2/grpcdynamic"
@@ -24,11 +25,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/batcher"
 	dynamicgrpc "github.com/gekatateam/neptunus/plugins/common/dynamic_grpc"
@@ -43,6 +44,11 @@ const (
 	modeAsServer = "AsServer"
 )
 
+const (
+	behaviourBroadcast  = "Broadcast"
+	behaviourRoundRobin = "RoundRobin"
+)
+
 type DynamicGRPC struct {
 	*core.BaseOutput `mapstructure:"-"`
 	Mode             string            `mapstructure:"mode"`
@@ -54,6 +60,8 @@ type DynamicGRPC struct {
 	// AsClient
 	Client       Client `mapstructure:"client"`
 	clientConn   *grpc.ClientConn
+	headers      metadata.MD
+	callersPool  *pool.Pool[*core.Event, string]
 	successCodes map[codes.Code]struct{}
 	successMsg   *regexp.Regexp
 
@@ -61,10 +69,9 @@ type DynamicGRPC struct {
 	Server   Server `mapstructure:"server"`
 	listener net.Listener
 	server   *grpc.Server
+	router   *Router
 
-	headers     metadata.MD
-	callersPool *pool.Pool[*core.Event, string]
-	resolver    linker.Resolver
+	resolver linker.Resolver
 }
 
 type Client struct {
@@ -78,6 +85,8 @@ type Client struct {
 }
 
 type Server struct {
+	Behaviour          string   `mapstructure:"behaviour"`
+	WaitForSubscribers bool     `mapstructure:"wait_for_subscribers"`
 	Procedures         []string `mapstructure:"procedures"`
 	dynamicgrpc.Server `mapstructure:",squash"`
 	*retryer.Retryer   `mapstructure:",squash"`
@@ -124,10 +133,156 @@ func (o *DynamicGRPC) Init() error {
 }
 
 func (o *DynamicGRPC) Run() {
+	switch o.Mode {
+	case modeAsClient:
+		o.runAsClient()
+	case modeAsServer:
+		o.runAsServer()
+	default:
+		panic(fmt.Errorf("unknown mode: %v", o.Mode))
+	}
+}
+
+func (o *DynamicGRPC) Close() error {
+	return o.clientConn.Close()
+}
+
+func (o *DynamicGRPC) prepareClient() error {
+	if len(o.Client.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	options, err := o.Client.DialOptions()
+	if err != nil {
+		return err
+	}
+
+	conn, err := grpc.NewClient(o.Client.Address, options...)
+	if err != nil {
+		return err
+	}
+
+	o.successCodes = make(map[codes.Code]struct{})
+	for _, code := range o.Client.SuccessCodes {
+		if code == int32(codes.Unknown) {
+			o.Log.Warn("it is strongly not recommended to use Unknown (2) code as a successful one")
+		}
+
+		o.successCodes[codes.Code(code)] = struct{}{}
+	}
+
+	o.successMsg = nil
+	if len(o.Client.SuccessMessage) > 0 {
+		r, err := regexp.Compile(o.Client.SuccessMessage)
+		if err != nil {
+			return err
+		}
+
+		o.successMsg = r
+	}
+
+	if o.Client.IdleTimeout > 0 && o.Client.IdleTimeout < time.Minute {
+		o.Client.IdleTimeout = time.Minute
+	}
+
+	o.clientConn = conn
+	o.callersPool = pool.New(o.newCaller)
+
+	return nil
+}
+
+func (o *DynamicGRPC) prepareServer() error {
+	if len(o.Server.Address) == 0 {
+		return errors.New("address required")
+	}
+
+	if len(o.Server.Procedures) == 0 {
+		return errors.New("at least one procedure required")
+	}
+
+	switch o.Server.Behaviour {
+	case behaviourBroadcast, behaviourRoundRobin:
+	default:
+		return fmt.Errorf("unknown behaviour: %v", o.Server.Behaviour)
+	}
+
+	listener, err := net.Listen("tcp", o.Server.Address)
+	if err != nil {
+		return fmt.Errorf("error creating listener: %w", err)
+	}
+	o.listener = listener
+
+	o.router = &Router{
+		BaseOutput:  o.BaseOutput,
+		mu:          &sync.RWMutex{},
+		behavior:    o.Server.Behaviour,
+		waitForSubs: o.Server.WaitForSubscribers,
+		subs:        make(map[string][]subscriber),
+	}
+
+	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
+	for _, rpc := range slices.Unique(o.Server.Procedures) {
+		desc, err := o.resolver.FindDescriptorByName(protoreflect.FullName(rpc))
+		if err != nil {
+			return fmt.Errorf("%v search failed: %w", rpc, err)
+		}
+
+		if desc == nil {
+			return fmt.Errorf("no such descriptor: %v", rpc)
+		}
+
+		m, ok := desc.(protoreflect.MethodDescriptor)
+		if !ok {
+			return fmt.Errorf("%v is not a method", rpc)
+		}
+
+		if !(m.IsStreamingServer() && !m.IsStreamingClient()) {
+			return fmt.Errorf("%v is not a server stream", rpc)
+		}
+
+		service, ok := services[m.Parent().FullName()]
+		if !ok {
+			service = &grpc.ServiceDesc{ServiceName: string(m.Parent().FullName())}
+			services[m.Parent().FullName()] = service
+		}
+
+		s := &Streamer{
+			BaseOutput:      o.BaseOutput,
+			procedure:       rpc,
+			subscribeFunc:   o.router.subscribe,
+			unsubscribeFunc: o.router.unsubscribe,
+			recvMsg:         m.Input(),
+			respMsg:         m.Output(),
+		}
+
+		service.Streams = append(service.Streams, grpc.StreamDesc{
+			StreamName:    string(m.Name()),
+			Handler:       s.HandleServerStream,
+			ServerStreams: true,
+			ClientStreams: false,
+		})
+	}
+
+	opts, err := o.Server.ServerOptions()
+	if err != nil {
+		return err
+	}
+	o.server = grpc.NewServer(opts...)
+
+	for _, service := range services {
+		o.server.RegisterService(service, nil)
+	}
+
+	return nil
+}
+
+func (o *DynamicGRPC) runAsClient() {
 	clearTicker := time.NewTicker(time.Minute)
 	if o.Client.IdleTimeout == 0 {
 		clearTicker.Stop()
 	}
+
+	defer o.callersPool.Close()
 
 MAIN_LOOP:
 	for {
@@ -163,12 +318,6 @@ MAIN_LOOP:
 			}
 		}
 	}
-
-	o.callersPool.Close()
-}
-
-func (o *DynamicGRPC) Close() error {
-	return o.clientConn.Close()
 }
 
 func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
@@ -219,129 +368,6 @@ func (o *DynamicGRPC) descriptorForClient(name protoreflect.FullName) (protorefl
 	return m, nil
 }
 
-func (o *DynamicGRPC) prepareClient() error {
-	if len(o.Client.Address) == 0 {
-		return errors.New("address required")
-	}
-
-	options, err := o.Client.DialOptions()
-	if err != nil {
-		return err
-	}
-
-	conn, err := grpc.NewClient(o.Client.Address, options...)
-	if err != nil {
-		return err
-	}
-
-	o.successCodes = make(map[codes.Code]struct{})
-	for _, code := range o.Client.SuccessCodes {
-		if code == int32(codes.Unknown) {
-			o.Log.Warn("it is strongly recommended not to use Unknown (2) code as a successful one")
-		}
-
-		o.successCodes[codes.Code(code)] = struct{}{}
-	}
-
-	o.successMsg = nil
-	if len(o.Client.SuccessMessage) > 0 {
-		r, err := regexp.Compile(o.Client.SuccessMessage)
-		if err != nil {
-			return err
-		}
-
-		o.successMsg = r
-	}
-
-	if o.Client.IdleTimeout > 0 && o.Client.IdleTimeout < time.Minute {
-		o.Client.IdleTimeout = time.Minute
-	}
-
-	o.clientConn = conn
-	o.callersPool = pool.New(o.newCaller)
-
-	return nil
-}
-
-func (o *DynamicGRPC) prepareServer() error {
-	if len(o.Server.Address) == 0 {
-		return errors.New("address required")
-	}
-
-	if len(o.Server.Procedures) == 0 {
-		return errors.New("at least one procedure required")
-	}
-
-	listener, err := net.Listen("tcp", o.Server.Address)
-	if err != nil {
-		return fmt.Errorf("error creating listener: %w", err)
-	}
-	o.listener = listener
-
-	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
-	for _, rpc := range o.Server.Procedures {
-		desc, err := o.resolver.FindDescriptorByName(protoreflect.FullName(rpc))
-		if err != nil {
-			return fmt.Errorf("%v search failed: %w", rpc, err)
-		}
-
-		if desc == nil {
-			return fmt.Errorf("no such descriptor: %v", rpc)
-		}
-
-		m, ok := desc.(protoreflect.MethodDescriptor)
-		if !ok {
-			return fmt.Errorf("%v is not a method", rpc)
-		}
-
-		if !(m.IsStreamingServer() && !m.IsStreamingClient()) {
-			return fmt.Errorf("%v is not a server stream", rpc)
-		}
-
-		service, ok := services[m.Parent().FullName()]
-		if !ok {
-			service = &grpc.ServiceDesc{ServiceName: string(m.Parent().FullName())}
-			services[m.Parent().FullName()] = service
-		}
-
-		s := &Streamer{
-			BaseOutput: o.BaseOutput,
-			Procedure:  rpc,
-			Register:   o.registerStream,
-			RecvMsg:    m.Input(),
-			RespMsg:    m.Output(),
-		}
-
-		service.Streams = append(service.Streams, grpc.StreamDesc{
-			StreamName:    string(m.Name()),
-			Handler:       s.HandleServerStream,
-			ServerStreams: true,
-			ClientStreams: false,
-		})
-	}
-
-	opts, err := o.Server.ServerOptions()
-	if err != nil {
-		return err
-	}
-	o.server = grpc.NewServer(opts...)
-
-	for _, service := range services {
-		o.server.RegisterService(service, nil)
-	}
-
-	return nil
-}
-
-func (o *DynamicGRPC) registerStream(procedure string, peer *peer.Peer) (chan *core.Event, chan error) {
-	events := make(chan *core.Event)
-	result := make(chan error)
-
-	o.Log.Info(fmt.Sprintf("new stream accepted from %v", peer.String()),
-		"procedure", procedure,
-	)
-}
-
 func init() {
 	plugins.AddOutput("dynamic_grpc", func() core.Output {
 		return &DynamicGRPC{
@@ -362,6 +388,8 @@ func init() {
 				},
 			},
 			Server: Server{
+				Behaviour:          behaviourRoundRobin,
+				WaitForSubscribers: true,
 				Server: dynamicgrpc.Server{
 					MaxMessageSize:       4 * datasize.Mebibyte,
 					NumStreamWorkers:     5,

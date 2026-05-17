@@ -18,29 +18,33 @@ import (
 	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
 
+// This error must never be retried
+var ErrEncodingFailed = fmt.Errorf("message encoding failed")
+
 type Streamer struct {
 	*core.BaseOutput
-	Procedure string
-	Register func(procedure string, peer *peer.Peer) (events chan *core.Event, result chan error)
+	procedure string
+	subscribeFunc func(rpc string, peer *peer.Peer) subscriber
+	unsubscribeFunc func(subscriber)
 
-	RecvMsg protoreflect.MessageDescriptor
-	RespMsg protoreflect.MessageDescriptor
+	recvMsg protoreflect.MessageDescriptor
+	respMsg protoreflect.MessageDescriptor
 }
 
 func (s *Streamer) HandleServerStream(_ any, stream grpc.ServerStream) error {
 	peer, _ := peer.FromContext(stream.Context())
-	events, result := s.Register(s.Procedure, peer)
-	defer close(result)
+	sub := s.subscribeFunc(s.procedure, peer)
+	defer s.unsubscribeFunc(sub)
 
 	headers, _ := metadata.FromIncomingContext(stream.Context())
 
-	m := dynamicpb.NewMessage(s.RecvMsg)
+	m := dynamicpb.NewMessage(s.recvMsg)
 	err := stream.RecvMsg(m)
 
 	if err != nil {
 		s.Log.Error("failed to receive initial message from client",
 			"error", err,
-			"procedure", s.Procedure,
+			"procedure", s.procedure,
 		)
 		return err
 	}
@@ -49,38 +53,44 @@ func (s *Streamer) HandleServerStream(_ any, stream grpc.ServerStream) error {
 	if err := protojson.Unmarshal(recv, m); err != nil {
 		s.Log.Warn("failed to decode initial message from client",
 			"error", err,
-			"procedure", s.Procedure,
+			"procedure", s.procedure,
 		)
 		goto DEBUG_INITIAL_MESSAGE_DONE
 	}
 
 	s.Log.Debug(fmt.Sprintf("stream initial message received: %v; with headers: %v", string(recv), headers),
-		"procedure", s.Procedure,
+		"procedure", s.procedure,
 	)
 DEBUG_INITIAL_MESSAGE_DONE:
 
-	for e := range events {
-		m := dynamicpb.NewMessage(s.RespMsg)
+	for e := range sub.events {
+		m := dynamicpb.NewMessage(s.respMsg)
 		if err := protomap.AnyToMessage(e.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
-			s.Log.Error("message encoding failed",
+			s.Log.Error("message encoding failed, message skipped",
 				"error", err,
-				"procedure", s.Procedure,
+				"procedure", s.procedure,
 				elog.EventGroup(e),
 			)
 
-			result <- err
+			sub.result <- ErrEncodingFailed
 			continue
 		}
 
 		if err := stream.SendMsg(m); err != nil {
 			s.Log.Error("message sending failed",
 				"error", err,
-				"procedure", s.Procedure,
+				"procedure", s.procedure,
 				elog.EventGroup(e),
 			)
-			result <- err
+			sub.result <- err
 			return err
 		}
+
+		s.Log.Debug("message sent",
+			"procedure", s.procedure,
+			elog.EventGroup(e),
+		)
+		sub.result <- nil
 	}
 
 	return nil
