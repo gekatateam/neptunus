@@ -46,7 +46,7 @@ const (
 
 const (
 	behaviourBroadcast  = "Broadcast"
-	behaviourRoundRobin = "RoundRobin"
+	behaviourRandom     = "Random"
 )
 
 type DynamicGRPC struct {
@@ -201,7 +201,7 @@ func (o *DynamicGRPC) prepareServer() error {
 	}
 
 	switch o.Server.Behaviour {
-	case behaviourBroadcast, behaviourRoundRobin:
+	case behaviourBroadcast, behaviourRandom:
 	default:
 		return fmt.Errorf("unknown behaviour: %v", o.Server.Behaviour)
 	}
@@ -217,7 +217,7 @@ func (o *DynamicGRPC) prepareServer() error {
 		mu:          &sync.RWMutex{},
 		behavior:    o.Server.Behaviour,
 		waitForSubs: o.Server.WaitForSubscribers,
-		subs:        make(map[string][]subscriber),
+		subs:        make(map[string][]subscription),
 	}
 
 	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
@@ -388,7 +388,7 @@ func init() {
 				},
 			},
 			Server: Server{
-				Behaviour:          behaviourRoundRobin,
+				Behaviour:          behaviourRandom,
 				WaitForSubscribers: true,
 				Server: dynamicgrpc.Server{
 					MaxMessageSize:       4 * datasize.Mebibyte,
