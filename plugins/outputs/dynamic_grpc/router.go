@@ -2,7 +2,6 @@ package dynamicgrpc
 
 import (
 	"errors"
-	"fmt"
 	"math/rand/v2"
 	"slices"
 	"sync"
@@ -24,15 +23,66 @@ type subscription struct {
 	peer *peer.Peer
 }
 
-type Router struct {
-	mu   *sync.RWMutex
+type router struct {
+	mu   *sync.Mutex
 	wg   *sync.WaitGroup
 	pubs map[string]*publisher
 
+	closed           bool
 	newPublisherFunc func(rpc string) *publisher
 }
 
-func (r *Router) subscribe(rpc string, peer *peer.Peer) subscription {
+func (r *router) _get(rpc string) *publisher {
+	pub, ok := r.pubs[rpc]
+	if !ok {
+		pub = r.newPublisherFunc(rpc)
+		r.pubs[rpc] = pub
+		r.wg.Go(pub.run)
+	}
+
+	return pub
+}
+
+func (r *router) push(e *core.Event) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closed {
+		panic("pushing to closed router")
+	}
+
+	r._get(e.RoutingKey).events <- e
+}
+
+func (r *router) close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.closed = true
+
+	for _, pub := range r.pubs {
+		close(pub.events)
+	}
+}
+
+func (r *router) stop() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, pub := range r.pubs {
+		close(pub.stop)
+	}
+
+	r.wg.Wait()
+}
+
+// Freakin dirty hack inside - close sub input chan as an indication of router shutdown.
+// If any new subscriber arrives after the router is closed, it will receive a closed input chan
+// and can return from stream immediately without waiting for new events that will never arrive.
+func (r *router) subscribe(rpc string, peer *peer.Peer) subscription {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	sub := subscription{
 		id:     rand.Uint64(),
 		events: make(chan *core.Event),
@@ -41,22 +91,27 @@ func (r *Router) subscribe(rpc string, peer *peer.Peer) subscription {
 		peer:   peer,
 	}
 
-	pub, ok := r.pubs[rpc]
-	if !ok {
-		r.mu.Lock()
-		defer r.mu.Unlock()
-
-		pub = r.newPublisherFunc(rpc)
-		r.pubs[rpc] = pub
-		r.wg.Go(pub.run)
+	if r.closed {
+		close(sub.events)
+		return sub
 	}
 
+	pub := r._get(rpc)
 	pub.subscription <- sub
+
 	return sub
 }
 
-func (r *Router) unsubscribe(sub subscription) {
+func (r *router) unsubscribe(sub subscription) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
+	pub, ok := r.pubs[sub.rpc]
+	if !ok {
+		panic("unsubscribing from non existing publisher: " + sub.rpc)
+	}
+
+	pub.unsubscription <- sub
 }
 
 type publisher struct {
@@ -82,15 +137,10 @@ PUBLISHER_MAIN_LOOP:
 		case sub := <-p.unsubscription:
 			p._unsubscribe(sub)
 		case <-p.stop:
-			if len(p.subs) == 0 {
-				p.Log.Info("publisher stopped",
-					"procedure", p.rpc,
-				)
-				return
+			if len(p.subs) != 0 {
+				panic("publisher stopped with active subscribers")
 			}
-			p.Log.Info(fmt.Sprintf("publisher stopping, waiting for %v subscribers to leave", len(p.subs)),
-				"procedure", p.rpc,
-			)
+			return
 		default:
 		}
 
@@ -100,16 +150,19 @@ PUBLISHER_MAIN_LOOP:
 		case sub := <-p.unsubscription:
 			p._unsubscribe(sub)
 		case <-p.stop:
-			if len(p.subs) == 0 {
-				p.Log.Info("publisher stopped",
-					"procedure", p.rpc,
-				)
-				return
+			if len(p.subs) != 0 {
+				panic("publisher stopped with active subscribers")
 			}
-			p.Log.Info(fmt.Sprintf("publisher stopping, waiting for %v subscribers to leave", len(p.subs)),
-				"procedure", p.rpc,
-			)
-		case event := <-p.events:
+			return
+		case event, ok := <-p.events:
+			if !ok {
+				for _, sub := range p.subs {
+					close(sub.events)
+				}
+				p.events = nil
+				continue PUBLISHER_MAIN_LOOP
+			}
+
 			if len(p.subs) == 0 {
 				p.Log.Debug("no subscribers, event dropped",
 					"procedure", p.rpc,
@@ -163,11 +216,6 @@ func (p *publisher) _publishBroadcast(event *core.Event) {
 
 		err := <-sub.result
 		if errors.Is(err, ErrEncodingFailed) {
-			p.Log.Error("message encoding failed, event skipped",
-				"error", err,
-				"procedure", p.rpc,
-				elog.EventGroup(event),
-			)
 			p.Done <- event
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return
@@ -197,7 +245,6 @@ func (p *publisher) _publishRandom(event *core.Event) {
 		subs[i], subs[j] = subs[j], subs[i]
 	})
 
-	hasSuccess := false
 	for _, sub := range subs {
 		select {
 		case sub.events <- event:
@@ -209,83 +256,22 @@ func (p *publisher) _publishRandom(event *core.Event) {
 
 		err := <-sub.result
 		if errors.Is(err, ErrEncodingFailed) {
-			p.Log.Error("message encoding failed, event skipped",
-				"error", err,
-				"procedure", p.rpc,
-				elog.EventGroup(event),
-			)
 			p.Done <- event
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return
 		}
 
 		if err == nil {
-			hasSuccess = true
-			break
+			p.Done <- event
+			p.Observe(metrics.EventAccepted, time.Since(now))
+			return
 		}
 	}
 
-	if !hasSuccess {
-		p.Log.Error("event delivery to all subscribers failed",
-			"procedure", p.rpc,
-			elog.EventGroup(event),
-		)
-		p.Done <- event
-		p.Observe(metrics.EventFailed, time.Since(now))
-	} else {
-		p.Done <- event
-		p.Observe(metrics.EventAccepted, time.Since(now))
-	}
+	p.Log.Error("event delivery to all subscribers failed",
+		"procedure", p.rpc,
+		elog.EventGroup(event),
+	)
+	p.Done <- event
+	p.Observe(metrics.EventFailed, time.Since(now))
 }
-
-// type routersPool struct {
-// 	*core.BaseOutput
-// 	*pool.Pool[*core.Event, string]
-// 	mu *sync.RWMutex
-// }
-
-// func (p *routersPool) Get(key string) pool.Runner[*core.Event] {
-// 	p.mu.Lock()
-// 	defer p.mu.Unlock()
-
-// 	return p.Pool.Get(key)
-// }
-
-// func (p *routersPool) subscribe(rpc string, peer *peer.Peer) subscription {
-// 	p.mu.Lock()
-// 	defer p.mu.Unlock()
-
-// 	p.Log.Info(fmt.Sprintf("new stream accepted from %v", peer.String()),
-// 		"procedure", rpc,
-// 	)
-
-// 	sub := subscription{
-// 		id:     rand.Uint64(),
-// 		events: make(chan *core.Event),
-// 		result: make(chan error),
-// 		rpc:    rpc,
-// 		peer:   peer,
-// 	}
-
-// 	router := p.Pool.Get(rpc).(*router)
-// 	router.subscribe(sub)
-// 	return sub
-// }
-
-// type router struct {
-// 	*core.BaseOutput
-
-// 	behavior    string
-// 	waitForSubs bool
-// 	subs        []subscription
-// }
-
-// func (r *router) subscribe(sub subscription) {
-// 	r.subs = append(r.subs, sub)
-// }
-
-// func (r *router) unsubscribe(sub subscription) {
-// 	slices.DeleteFunc(r.subs, func(s subscription) bool {
-// 		return s.id == sub.id
-// 	})
-// }

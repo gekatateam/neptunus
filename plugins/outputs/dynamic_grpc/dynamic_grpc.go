@@ -45,8 +45,8 @@ const (
 )
 
 const (
-	behaviourBroadcast  = "Broadcast"
-	behaviourRandom     = "Random"
+	behaviourBroadcast = "Broadcast"
+	behaviourRandom    = "Random"
 )
 
 type DynamicGRPC struct {
@@ -69,7 +69,8 @@ type DynamicGRPC struct {
 	Server   Server `mapstructure:"server"`
 	listener net.Listener
 	server   *grpc.Server
-	router   *Router
+	router   *router
+	rpcs     map[protoreflect.FullName]struct{}
 
 	resolver linker.Resolver
 }
@@ -144,7 +145,14 @@ func (o *DynamicGRPC) Run() {
 }
 
 func (o *DynamicGRPC) Close() error {
-	return o.clientConn.Close()
+	switch o.Mode {
+	case modeAsClient:
+		return o.clientConn.Close()
+	case modeAsServer:
+		return o.listener.Close()
+	default:
+		panic(fmt.Errorf("unknown mode: %v", o.Mode))
+	}
 }
 
 func (o *DynamicGRPC) prepareClient() error {
@@ -212,13 +220,14 @@ func (o *DynamicGRPC) prepareServer() error {
 	}
 	o.listener = listener
 
-	o.router = &Router{
-		BaseOutput:  o.BaseOutput,
-		mu:          &sync.RWMutex{},
-		behavior:    o.Server.Behaviour,
-		waitForSubs: o.Server.WaitForSubscribers,
-		subs:        make(map[string][]subscription),
+	o.router = &router{
+		mu:               &sync.Mutex{},
+		wg:               &sync.WaitGroup{},
+		pubs:             make(map[string]*publisher, len(o.Server.Procedures)),
+		closed:           false,
+		newPublisherFunc: o.newPublisher,
 	}
+	rpcs := make(map[protoreflect.FullName]struct{})
 
 	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
 	for _, rpc := range slices.Unique(o.Server.Procedures) {
@@ -239,6 +248,8 @@ func (o *DynamicGRPC) prepareServer() error {
 		if !(m.IsStreamingServer() && !m.IsStreamingClient()) {
 			return fmt.Errorf("%v is not a server stream", rpc)
 		}
+
+		rpcs[m.FullName()] = struct{}{}
 
 		service, ok := services[m.Parent().FullName()]
 		if !ok {
@@ -273,6 +284,7 @@ func (o *DynamicGRPC) prepareServer() error {
 		o.server.RegisterService(service, nil)
 	}
 
+	o.rpcs = rpcs
 	return nil
 }
 
@@ -318,6 +330,46 @@ MAIN_LOOP:
 			}
 		}
 	}
+}
+
+func (o *DynamicGRPC) runAsServer() {
+	wg := &sync.WaitGroup{}
+
+	wg.Go(func() {
+		o.Log.Info(fmt.Sprintf("starting grpc server on %v", o.Server.Address))
+		if err := o.server.Serve(o.listener); err != nil {
+			o.Log.Error("grpc server startup failed",
+				"error", err,
+			)
+		} else {
+			o.Log.Info("grpc server stopped")
+		}
+	})
+
+	for e := range o.In {
+		if _, ok := o.rpcs[protoreflect.FullName(e.RoutingKey)]; !ok {
+			o.Log.Error("event processing failed",
+				"error", fmt.Errorf("no such method: %v", e.RoutingKey),
+				elog.EventGroup(e),
+			)
+			o.Observe(metrics.EventFailed, 0)
+			o.Done <- e
+			continue
+		}
+
+		o.router.push(e)
+	}
+
+	o.router.close()
+
+	wg.Go(func() {
+		o.Log.Info("stopping grpc server")
+		o.server.GracefulStop()
+	})
+
+	o.router.stop()
+
+	wg.Wait()
 }
 
 func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {

@@ -76,6 +76,12 @@ DEBUG_INITIAL_MESSAGE_DONE:
 
 			m := dynamicpb.NewMessage(s.respMsg)
 			if err := protomap.AnyToMessage(e.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
+				s.Log.Error("message encoding failed, event skipped",
+					"error", err,
+					"procedure", s.procedure,
+					"peer", peer.String(),
+					elog.EventGroup(e),
+				)
 				sub.result <- ErrEncodingFailed
 				continue
 			}
