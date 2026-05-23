@@ -86,8 +86,8 @@ type Client struct {
 }
 
 type Server struct {
-	Behaviour          string   `mapstructure:"behaviour"`
-	WaitForSubscribers bool     `mapstructure:"wait_for_subscribers"`
+	Behaviour string `mapstructure:"behaviour"`
+	// WaitForSubscribers bool     `mapstructure:"wait_for_subscribers"`
 	Procedures         []string `mapstructure:"procedures"`
 	dynamicgrpc.Server `mapstructure:",squash"`
 	*retryer.Retryer   `mapstructure:",squash"`
@@ -333,7 +333,7 @@ MAIN_LOOP:
 }
 
 func (o *DynamicGRPC) runAsServer() {
-	wg := &sync.WaitGroup{}
+	wg := o.router.wg
 
 	wg.Go(func() {
 		o.Log.Info(fmt.Sprintf("starting grpc server on %v", o.Server.Address))
@@ -398,6 +398,20 @@ func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
 	return c
 }
 
+func (o *DynamicGRPC) newPublisher(rpc string) *publisher {
+	return &publisher{
+		BaseOutput:     o.BaseOutput,
+		behavior:       o.Server.Behaviour,
+		rpc:            rpc,
+		waitForSubs:    false, // o.Server.WaitForSubscribers,
+		subs:           make([]subscription, 0),
+		stop:           make(chan struct{}),
+		events:         make(chan *core.Event, 1),
+		subscription:   make(chan subscription, 1),
+		unsubscription: make(chan subscription, 1),
+	}
+}
+
 func (o *DynamicGRPC) descriptorForClient(name protoreflect.FullName) (protoreflect.MethodDescriptor, error) {
 	desc, err := o.resolver.FindDescriptorByName(name)
 	if err != nil {
@@ -440,8 +454,8 @@ func init() {
 				},
 			},
 			Server: Server{
-				Behaviour:          behaviourRandom,
-				WaitForSubscribers: true,
+				Behaviour: behaviourRandom,
+				// WaitForSubscribers: true,
 				Server: dynamicgrpc.Server{
 					MaxMessageSize:       4 * datasize.Mebibyte,
 					NumStreamWorkers:     5,

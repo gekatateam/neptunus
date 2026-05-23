@@ -1,0 +1,32 @@
+[settings]
+  id = "test.pipeline.dyngrpcputput"
+  lines = 1
+  run = true
+  buffer = 1_000
+  log_level = "debug"
+
+
+[[inputs]]
+  [inputs.http]
+    address = ":9200"
+    max_connections = 10
+    wait_for_delivery = false
+    tls_enable = false
+  [inputs.http.parser]
+    type = "json"
+
+[[processors]]
+  [processors.rk.mapping]
+    "neptunus.plugins.common.grpc.Input.SendServerStream" = [ "/neptunus.plugins.common.grpc.Input.SendServerStream" ]
+
+[[outputs]]
+  [outputs.dynamic_grpc]
+    mode = "AsServer"
+    proto_files = [ "./plugins/common/grpc/input.proto" ]
+    [outputs.dynamic_grpc.server]
+      address = "localhost:8660"
+      procedures = [ "neptunus.plugins.common.grpc.Input.SendServerStream" ]
+
+
+
+

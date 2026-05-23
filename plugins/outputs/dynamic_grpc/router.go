@@ -2,6 +2,7 @@ package dynamicgrpc
 
 import (
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"slices"
 	"sync"
@@ -72,8 +73,6 @@ func (r *router) stop() {
 	for _, pub := range r.pubs {
 		close(pub.stop)
 	}
-
-	r.wg.Wait()
 }
 
 // Freakin dirty hack inside - close sub input chan as an indication of router shutdown.
@@ -136,11 +135,6 @@ PUBLISHER_MAIN_LOOP:
 			p._subscribe(sub)
 		case sub := <-p.unsubscription:
 			p._unsubscribe(sub)
-		case <-p.stop:
-			if len(p.subs) != 0 {
-				panic("publisher stopped with active subscribers")
-			}
-			return
 		default:
 		}
 
@@ -151,8 +145,13 @@ PUBLISHER_MAIN_LOOP:
 			p._unsubscribe(sub)
 		case <-p.stop:
 			if len(p.subs) != 0 {
-				panic("publisher stopped with active subscribers")
+				p.Log.Info(fmt.Sprintf("waiting for %v subscribers to leave", len(p.subs)),
+					"procedure", p.rpc,
+				)
+				time.Sleep(time.Second)
+				continue PUBLISHER_MAIN_LOOP
 			}
+
 			return
 		case event, ok := <-p.events:
 			if !ok {
