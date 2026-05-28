@@ -70,7 +70,7 @@ type DynamicGRPC struct {
 	listener net.Listener
 	server   *grpc.Server
 	router   *router
-	rpcs     map[protoreflect.FullName]struct{}
+	rpcs     map[protoreflect.FullName]protoreflect.MessageDescriptor
 
 	resolver linker.Resolver
 }
@@ -227,7 +227,7 @@ func (o *DynamicGRPC) prepareServer() error {
 		closed:           false,
 		newPublisherFunc: o.newPublisher,
 	}
-	rpcs := make(map[protoreflect.FullName]struct{})
+	rpcs := make(map[protoreflect.FullName]protoreflect.MessageDescriptor)
 
 	services := make(map[protoreflect.FullName]*grpc.ServiceDesc)
 	for _, rpc := range slices.Unique(o.Server.Procedures) {
@@ -249,7 +249,7 @@ func (o *DynamicGRPC) prepareServer() error {
 			return fmt.Errorf("%v is not a server stream", rpc)
 		}
 
-		rpcs[m.FullName()] = struct{}{}
+		rpcs[m.FullName()] = m.Output()
 
 		service, ok := services[m.Parent().FullName()]
 		if !ok {
@@ -263,7 +263,6 @@ func (o *DynamicGRPC) prepareServer() error {
 			subscribeFunc:   o.router.subscribe,
 			unsubscribeFunc: o.router.unsubscribe,
 			recvMsg:         m.Input(),
-			respMsg:         m.Output(),
 		}
 
 		service.Streams = append(service.Streams, grpc.StreamDesc{
@@ -305,7 +304,6 @@ MAIN_LOOP:
 				break MAIN_LOOP
 			}
 
-			now := time.Now()
 			if (o.callersPool.LastWrite(e.RoutingKey) != time.Time{}) {
 				goto DESCRIPTOR_FOUND_AND_CORRECT
 			}
@@ -315,7 +313,7 @@ MAIN_LOOP:
 					"error", err,
 					elog.EventGroup(e),
 				)
-				o.Observe(metrics.EventFailed, time.Since(now))
+				o.Observe(metrics.EventFailed, 0)
 				o.Done <- e
 				continue
 			}
@@ -404,6 +402,7 @@ func (o *DynamicGRPC) newPublisher(rpc string) *publisher {
 		behavior:       o.Server.Behaviour,
 		rpc:            rpc,
 		waitForSubs:    false, // o.Server.WaitForSubscribers,
+		respMsg:        o.rpcs[protoreflect.FullName(rpc)],
 		subs:           make([]subscription, 0),
 		stop:           make(chan struct{}),
 		events:         make(chan *core.Event, 1),

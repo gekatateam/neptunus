@@ -21,7 +21,7 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
 [[outputs]]
   [outputs.dynamic_grpc]
     # plugin mode
-    # right now, only "AsClient" available
+    # "AsClient" or "AsServer"
     mode = "AsClient"
 
     # list of .proto files with messages and procedures to call

@@ -11,15 +11,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/gekatateam/protomap"
-	"github.com/gekatateam/protomap/interceptors"
-
 	"github.com/gekatateam/neptunus/core"
-	"github.com/gekatateam/neptunus/plugins/common/elog"
 )
-
-// This error must never be retried
-var ErrEncodingFailed = fmt.Errorf("message encoding failed")
 
 type Streamer struct {
 	*core.BaseOutput
@@ -28,7 +21,6 @@ type Streamer struct {
 	unsubscribeFunc func(subscription)
 
 	recvMsg protoreflect.MessageDescriptor
-	respMsg protoreflect.MessageDescriptor
 }
 
 func (s *Streamer) HandleServerStream(_ any, stream grpc.ServerStream) error {
@@ -69,39 +61,16 @@ DEBUG_INITIAL_MESSAGE_DONE:
 		case <-stream.Context().Done():
 			close(sub.result)
 			return stream.Context().Err()
-		case e, ok := <-sub.events:
+		case m, ok := <-sub.msgs:
 			if !ok {
 				return nil
 			}
 
-			m := dynamicpb.NewMessage(s.respMsg)
-			if err := protomap.AnyToMessage(e.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
-				s.Log.Error("message encoding failed, event skipped",
-					"error", err,
-					"procedure", s.procedure,
-					"peer", peer.String(),
-					elog.EventGroup(e),
-				)
-				sub.result <- ErrEncodingFailed
-				continue
-			}
-
 			if err := stream.SendMsg(m); err != nil {
-				s.Log.Error("message sending failed",
-					"error", err,
-					"procedure", s.procedure,
-					"peer", peer.String(),
-					elog.EventGroup(e),
-				)
 				sub.result <- err
 				return err
 			}
 
-			s.Log.Debug("message sent",
-				"procedure", s.procedure,
-				"peer", peer.String(),
-				elog.EventGroup(e),
-			)
 			sub.result <- nil
 		}
 	}

@@ -1,7 +1,6 @@
 package dynamicgrpc
 
 import (
-	"errors"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -10,6 +9,13 @@ import (
 
 	"google.golang.org/grpc/peer"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/gekatateam/protomap"
+	"github.com/gekatateam/protomap/interceptors"
+
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
 	"github.com/gekatateam/neptunus/plugins/common/elog"
@@ -17,7 +23,7 @@ import (
 
 type subscription struct {
 	id     uint64
-	events chan *core.Event
+	msgs   chan proto.Message
 	result chan error
 
 	rpc  string
@@ -84,14 +90,14 @@ func (r *router) subscribe(rpc string, peer *peer.Peer) subscription {
 
 	sub := subscription{
 		id:     rand.Uint64(),
-		events: make(chan *core.Event),
+		msgs:   make(chan proto.Message),
 		result: make(chan error),
 		rpc:    rpc,
 		peer:   peer,
 	}
 
 	if r.closed {
-		close(sub.events)
+		close(sub.msgs)
 		return sub
 	}
 
@@ -120,6 +126,7 @@ type publisher struct {
 	rpc         string
 	waitForSubs bool
 	subs        []subscription
+	respMsg     protoreflect.MessageDescriptor
 
 	stop           chan struct{}
 	events         chan *core.Event
@@ -156,7 +163,7 @@ PUBLISHER_MAIN_LOOP:
 		case event, ok := <-p.events:
 			if !ok {
 				for _, sub := range p.subs {
-					close(sub.events)
+					close(sub.msgs)
 				}
 				p.events = nil
 				continue PUBLISHER_MAIN_LOOP
@@ -203,30 +210,52 @@ func (p *publisher) _unsubscribe(sub subscription) {
 func (p *publisher) _publishBroadcast(event *core.Event) {
 	now := time.Now()
 
+	m := dynamicpb.NewMessage(p.respMsg)
+	if err := protomap.AnyToMessage(event.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
+		p.Log.Error("message encoding failed, event skipped",
+			"error", err,
+			"procedure", p.rpc,
+			elog.EventGroup(event),
+		)
+		p.Done <- event
+		p.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
+
+	p.Log.Debug("message encoded",
+		"procedure", p.rpc,
+		elog.EventGroup(event),
+	)
+
 	hasError := false
 	for _, sub := range p.subs {
 		select {
-		case sub.events <- event:
+		case sub.msgs <- m:
 		case _, ok := <-sub.result:
 			if !ok { // subscriber already gone and will be removed in the next iterations
 				continue
 			}
 		}
 
-		err := <-sub.result
-		if errors.Is(err, ErrEncodingFailed) {
-			p.Done <- event
-			p.Observe(metrics.EventFailed, time.Since(now))
-			return
+		if err := <-sub.result; err != nil {
+			hasError = true
+			p.Log.Warn("message sending failed",
+				"error", err,
+				"peer", sub.peer.String(),
+				elog.EventGroup(event),
+			)
+			continue
 		}
 
-		if err != nil {
-			hasError = true
-		}
+		p.Log.Debug("message sent",
+			"procedure", p.rpc,
+			"peer", sub.peer.String(),
+			elog.EventGroup(event),
+		)
 	}
 
 	if hasError {
-		p.Log.Warn("event delivery to some subscribers failed",
+		p.Log.Error("event delivery to some subscribers failed",
 			"procedure", p.rpc,
 			elog.EventGroup(event),
 		)
@@ -239,6 +268,23 @@ func (p *publisher) _publishBroadcast(event *core.Event) {
 func (p *publisher) _publishRandom(event *core.Event) {
 	now := time.Now()
 
+	m := dynamicpb.NewMessage(p.respMsg)
+	if err := protomap.AnyToMessage(event.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
+		p.Log.Error("message encoding failed, event skipped",
+			"error", err,
+			"procedure", p.rpc,
+			elog.EventGroup(event),
+		)
+		p.Done <- event
+		p.Observe(metrics.EventFailed, time.Since(now))
+		return
+	}
+
+	p.Log.Debug("message encoded",
+		"procedure", p.rpc,
+		elog.EventGroup(event),
+	)
+
 	subs := slices.Clone(p.subs)
 	rand.Shuffle(len(subs), func(i, j int) {
 		subs[i], subs[j] = subs[j], subs[i]
@@ -246,7 +292,7 @@ func (p *publisher) _publishRandom(event *core.Event) {
 
 	for _, sub := range subs {
 		select {
-		case sub.events <- event:
+		case sub.msgs <- m:
 		case _, ok := <-sub.result:
 			if !ok { // subscriber already gone and will be removed in the next iterations
 				continue
@@ -254,17 +300,22 @@ func (p *publisher) _publishRandom(event *core.Event) {
 		}
 
 		err := <-sub.result
-		if errors.Is(err, ErrEncodingFailed) {
-			p.Done <- event
-			p.Observe(metrics.EventFailed, time.Since(now))
-			return
-		}
-
 		if err == nil {
+			p.Log.Debug("message sent",
+				"procedure", p.rpc,
+				"peer", sub.peer.String(),
+				elog.EventGroup(event),
+			)
 			p.Done <- event
 			p.Observe(metrics.EventAccepted, time.Since(now))
 			return
 		}
+
+		p.Log.Warn("message sending failed",
+			"error", err,
+			"peer", sub.peer.String(),
+			elog.EventGroup(event),
+		)
 	}
 
 	p.Log.Error("event delivery to all subscribers failed",
