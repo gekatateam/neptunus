@@ -14,7 +14,14 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
 
 ## Server mode
 
+Event routing key must be a full RPC name from `procedures` and must be declared in  `proto_files`.
 
+Plugin creates one publisher per each unique event routing key. If there is no active streams, event will be dropped.
+
+<!-- > [!WARNING]  
+> Publisher buffer overflow will block event delivery to other publishers.  -->
+
+Each event will be encoded using [protomap](https://github.com/gekatateam/protomap). Concrete message descriptor takes from RPC output.
 
 ## Configuration
 ```toml
@@ -31,12 +38,14 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
     import_paths = [ 'D:\Go\_bin\protos\' ]
 
     # static headers that will be used on each RPC
+    # used only in client mode
     [outputs.dynamic_grpc.headers]
       authorization = "@{envs:BEARER_TOKEN}"
 
     # a "header <- label name" map
     # if event label exists, it will be added to RPC as a header
     # if "headers" already has same one, it will be overwritten
+    # used only in client mode
     [outputs.dynamic_grpc.headerlabels]
       x-ratelimit-limit = "x-ratelimit-limit"
 
@@ -102,4 +111,48 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
       tls_server_name = "exmple.svc.local"
       # use TLS but skip chain & host verification
       tls_insecure_skip_verify = false
+
+    [outputs.dynamic_grpc.server]
+      # address and port to host HTTP/2 listener on
+      address = ":9900"
+
+      # publishers behaviour
+      # "Random" - message will be sent to a random open stream
+      # "Broadcast" - message will be sent to every open stream
+      behaviour = "Random"
+
+      # list of procedures to listen
+      # each must be a server-side stream
+      procedures = [ "neptunus.plugins.common.grpc.Input.SendServerStream" ]
+
+      ## TLS configuration
+      # if true, TLS listener will be used
+      tls_enable = false
+      # service key and certificate
+      tls_key_file = "/etc/neptunus/key.pem"
+      tls_cert_file = "/etc/neptunus/cert.pem"
+      # one or more allowed client CA certificate file names to
+      # enable mutually authenticated TLS connections
+      tls_allowed_cacerts = [ "/etc/neptunus/clientca.pem" ]
+      # minimum and maximum TLS version accepted by the service
+      # not limited by default
+      tls_min_version = "TLS12"
+      tls_max_version = "TLS13"
+
+      # max size of input and output messages in bytes
+      max_message_size = "4MiB"
+
+      # number of worker goroutines that should be used to process incoming streams
+      num_stream_workers = 5
+
+      # limit on the number of concurrent streams to each ServerTransport
+      max_concurrent_streams = 5
+
+      # server keepalive options
+      # see more in https://pkg.go.dev/google.golang.org/grpc/keepalive#ServerParameters
+      max_connection_idle = "0s" # zero is for infinity
+      max_connection_age = "0s"
+      max_connection_grace = "0s"
+      inactive_transport_ping = "2h"
+      inactive_transport_age = "20s"
 ```

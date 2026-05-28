@@ -26,6 +26,7 @@
     [outputs.dynamic_grpc.server]
       address = "localhost:8660"
       procedures = [ "neptunus.plugins.common.grpc.Input.SendServerStream" ]
+      behaviour = "Broadcast"
 
 
 
