@@ -31,7 +31,7 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
     # "AsClient" or "AsServer"
     mode = "AsClient"
 
-    # list of .proto files with messages and procedures to call
+    # list of .proto files with messages and procedures to call/listen
     proto_files = [ 'D:\Go\_bin\protos\marketdata.proto' ]
 
     # list of import paths to resolve .proto imports
