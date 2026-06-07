@@ -1,6 +1,6 @@
 # Dynamic gRPC Output Plugin
 
-The `dynamic_grpc` output can produce events using unary RPCs or client streams. Server streaming will be added in future releases.
+The `dynamic_grpc` output can produce events using unary RPCs or client streams in client mode, and produce events to subscribers through server streams in server mode.
 
 ## Client mode
 
