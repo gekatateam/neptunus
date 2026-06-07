@@ -16,10 +16,10 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
 
 Event routing key must be a full RPC name from `procedures` and must be declared in  `proto_files`.
 
-Plugin creates one publisher per each unique event routing key. If there is no active streams, event will be dropped.
+Plugin creates one publisher per each unique event routing key.
 
-<!-- > [!WARNING]  
-> Publisher buffer overflow will block event delivery to other publishers.  -->
+> [!WARNING]  
+> If there is no active streams, event will be dropped. This mode was designed for realtime notifications.
 
 Each event will be encoded using [protomap](https://github.com/gekatateam/protomap). Concrete message descriptor takes from RPC output.
 
