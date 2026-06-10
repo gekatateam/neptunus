@@ -10,7 +10,7 @@
   [inputs.http]
     address = ":9200"
     max_connections = 10
-    wait_for_delivery = false
+    wait_for_delivery = true
     tls_enable = false
   [inputs.http.parser]
     type = "json"
@@ -27,7 +27,3 @@
       address = "localhost:8660"
       procedures = [ "neptunus.plugins.common.grpc.Input.SendServerStream" ]
       behaviour = "Broadcast"
-
-
-
-

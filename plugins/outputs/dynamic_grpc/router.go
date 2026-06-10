@@ -210,25 +210,25 @@ func (p *publisher) _unsubscribe(sub subscription) {
 func (p *publisher) _publishBroadcast(event *core.Event) {
 	now := time.Now()
 
-	m := dynamicpb.NewMessage(p.respMsg)
-	if err := protomap.AnyToMessage(event.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
-		p.Log.Error("message encoding failed, event skipped",
-			"error", err,
+	hasError := false
+	for _, sub := range p.subs {
+		m := dynamicpb.NewMessage(p.respMsg)
+		if err := protomap.AnyToMessage(event.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
+			p.Log.Error("message encoding failed, event skipped",
+				"error", err,
+				"procedure", p.rpc,
+				elog.EventGroup(event),
+			)
+			p.Done <- event
+			p.Observe(metrics.EventFailed, time.Since(now))
+			return
+		}
+
+		p.Log.Debug("message encoded",
 			"procedure", p.rpc,
 			elog.EventGroup(event),
 		)
-		p.Done <- event
-		p.Observe(metrics.EventFailed, time.Since(now))
-		return
-	}
 
-	p.Log.Debug("message encoded",
-		"procedure", p.rpc,
-		elog.EventGroup(event),
-	)
-
-	hasError := false
-	for _, sub := range p.subs {
 		select {
 		case sub.msgs <- m:
 		case _, ok := <-sub.result:
@@ -268,29 +268,29 @@ func (p *publisher) _publishBroadcast(event *core.Event) {
 func (p *publisher) _publishRandom(event *core.Event) {
 	now := time.Now()
 
-	m := dynamicpb.NewMessage(p.respMsg)
-	if err := protomap.AnyToMessage(event.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
-		p.Log.Error("message encoding failed, event skipped",
-			"error", err,
-			"procedure", p.rpc,
-			elog.EventGroup(event),
-		)
-		p.Done <- event
-		p.Observe(metrics.EventFailed, time.Since(now))
-		return
-	}
-
-	p.Log.Debug("message encoded",
-		"procedure", p.rpc,
-		elog.EventGroup(event),
-	)
-
 	subs := slices.Clone(p.subs)
 	rand.Shuffle(len(subs), func(i, j int) {
 		subs[i], subs[j] = subs[j], subs[i]
 	})
 
 	for _, sub := range subs {
+		m := dynamicpb.NewMessage(p.respMsg)
+		if err := protomap.AnyToMessage(event.Data, m, interceptors.DurationEncoder, interceptors.TimeEncoder); err != nil {
+			p.Log.Error("message encoding failed, event skipped",
+				"error", err,
+				"procedure", p.rpc,
+				elog.EventGroup(event),
+			)
+			p.Done <- event
+			p.Observe(metrics.EventFailed, time.Since(now))
+			return
+		}
+
+		p.Log.Debug("message encoded",
+			"procedure", p.rpc,
+			elog.EventGroup(event),
+		)
+
 		select {
 		case sub.msgs <- m:
 		case _, ok := <-sub.result:
