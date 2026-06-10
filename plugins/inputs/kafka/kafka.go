@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/gekatateam/neptunus/core"
+	"github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/ider"
 	common "github.com/gekatateam/neptunus/plugins/common/kafka"
@@ -97,7 +97,7 @@ func (i *Kafka) Init() (err error) {
 		i.PrefetchCount = 1
 	}
 
-	i.Topics = slices.Compact(i.Topics)
+	i.Topics = slices.Unique(i.Topics)
 
 	var m sasl.Mechanism
 	switch i.SASL.Mechanism {

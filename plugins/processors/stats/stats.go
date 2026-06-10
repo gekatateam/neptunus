@@ -10,6 +10,7 @@ import (
 
 	"github.com/gekatateam/neptunus/core"
 	"github.com/gekatateam/neptunus/metrics"
+	xslices "github.com/gekatateam/neptunus/pkg/slices"
 	"github.com/gekatateam/neptunus/plugins"
 	"github.com/gekatateam/neptunus/plugins/common/convert"
 	cachestats "github.com/gekatateam/neptunus/plugins/common/metrics"
@@ -42,7 +43,7 @@ func (p *Stats) Init() error {
 	p.fields = make(map[string]metricStats, len(p.Fields))
 	p.buckets = make(map[float64]float64, len(p.Buckets)+1)
 	p.exLabels = make(map[string]struct{}, len(p.WithoutLabels))
-	p.WithLabels = slices.Compact(p.WithLabels)
+	p.WithLabels = xslices.Unique(p.WithLabels)
 
 	if len(p.WithLabels) > 0 && len(p.WithoutLabels) > 0 {
 		return errors.New("with_labels and without_labels set, but only one can be used at the same time")
@@ -84,7 +85,7 @@ func (p *Stats) Init() error {
 			return fmt.Errorf("field %v has no configured stats", k)
 		}
 
-		fields := slices.Compact(v)
+		fields := xslices.Unique(v)
 		for _, v := range fields {
 			if ok := statsMap[v]; !ok {
 				return fmt.Errorf("unknown stat for field %v: %v", k, v)

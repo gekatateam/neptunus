@@ -41,6 +41,19 @@ func Unique[T comparable](s []T) []T {
 	return list
 }
 
+func UniqueFunc[T any, K comparable](s []T, keyFunc func(T) K) []T {
+	bucket := make(map[K]bool)
+	list := []T{}
+	for _, item := range s {
+		key := keyFunc(item)
+		if _, value := bucket[key]; !value {
+			bucket[key] = true
+			list = append(list, item)
+		}
+	}
+	return list
+}
+
 func Contains[T comparable](s []T, e T) bool {
 	for _, v := range s {
 		if v == e {
