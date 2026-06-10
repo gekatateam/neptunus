@@ -64,6 +64,10 @@ type ServerOptions struct {
 	InactiveTransportAge  time.Duration `mapstructure:"inactive_transport_age"`  // ServerParameters.Timeout
 }
 
+func (i *Grpc) Deprecated() string {
+	return "please use the dynamic_grpc input plugin instead, which supports both client and server modes and is more flexible"
+}
+
 func (i *Grpc) Close() error {
 	return i.listener.Close()
 }

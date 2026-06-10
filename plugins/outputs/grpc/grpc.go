@@ -56,6 +56,10 @@ type CallOptions struct {
 	WaitForReady   bool   `mapstructure:"wait_for_ready"`  // https://pkg.go.dev/google.golang.org/grpc#WaitForReady
 }
 
+func (o *Grpc) Deprecated() string {
+	return "please use the dynamic_grpc output plugin instead, which supports both client and server modes and is more flexible"
+}
+
 func (o *Grpc) Init() error {
 	if len(o.Address) == 0 {
 		return errors.New("address required")
