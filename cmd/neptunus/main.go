@@ -1,14 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/urfave/cli/v2"
+	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/logger"
+	"github.com/gekatateam/neptunus/pkg/memory"
 )
 
 var Version = "v.0.0.0"
@@ -51,6 +57,23 @@ func main() {
 					},
 				},
 				Action: test,
+			},
+			{
+				Name:  "worker",
+				Usage: "run worker process",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "config",
+						Value: "config.toml",
+						Usage: "path to configuration file",
+					},
+					&cli.StringFlag{
+						Name:     "pipeline",
+						Required: true,
+						Usage:    "pipeline name to run in worker",
+					},
+				},
+				Action: worker,
 			},
 			{
 				Name:  "pipeline",
@@ -217,4 +240,55 @@ func main() {
 		)
 		os.Exit(1)
 	}
+}
+
+func SetRuntimeParameters(config *config.Runtime) error {
+	if len(config.GCPercent) > 0 {
+		gcPercent, err := strconv.Atoi(strings.TrimSuffix(config.GCPercent, "%"))
+		if err != nil {
+			return err
+		}
+
+		debug.SetGCPercent(gcPercent)
+		logger.Default.Info(fmt.Sprintf("GC percent is set to %v", config.GCPercent))
+	}
+
+	if config.MaxThreads > 0 {
+		debug.SetMaxThreads(config.MaxThreads)
+		logger.Default.Info(fmt.Sprintf("max threads number is set to %v", config.MaxThreads))
+	}
+
+	if config.MaxProcs > 0 {
+		runtime.GOMAXPROCS(config.MaxProcs)
+		logger.Default.Info(fmt.Sprintf("max procs number is set to %v", config.MaxProcs))
+	}
+
+	if len(config.MemLimit) > 0 {
+		var memLimit uint64
+		if strings.HasSuffix(config.MemLimit, "%") {
+			if memory.TotalMemory() == 0 {
+				logger.Default.Warn("unable to set percentage memory limit on current system")
+				return nil
+			}
+
+			memLimitPercent, err := strconv.ParseUint(strings.TrimSuffix(config.MemLimit, "%"), 10, 0)
+			if err != nil {
+				return err
+			}
+
+			memLimit = memory.TotalMemory() * memLimitPercent / 100
+		} else {
+			size, err := datasize.Parse(config.MemLimit)
+			if err != nil {
+				return err
+			}
+
+			memLimit = size.Bytes()
+		}
+
+		debug.SetMemoryLimit(int64(memLimit))
+		logger.Default.Info(fmt.Sprintf("memory limit is set to %v", datasize.Size(memLimit)))
+	}
+
+	return nil
 }

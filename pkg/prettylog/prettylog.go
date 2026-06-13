@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -46,6 +47,7 @@ type Handler struct {
 	r func([]string, slog.Attr) slog.Attr
 	b *bytes.Buffer
 	m *sync.Mutex
+	w io.Writer
 }
 
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -153,7 +155,8 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if len(bytes) > 0 {
 		out.WriteString(colorize(darkGray, string(bytes)))
 	}
-	fmt.Println(out.String())
+	out.WriteString("\n")
+	fmt.Fprint(h.w, out.String())
 
 	return nil
 }
@@ -174,7 +177,7 @@ func suppressDefaults(
 	}
 }
 
-func NewHandler(opts *slog.HandlerOptions) *Handler {
+func NewHandler(w io.Writer, opts *slog.HandlerOptions) *Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
@@ -193,5 +196,6 @@ func NewHandler(opts *slog.HandlerOptions) *Handler {
 		}),
 		r: opts.ReplaceAttr,
 		m: &sync.Mutex{},
+		w: w,
 	}
 }
