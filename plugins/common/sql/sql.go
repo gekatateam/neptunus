@@ -12,8 +12,8 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/go-sql-driver/mysql"
-	"github.com/jackc/pgx/v4"
-	pgxstd "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v5"
+	pgxstd "github.com/jackc/pgx/v5/stdlib"
 	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
 	ora "github.com/sijms/go-ora/v2"
