@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -23,6 +24,13 @@ var (
 	DefaultMetricWindow          = time.Minute
 	DefaultSummaryQuantiles      = []float64{0.5, 0.9, 0.99, 1.0}
 )
+
+func Write(w io.Writer) {
+	PipelinesSet.WritePrometheus(w)
+	CoreSet.WritePrometheus(w)
+	PluginsSet.WritePrometheus(w)
+	metrics.WriteProcessMetrics(w)
+}
 
 type Collector interface {
 	Collect()

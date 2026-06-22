@@ -69,6 +69,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:     "pipeline",
+						Aliases:  []string{"name", "n", "id"},
 						Required: true,
 						Usage:    "pipeline name to run in worker",
 					},

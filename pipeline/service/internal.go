@@ -246,7 +246,7 @@ func (m *internalService) Delete(id string) error {
 }
 
 func (m *internalService) createPipeline(pipeCfg *config.Pipeline) *pipeline.Pipeline {
-	log := logger.Default.With(slog.Group("pipeline",
+	log := m.log.With(slog.Group("pipeline",
 		"id", pipeCfg.Settings.Id,
 	))
 	dynamic.OverrideLevel(log.Handler(), logger.ShouldLevelToLeveler(pipeCfg.Settings.LogLevel))

@@ -7,7 +7,6 @@ import (
 	"net/http/pprof"
 	"time"
 
-	vmetrics "github.com/VictoriaMetrics/metrics"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/gekatateam/neptunus/config"
@@ -35,10 +34,7 @@ func Http(cfg config.Common) (*httpServer, error) {
 
 	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		metrics.PipelinesSet.WritePrometheus(w)
-		metrics.CoreSet.WritePrometheus(w)
-		metrics.PluginsSet.WritePrometheus(w)
-		vmetrics.WriteProcessMetrics(w)
+		metrics.Write(w)
 	})
 
 	// up all probes after api server startup
