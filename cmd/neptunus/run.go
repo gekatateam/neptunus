@@ -82,7 +82,7 @@ func run(cCtx *cli.Context) error {
 
 	if err := s.StartAll(); err != nil {
 		// any other error means that app must die
-		if _, ok := errors.AsType[xerrors.Errorlist](err); !ok {
+		if ok := xerrors.AsType[xerrors.Errorlist](err); !ok {
 			return err
 		}
 
