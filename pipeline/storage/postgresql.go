@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v4"
-	pgxstd "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v5"
+	pgxstd "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
 
