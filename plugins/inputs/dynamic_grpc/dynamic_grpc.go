@@ -341,7 +341,7 @@ func (i *DynamicGRPC) prepareClient() error {
 }
 
 func init() {
-	plugins.AddInput("dynamic_grpc", func() core.Input {
+	p := func() core.Input {
 		return &DynamicGRPC{
 			Ider: &ider.Ider{},
 			Client: Client{
@@ -359,25 +359,13 @@ func init() {
 				},
 			},
 		}
+	}
+
+	plugins.AddInput("dynamic_grpc", func() core.Input {
+		return p()
 	})
 
 	plugins.AddInput("grpc", func() core.Input {
-		return &DynamicGRPC{
-			Ider: &ider.Ider{},
-			Client: Client{
-				RetryAfter: 5 * time.Second,
-				Client: dynamicgrpc.Client{
-					TLSClientConfig: &tls.TLSClientConfig{},
-				},
-			},
-			Server: Server{
-				Server: dynamicgrpc.Server{
-					MaxMessageSize:       4 * datasize.Mebibyte,
-					NumStreamWorkers:     5,
-					MaxConcurrentStreams: 5,
-					TLSServerConfig:      &tls.TLSServerConfig{},
-				},
-			},
-		}
+		return p()
 	})
 }
