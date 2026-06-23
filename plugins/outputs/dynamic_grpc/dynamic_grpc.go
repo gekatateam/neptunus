@@ -468,4 +468,39 @@ func init() {
 			},
 		}
 	})
+
+	plugins.AddOutput("grpc", func() core.Output {
+		return &DynamicGRPC{
+			Client: Client{
+				SuccessCodes:  []int32{0},
+				IdleTimeout:   time.Hour,
+				InvokeTimeout: 30 * time.Second,
+				Client: dynamicgrpc.Client{
+					TLSClientConfig: &tls.TLSClientConfig{},
+				},
+				Batcher: &batcher.Batcher[*core.Event]{
+					Buffer:   100,
+					Interval: 5 * time.Second,
+				},
+				Retryer: &retryer.Retryer{
+					RetryAttempts: 0,
+					RetryAfter:    5 * time.Second,
+				},
+			},
+			Server: Server{
+				Behaviour: behaviourRandom,
+				// WaitForSubscribers: true,
+				Server: dynamicgrpc.Server{
+					MaxMessageSize:       4 * datasize.Mebibyte,
+					NumStreamWorkers:     5,
+					MaxConcurrentStreams: 5,
+					TLSServerConfig:      &tls.TLSServerConfig{},
+				},
+				Retryer: &retryer.Retryer{
+					RetryAttempts: 0,
+					RetryAfter:    5 * time.Second,
+				},
+			},
+		}
+	})
 }

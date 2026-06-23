@@ -1,6 +1,6 @@
 # Dynamic gRPC Input Plugin
 
-The `dynamic_grpc` input can read server stream as a client or receive unary calls/client streams as a server. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
+The `dynamic_grpc` (or just `grpc`) input can read server stream as a client or receive unary calls/client streams as a server. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
 
 ## Configuration
 ```toml

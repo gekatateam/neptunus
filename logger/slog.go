@@ -19,12 +19,12 @@ var Default = slog.New(prettylog.NewHandler(os.Stderr, &slog.HandlerOptions{
 
 func Init(cfg config.Common) error {
 	var opts = &slog.HandlerOptions{}
-	var handler slog.Handler = nil
 
 	level, err := LevelToLeveler(cfg.LogLevel)
 	if err != nil {
 		return err
 	}
+	opts.Level = level
 
 	replaces := make(map[*regexp.Regexp]string, len(cfg.LogReplaces))
 	for k, v := range cfg.LogReplaces {
@@ -34,10 +34,9 @@ func Init(cfg config.Common) error {
 		}
 		replaces[rex] = v
 	}
-
 	opts.ReplaceAttr = attrReplacer(replaces)
-	opts.Level = level
 
+	var handler slog.Handler
 	switch f := cfg.LogFormat; f {
 	case "logfmt":
 		handler = slog.NewTextHandler(os.Stderr, opts)
