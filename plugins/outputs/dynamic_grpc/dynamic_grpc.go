@@ -434,7 +434,7 @@ func (o *DynamicGRPC) descriptorForClient(name protoreflect.FullName) (protorefl
 }
 
 func init() {
-	plugins.AddOutput("dynamic_grpc", func() core.Output {
+	p := func() core.Output {
 		return &DynamicGRPC{
 			Client: Client{
 				SuccessCodes:  []int32{0},
@@ -467,5 +467,13 @@ func init() {
 				},
 			},
 		}
+	}
+
+	plugins.AddOutput("dynamic_grpc", func() core.Output {
+		return p()
+	})
+
+	plugins.AddOutput("grpc", func() core.Output {
+		return p()
 	})
 }

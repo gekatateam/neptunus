@@ -20,10 +20,10 @@
     "neptunus.plugins.common.grpc.Input.SendServerStream" = [ "/neptunus.plugins.common.grpc.Input.SendServerStream" ]
 
 [[outputs]]
-  [outputs.dynamic_grpc]
+  [outputs.grpc]
     mode = "AsServer"
-    proto_files = [ "./plugins/common/grpc/input.proto" ]
-    [outputs.dynamic_grpc.server]
+    proto_files = [ "./.pipelines/input.proto" ]
+    [outputs.grpc.server]
       address = "localhost:8660"
       procedures = [ "neptunus.plugins.common.grpc.Input.SendServerStream" ]
       behaviour = "Broadcast"

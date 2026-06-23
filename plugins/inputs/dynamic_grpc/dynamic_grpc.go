@@ -341,7 +341,7 @@ func (i *DynamicGRPC) prepareClient() error {
 }
 
 func init() {
-	plugins.AddInput("dynamic_grpc", func() core.Input {
+	p := func() core.Input {
 		return &DynamicGRPC{
 			Ider: &ider.Ider{},
 			Client: Client{
@@ -359,5 +359,13 @@ func init() {
 				},
 			},
 		}
+	}
+
+	plugins.AddInput("dynamic_grpc", func() core.Input {
+		return p()
+	})
+
+	plugins.AddInput("grpc", func() core.Input {
+		return p()
 	})
 }
