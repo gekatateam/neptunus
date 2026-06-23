@@ -12,7 +12,7 @@ import (
 	"github.com/gekatateam/neptunus/pkg/prettylog"
 )
 
-var Default = slog.New(prettylog.NewHandler(&slog.HandlerOptions{
+var Default = slog.New(prettylog.NewHandler(os.Stderr, &slog.HandlerOptions{
 	Level:     slog.LevelInfo,
 	AddSource: false,
 }))
@@ -35,17 +35,16 @@ func Init(cfg config.Common) error {
 		replaces[rex] = v
 	}
 
+	opts.ReplaceAttr = attrReplacer(replaces)
 	opts.Level = level
 
 	switch f := cfg.LogFormat; f {
 	case "logfmt":
-		opts.ReplaceAttr = attrReplacer(replaces)
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		handler = slog.NewTextHandler(os.Stderr, opts)
 	case "json":
-		opts.ReplaceAttr = attrReplacer(replaces)
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewJSONHandler(os.Stderr, opts)
 	case "pretty":
-		handler = prettylog.NewHandler(opts)
+		handler = prettylog.NewHandler(os.Stderr, opts)
 	default:
 		return fmt.Errorf("unknown log format: %v", f)
 	}

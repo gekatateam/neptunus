@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -37,15 +38,18 @@ const (
 	white        = 97
 )
 
+type replaceAttrFunc func([]string, slog.Attr) slog.Attr
+
 func colorize(colorCode int, v string) string {
 	return fmt.Sprintf("\033[%sm%s%s", strconv.Itoa(colorCode), v, reset)
 }
 
 type Handler struct {
 	h slog.Handler
-	r func([]string, slog.Attr) slog.Attr
+	r replaceAttrFunc
 	b *bytes.Buffer
 	m *sync.Mutex
+	w io.Writer
 }
 
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -53,22 +57,16 @@ func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &Handler{h: h.h.WithAttrs(attrs), r: h.r, b: h.b, m: h.m}
+	return &Handler{h: h.h.WithAttrs(attrs), r: h.r, b: h.b, m: h.m, w: h.w}
 }
 
 func (h *Handler) WithGroup(name string) slog.Handler {
-	return &Handler{h: h.h.WithGroup(name), r: h.r, b: h.b, m: h.m}
+	return &Handler{h: h.h.WithGroup(name), r: h.r, b: h.b, m: h.m, w: h.w}
 }
 
-func (h *Handler) computeAttrs(
-	ctx context.Context,
-	r slog.Record,
-) (map[string]any, error) {
-	h.m.Lock()
-	defer func() {
-		h.b.Reset()
-		h.m.Unlock()
-	}()
+func (h *Handler) computeAttrs(ctx context.Context, r slog.Record) (map[string]any, error) {
+	defer h.b.Reset()
+
 	if err := h.h.Handle(ctx, r); err != nil {
 		return nil, fmt.Errorf("error when calling inner handler's Handle: %w", err)
 	}
@@ -82,6 +80,8 @@ func (h *Handler) computeAttrs(
 }
 
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
+	h.m.Lock()
+	defer h.m.Unlock()
 
 	var level string
 	levelAttr := slog.Attr{
@@ -153,14 +153,13 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if len(bytes) > 0 {
 		out.WriteString(colorize(darkGray, string(bytes)))
 	}
-	fmt.Println(out.String())
+	out.WriteString("\n")
+	fmt.Fprint(h.w, out.String())
 
 	return nil
 }
 
-func suppressDefaults(
-	next func([]string, slog.Attr) slog.Attr,
-) func([]string, slog.Attr) slog.Attr {
+func suppressDefaults(next replaceAttrFunc) replaceAttrFunc {
 	return func(groups []string, a slog.Attr) slog.Attr {
 		if a.Key == slog.TimeKey ||
 			a.Key == slog.LevelKey ||
@@ -174,7 +173,7 @@ func suppressDefaults(
 	}
 }
 
-func NewHandler(opts *slog.HandlerOptions) *Handler {
+func NewHandler(w io.Writer, opts *slog.HandlerOptions) *Handler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
@@ -193,5 +192,6 @@ func NewHandler(opts *slog.HandlerOptions) *Handler {
 		}),
 		r: opts.ReplaceAttr,
 		m: &sync.Mutex{},
+		w: w,
 	}
 }
