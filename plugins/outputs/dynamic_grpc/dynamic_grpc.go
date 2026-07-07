@@ -63,7 +63,6 @@ type DynamicGRPC struct {
 	headers      metadata.MD
 	callersPool  *pool.Pool[*core.Event, string]
 	successCodes map[codes.Code]struct{}
-	successMsg   *regexp.Regexp
 
 	// AsServer
 	Server   Server `mapstructure:"server"`
@@ -76,10 +75,10 @@ type DynamicGRPC struct {
 }
 
 type Client struct {
-	SuccessCodes                  []int32       `mapstructure:"success_codes"`
-	SuccessMessage                string        `mapstructure:"success_message"`
-	IdleTimeout                   time.Duration `mapstructure:"idle_timeout"`
-	InvokeTimeout                 time.Duration `mapstructure:"invoke_timeout"`
+	SuccessCodes                  []int32        `mapstructure:"success_codes"`
+	SuccessMessage                *regexp.Regexp `mapstructure:"success_message"`
+	IdleTimeout                   time.Duration  `mapstructure:"idle_timeout"`
+	InvokeTimeout                 time.Duration  `mapstructure:"invoke_timeout"`
 	dynamicgrpc.Client            `mapstructure:",squash"`
 	*batcher.Batcher[*core.Event] `mapstructure:",squash"`
 	*retryer.Retryer              `mapstructure:",squash"`
@@ -177,16 +176,6 @@ func (o *DynamicGRPC) prepareClient() error {
 		}
 
 		o.successCodes[codes.Code(code)] = struct{}{}
-	}
-
-	o.successMsg = nil
-	if len(o.Client.SuccessMessage) > 0 {
-		r, err := regexp.Compile(o.Client.SuccessMessage)
-		if err != nil {
-			return err
-		}
-
-		o.successMsg = r
 	}
 
 	if o.Client.IdleTimeout > 0 && o.Client.IdleTimeout < time.Minute {
@@ -379,8 +368,8 @@ func (o *DynamicGRPC) newCaller(rpc string) pool.Runner[*core.Event] {
 		Retryer:      o.Client.Retryer,
 		headerLabels: o.HeaderLabels,
 		timeout:      o.Client.InvokeTimeout,
+		successMsg:   o.Client.SuccessMessage,
 		successCodes: o.successCodes,
-		successMsg:   o.successMsg,
 		headers:      o.headers,
 		method:       m,
 		stub:         grpcdynamic.NewStub(o.clientConn),

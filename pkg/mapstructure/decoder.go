@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"regexp"
 	"time"
 
 	"kythe.io/kythe/go/util/datasize"
@@ -19,6 +20,7 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 		ToTimeDurationHookFunc(),
 		ToByteSizeHookFunc(),
 		ToRuneHookFunc(),
+		ToRegexpHookFunc(),
 		ToSQLIsolationLevelHookFunc(),
 	)
 
@@ -103,6 +105,25 @@ func ToRuneHookFunc() mapstructure.DecodeHookFunc {
 			return r[0], nil
 		case reflect.Int32:
 			return rune(data.(int32)), nil
+		default:
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
+		}
+	}
+}
+
+func ToRegexpHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeFor[*regexp.Regexp]() {
+			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			if len(data.(string)) == 0 {
+				return nil, nil
+			}
+
+			return regexp.Compile(data.(string))
 		default:
 			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}
