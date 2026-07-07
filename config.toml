@@ -19,6 +19,7 @@
 [engine]
   storage = "fs"
   fail_fast = false
+  async_start = true
   [engine.fs]
     directory = ".pipelines"
     extension = "toml"

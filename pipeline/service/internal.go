@@ -41,28 +41,12 @@ func Internal(s pipeline.Storage, log *slog.Logger) *internalService {
 	}
 }
 
-func (m *internalService) StartAll() error {
-	pipes, err := m.s.List()
-	if err != nil {
-		return err
+func (m *internalService) StartAll(async bool) error {
+	if async {
+		return m.startAsync()
+	} else {
+		return m.startSync()
 	}
-
-	var errs xerrors.Errorlist
-	for _, pipeCfg := range pipes {
-		unit := pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil}
-		m.pipes.Store(pipeCfg.Settings.Id, unit)
-		if pipeCfg.Settings.Run {
-			if err := m.startPipeline(unit); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if len(errs) > 0 {
-		return errs
-	}
-
-	return nil
 }
 
 func (m *internalService) StopAll() {
@@ -321,6 +305,68 @@ func (m *internalService) stopPipeline(pipeUnit pipeUnit) {
 			),
 		)
 	}
+}
+
+func (m *internalService) startSync() error {
+	pipes, err := m.s.List()
+	if err != nil {
+		return err
+	}
+
+	var errs xerrors.Errorlist
+	for _, pipeCfg := range pipes {
+		unit := pipeUnit{m.createPipeline(pipeCfg), &sync.Mutex{}, nil}
+		m.pipes.Store(pipeCfg.Settings.Id, unit)
+		if pipeCfg.Settings.Run {
+			if err := m.startPipeline(unit); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
+}
+
+func (m *internalService) startAsync() error {
+	pipes, err := m.s.List()
+	if err != nil {
+		return err
+	}
+
+	wg := &sync.WaitGroup{}
+	errCh := make(chan error, len(pipes))
+
+	for _, pipeCfg := range pipes {
+		wg.Add(1)
+		go func(cfg *config.Pipeline) {
+			defer wg.Done()
+			unit := pipeUnit{m.createPipeline(cfg), &sync.Mutex{}, nil}
+			m.pipes.Store(cfg.Settings.Id, unit)
+			if cfg.Settings.Run {
+				errCh <- m.startPipeline(unit)
+			}
+		}(pipeCfg)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	var errs xerrors.Errorlist
+	for err := range errCh {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
 }
 
 func (m *internalService) Stats() []metrics.PipelineStats {

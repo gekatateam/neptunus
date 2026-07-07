@@ -46,8 +46,9 @@ Here is a common part example:
 ```
 
 **Engine** section used for pipelines engine settings:
- - **storage**: What kind of storage should be used.
+ - **storage**: What kind of storage will be used.
  - **fail_fast**: Fail on startup, if any pipeline returns error.
+ - **async_start**: If true, engine will start all pipelines asynchronously at startup. Otherwise, it will start them sequentially, one after another.
 
 ### FS storage
 

@@ -19,8 +19,9 @@ var (
 			GracefulTimeout: 15,
 		},
 		Engine: Engine{
-			Storage:  "fs",
-			FailFast: false,
+			Storage:    "fs",
+			FailFast:   false,
+			AsyncStart: false,
 			File: FileStorage{
 				Directory: ".pipelines",
 				Extension: ".toml",
@@ -52,10 +53,11 @@ type Runtime struct {
 }
 
 type Engine struct {
-	Storage    string            `toml:"storage"    yaml:"storage"    json:"storage"`
-	FailFast   bool              `toml:"fail_fast"  yaml:"fail_fast"  json:"fail_fast"`
-	File       FileStorage       `toml:"fs"         yaml:"fs"         json:"fs"`
-	Postgresql PostgresqlStorage `toml:"postgresql" yaml:"postgresql" json:"postgresql"`
+	Storage    string            `toml:"storage"     yaml:"storage"     json:"storage"`
+	FailFast   bool              `toml:"fail_fast"   yaml:"fail_fast"   json:"fail_fast"`
+	AsyncStart bool              `toml:"async_start" yaml:"async_start" json:"async_start"`
+	File       FileStorage       `toml:"fs"          yaml:"fs"          json:"fs"`
+	Postgresql PostgresqlStorage `toml:"postgresql"  yaml:"postgresql"  json:"postgresql"`
 }
 
 type FileStorage struct {
