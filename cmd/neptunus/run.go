@@ -80,7 +80,7 @@ func run(cCtx *cli.Context) error {
 		r.Mount("/pipelines", restApi.Router())
 	})
 
-	if err := s.StartAll(); err != nil {
+	if err := s.StartAll(cfg.Engine.AsyncStart); err != nil {
 		// any other error means that app must die
 		if ok := xerrors.AsType[xerrors.Errorlist](err); !ok {
 			return err
