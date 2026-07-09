@@ -14,6 +14,9 @@ The `exec` lookup executes configured command with args and stores the result as
     # command args, strings list
     args = []
 
+    # command stdin
+    stdin = ""
+
     # exec timeout
     timeout = "10s"
 
@@ -21,6 +24,6 @@ The `exec` lookup executes configured command with args and stores the result as
     # if zero, plugin executes command only on pipeline startup
     interval = "30s"
 
-    [lookups.file.parser]
+    [lookups.exec.parser]
       type = "json"
 ```

@@ -3,8 +3,10 @@ package exec
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -15,12 +17,14 @@ import (
 type Exec struct {
 	*core.BaseLookup `mapstructure:"-"`
 	Command          string            `mapstructure:"command"`
-	Timeout          time.Duration     `mapstructure:"timeout"`
 	Args             []string          `mapstructure:"args"`
+	Stdin            string            `mapstructure:"stdin"`
+	Timeout          time.Duration     `mapstructure:"timeout"`
 	Envs             map[string]string `mapstructure:"envs"`
 
 	parser core.Parser
 	envs   []string
+	stdin  *strings.Reader
 }
 
 func (l *Exec) Init() error {
@@ -31,6 +35,10 @@ func (l *Exec) Init() error {
 	l.envs = append(l.envs, os.Environ()...)
 	for k, v := range l.Envs {
 		l.envs = append(l.envs, k+"="+v)
+	}
+
+	if len(l.Stdin) > 0 {
+		l.stdin = strings.NewReader(l.Stdin)
 	}
 
 	return nil
@@ -51,9 +59,14 @@ func (l *Exec) Update() (any, error) {
 	cmd := exec.CommandContext(ctx, l.Command, l.Args...)
 	cmd.Env = l.envs
 
+	if l.stdin != nil {
+		cmd.Stdin = l.stdin
+		defer l.stdin.Reset(l.Stdin)
+	}
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", err, string(out))
 	}
 
 	event, err := l.parser.Parse(out, "")
