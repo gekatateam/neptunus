@@ -24,6 +24,12 @@ The `exec` lookup executes configured command with args and stores the result as
     # if zero, plugin executes command only on pipeline startup
     interval = "30s"
 
+    # command envs (os.Environ() already included)
+    # each configured will be added to the environment 
+    # of the process in the "env_name=env_value" form
+    [lookups.exec.envs]
+      CATCH_PHRASE = "phrase"
+
     [lookups.exec.parser]
       type = "json"
 ```
