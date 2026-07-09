@@ -1,7 +1,6 @@
 package regex
 
 import (
-	"fmt"
 	"regexp"
 	"time"
 
@@ -13,33 +12,11 @@ import (
 
 type Regex struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	Labels              map[string]string `mapstructure:"labels"`
-	Fields              map[string]string `mapstructure:"fields"`
-
-	fields map[string]*regexp.Regexp
-	labels map[string]*regexp.Regexp
+	Labels              map[string]*regexp.Regexp `mapstructure:"labels"`
+	Fields              map[string]*regexp.Regexp `mapstructure:"fields"`
 }
 
 func (p *Regex) Init() error {
-	p.labels = make(map[string]*regexp.Regexp)
-	p.fields = make(map[string]*regexp.Regexp)
-
-	for k, v := range p.Labels {
-		regex, err := regexp.Compile(v)
-		if err != nil {
-			return fmt.Errorf("label %v regex compilation failed: %w", k, err)
-		}
-		p.labels[k] = regex
-	}
-
-	for k, v := range p.Fields {
-		regex, err := regexp.Compile(v)
-		if err != nil {
-			return fmt.Errorf("field %v regex compilation failed: %w", k, err)
-		}
-		p.fields[k] = regex
-	}
-
 	return nil
 }
 
@@ -57,7 +34,7 @@ func (p *Regex) Run() {
 }
 
 func (p *Regex) process(e *core.Event) {
-	for name, rex := range p.labels {
+	for name, rex := range p.Labels {
 		label, found := e.GetLabel(name)
 		if !found {
 			continue
@@ -75,7 +52,7 @@ func (p *Regex) process(e *core.Event) {
 		}
 	}
 
-	for name, rex := range p.fields {
+	for name, rex := range p.Fields {
 		rawField, err := e.GetField(name)
 		if err != nil {
 			continue

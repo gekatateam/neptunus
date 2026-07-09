@@ -26,7 +26,7 @@ type Http struct {
 	IdleConnTimeout  time.Duration     `mapstructure:"idle_conn_timeout"`
 	MaxIdleConns     int               `mapstructure:"max_idle_conns"`
 	SuccessCodes     []int             `mapstructure:"success_codes"`
-	SuccessBody      string            `mapstructure:"success_body"`
+	SuccessBody      *regexp.Regexp    `mapstructure:"success_body"`
 	RequestBody      string            `mapstructure:"request_body"`
 	RequestQuery     string            `mapstructure:"request_query"`
 	Headers          map[string]string `mapstructure:"headers"`
@@ -37,7 +37,6 @@ type Http struct {
 	body         []byte
 	headers      http.Header
 	successCodes map[int]struct{}
-	successBody  *regexp.Regexp
 	baseUrl      *url.URL
 	fallbacks    []*url.URL
 
@@ -88,15 +87,6 @@ func (l *Http) Init() error {
 		successCodes[v] = struct{}{}
 	}
 	l.successCodes = successCodes
-
-	l.successBody = nil
-	if len(l.SuccessBody) > 0 {
-		rex, err := regexp.Compile(l.SuccessBody)
-		if err != nil {
-			return fmt.Errorf("successBody regexp: %w", err)
-		}
-		l.successBody = rex
-	}
 
 	tlsConfig, err := l.TLSClientConfig.Config()
 	if err != nil {
@@ -200,7 +190,7 @@ func (l *Http) perform(uri *url.URL, method string, body []byte, header http.Hea
 			l.Log.Debug(fmt.Sprintf("request performed successfully with code: %v, body: %v", res.StatusCode, string(rawBody)))
 			return nil
 		} else {
-			if l.successBody != nil && l.successBody.Match(rawBody) {
+			if l.SuccessBody != nil && l.SuccessBody.Match(rawBody) {
 				l.Log.Debug(fmt.Sprintf("request performed with code: %v, body: %v; "+
 					"but response body matches configured regexp", res.StatusCode, string(rawBody)))
 				return nil
