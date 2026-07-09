@@ -119,10 +119,6 @@ func ToRegexpHookFunc() mapstructure.DecodeHookFunc {
 
 		switch f.Kind() {
 		case reflect.String:
-			if len(data.(string)) == 0 {
-				return nil, nil
-			}
-
 			return regexp.Compile(data.(string))
 		default:
 			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
