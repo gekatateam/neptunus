@@ -16,12 +16,21 @@ The `exec` output executes configured command on each event.
     # otherwise, field will be used as is
     args = ["."]
 
+    # event field, which value will be passed to process stdin
+    stdin_field = ""
+
     # exec timeout
     timeout = "10s"
 
-    # a "env name <- label" map
+    # command envs (os.Environ() already included)
     # each configured will be added to the environment 
     # of the process in the "env_name=label_value" form
+    [outputs.exec.envs]
+      EXEC_CONTEXT = "neptunus-output"
+
+    # a "env name <- label" map
+    # each configured will be added to the "envs"
+    # in the "env_name=label_value" form
     [outputs.exec.envlabels]
       CATCH_PHRASE = "phrase"
 ```
