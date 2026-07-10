@@ -22,6 +22,7 @@ type Exec struct {
 	Command          string            `mapstructure:"command"`
 	Args             []string          `mapstructure:"args"`
 	StdinField       string            `mapstructure:"stdin_field"`
+	Dir              string            `mapstructure:"dir"`
 	Timeout          time.Duration     `mapstructure:"timeout"`
 	Envs             map[string]string `mapstructure:"envs"`
 	EnvLabels        map[string]string `mapstructure:"envlabels"`
@@ -82,6 +83,7 @@ func (o *Exec) Run() {
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		cmd := exec.CommandContext(ctx, o.Command, args...)
 		cmd.Env = slices.Concat(o.envs, envs)
+		cmd.Dir = o.Dir
 
 		if len(stdin) > 0 {
 			cmd.Stdin = strings.NewReader(stdin)

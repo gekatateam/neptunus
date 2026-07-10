@@ -19,6 +19,7 @@ type Exec struct {
 	Command          string            `mapstructure:"command"`
 	Args             []string          `mapstructure:"args"`
 	Stdin            string            `mapstructure:"stdin"`
+	Dir              string            `mapstructure:"dir"`
 	Timeout          time.Duration     `mapstructure:"timeout"`
 	Envs             map[string]string `mapstructure:"envs"`
 
@@ -58,6 +59,7 @@ func (l *Exec) Update() (any, error) {
 
 	cmd := exec.CommandContext(ctx, l.Command, l.Args...)
 	cmd.Env = l.envs
+	cmd.Dir = l.Dir
 
 	if l.stdin != nil {
 		cmd.Stdin = l.stdin

@@ -19,6 +19,9 @@ The `exec` output executes configured command on each event.
     # event field, which value will be passed to process stdin
     stdin_field = ""
 
+    # command working directory
+    dir = ""
+
     # exec timeout
     timeout = "10s"
 

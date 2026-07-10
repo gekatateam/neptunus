@@ -17,6 +17,9 @@ The `exec` lookup executes configured command with args and stores the result as
     # command stdin
     stdin = ""
 
+    # command working directory
+    dir = ""
+
     # exec timeout
     timeout = "10s"
 

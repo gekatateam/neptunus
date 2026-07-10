@@ -19,6 +19,9 @@ The `exec` processor executes configured command on each event.
     # event field, which value will be passed to process stdin
     stdin_field = ""
 
+    # command working directory
+    dir = ""
+
     # path to set process exit code
     exec_code_to = "exec.code"
 
