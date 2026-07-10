@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.httpproc"
   lines = 1
-  run = true
+  run = false
   buffer = 1_000
   log_level = "debug"
 

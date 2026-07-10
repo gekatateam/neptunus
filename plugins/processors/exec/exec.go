@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -20,14 +22,24 @@ type Exec struct {
 	Command             string            `mapstructure:"command"`
 	Timeout             time.Duration     `mapstructure:"timeout"`
 	Args                []string          `mapstructure:"args"`
+	StdinField          string            `mapstructure:"stdin_field"`
+	Dir                 string            `mapstructure:"dir"`
 	ExecCodeTo          string            `mapstructure:"exec_code_to"`
 	ExecOutputTo        string            `mapstructure:"exec_output_to"`
+	Envs                map[string]string `mapstructure:"envs"`
 	EnvLabels           map[string]string `mapstructure:"envlabels"`
+
+	envs []string
 }
 
 func (p *Exec) Init() error {
 	if len(p.Command) == 0 {
 		return errors.New("command required")
+	}
+
+	p.envs = append(p.envs, os.Environ()...)
+	for k, v := range p.Envs {
+		p.envs = append(p.envs, k+"="+v)
 	}
 
 	return nil
@@ -61,10 +73,26 @@ func (p *Exec) Run() {
 			continue
 		}
 
+		stdin, err := p.unpackStdin(e)
+		if err != nil {
+			p.Log.Error("command stdin preparation failed",
+				"error", err,
+				elog.EventGroup(e),
+			)
+			e.StackError(err)
+			p.Out <- e
+			p.Observe(metrics.EventFailed, time.Since(now))
+			continue
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 		cmd := exec.CommandContext(ctx, p.Command, args...)
-		cmd.Env = append(cmd.Env, os.Environ()...)
-		cmd.Env = append(cmd.Env, envs...)
+		cmd.Env = slices.Concat(p.envs, envs)
+		cmd.Dir = p.Dir
+
+		if len(stdin) > 0 {
+			cmd.Stdin = strings.NewReader(stdin)
+		}
 
 		out, err := cmd.CombinedOutput()
 		cancel()
@@ -75,7 +103,7 @@ func (p *Exec) Run() {
 				exitCode = exitError.ExitCode()
 			} else { // any other error means that command execution failed
 				p.Log.Error("command execution failed",
-					"error", err,
+					"error", fmt.Errorf("%w: %v", err, string(out)),
 					elog.EventGroup(e),
 				)
 				e.StackError(err)
@@ -173,6 +201,24 @@ func (p *Exec) unpackArgs(e *core.Event) ([]string, error) {
 	}
 
 	return args, nil
+}
+
+func (p *Exec) unpackStdin(e *core.Event) (string, error) {
+	if len(p.StdinField) == 0 {
+		return "", nil
+	}
+
+	field, err := e.GetField(p.StdinField)
+	if err != nil {
+		return "", fmt.Errorf("%v: %w", p.StdinField, err)
+	}
+
+	stdin, err := convert.AnyToString(field)
+	if err != nil {
+		return "", fmt.Errorf("%v: %w", p.StdinField, err)
+	}
+
+	return stdin, nil
 }
 
 func init() {

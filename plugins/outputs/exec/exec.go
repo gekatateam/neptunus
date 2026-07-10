@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -18,14 +20,24 @@ import (
 type Exec struct {
 	*core.BaseOutput `mapstructure:"-"`
 	Command          string            `mapstructure:"command"`
-	Timeout          time.Duration     `mapstructure:"timeout"`
 	Args             []string          `mapstructure:"args"`
+	StdinField       string            `mapstructure:"stdin_field"`
+	Dir              string            `mapstructure:"dir"`
+	Timeout          time.Duration     `mapstructure:"timeout"`
+	Envs             map[string]string `mapstructure:"envs"`
 	EnvLabels        map[string]string `mapstructure:"envlabels"`
+
+	envs []string
 }
 
 func (o *Exec) Init() error {
 	if len(o.Command) == 0 {
 		return errors.New("command required")
+	}
+
+	o.envs = append(o.envs, os.Environ()...)
+	for k, v := range o.Envs {
+		o.envs = append(o.envs, k+"="+v)
 	}
 
 	return nil
@@ -57,15 +69,32 @@ func (o *Exec) Run() {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
-
-		cmd := exec.CommandContext(ctx, o.Command, args...)
-		cmd.Env = append(cmd.Env, os.Environ()...)
-		cmd.Env = append(cmd.Env, envs...)
-
-		if err := cmd.Run(); err != nil {
-			o.Log.Error("command execution failed",
+		stdin, err := o.unpackStdin(e)
+		if err != nil {
+			o.Log.Error("command stdin preparation failed",
 				"error", err,
+				elog.EventGroup(e),
+			)
+			o.Done <- e
+			o.Observe(metrics.EventFailed, time.Since(now))
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
+		cmd := exec.CommandContext(ctx, o.Command, args...)
+		cmd.Env = slices.Concat(o.envs, envs)
+		cmd.Dir = o.Dir
+
+		if len(stdin) > 0 {
+			cmd.Stdin = strings.NewReader(stdin)
+		}
+
+		out, err := cmd.CombinedOutput()
+		cancel()
+
+		if err != nil {
+			o.Log.Error("command execution failed",
+				"error", fmt.Errorf("%w: %v", err, string(out)),
 				elog.EventGroup(e),
 			)
 			o.Observe(metrics.EventFailed, time.Since(now))
@@ -77,7 +106,6 @@ func (o *Exec) Run() {
 		}
 
 		o.Done <- e
-		cancel()
 	}
 }
 
@@ -139,6 +167,24 @@ func (o *Exec) unpackArgs(e *core.Event) ([]string, error) {
 	}
 
 	return args, nil
+}
+
+func (o *Exec) unpackStdin(e *core.Event) (string, error) {
+	if len(o.StdinField) == 0 {
+		return "", nil
+	}
+
+	field, err := e.GetField(o.StdinField)
+	if err != nil {
+		return "", fmt.Errorf("%v: %w", o.StdinField, err)
+	}
+
+	stdin, err := convert.AnyToString(field)
+	if err != nil {
+		return "", fmt.Errorf("%v: %w", o.StdinField, err)
+	}
+
+	return stdin, nil
 }
 
 func init() {
