@@ -52,11 +52,24 @@ type PipeRuntime struct {
 	LastError string `toml:"last_error" yaml:"last_error" json:"last_error"`
 }
 
-type PipeVars map[string]any
+type (
+	PipeVars  map[string]any
+	Plugin    map[string]any
+	PluginSet map[string]Plugin
+)
 
-type PluginSet map[string]Plugin
-
-type Plugin map[string]any
+func PluginToPluginSet(plugin Plugin) PluginSet {
+	set := make(PluginSet, len(plugin))
+	for key, value := range plugin {
+		cfg, ok := value.(map[string]any)
+		if !ok {
+			set[key] = Plugin{}
+			continue
+		}
+		set[key] = Plugin(cfg)
+	}
+	return set
+}
 
 func (p Plugin) Id() uint64 {
 	if rawId, ok := p[KeyPluginId]; ok {
@@ -167,7 +180,7 @@ func (p Plugin) Filters() PluginSet {
 	if !ok {
 		return nil
 	}
-	var filters = make(PluginSet, len(filtersSet))
+	filters := make(PluginSet, len(filtersSet))
 	for key, value := range filtersSet {
 		filterCfg, ok := value.(map[string]any)
 		if !ok {

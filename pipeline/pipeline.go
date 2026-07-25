@@ -24,6 +24,7 @@ import (
 	"github.com/gekatateam/neptunus/plugins/core/fanout"
 	"github.com/gekatateam/neptunus/plugins/core/lookup"
 	"github.com/gekatateam/neptunus/plugins/core/mixer"
+	"github.com/gekatateam/neptunus/plugins/core/not"
 	"github.com/gekatateam/neptunus/plugins/core/self"
 
 	_ "github.com/gekatateam/neptunus/plugins/compressors"
@@ -786,6 +787,27 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			return nil, fmt.Errorf("unknown filter plugin in pipeline configuration: %v", plugin)
 		}
 		_filter := filterFunc()
+
+		if _, ok := _filter.(*not.Not); ok {
+			if len(filterCfg) == 0 {
+				return nil, fmt.Errorf("not filter requires at least one child filter")
+			}
+
+			notFilters, err := p.configureFilters(config.PluginToPluginSet(filterCfg), fmt.Sprintf("not::%v", parentName))
+			if err != nil {
+				return nil, fmt.Errorf("wrapped: %w", err)
+			}
+
+			for i, f := range notFilters {
+				notFilters[i] = &not.Not{
+					BaseFilter: reflect.ValueOf(f).Elem().FieldByName(core.KindFilter).Interface().(*core.BaseFilter),
+					Filter:     f,
+				}
+			}
+
+			filters = append(filters, notFilters...)
+			continue
+		}
 
 		var alias = fmt.Sprintf("filter:%v::%v", plugin, parentName)
 		if len(filterCfg.Alias()) > 0 {

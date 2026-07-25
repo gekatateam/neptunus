@@ -1,6 +1,6 @@
 # Configuration
 
-Neptunus configuration files are written using `json`, `yaml`, or `toml`.
+Neptunus configuration files are written using `json`, `yaml`, or `toml` (but we recommend to use `toml`, at least for pipelines).
 
 ## Daemon
 
@@ -211,7 +211,41 @@ In one line events move sequentially, from processor to processor, according to 
 
 After processors, events are cloned to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
 
-Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters. Each filter can be reversed using `reverse` parameter. If it's `true`, rejected events goes to accept flow, and accepted events goes to reject.
+Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters. 
+
+The old way to reverse filter is `reverse` parameter. If it is `true`, rejected events goes to accept flow, and accepted events goes to reject.
+
+The modern way to do it is `not` wrapper:
+```toml
+[[processors]]
+  [processors.through.filters.not.noerrors]
+  [processors.through.filters.not.globs]
+    labels = { "CATCH_PHRASE" = "*" }
+```
+
+Also, you can use any filter twice - with and without wrapper:
+```toml
+[[processors]]
+  [processors.through.filters.not.globs]
+    labels = { "CATCH_PHRASE" = "*" }
+  [processors.through.filters.globs]
+    labels = { "SYSTEM" = "*" }
+```
+
+Well, we should say, that in other formats it is a bit ugly:
+```yaml
+processors:
+  - through:
+      filters:
+        not:
+          globs:
+            labels:
+              CATCH_PHRASE: '*'
+          noerrors: {}
+        globs:
+          labels:
+            SYSTEM: '*'
+```
 
 In inputs and outputs case rejected event will be removed from the pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
 
