@@ -25,10 +25,16 @@ def process(event):
     '''
 
 [[processors]]
-  [processors.exec]
-    command = "powershell.exe"
-    envs = [ "CATCH_PHRASE" ]
-    args = ["args"]
+  [processors.log]
+    level = "info"
+    [processors.log.filters.not.noerrors]
+    [processors.log.filters.glob]
+      labels = { "CATCH_PHRASE" = "*" }
+    [processors.log.filters.not.glob]
+      labels = { "ANY" = "*" }
+    [processors.log.serializer]
+      type = "json"
+      data_only = false
 
 
 [[outputs]]
