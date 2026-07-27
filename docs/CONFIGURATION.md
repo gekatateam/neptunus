@@ -247,6 +247,8 @@ processors:
             SYSTEM: '*'
 ```
 
+The `not` wrapper has another benefit - it correctly handles metrics from child filter. If filter accepts event, rejected events counter is incremented, and vice versa.
+
 In inputs and outputs case rejected event will be removed from the pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/). One plugin can have only one parser and one serializer.

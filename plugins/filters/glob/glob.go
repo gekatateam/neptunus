@@ -1,7 +1,6 @@
 package glob
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gobwas/glob"
@@ -13,50 +12,17 @@ import (
 
 type Glob struct {
 	*core.BaseFilter `mapstructure:"-"`
-	RK               []string            `mapstructure:"routing_key"`
-	Fields           map[string][]string `mapstructure:"fields"`
-	Labels           map[string][]string `mapstructure:"labels"`
+	RK               []glob.Glob            `mapstructure:"routing_key"`
+	Fields           map[string][]glob.Glob `mapstructure:"fields"`
+	Labels           map[string][]glob.Glob `mapstructure:"labels"`
 
 	noGlobs bool
-	rk      []glob.Glob
-	fields  map[string][]glob.Glob
-	labels  map[string][]glob.Glob
 }
 
 func (f *Glob) Init() error {
 	if len(f.Fields) == 0 && len(f.Labels) == 0 && len(f.RK) == 0 {
 		f.Log.Warn("no globs for routing key, fields and labels found")
 		f.noGlobs = true
-	}
-	f.fields = make(map[string][]glob.Glob, len(f.Fields))
-	f.labels = make(map[string][]glob.Glob, len(f.Labels))
-
-	for _, value := range f.RK {
-		glob, err := glob.Compile(value)
-		if err != nil {
-			return fmt.Errorf("routing key glob %v compilation failed: %w", value, err)
-		}
-		f.rk = append(f.rk, glob)
-	}
-
-	for key, values := range f.Fields {
-		for _, value := range values {
-			glob, err := glob.Compile(value)
-			if err != nil {
-				return fmt.Errorf("field glob %v:%v compilation failed: %w", key, value, err)
-			}
-			f.fields[key] = append(f.fields[key], glob)
-		}
-	}
-
-	for key, values := range f.Labels {
-		for _, value := range values {
-			glob, err := glob.Compile(value)
-			if err != nil {
-				return fmt.Errorf("label glob %v:%v compilation failed: %w", key, value, err)
-			}
-			f.labels[key] = append(f.labels[key], glob)
-		}
 	}
 
 	return nil
@@ -86,14 +52,14 @@ func (f *Glob) match(e *core.Event) bool {
 	}
 
 	// check routing key
-	if len(f.rk) > 0 {
-		if !f.matchAny(f.rk, e.RoutingKey) {
+	if f.RK != nil {
+		if !f.matchAny(f.RK, e.RoutingKey) {
 			return false
 		}
 	}
 
 	// check labels
-	for key, globs := range f.labels {
+	for key, globs := range f.Labels {
 		// if event doesn't have label, reject it
 		label, ok := e.GetLabel(key)
 		if !ok {
@@ -106,7 +72,7 @@ func (f *Glob) match(e *core.Event) bool {
 	}
 
 	// check fields
-	for key, globs := range f.fields {
+	for key, globs := range f.Fields {
 		// if event doesn't have field, reject it
 		fieldRaw, err := e.GetField(key)
 		if err != nil {

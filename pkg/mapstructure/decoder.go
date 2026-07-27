@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/gobwas/glob"
 	"kythe.io/kythe/go/util/datasize"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -21,6 +22,7 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 		ToByteSizeHookFunc(),
 		ToRuneHookFunc(),
 		ToRegexpHookFunc(),
+		ToGlobHookFunc(),
 		ToSQLIsolationLevelHookFunc(),
 	)
 
@@ -120,6 +122,21 @@ func ToRegexpHookFunc() mapstructure.DecodeHookFunc {
 		switch f.Kind() {
 		case reflect.String:
 			return regexp.Compile(data.(string))
+		default:
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
+		}
+	}
+}
+
+func ToGlobHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeFor[glob.Glob]() {
+			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			return glob.Compile(data.(string))
 		default:
 			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}

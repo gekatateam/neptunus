@@ -58,19 +58,6 @@ type (
 	PluginSet map[string]Plugin
 )
 
-func PluginToPluginSet(plugin Plugin) PluginSet {
-	set := make(PluginSet, len(plugin))
-	for key, value := range plugin {
-		cfg, ok := value.(map[string]any)
-		if !ok {
-			set[key] = Plugin{}
-			continue
-		}
-		set[key] = Plugin(cfg)
-	}
-	return set
-}
-
 func (p Plugin) Id() uint64 {
 	if rawId, ok := p[KeyPluginId]; ok {
 		if id, ok := rawId.(uint64); ok {
@@ -232,6 +219,19 @@ func (p Plugin) Decompressor() (Plugin, string) {
 	}
 
 	return decompressor, decompressorName
+}
+
+func (p Plugin) ToSet() PluginSet {
+	set := make(PluginSet, len(p))
+	for key, value := range p {
+		cfg, ok := value.(map[string]any)
+		if !ok {
+			set[key] = Plugin{}
+			continue
+		}
+		set[key] = Plugin(cfg)
+	}
+	return set
 }
 
 func SetPipelineDefaults(settings *PipeSettings) {

@@ -793,16 +793,13 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 				return nil, fmt.Errorf("not filter requires at least one child filter")
 			}
 
-			notFilters, err := p.configureFilters(config.PluginToPluginSet(filterCfg), fmt.Sprintf("not::%v", parentName))
+			notFilters, err := p.configureFilters(filterCfg.ToSet(), fmt.Sprintf("not::%v", parentName))
 			if err != nil {
 				return nil, fmt.Errorf("wrapped: %w", err)
 			}
 
 			for i, f := range notFilters {
-				notFilters[i] = &not.Not{
-					BaseFilter: reflect.ValueOf(f).Elem().FieldByName(core.KindFilter).Interface().(*core.BaseFilter),
-					Filter:     f,
-				}
+				notFilters[i] = &not.Not{Filter: f}
 			}
 
 			filters = append(filters, notFilters...)
