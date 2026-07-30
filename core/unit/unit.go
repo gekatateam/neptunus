@@ -139,12 +139,15 @@ func registerChan(ch <-chan *core.Event, p any, desc metrics.ChanDesc, kind stri
 		e = "::" + strings.Join(extra, "::")
 	}
 
+	plugin := pluginPlugin(p, kind)
+	alias := pluginAlias(p, kind) + e
+
 	return func() metrics.ChanStats {
 		return metrics.ChanStats{
 			Capacity:   cap(ch),
 			Length:     len(ch),
-			Plugin:     pluginPlugin(p, kind),
-			Name:       pluginAlias(p, kind) + e,
+			Plugin:     plugin,
+			Name:       alias,
 			Descriptor: desc,
 		}
 	}
