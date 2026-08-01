@@ -799,7 +799,10 @@ func (p *Pipeline) configureFilters(filtersSet config.PluginSet, parentName stri
 			}
 
 			for i, f := range notFilters {
-				notFilters[i] = &not.Not{Filter: f}
+				notFilters[i] = &not.Not{
+					BaseFilter: reflect.ValueOf(f).Elem().FieldByName(core.KindFilter).Interface().(*core.BaseFilter),
+					Filter:     f,
+				}
 			}
 
 			filters = append(filters, notFilters...)

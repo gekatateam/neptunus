@@ -1,7 +1,6 @@
 package not
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/gekatateam/neptunus/core"
@@ -14,8 +13,6 @@ type Not struct {
 }
 
 func (n *Not) SetChannels(in <-chan *core.Event, rejected chan<- *core.Event, accepted chan<- *core.Event) {
-	n.BaseFilter = reflect.ValueOf(n.Filter).Elem().FieldByName(core.KindFilter).Interface().(*core.BaseFilter)
-
 	observeFunc := n.BaseFilter.Obs
 	n.BaseFilter.Obs = func(plugin, name, pipeline string, status metrics.EventStatus, t time.Duration) {
 		switch status {
