@@ -12,13 +12,14 @@ require (
 
 require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/muir/sqltoken v0.1.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bufbuild/protocompile v0.14.1
@@ -84,7 +85,7 @@ require (
 	github.com/elastic/go-lumber v0.1.1
 	github.com/gekatateam/mappath v1.3.0
 	github.com/go-chi/chi/v5 v5.2.1
-	github.com/go-sql-driver/mysql v1.9.1
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/go-task/slim-sprig/v3 v3.0.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
@@ -106,6 +107,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.8.24
 	github.com/thanhpk/randstr v1.0.6
 	github.com/urfave/cli/v2 v2.27.6
+	github.com/vinovest/sqlx v1.7.2
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.starlark.net v0.0.0-20250318223901-d9371fef63fe
 	golang.org/x/net v0.54.0

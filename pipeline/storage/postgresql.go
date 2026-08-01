@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	pgxstd "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
+	"github.com/vinovest/sqlx"
 
 	"github.com/gekatateam/neptunus/config"
 	"github.com/gekatateam/neptunus/pipeline"

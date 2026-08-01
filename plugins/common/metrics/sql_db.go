@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/vinovest/sqlx"
 
 	"github.com/gekatateam/neptunus/metrics"
 )

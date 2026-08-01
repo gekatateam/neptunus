@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/vinovest/sqlx"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/go-sql-driver/mysql"
