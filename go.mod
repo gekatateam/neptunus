@@ -12,6 +12,7 @@ require (
 
 require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/muir/sqltoken v0.1.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
@@ -95,7 +96,6 @@ require (
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jhump/protoreflect/v2 v2.0.0-beta.2
-	github.com/jmoiron/sqlx v1.4.0
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/opensearch-project/opensearch-go/v3 v3.1.0
 	github.com/prometheus/prometheus v0.304.0
