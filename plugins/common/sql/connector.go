@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/vinovest/sqlx"
 
 	"github.com/gekatateam/neptunus/plugins/common/tls"
 )
