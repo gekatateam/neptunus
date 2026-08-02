@@ -6,6 +6,7 @@ require (
 	github.com/gekatateam/dynamic-level-handler v1.0.1
 	github.com/gekatateam/protomap v0.2.1
 	github.com/google/uuid v1.6.0
+	github.com/sijms/go-ora/v3 v3.0.1
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 )
@@ -104,7 +105,6 @@ require (
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/segmentio/kafka-go v0.4.47
-	github.com/sijms/go-ora/v2 v2.8.24
 	github.com/thanhpk/randstr v1.0.6
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/vinovest/sqlx v1.7.2
