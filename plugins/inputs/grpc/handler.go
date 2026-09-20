@@ -1,4 +1,4 @@
-package dynamicgrpc
+package grpc
 
 import (
 	"context"
