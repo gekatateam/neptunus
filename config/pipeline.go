@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -335,5 +336,5 @@ func jsonUnmarshalNumberStrict(dec *jsontext.Decoder, val *any) error {
 		return fmt.Errorf("cannot parse number: %s; int, uint, float failed", string(v))
 	}
 
-	return json.SkipFunc
+	return errors.ErrUnsupported
 }
