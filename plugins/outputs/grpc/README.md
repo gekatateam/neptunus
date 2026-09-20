@@ -1,6 +1,6 @@
-# Dynamic gRPC Output Plugin
+# gRPC Output Plugin
 
-The `dynamic_grpc` (or just `grpc`) output can produce events using unary RPCs or client streams in client mode, and produce events to subscribers through server streams in server mode.
+The `grpc` output can produce events using unary RPCs or client streams in client mode, and produce events to subscribers through server streams in server mode.
 
 ## Client mode
 
@@ -26,7 +26,7 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
 ## Configuration
 ```toml
 [[outputs]]
-  [outputs.dynamic_grpc]
+  [outputs.grpc]
     # plugin mode
     # "AsClient" or "AsServer"
     mode = "AsClient"
@@ -39,17 +39,17 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
 
     # static headers that will be used on each RPC
     # used only in client mode
-    [outputs.dynamic_grpc.headers]
+    [outputs.grpc.headers]
       authorization = "@{envs:BEARER_TOKEN}"
 
     # a "header <- label name" map
     # if event label exists, it will be added to RPC as a header
     # if "headers" already has same one, it will be overwritten
     # used only in client mode
-    [outputs.dynamic_grpc.headerlabels]
+    [outputs.grpc.headerlabels]
       x-ratelimit-limit = "x-ratelimit-limit"
 
-    [outputs.dynamic_grpc.client]
+    [outputs.grpc.client]
       # server address, see more info about uri schemes
       # https://grpc.github.io/grpc/core/md_doc_naming.html
       address = "sandbox-invest-public-api.domain.net:443"
@@ -112,7 +112,7 @@ Each event will be encoded using [protomap](https://github.com/gekatateam/protom
       # use TLS but skip chain & host verification
       tls_insecure_skip_verify = false
 
-    [outputs.dynamic_grpc.server]
+    [outputs.grpc.server]
       # address and port to host HTTP/2 listener on
       address = ":9900"
 
