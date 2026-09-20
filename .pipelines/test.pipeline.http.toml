@@ -1,18 +1,18 @@
 [settings]
   id = "test.pipeline.http"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
 
 [[inputs]]
   [inputs.http]
     enable_metrics = true
-    address = ":9100"
+    address = "192.168.0.104:9100"
     max_connections = 10
     query_params_to = "."
     wait_for_delivery = true
-    paths = [ "/pipelines/{id}/stop", "/pipelines/{id}/start" ]
-    methods = [ "POST" ]
+    paths = [ "/pipelines/{id}/stop", "/pipelines/{id}/start", "/external/get/tester" ]
+    allowed_methods = [ "POST", "GET" ]
     path_values = [ "id" ]
     id_from = "label:id"
   [inputs.http.parser]
