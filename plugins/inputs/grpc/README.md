@@ -1,11 +1,11 @@
-# Dynamic gRPC Input Plugin
+# gRPC Input Plugin
 
-The `dynamic_grpc` (or just `grpc`) input can read server stream as a client or receive unary calls/client streams as a server. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
+The `grpc` input can read server stream as a client or receive unary calls/client streams as a server. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
 
 ## Configuration
 ```toml
 [[inputs]]
-  [inputs.dynamic_grpc]
+  [inputs.grpc]
     # plugin mode, "ServerSideStream" or "AsServer"
     mode = "ServerSideStream"
 
@@ -24,7 +24,7 @@ The `dynamic_grpc` (or just `grpc`) input can read server stream as a client or 
     wait_for_delivery = false
 
     # procedures to call/listen
-    [[inputs.dynamic_grpc.procedures]]
+    [[inputs.grpc.procedures]]
       # name MUST be server stream in "ServerSideStream" mode
       # and MUST be unary/client stream in "AsServer" mode
       name = 'public.invest.api.contract.v1.MarketDataStreamService.MarketDataServerSideStream'
@@ -57,12 +57,12 @@ The `dynamic_grpc` (or just `grpc`) input can read server stream as a client or 
 
     # a "label name <- header" map
     # if received message header exists, it will be saved as configured label
-    [inputs.dynamic_grpc.labelheaders]
+    [inputs.grpc.labelheaders]
       x-ratelimit-limit = "x-ratelimit-limit"
 
     # gRPC client settings
     # used in "ServerSideStream" mode
-    [inputs.dynamic_grpc.client]
+    [inputs.grpc.client]
       # server address, see more info about uri schemes
       # https://grpc.github.io/grpc/core/md_doc_naming.html
       address = "sandbox-invest-public-api.domain.net:443"
@@ -100,7 +100,7 @@ The `dynamic_grpc` (or just `grpc`) input can read server stream as a client or 
 
     # gRPC server settings
     # used in "AsServer" mode
-    [inputs.dynamic_grpc.server]
+    [inputs.grpc.server]
       # address and port to host HTTP/2 listener on
       address = ":9900"
 

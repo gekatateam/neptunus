@@ -1,4 +1,4 @@
-package dynamicgrpc
+package grpc
 
 // as CLIENT:
 // - if unary - send every event
@@ -423,7 +423,7 @@ func (o *DynamicGRPC) descriptorForClient(name protoreflect.FullName) (protorefl
 }
 
 func init() {
-	p := func() core.Output {
+	plugins.AddOutput("grpc", func() core.Output {
 		return &DynamicGRPC{
 			Client: Client{
 				SuccessCodes:  []int32{0},
@@ -456,13 +456,5 @@ func init() {
 				},
 			},
 		}
-	}
-
-	plugins.AddOutput("dynamic_grpc", func() core.Output {
-		return p()
-	})
-
-	plugins.AddOutput("grpc", func() core.Output {
-		return p()
 	})
 }
