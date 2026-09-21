@@ -1,20 +1,20 @@
 # Configuration
 
-Neptunus configuration files are written using `json`, `yaml`, or `toml` (but we recommend to use `toml`, at least for pipelines).
+Neptunus configuration files are written in `json`, `yaml`, or `toml` (but we recommend using `toml`, at least for pipelines).
 
 ## Daemon
 
-The daemon part configures Neptunus app and pipelines engine.
+The daemon section configures the Neptunus application and pipeline engine.
 
-You can also use environment variables in daemon config with `${MY_VAR}` syntax. Please note than replacement occurs before file parsing.
+You can also use environment variables in the daemon configuration with the `${MY_VAR}` syntax. Please note that replacement occurs before the file is parsed.
 
-**Common** section used for low-level settings:
+The **Common** section is used for low-level settings:
  - **graceful_timeout**: timeout in seconds for graceful shutdown.
- - **log_level**: Logging level, global setting for all application, accepts `debug`, `info`, `warn` and `error`.
- - **log_format**: Logging format, supports `pretty`, `logfmt` and `json` formats.
+ - **log_level**: Logging level, a global setting for the entire application. Accepts `debug`, `info`, `warn`, and `error`.
+ - **log_format**: Logging format. Supports `pretty`, `logfmt`, and `json`.
  - **http_port**: Address for the HTTP API server. See more in the [API documentation](API.md).
- - **log_fields**: A map of fields, that will be added to each log entry.
- - **log_replaces**: A map of `regexp = replacer` pairs; all matched substrings in log message will be replaced; it may help to avoid logging sensitive data, e.g. authorization tokens.
+ - **log_fields**: A map of fields that will be added to each log entry.
+ - **log_replaces**: A map of `regexp = replacer` pairs. All matching substrings in a `message` will be replaced. This may help avoid logging sensitive data, such as authorization tokens.
 
 Here is a common part example:
 ```toml
@@ -31,7 +31,7 @@ Here is a common part example:
     'Bearer \w+' = "<BEARER TOKEN>"
 ```
 
-**Runtime** settings may help in ephemeral runtimes, like Kubernetes with [VPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/#scaling-workloads-vertically), where you can't directly set your app resources and limits:
+The **Runtime** settings may be useful in ephemeral environments, such as Kubernetes with [VPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/#scaling-workloads-vertically), where you cannot directly set your application's resource requests and limits:
  - **gcpercent**: [Garbage collection target percentage](https://pkg.go.dev/runtime/debug#SetGCPercent). Only used if not empty, value must be a percentage, e.g. `25%` or `75%`.
  - **memlimit**: [Soft memory limit](https://pkg.go.dev/runtime/debug#SetMemoryLimit). Only used if not empty, value can be a percentage from available memory (e.g. `25%` or `75%`) or an absolute (for example, `1GiB` or `512MiB`).
  - **maxthreads**: [The maximum number of operating system threads that the Go program can use](https://pkg.go.dev/runtime/debug#SetMaxThreads). Only used if greater than zero, integer value.
@@ -45,14 +45,14 @@ Here is a common part example:
   maxprocs = 4
 ```
 
-**Engine** section used for pipelines engine settings:
+The **Engine** section is used for pipelines engine settings:
  - **storage**: What kind of storage will be used.
- - **fail_fast**: Fail on startup, if any pipeline returns error.
- - **async_start**: If true, engine will start all pipelines asynchronously at startup. Otherwise, it will start them sequentially, one after another.
+ - **fail_fast**: Whether to fail on startup if any pipeline returns an error.
+ - **async_start**: If true, the engine starts all pipelines asynchronously at startup. Otherwise, it starts them sequentially, one after another.
 
 ### FS storage
 
-FS storage uses the file system to load, save and update pipelines:
+FS storage uses the file system to load, save, and update pipelines:
  - **directory**: Path to the directory where the pipelines files are stored.
  - **extension**: File extension to use. New files will be created with the specified extension, and existing files with a different extension will be ignored.
 
@@ -68,15 +68,15 @@ This is the default storage for the engine:
 
 ### PostgreSQL storage
 
-PostgreSQL storage uses configured database as pipelines source:
+PostgreSQL storage uses the configured database as a pipelines source:
  - **instance**: Neptunus instance name. It MUST be unique for each instance using the same database.
  - **dsn**: Connection string. See details [here](https://pkg.go.dev/github.com/jackc/pgx/v4#ConnConfig) (for TLS configuration too). 
- - **username** & **password**: Authentication credentials. Always takes precedence over ones provided in DSN.
- - **migrate**: Should engine run migration scripts on startup. 
+ - **username** & **password**: Authentication credentials. These always take precedence over credentials provided in the DSN.
+ - **migrate**: Whether the engine should run migration scripts on startup.
 
-This storage provides locking functionality to the engine - each instance captures the pipeline lock using instance name and pipeline id as the key. Pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
+This storage provides locking functionality to the engine: each instance acquires a pipeline lock using the instance name and pipeline ID as the key. A pipeline cannot be deleted or updated while it has active locks. All locks associated with a specific instance are removed at startup if **migrate** is `true`.
 
-Minimalistic example:
+Minimal example:
 ```toml
 [engine]
   storage = "postgresql"
@@ -90,14 +90,14 @@ Minimalistic example:
 <details>
   <summary>How to manage pipelines with locks:</summary>
   
-  If you run neptunus in Kubernetes or similar runtime and you need to manage pipelines without stop, update and start your pods, you can create your own event bus for it. Here is an examples based on RabbitMQ - how to [handle stop/start requests](examples/selfmanage.consume.toml) and how to [broadcast it to all running engines](examples/selfmanage.process.toml).
+  If you run Neptunus in Kubernetes or a similar environment and need to manage pipelines without stopping, updating, and restarting your pods, you can create your own event bus for this purpose. Here is an example based on RabbitMQ that shows how to [handle stop/start requests](examples/selfmanage.consume.toml) and [broadcast them to all running engines](examples/selfmanage.process.toml).
 
-  You can use it to stop and start pipeline in all replicas by one pseudo-API call to `selfmanage.consume` HTTP server. However, deploy, update or delete operations should still be performed through the main API.
+  You can use it to stop and start a pipeline on all replicas with a single pseudo-API call to the `selfmanage.consume` HTTP server. However, deployment, update, and deletion operations should still be performed through the main API.
 </details>
 
 ## Pipeline
 
-Typical pipeline consists of at least one input, at least one output and, not necessarily, processors. This is how it works:
+A typical pipeline consists of at least one input, at least one output, and optionally, processors. This is how it works:
 
 <table>
 <tr>
@@ -170,16 +170,16 @@ Typical pipeline consists of at least one input, at least one output and, not ne
 > [!NOTE]  
 > Configuration examples are shown in the form accepted/returned by the [CLI utility](CLI.md). A form in which the configuration is stored may be different.
 
-Pipeline settings are not directly related to events processing, these parameters are needed for the engine:
+Pipeline settings are not directly related to event processing. These parameters are needed by the engine:
  - **id** - Pipeline identifier. Must be unique within a storage.
  - **lines** - Number of parallel streams of pipeline processors. This can be useful in cases where events are consumed and produced faster than they are transformed in a single stream.
- - **run** - Should engine starts pipeline at daemon startup.
- - **buffer** - Buffer size of plugins channels.
- - **consistency** - Pipeline consistency mode; `soft` by default, other mods will be added in future releases.
- - **log_level** - Pipeline log level. Overrides an application log level setting for concrete pipeline and it's plugins.
+ - **run** - Whether the engine should start the pipeline at daemon startup.
+ - **buffer** - The buffer size of plugin channels.
+ - **consistency** - Pipeline consistency mode (you can ignore it); `soft` by default. Other modes will be added in future releases.
+ - **log_level** - Pipeline log level. Overrides the application log level for the specified pipeline and its plugins.
 
-> [!IMPORTANT]
-> Processors scaling can reduce performance if the lines cumulatively process events faster than outputs can send them (due to channels buffer overflow). You should test this thoroughly before using it in production.  
+> [!IMPORTANT]  
+> Scaling processors can reduce performance if the lines collectively process events faster than the outputs can send them (due to channel buffer overflow). You should test this thoroughly before using it in production.
 
 Settings example:
 ```toml
@@ -205,15 +205,15 @@ There are three types of first-order plugins:
  - [Processor plugins](../plugins/processors/) transform events.
  - [Output plugins](../plugins/outputs/) produce events to external systems.
 
-Inputs works independently and send consumed events to the processors stage. If multiple lines configured, events are distributed between streams.
+Inputs work independently and send consumed events to the processors stage. If multiple lines are configured, events are distributed among the streams.
 
-In one line events move sequentially, from processor to processor, according to an order in configuration. In multi-line configuration, it may be useful to understand which line an event passed through - just add [line processor](../plugins/processors/line/) in pipeline.
+In a single line, events move sequentially from processor to processor, according to their order in the configuration. In a multi-line configuration, it may be useful to know which line an event passed through; just add the [line processor](../plugins/processors/line/) to the pipeline.
 
-After processors, events are cloned to each output. For better performance, you can configure multiple identical outputs and filter events by label from line processor.
+After the processors stage, events are cloned for each output. For better performance, you can configure multiple identical outputs and filter events by the label from the line processor.
 
-Inputs, processors and outputs can have [Filter plugins](../plugins/filters/) for events routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters. 
+Inputs, processors, and outputs can have [Filter plugins](../plugins/filters/) for event routing. Each plugin can have only one unique filter, and there is no guarantee of the order in which events pass through the filters.
 
-The old way to reverse filter is `reverse` parameter. If it is `true`, rejected events goes to accept flow, and accepted events goes to reject.
+The old way to reverse a filter is to use the `reverse` parameter. If it is `true`, rejected events go to the accept flow, and accepted events go to the reject flow.
 
 The modern way to do it is `not` wrapper:
 ```toml
@@ -247,13 +247,13 @@ processors:
             SYSTEM: '*'
 ```
 
-The `not` wrapper has another benefit - it correctly handles metrics from child filter. If filter accepts event, rejected events counter is incremented, and vice versa.
+The `not` wrapper has another benefit: it correctly handles metrics from the child filter. If that filter accepts an event, the rejected-events counter is incremented, and vice versa.
 
-In inputs and outputs case rejected event will be removed from the pipeline. In processors case, otherwise, rejected event going to a next processor. Some processors (for example, [drop processor](../plugins/processors/drop/)) also can drop unnecessary events.
+In the case of inputs and outputs, a rejected event is removed from the pipeline. In the case of processors, a rejected event goes to the next processor instead. Some processors (for example, the [drop processor](../plugins/processors/drop/)) can also drop unnecessary events.
 
 Inputs, processors, outputs and filters may use [Parser plugins](../plugins/parsers/) and [Serializer plugins](../plugins/serializers/). One plugin can have only one parser and one serializer.
 
-[Compressors](../plugins/compressors/) and [Decompressors](../plugins/decompressors/) are used as part of the serializers and parsers configuration. Сompressor compresses data after serialization, and decompressor unpacks data before parsing:
+[Compressors](../plugins/compressors/) and [Decompressors](../plugins/decompressors/) are used as part of the serializer and parser configuration. A compressor compresses data after serialization, and a decompressor unpacks data before parsing:
 <table>
 <tr>
 <td> Decompressor </td> <td> Compressor </td>
@@ -289,7 +289,7 @@ Inputs, processors, outputs and filters may use [Parser plugins](../plugins/pars
 </tr>
 </table>
 
-A special plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference external data in plugins settings using `@{%keykeeper alias%:%key request%}` pattern:
+A special type of plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference external data in plugin settings using the `@{%keykeeper alias%:%key request%}` pattern:
 ```toml
 [[keykeepers]]
   [keykeepers.env]
@@ -300,9 +300,9 @@ A special plugins, [Keykeepers](../plugins/keykeepers/), allows you to reference
     group_id = "@{envs:NEPTUNUS_KAFKA_INPUT_CONSUMER_GROUP}"
 ```
 
-Key request format depends on concrete keykeeper.
+The key request format depends on the specific keykeeper.
 
-Keykeepers are initialized before other plugins. Also, you can use key substitutions in other keykeepers configuration if they are declared after:
+Keykeepers are initialized before other plugins. You can also use key substitutions in the configuration of other keykeepers if they are declared later:
 ```toml
 [[keykeepers]]
   [keykeepers.env]
@@ -317,7 +317,7 @@ Keykeepers are initialized before other plugins. Also, you can use key substitut
       secret_id = "@{envs:HASHICORP_VAULT_SECRET_ID}"
 ```
 
-Similar to keykeepers, but for runtime - [Lookups](../plugins/lookups/). Working in the background, lookups receive data from outside sources every `interval`. Then, you can get it using [lookup processor](../plugins/processors/lookup/). Profit? Less calls to external systems:
+Similar to keykeepers, but for runtime, [Lookups](../plugins/lookups/) work in the background and receive data from external sources at the specified `interval`. You can then retrieve it using the [lookup processor](../plugins/processors/lookup/). This reduces the number of calls to external systems:
 ```toml
 [[lookups]]
   [lookups.sql]
@@ -332,7 +332,7 @@ Similar to keykeepers, but for runtime - [Lookups](../plugins/lookups/). Working
 
 ### About plugins configuration
 
-First of all, keykeepers, lookups, inputs, processors and outputs is a list of plugins map. Here is an example in different formats:
+First of all, keykeepers, lookups, inputs, processors, and outputs are lists of plugin maps. Here are examples in different formats:
 <table>
 <tr>
 <td> Toml </td> <td> Yaml </td> <td> Json </td>
@@ -458,8 +458,8 @@ outputs:
 </tr>
 </table>
 
-It also means that the order of processors depends on their index in a list. One map in a list can contain several different plugins, but in this case their order will be random.
+This also means that the order of processors depends on their index in the list. One map in a list can contain several different plugins, but in this case their order is random.
 
-An alias can be assigned to each plugin - it will be applied to logs and metrics. Each alias must be unique across all pipeline.
+An alias can be assigned to each plugin; it will be applied to logs and metrics. Each alias must be unique across the entire pipeline.
 
-Also, you can override concrete plugin log level using `log_level` parameter. It overrides pipeline (if configured) and application level.
+You can also override a plugin's log level using the `log_level` parameter. It overrides the pipeline log level (if configured) and the application log level.

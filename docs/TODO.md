@@ -7,7 +7,7 @@
  - [x] Parser plugins
  - [x] Serializer plugins
  - [ ] Research binary data processing
- - [ ] Hard consisntency units
+ - [ ] Hard consisntency units (keep events in order)
  - [x] Path navigation through arrays and slices, e.g. `data.0.field`
 
 ## Inputs
@@ -39,7 +39,7 @@ With batching and buffering
 ## Pipeline management
  - [ ] Storages:
    - [x] File system
-   - [ ] PostgreSQL
+   - [x] PostgreSQL
    - [ ] Consul KV
 
  - [x] Pipelines manager
