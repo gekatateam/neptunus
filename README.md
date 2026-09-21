@@ -6,21 +6,21 @@ Neptunus is a data processing engine for consuming, transforming, and producing 
  - transform, enrich, and create new events,
  - and deliver events to consumers in various formats and protocols.
 
-It also can [collect](plugins/processors/stats) and [write](plugins/outputs/promremote) metrics, directly related to your processes.
+It can also [collect](plugins/processors/stats) and [write](plugins/outputs/promremote) metrics directly related to your processes.
 
-Neptunus is based on data processing pipelines - a composition of plugins:
+Neptunus is based on data processing pipelines - compositions of plugins:
  - [Inputs](plugins/inputs/) consume events from external sources
  - [Processors](plugins/processors/) transform events
- - [Outputs](plugins/outputs/) produce events to external systems
- - [Filters](plugins/filters/) route events in pipeline by conditions
+ - [Outputs](plugins/outputs/) produce events for external systems
+ - [Filters](plugins/filters/) route events in a pipeline based on conditions
  - [Parsers](plugins/parsers/) convert raw data into events
- - [Serializers](plugins/serializers/) convert events into data formats for external systems
+ - [Serializers](plugins/serializers/) convert events into formats for external systems
  - [Compressors](plugins/compressors/) compress serialized events
  - [Decompressors](plugins/decompressors/) decompress raw bytes before parsing
- - [Lookups](plugins/lookups/) retrieve data in background
+ - [Lookups](plugins/lookups/) retrieve data in the background
 
 # Configuration
-Neptunus configuration has two parts - daemon config and pipelines.
+Neptunus configuration has two parts: the daemon configuration and pipelines.
 
 See more in our [documentation](docs/CONFIGURATION.md).
 
@@ -40,18 +40,18 @@ neptunus run --config config.toml
 neptunus test --config config.toml
 ```
 
-### Get help about cli tool usage:
+### Get help about CLI tool usage:
 ```
 neptunus pipeline --help
 ```
 
 # How to build
-This project uses [Taskfile](https://taskfile.dev/) as a build tool. Out-of-the-box, there are three OS and two platform combinations: `linux`, `windows`, `darwin` and `amd64`, `arm64`. You can add more in [builds](./Taskfile.build.yaml) and [packs](./Taskfile.pack.yaml) tasks if needed. All tasks should be cross-platform, but note that they are tested only on Windows 10, Linux (Ubuntu 22.04) and MacOS 26.
+This project uses [Taskfile](https://taskfile.dev/) as a build tool. Out of the box, there are three operating systems and two platforms: `linux`, `windows`, `darwin`, `amd64`, and `arm64`. You can add more in the [builds](./Taskfile.build.yaml) and [packs](./Taskfile.pack.yaml) tasks if needed. All tasks should be cross-platform, but note that they are tested only on Windows 10, Linux (Ubuntu 22.04), and macOS 26.
 
-Then, follow simple steps:
+Then follow these simple steps:
 1. Install [Taskfile](https://github.com/go-task/task) and [go-licence-detector](https://github.com/elastic/go-licence-detector)
-2. Run `task build:{{ OS }}-{{ PLATFORM }}` to build binary
-3. Run `task build:notice` to generate NOTICE.txt file
-4. Run `task pack:{{ OS }}-{{ PLATFORM }}` to pack your build
-5. Run `task build:docker` or `task build:podman` if you need container image
-6. Finally, run `task cleanup` to remove build artifacts from file system
+2. Run `task build:{{ OS }}-{{ PLATFORM }}` to build the binary
+3. Run `task build:notice` to generate the NOTICE.txt file
+4. Run `task pack:{{ OS }}-{{ PLATFORM }}` to package your build
+5. Run `task build:docker` or `task build:podman` if you need a container image
+6. Finally, run `task cleanup` to remove build artifacts from the file system
