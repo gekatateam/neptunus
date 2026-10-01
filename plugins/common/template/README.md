@@ -1,6 +1,6 @@
 # Template Common Plugin
 
-This plugin provides wrapper over event that is good for using in [Golang templates](https://pkg.go.dev/text/template).
+This plugin provides a wrapper around an event for use in [Go templates](https://pkg.go.dev/text/template).
 
 TEvent methods:
  - `RoutingKey() string`

@@ -1,12 +1,12 @@
 # Json Parser Plugin
 
-The `json` parser plugin parses json into events data map.
+The `json` parser plugin parses JSON into an event data map.
 
-The result of this plugin depends on passed data:
- - when json object is passed, plugin produces one event
- - when array passed:
-   - if `split_array` is `true`, each entry will be produced as an event
-   - if `split_array` is `false`, plugin produces one event
+The result of this plugin depends on the input data:
+ - when a JSON object is passed, the plugin produces one event
+ - when an array is passed:
+   - if `split_array` is `true`, each entry is produced as an event
+   - if `split_array` is `false`, the plugin produces one event
 
 ## Configuration
 ```toml

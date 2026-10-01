@@ -1,9 +1,9 @@
 # Plain Parser Plugin
 
-The `plain` parser plugin saves passed data in configured field. This parser always produce one event.
+The `plain` parser plugin saves the input data in the configured field. This parser always produces one event.
 
 > [!TIP]  
-> You can save raw []byte from input as-is using `as_string=false` and `field="."` settings
+> You can save raw []byte from the input as-is by setting `as_string=false` and `field="."`.
 
 ## Configuration
 ```toml

@@ -1,4 +1,4 @@
-# JSON Serializer Plugin
+# Json Serializer Plugin
 
 The `json` serializer plugin converts events to JSON.
 
