@@ -1,6 +1,6 @@
 # Protobuf Serializer Plugin
 
-The `protobuf` serializer plugin can be used to encode event data to protobuf binary.
+The `protobuf` serializer plugin can be used to encode event data as binary Protocol Buffers.
 
 > [!CAUTION]
 > This plugin **always** accepts exactly one event, and event data **must** be `map[string]any`, `time.Time` or `time.Duration`

@@ -1,6 +1,6 @@
-# Json Serializer Plugin
+# JSON Serializer Plugin
 
-The `json` serializer plugin converts events into json.
+The `json` serializer plugin converts events to JSON.
 
 # Configuration
 ```toml
