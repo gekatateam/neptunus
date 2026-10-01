@@ -1,6 +1,6 @@
 # Noerrors Filter Plugin
 
-The `noerrors` filter accepts event only if it has no errors.
+The `noerrors` filter accepts an event only if it has no errors.
 
 ## Configuration
 ```toml
@@ -9,4 +9,4 @@ The `noerrors` filter accepts event only if it has no errors.
   [processors.through.filters.noerrors]
     reverse = false
 ```
-This plugin has no any specific configuration.
+This plugin has no specific configuration.

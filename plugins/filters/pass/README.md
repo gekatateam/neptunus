@@ -1,6 +1,6 @@
 # Pass Filter Plugin
 
-The `pass` filter accepts all events. Yes, that's all.
+The `pass` filter accepts all events. That's all.
 
 ## Configuration
 ```toml
@@ -9,4 +9,4 @@ The `pass` filter accepts all events. Yes, that's all.
   [processors.through.filters.pass]
     reverse = false
 ```
-This plugin has no any specific configuration.
+This plugin has no specific configuration.
