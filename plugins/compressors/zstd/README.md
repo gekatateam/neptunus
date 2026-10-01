@@ -1,6 +1,6 @@
 # Zstd Compressor Plugin
 
-The `zstd` compressor compress serialization result using [zstd](https://pkg.go.dev/github.com/klauspost/compress/zstd).
+The `zstd` compressor compresses the serialization result using [zstd](https://pkg.go.dev/github.com/klauspost/compress/zstd).
 
 # Configuration
 ```toml

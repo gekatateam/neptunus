@@ -1,6 +1,6 @@
 # Snappy Compressor Plugin
 
-The `snappy` compressor compress serialization result using [snappy](https://pkg.go.dev/github.com/golang/snappy).
+The `snappy` compressor compresses the serialization result using [snappy](https://pkg.go.dev/github.com/golang/snappy).
 
 # Configuration
 ```toml

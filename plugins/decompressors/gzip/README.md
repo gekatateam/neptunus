@@ -1,6 +1,6 @@
-# Gsip Decompressor Plugin
+# Gzip Decompressor Plugin
 
-The `gzip` decompressor decompress input data defore parsing stage using [gzip](https://pkg.go.dev/compress/gzip).
+The `gzip` decompressor decompresses input data before the parsing stage using [gzip](https://pkg.go.dev/compress/gzip).
 
 # Configuration
 ```toml

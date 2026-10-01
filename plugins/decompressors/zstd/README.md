@@ -1,6 +1,6 @@
 # Zstd Decompressor Plugin
 
-The `zstd` decompressor decompress input data defore parsing stage using [sztd](https://pkg.go.dev/github.com/klauspost/compress/zstd).
+The `zstd` decompressor decompresses input data before the parsing stage using [zstd](https://pkg.go.dev/github.com/klauspost/compress/zstd).
 
 # Configuration
 ```toml

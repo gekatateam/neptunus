@@ -1,6 +1,6 @@
 # Snappy Decompressor Plugin
 
-The `snappy` decompressor decompress input data defore parsing stage using [snappy](https://pkg.go.dev/github.com/golang/snappy).
+The `snappy` decompressor decompresses input data before the parsing stage using [snappy](https://pkg.go.dev/github.com/golang/snappy).
 
 # Configuration
 ```toml
