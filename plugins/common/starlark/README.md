@@ -1,10 +1,10 @@
 # Starlark Common Plugin
 
-This plugin provides [Starlark](https://github.com/google/starlark-go/blob/master/doc/spec.md) to Neptunus plugins.
+This plugin provides [Starlark](https://github.com/google/starlark-go/blob/master/doc/spec.md) support for Neptunus plugins.
 
 ## Builtin types
 
-This plugin defines new type - `event` - as Neptunus event representation in starlark code with methods referenced to [Event API](../../../docs/DATA_MODEL.md):
+This plugin defines a new type, `event`, that represents a Neptunus event in Starlark code, with methods described in the [Event API](../../../docs/DATA_MODEL.md):
  - `getId() (id String)` - get event id
  - `setId(key String)` - set event id
  - `getRK() (key String)` - get event routing key
@@ -12,10 +12,10 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `getTimestamp() (t Time)` - get event timestamp
  - `setTimestamp(t Time)` - set event timestamp
  - `setLabel(key String, value String)` - add/overwrite event label
- - `getLabel(key String) (value String|None)` - get label value by key; if label does not exist, **None** returns
+ - `getLabel(key String) (value String|None)` - get the label value by key; if the label does not exist, returns **None**
  - `delLabel(key String)` - delete label by key
- - `getField(path String) (value String|Bool|Number|Float|Dict|List|Time|Duration|None)` - get field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
- - `setField(path String, value String|Bool|Number|Float|Dict|List|Time|Duration) (error Error|None)` - set field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
+ - `getField(path String) (value String|Bool|Number|Float|Dict|List|Time|Duration|None)` - get the field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
+ - `setField(path String, value String|Bool|Number|Float|Dict|List|Time|Duration) (error Error|None)` - set the field value by path; see [type conversions](../../common/starlark/README.md#type-conversions)
  - `delField(path String)` - delete field by path
  - `addTag(tag String)` - add tag to event
  - `delTag(tag String)` - delete tag from event
@@ -23,13 +23,13 @@ This plugin defines new type - `event` - as Neptunus event representation in sta
  - `getErrors() (e List[String])` - get event errors
  - `delErrors()` - delete all errors from event
  - `getUuid() (uuid String)` - get event UUID
- - `shareTracker(receiver Event)` - share tracker with another event; **if receiver already has a tracker, method panics**
+ - `shareTracker(receiver Event)` - share the tracker with another event; **if the receiver already has a tracker, the method panics**
 
-Also, you can create a new event using `newEvent(key String) (event Event)` builtin function.
+You can also create a new event using the built-in function `newEvent(key String) (event Event)`.
 
-The other new type - `error` - represents Golang **error** type. New error may be created through `error(text String) (error Error)` function. Processing of this type depends on plugins.
+The other new type, `error`, represents the Go **error** type. A new error can be created using the `error(text String) (error Error)` function. Processing of this type depends on the plugin.
 
-You can handle runtime errors using `handle` func, that accepts starlark `Callable`. `handle` returns `error` or lambda result, if no error occured:
+You can handle runtime errors using the `handle` function, which accepts a Starlark `Callable`. `handle` returns an `error` or the lambda result if no error occurred:
 ```python
 load("date.star", "date")
 
@@ -49,14 +49,14 @@ def process(event):
  - Golang int -> Starlark Int -> Golang int64
  - Golang uint -> Starlark Int -> Golang uint64
  - Golang bool <-> Starlark Bool
- - Golang float -> Starlark Float -> Gloang float64
- - Golang []any -> Starlark List -> Gloang []any
+ - Golang float -> Starlark Float -> Golang float64
+ - Golang []any -> Starlark List -> Golang []any
  - Golang map[string]any <-> Starlark Dict
  - Golang time.Time <-> starlark Time
  - Golang time.Duration <-> starlark Duration
 
 > [!WARNING]  
-> Remember that any event method returns a **value**, not a reference. So if you need to update data, you need to do it directly.
+> Remember that every event method returns a **value**, not a reference. If you need to update data, you must do so explicitly.
 
 ```python
 # bad
@@ -77,7 +77,7 @@ def process(event):
 ## Starlark modules
 
 > [!WARNING]   
-> Modules import is allowed in any script, but import loop checks are not performed.
+> Modules can be imported from any script, but import loops are not checked.
 
 ### Embedded
 
@@ -93,7 +93,7 @@ List of embedded modules:
  - **[date](../../../pkg/starlarkdate/)** - expands `time` module with months and weekdays
  - **[log](log.go)** - provides plugin logger into code
 
-For import, call the `load()` function, after which a module functions and variables will become available for use via module struct:
+To import a module, call the `load()` function. The module's functions and variables will then become available through the module struct:
 ```python
 load("math.star",   "math")
 load("time.star",   "time")
@@ -110,7 +110,7 @@ print(time.now())
 
 ### Custom
 
-Import of custom modules is also supported. A user module is just a script with predefined functions and variables, but for better experience it is recommended to combine them into one struct:
+Custom modules can also be imported. A user module is a script with predefined functions and variables. For a better experience, it is recommended to combine them into one struct:
 ```python
 # myModule.star
 helloMessage = "hello from module"

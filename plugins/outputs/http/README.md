@@ -1,8 +1,8 @@
-# Http Output Plugin
+# HTTP Output Plugin
 
-The `http` output plugin writes events using HTTP client to configured host, but request path depends on event routing key. This plugin requires serializer.
+The `http` output plugin writes events using an HTTP client to the configured host; the request path depends on the event routing key. This plugin requires a serializer.
 
-Plugin creates one requester per each unique event routing key, with personal batch controller. By the way, HTTP client shares between requesters.
+The plugin creates one requester for each unique event routing key, with its own batch controller. The HTTP client is shared between requesters.
 
 # Configuration
 ```toml

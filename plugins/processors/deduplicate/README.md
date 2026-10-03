@@ -1,8 +1,8 @@
 # Deduplicate Processor Plugin
 
-The `deduplicate` processor plugin uses Redis to filter duplicates using configured `idempotency_key`. 
+The `deduplicate` processor plugin uses Redis to filter duplicates using the configured `idempotency_key`.
 
-Processor adds `::duplicate` label to event with with `true` value if duplicate was found, otherwise, if event has no configured label or if an error occurs during a request to Redis, it will be `false`.
+The processor adds a `::duplicate` label to the event with the value `true` if a duplicate is found. Otherwise, if the event has no configured label or an error occurs during the request to Redis, the value is `false`.
 
 ## Configuration
 ```toml

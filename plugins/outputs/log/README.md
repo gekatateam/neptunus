@@ -1,6 +1,6 @@
 # Log Output Plugin
 
-The `log` output writes events into logs at configured level. This plugin requires serializer.
+The `log` output writes events to logs at the configured level. This plugin requires a serializer.
 
 ## Configuration
 ```toml

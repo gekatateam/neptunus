@@ -1,13 +1,13 @@
 # Lookup Processor Plugin
 
-The `lookup` processor adds configured labels and fields to an event using data from configured lookup.
+The `lookup` processor adds configured labels and fields to an event using data from the configured lookup.
 
 There are several places where an error may occur:
- - when converting to a string if target is label;
- - on field set;
- - on lookup call.
+ - when converting to a string if the target is a label;
+ - when setting a field;
+ - when calling the lookup.
 
-If it happens, event will be marked as failed.
+If this happens, the event is marked as failed.
 
 ## Configuration
 

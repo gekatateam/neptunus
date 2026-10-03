@@ -2,9 +2,9 @@
 
 The `csv` parser plugin saves CSV data into one or multiple events.
 
-A few words about plugin modes.
+The plugin supports two modes.
 
-In `horizontal` mode plugin returns one event per line. For example, if your CSV data looks like this:
+In `horizontal` mode, the plugin returns one event per line. For example, if your CSV data looks like this:
 ```csv
 first_name,last_name,username
 "Rob","Pike",rob
@@ -19,7 +19,7 @@ Events will be:
 {"first_name": "Robert", "last_name": "Griesemer", "username": "gri"},
 ```
 
-In other mode, `vertical`, plugin takes `key_column` column as a map key (`username` in this example), and returns one event with body as a map of maps:
+In the other mode, `vertical`, the plugin uses the `key_column` column as a map key (`username` in this example) and returns one event whose body is a map of maps:
 ```json
 {
   "rob": {"first_name": "Rob", "last_name": "Pike"},

@@ -1,6 +1,6 @@
 # Beats Input Plugin
 
-The `beats` input plugin enables Neptunus to receive events from the [Elastic Beats](https://www.elastic.co/beats). Configure beat Logstash output to send data to this plugin.
+The `beats` input plugin enables Neptunus to receive events from [Elastic Beats](https://www.elastic.co/beats). Configure the Beats Logstash output to send data to this plugin.
 
 Plugin produces events with `beats.{{ [@metadata][beat] }}` routing key, e.g. `beats.heartbeat` or `beats.filebeat`.
 

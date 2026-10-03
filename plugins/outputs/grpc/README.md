@@ -1,6 +1,6 @@
 # gRPC Output Plugin
 
-The `grpc` output can produce events using unary RPCs or client streams in client mode, and produce events to subscribers through server streams in server mode.
+The `grpc` output can send events using unary RPCs or client streams in client mode, and can publish events to subscribers through server streams in server mode.
 
 ## Client mode
 

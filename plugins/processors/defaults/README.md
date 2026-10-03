@@ -1,6 +1,6 @@
 # Defaults Processor Plugin
 
-The `defaults` processor adds configured labels and fields to an event if they not exists. If a field adding fails, an event is marked as failed, but the fields check loop is not breaked.
+The `defaults` processor adds configured labels and fields to an event if they do not exist. If adding a field fails, the event is marked as failed, but the fields check loop is not interrupted.
 
 ## Configuration
 

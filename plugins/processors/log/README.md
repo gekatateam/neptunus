@@ -1,6 +1,6 @@
 # Log Processor Plugin
 
-The `log` processor writes events into logs at configured level. This plugin requires serializer. If event serialization fails, event will be skipped.
+The `log` processor writes events to logs at the configured level. This plugin requires a serializer. If event serialization fails, the event is skipped.
 
 ## Configuration
 ```toml

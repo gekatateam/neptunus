@@ -1,7 +1,7 @@
-# Template Serializer Plugin
-The `template_text` serializer plugin converts events into text via [Golang templates](https://pkg.go.dev/text/template). [Slim-sprig functions](https://go-task.github.io/slim-sprig/) available!
+# Template Text Serializer Plugin
+The `template_text` serializer plugin converts events to text using [Go templates](https://pkg.go.dev/text/template). [Slim-sprig functions](https://go-task.github.io/slim-sprig/) are also available.
 
-Plugin uses [wrapped events](../../common/template/README.md).
+The plugin uses [wrapped events](../../common/template/README.md).
 
 # Configuration
 ```toml

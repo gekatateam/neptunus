@@ -1,6 +1,6 @@
 # Protobuf Parser Plugin
 
-The `protobuf` parser plugin can be used to decode protobuf-encoded binary data to `map[string]any` event body. This parser always produce one event.
+The `protobuf` parser plugin can be used to decode Protocol Buffers-encoded binary data into a `map[string]any` event body. This parser always produces one event.
 
 ## Configuration
 ```toml

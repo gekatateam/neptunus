@@ -1,8 +1,8 @@
 # Cronjob Input Plugin
 
-The `cronjob` input plugin generates events using [robfig/cron](https://github.com/robfig/cron) package. Each job produces one event with `cronjob.%job name%` routing key.
+The `cronjob` input plugin generates events using the [robfig/cron](https://github.com/robfig/cron) package. Each job produces one event with `cronjob.%job name%` as its routing key.
 
-Job `schedule` param accepts expression in [used library format](https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format) with seconds in first field.
+A job's `schedule` parameter accepts an expression in the [format used by the library](https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format), with seconds in the first field.
 
 ## Configuration
 ```toml

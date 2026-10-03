@@ -1,6 +1,6 @@
-# Opensearch Output Plugin
+# OpenSearch Output Plugin
 
-The `opensearch` output plugin writes to [Opensearch](https://opensearch.org/docs/latest/) via HTTP using [Bulk API](https://opensearch.org/docs/2.11/api-reference/document-apis/bulk/).
+The `opensearch` output plugin writes to [OpenSearch](https://opensearch.org/docs/latest/) via HTTP using the [Bulk API](https://opensearch.org/docs/2.11/api-reference/document-apis/bulk/).
 
 # Configuration
 ```toml

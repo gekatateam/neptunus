@@ -8,4 +8,4 @@ The `not` filter negates the result of the underlying filter. If the underlying 
   [processors.through.filters.not.globs]
     labels = { "CATCH_PHRASE" = "*" }
 ```
-This plugin has no any specific configuration and can't be used without child filters.
+This plugin has no specific configuration and cannot be used without child filters.

@@ -1,9 +1,9 @@
 # Starlark Processor Plugin
 The `starlark` processor uses a [Starlark](../../common/starlark/README.md) script to process events.
 
-The Starlark script must have a `process` function that accepts an event and returns an event, events list, **error** or **None**. If function does not exists it is a compilation error, if it have other signature, it is a runtime error. When **error** returns, an event marked as failed and provided error adds to an event.
+The Starlark script must have a `process` function that accepts an event and returns an event, an events list, an **error**, or **None**. If the function does not exist, it is a compilation error; if it has another signature, it is a runtime error. When an **error** is returned, the event is marked as failed and the provided error is added to the event.
 
-Minimalistic example:
+Minimal example:
 ```python
 def process(event):
     return event

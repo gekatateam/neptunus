@@ -1,6 +1,6 @@
 # Exec Lookup Plugin
 
-The `exec` lookup executes configured command with args and stores the result as lookup data. This plugin requires parser and only first parsed event will be used.
+The `exec` lookup executes a configured command with its arguments and stores the result as lookup data. This plugin requires a parser, and only the first parsed event is used.
 
 ## Configuration
 ```toml

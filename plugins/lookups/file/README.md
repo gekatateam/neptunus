@@ -1,6 +1,6 @@
 # File Lookup Plugin
 
-The `file` lookup stores configured file content as a lookup data. This plugin requires parser and only first parsed event will be used.
+The `file` lookup stores the content of a configured file as lookup data. This plugin requires a parser, and only the first parsed event is used.
 
 ## Configuration
 ```toml

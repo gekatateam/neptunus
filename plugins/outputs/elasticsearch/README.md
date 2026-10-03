@@ -1,6 +1,6 @@
 # Elasticsearch Output Plugin
 
-The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) via HTTP using [Bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/docs-bulk.html).
+The `elasticsearch` output plugin writes to [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) via HTTP using the [Bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/docs-bulk.html).
 
 # Configuration
 ```toml

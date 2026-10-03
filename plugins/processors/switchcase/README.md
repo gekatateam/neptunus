@@ -1,6 +1,6 @@
 # SwitchCase Processor Plugin
 
-The `switchcase` processor allows the mapping of labels and fields between it's values.
+The `switchcase` processor allows mapping labels and fields between their values.
 
 Just like `switch-case` in Go:
 ```go

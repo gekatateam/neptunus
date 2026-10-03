@@ -1,13 +1,13 @@
 # Vault Keykeeper Plugin
 
-The `vault` keykeeper plugins allows to read configuration keys from [Hashicorp Vault](https://developer.hashicorp.com/vault). 
+The `vault` keykeeper plugin allows you to read configuration keys from [HashiCorp Vault](https://developer.hashicorp.com/vault).
 
-Key request format is `%path to secret without mount path%#%secret key%`. 
+The key request format is `%path to secret without mount path%#%secret key%`.
 
-For example, with `neptunus/kv` engine, secret path `staging/inputs` and `kafka_password` key:
- - request should be `staging/inputs#kafka_password`;
- - plugin `mount_path` parameter - `neptunus/kv`;
- - optionally, you can set `path_prefix` parameter to `staging` - without trailing and leading slashes - and write request as `inputs#kafka_password`.
+For example, with the `neptunus/kv` engine, a secret path of `staging/inputs`, and a `kafka_password` key:
+ - the request should be `staging/inputs#kafka_password`;
+ - the plugin's `mount_path` parameter should be `neptunus/kv`;
+ - optionally, you can set the `path_prefix` parameter to `staging` (without leading or trailing slashes) and write the request as `inputs#kafka_password`.
 
 # Configuration
 ```toml

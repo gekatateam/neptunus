@@ -1,6 +1,6 @@
 # Env Keykeeper Plugin
 
-The `env` keykeeper allows to get configuration keys from environment variables.
+The `env` keykeeper retrieves configuration keys from environment variables.
 
 ## Configuration
 ```toml

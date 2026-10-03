@@ -1,6 +1,6 @@
 # gRPC Input Plugin
 
-The `grpc` input can read server stream as a client or receive unary calls/client streams as a server. Each received message will be decoded using [protomap](https://github.com/gekatateam/protomap) to exactly one event, which routing key is a full name of procedure.
+The `grpc` input can read a server-side stream as a client or receive unary calls and client streams as a server. Each received message is decoded using [protomap](https://github.com/gekatateam/protomap) into exactly one event, whose routing key is the full name of the procedure.
 
 ## Configuration
 ```toml

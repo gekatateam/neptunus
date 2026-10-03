@@ -1,6 +1,6 @@
 # Gzip Compressor Plugin
 
-The `gzip` compressor compress serialization result using [gzip](https://pkg.go.dev/compress/gzip).
+The `gzip` compressor compresses the serialization result using [gzip](https://pkg.go.dev/compress/gzip).
 
 # Configuration
 ```toml

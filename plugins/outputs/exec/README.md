@@ -1,6 +1,6 @@
 # Exec Output Plugin
 
-The `exec` output executes configured command on each event.
+The `exec` output executes the configured command for each event.
 
 ## Configuration
 ```toml

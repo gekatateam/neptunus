@@ -1,10 +1,10 @@
-# Sql Lookup Plugin
+# SQL Lookup Plugin
 
-The `sql` lookup plugin performs SQL query for reading lookup data. This plugin is based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.  See drivers list [here](../../common/sql/DRIVERS.md).
+The `sql` lookup plugin performs an SQL query to read lookup data. This plugin is based on the [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See the list of drivers [here](../../common/sql/DRIVERS.md).
 
-A few words about plugin modes.
+The plugin supports two modes.
 
-In `horizontal` mode plugin stores query result as a list of maps. For example, if your query returns table like this:
+In `horizontal` mode, the plugin stores the query result as a list of maps. For example, if your query returns a table like this:
 | role        | description |
 | ----------- | ----------- |
 | admin       | Full access |
@@ -18,13 +18,13 @@ The lookup data will be:
 ]
 ```
 
-More classic case, `vertical`, takes `key_column` column as a map key:
+In the more common `vertical` mode, the plugin uses the `key_column` column as a map key:
 | param_name  | value       | description   |
 | ----------- | ----------- | ------------- |
 | currency    | USDT        | Main currency |
 | fee_percent | 2           | Transfer fee  |
 
-And transforms query result into map of maps:
+The plugin transforms the query result into a map of maps:
 ```json
 {
   "currency":    {"value": "USDT", "description": "Main currency"},

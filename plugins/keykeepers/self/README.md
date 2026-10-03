@@ -1,6 +1,6 @@
 # Self Keykeeper Plugin
 
-The `self` keykeeper allows to get configuration keys from pipeline `settings` and `vars`.
+The `self` keykeeper retrieves configuration keys from the pipeline's `settings` and `vars`.
 
 ## Configuration
 ```toml

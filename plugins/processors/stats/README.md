@@ -1,12 +1,12 @@
 # Stats Processor Plugin
 
-The `stats` processor calculates count, sum, average, min, max, cumulative histograms with configured `buckets` and stores field last value as gauge for each configured field and produces it as an event every `period`.
+The `stats` processor calculates counts, sums, averages, minima, maxima, and cumulative histograms with the configured `buckets`, and stores the last field value as a gauge for each configured field, producing it as an event every `period`.
 
-Plugin collects and produces stats for each combination of field name and labels values. If incoming event has no configured field or field cannot be converted to a number, field stats will not updated.
+The plugin collects and produces stats for each combination of field name and label values. If an incoming event has no configured field, or if the field cannot be converted to a number, the field stats are not updated.
 
-If `with_labels` configured and incoming event has no any configured label, event will be skipped. On the other hand, with `without_labels`, otherwise, plugin uses uses all event labels except the configured ones. **Only one parameter can be configured at the same time.**
+If `with_labels` is configured and an incoming event has no configured labels, the event is skipped. On the other hand, with `without_labels`, the plugin uses all event labels except the configured ones. **Only one parameter can be configured at the same time.**
 
-Stats stored as child fields in `stats` key.
+Stats are stored as child fields in the `stats` key.
 
 This is the format of stats event:
 ```json
@@ -32,7 +32,7 @@ This is the format of stats event:
 ```
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#internal-caches)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#internal-caches)
 
 ## Configuration
 ```toml

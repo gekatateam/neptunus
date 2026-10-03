@@ -1,18 +1,18 @@
 # Promremote Output Plugin
 
-The `promremote` plugin writes events as metrics using [Prometheus remote-write protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/).
+The `promremote` plugin writes events as metrics using the [Prometheus remote-write protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/).
 
-This plugin uses event model from [stats processor](../../processors/stats/):
- - each event must have `::name` label - which is used in `__name__` metric label
- - each event must have `stats` field, and it's type must be `map[string]number` where `number` - value, that can be converted to `float64`
+This plugin uses the event model from the [stats processor](../../processors/stats/):
+ - each event must have a `::name` label, which is used as the `__name__` metric label
+ - each event must have a `stats` field, and its type must be `map[string]number`, where `number` is a value that can be converted to `float64`
 
-For each event, plugin creates as many metrics as the number of keys contained in the `stats` field that were successfully converted to `float64`.
+For each event, the plugin creates as many metrics as the number of keys contained in the `stats` field that were successfully converted to `float64`.
 
-Each metric name creates as `%::name label value%_%stats subkey%`. All dots replaces with underscope.
+Each metric name is created as `%::name label value%_%stats subkey%`. All dots are replaced with underscores.
 
-Metric labels takes from event labels, excluding configured `ignore_labels`. 
+Metric labels are taken from the event labels, excluding the configured `ignore_labels`.
 
-Metric timestamp takes from event timestamp.
+The metric timestamp is taken from the event timestamp.
 
 For example, with event:
 ```json

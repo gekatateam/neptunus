@@ -3,9 +3,9 @@ The `starlark` filter uses a [Starlark](../../common/starlark/README.md) script 
 
 The filter uses `event`, but with **read-only** methods.
 
-Starlark script must have a `filter` function that accepts an event and returns bool or **error**. If function does not exists it is a compilation error, if it have other signature, it is a runtime error. When **error** returns, provided error added to an event and filter rejects it.
+The Starlark script must have a `filter` function that accepts an event and returns a boolean or an **error**. If the function does not exist, it is a compilation error; if it has another signature, it is a runtime error. When an **error** is returned, the error is added to the event and the filter rejects it.
 
-Minimalistic example:
+Minimal example:
 ```python
 def filter(event):
     return True

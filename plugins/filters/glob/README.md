@@ -1,9 +1,9 @@
 # Glob Filter Plugin
 
-The `glob` filter accepts event when it's routing key, labels and fields mathes configured globs. 
+The `glob` filter accepts an event when its routing key, labels, and fields match the configured globs.
 
-All labels must exist and match any glob, all fields must exist, be a string and match any glob, finally, event routing key must match any glob, otherwise the event will be rejected.  
-If label or field not mentioned in configuration, if `routing_key` is empty, it's not checking.
+All labels must exist and match at least one glob. All fields must exist, be strings, and match at least one glob. Finally, the event's routing key must match at least one glob; otherwise, the event will be rejected.
+If a label or field is not mentioned in the configuration, or if `routing_key` is empty, it is not checked.
 
 Glob syntax is similar to [standard wildcards](https://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm).
 

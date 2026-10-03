@@ -1,6 +1,6 @@
-# Env Keykeeper Plugin
+# FS Keykeeper Plugin
 
-The `fs` keykeeper allows to get configuration keys from files.
+The `fs` keykeeper retrieves configuration keys from files.
 
 ## Configuration
 ```toml
