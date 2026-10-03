@@ -1,15 +1,15 @@
 # Http Input Plugin
 
-The `http` input plugin serves requests on configured address. This plugin requires parser.
+The `http` input plugin serves requests on the configured address. This plugin requires a parser.
 
-Unlike [httpl input](../httpl/), this plugin fully reads request body before parsing stage, and also takes into account URL-encoded request params.
+Unlike the [httpl input](../httpl/), this plugin fully reads the request body before the parsing stage and also takes URL-encoded request parameters into account.
 
-Plugin behaviour can be configured using `on_*` params.
+The plugin's behavior can be configured using `on_*` parameters.
 
-This plugin produce events with routing key as request path (or matched pattern if `paths` configured), `server` label with configured address, `sender` label with request RemoteAddr address and `method` with request HTTP method.
+This plugin produces events with the request path as the routing key (or the matched pattern if `paths` is configured), a `server` label containing the configured address, a `sender` label containing the request's `RemoteAddr`, and a `method` label containing the request's HTTP method.
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#http-server)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#http-server)
 
 ## Configuration
 ```toml

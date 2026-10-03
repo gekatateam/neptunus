@@ -1,18 +1,18 @@
 # Sql Input Plugin
 
-The `sql` input plugin performs SQL query for reading events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See drivers list [here](../../common/sql/DRIVERS.md).
+The `sql` input plugin performs an SQL query to read events. This plugin is based on the [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See the list of drivers [here](../../common/sql/DRIVERS.md).
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#db-pool)
 
 ## Poll cycle
 
-This plugin works in poll cycle:
-1. (if configured) on initialization, plugin executes `on_init` query and caches configured `keep_values`
-2. plugin executes `on_poll` query; each row is turned in an event; plugin caches configured `keep_values`
-3. (if configured) plugin waits for batch delivery and executes `on_done` query if `on_poll` was successfull
+This plugin works in poll cycles:
+1. On initialization, if configured, the plugin executes the `on_init` query and caches the configured `keep_values`.
+2. The plugin executes the `on_poll` query; each row is turned into an event, and the plugin caches the configured `keep_values`.
+3. If configured, the plugin waits for batch delivery and executes the `on_done` query if `on_poll` was successful.
 
-Next cycle will start from second step immediately or each configured `interval`.
+The next cycle starts at the second step immediately or every configured `interval`.
 
 ## TLS usage
 Drivers use plugin TLS configuration.

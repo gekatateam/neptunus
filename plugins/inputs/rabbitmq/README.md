@@ -1,10 +1,10 @@
 # RabbitMQ Input Plugin
 
-The `rabbitmq` input plugin reads from RabbitMQ queues and passes each message to configured parser. This plugin requires parser.
+The `rabbitmq` input plugin reads from RabbitMQ queues and passes each message to the configured parser. This plugin requires a parser.
 
-Each consumer uses it's own ACK queue into which each consumed message is placed. A message ACKed if all of its events hooks are called or if parser returned zero events.
+Each consumer uses its own ACK queue, into which each consumed message is placed. A message is ACKed if all of its event hooks are called or if the parser returns zero events.
 
-If ACK queue is full, consuming is suspended until at least one message is ACKed.
+If the ACK queue is full, consuming is suspended until at least one message is ACKed.
 
 ## Configuration
 ```toml

@@ -1,15 +1,15 @@
 # Kafka Input Plugin
 
-The `kafka` input plugin reads from Kafka and passes each message to configured parser. This plugin requires parser.
+The `kafka` input plugin reads from Kafka and passes each message to the configured parser. This plugin requires a parser.
 
-Each reader uses it's own commit queue into which each fetched message is placed. Every `commit_interval` fetch process paused and queue scanning for uncommitted ready sequence from oldest to newest messages. Largest offset found from the beginning of the queue will be committed.
+Each reader uses its own commit queue, into which each fetched message is placed. At every `commit_interval`, fetching is paused and the queue is scanned for the sequence of messages ready to be committed from oldest to newest. The largest offset found from the beginning of the queue is committed.
 
-A message is marked as ready to commit if all of its events hooks are called or if parser returned zero events.
+A message is marked as ready to commit if all of its event hooks are called or if the parser returns zero events.
 
-If commit queue is full, fetching is suspended until at least one message is committed.
+If the commit queue is full, fetching is suspended until at least one message is committed.
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-consumer)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#kafka-consumer)
 
 ## Configuration
 ```toml

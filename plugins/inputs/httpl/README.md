@@ -1,13 +1,13 @@
 # Httpl Input Plugin
 
-The `httpl` input plugin serves requests on configured address and streams request body to parser line by line, so, unlike [http input](../http/), this plugin is good for streaming. This plugin requires parser.
+The `httpl` input plugin serves requests on the configured address and streams the request body to the parser line by line. Unlike the [http input](../http/), this plugin is suitable for streaming. This plugin requires a parser.
 
-If all body parsed without errors, plugin returns `200 OK` with `accepted events: N` body. If reading error occures, plugin returns `500 Internal Server Error`, if parsing error occures, it's `400 Bad Request`.
+If the entire body is parsed without errors, the plugin returns `200 OK` with an `accepted events: N` body. If a read error occurs, the plugin returns `500 Internal Server Error`; if a parsing error occurs, it returns `400 Bad Request`.
 
-This plugin produce events with routing key as request path, `server` label with configured address and `sender` label with request RemoteAddr address.
+This plugin produces events with the request path as the routing key, a `server` label containing the configured address, and a `sender` label containing the request's `RemoteAddr`.
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#http-server)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#http-server)
 
 ## Configuration
 ```toml
