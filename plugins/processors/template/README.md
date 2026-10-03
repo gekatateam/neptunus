@@ -1,10 +1,10 @@
 # Template Processor Plugin
 
-The `template` processor uses [Golang templates](https://pkg.go.dev/text/template) to modify/create event Id, routing key, labels and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) available!
+The `template` processor uses [Go templates](https://pkg.go.dev/text/template) to modify or create the event ID, routing key, labels, and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) are available.
 
-Plugin uses [wrapped events](../../common/template/README.md).
+The plugin uses [wrapped events](../../common/template/README.md).
 
-If template execution or field setting fails, event is marked as failed, but other templates execution continues.
+If template execution or field setting fails, the event is marked as failed, but execution continues for the other templates.
 
 ## Configuration
 ```toml

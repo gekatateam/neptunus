@@ -1,10 +1,10 @@
-# Http Processor Plugin
+# HTTP Processor Plugin
 
-The `http` processor plugin performs HTTP requests for each event. This plugin requires parser and serializer.
+The `http` processor plugin performs HTTP requests for each event. This plugin requires a parser and a serializer.
 
-Unlike [HTTP output](../../outputs/http/README.md), this plugin uses configured label as a request path (it's optional, btw), not event routing key.
+Unlike the [HTTP output](../../outputs/http/README.md), this plugin uses a configured label as the request path (it is optional), not the event routing key.
 
-Please note, that in multiline configuration HTTP client is shared between processors in set.
+Please note that in multiline configuration, the HTTP client is shared between processors in the set.
 
 # Configuration
 ```toml

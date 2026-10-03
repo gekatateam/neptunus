@@ -7,4 +7,4 @@ The `drop` processor drops all events.
 [[processors]]
   [processors.drop]
 ```
-This plugin has no any specific configuration.
+This plugin has no specific configuration.

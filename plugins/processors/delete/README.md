@@ -1,6 +1,6 @@
 # Delete Processor Plugin
 
-The `delete` processor deletes events labels and fields.
+The `delete` processor deletes event labels and fields.
 
 ## Configuration
 ```toml

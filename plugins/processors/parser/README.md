@@ -1,6 +1,6 @@
 # Parser Processor Plugin
 
-The `parser` processor parses string or bytes slice field into (new) event(s). This plugin requires a parser in it's configuration.
+The `parser` processor parses a string or byte-slice field into origin or into new events. This plugin requires a parser.
 
 ## Configuration
 ```toml

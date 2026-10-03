@@ -1,10 +1,10 @@
 # Converter Processor Plugin
 
-The `converter` processor converts fields and labels from one type to another. 
+The `converter` processor converts fields and labels from one type to another.
 
-The conversion settings may seem complicated, but let's take a closer look at them and you'll see that they are intuitive.
+The conversion settings may seem complicated, but if we look at them more closely, they are quite intuitive.
 
-Firstly, any setting is always are `%source%:%path%:%layout%`. Layout is used only for time-based sources and targets and may be omited. If layout is not set, [time.RFC3339Nano](https://pkg.go.dev/time#pkg-constants) will be used. Also, layout can be `unix`, `unix_micro` or `unix_milli` to convert time [to](https://pkg.go.dev/time#Time.Unix)/[from](https://pkg.go.dev/time#Unix) seconds, microseconds or milliseconds as unix timestamp (in case of conversion any to `unix`, nanoseconds is always zero).
+First, any setting is always of the form `%source%:%path%:%layout%`. The layout is used only for time-based sources and targets and may be omitted. If the layout is not set, [time.RFC3339Nano](https://pkg.go.dev/time#pkg-constants) is used. The layout can also be `unix`, `unix_micro`, or `unix_milli` to convert time [to](https://pkg.go.dev/time#Time.Unix)/[from](https://pkg.go.dev/time#Unix) Unix seconds, microseconds, or milliseconds (when converting any value to `unix`, nanoseconds are always zero).
 
 The source depends on path prefix:
  - `label:content-type` for label;

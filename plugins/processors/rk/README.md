@@ -1,6 +1,6 @@
 # Rk Processor Plugin
 
-The `rk` processor plugin replaces an event routing key with a new one, depending on a current value.
+The `rk` processor replaces an event routing key with a new one, depending on its current value.
 
 > [!CAUTION]
 > This plugin is deprecated and may be deleted in future releases. Please use [switchcase](../switchcase/) processor instead with `routing_keys` configuration

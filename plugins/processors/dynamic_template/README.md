@@ -1,15 +1,15 @@
 # Dynamic Template Processor Plugin
 
-The `dynamic_template` processor evaluates [Golang templates](https://pkg.go.dev/text/template) in configured labels and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) available!
+The `dynamic_template` processor evaluates [Go templates](https://pkg.go.dev/text/template) in the configured labels and fields. [Slim-sprig functions](https://go-task.github.io/slim-sprig/) are available.
 
-Unlike [template processor](../template/), this plugin does not use predefined templates. Instead, it uses **label or field content** as a template and replaces it by execution result.
+Unlike the [template processor](../template/), this plugin does not use predefined templates. Instead, it uses the **label or field content** as a template and replaces it with the execution result.
 
-Plugin uses [wrapped events](../../common/template/README.md).
+The plugin uses [wrapped events](../../common/template/README.md).
 
-If template execution fails, event is marked as failed, but other templates execution continues.
+If template execution fails, the event is marked as failed, but execution continues for the other templates.
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#internal-caches)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#internal-caches)
 
 ## Configuration
 ```toml

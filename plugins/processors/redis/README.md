@@ -1,10 +1,10 @@
 # Redis Processor Plugin
 
-The `redis` processor plugin executes configured `commands` in pipeline and saves it's result in `result_to` event field.
+The `redis` processor plugin executes the configured `commands` in the pipeline and saves its result in the `result_to` event field.
 
-Due to [Redis protocol spec](https://redis.io/docs/latest/develop/reference/protocol-spec/), command writes as an array of **command name** and **it's args**.
+Due to the [Redis protocol spec](https://redis.io/docs/latest/develop/reference/protocol-spec/), commands are written as an array of the **command name** and **its arguments**.
 
-You can use incoming event fields in any element of command using `{{- path.to.field -}}` syntax. Please note, that it is **not a template**, just a special pattern.
+You can use incoming event fields in any element of a command using the `{{- path.to.field -}}` syntax. Please note that it is **not a template**, but a special pattern.
 
 If field is a slice, each element will be added to command sequence. If field is a map, plugin adds each key-value pairs to command. Other fields will be used as-is.
 

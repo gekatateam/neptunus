@@ -1,6 +1,6 @@
 # Through Processor Plugin
 
-The `through` processor passes all events. Yes, that's all. Well, it can sleep, if configured.
+The `through` processor passes all events. That's all. Well, it can sleep if configured.
 
 ## Configuration
 ```toml

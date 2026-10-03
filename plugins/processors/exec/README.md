@@ -1,6 +1,6 @@
 # Exec Processor Plugin
 
-The `exec` processor executes configured command on each event.
+The `exec` processor executes the configured command for each event.
 
 ## Configuration
 ```toml

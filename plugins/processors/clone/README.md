@@ -1,6 +1,6 @@
 # Clone Processor Plugin
 
-The `clone` processor creates clone of each event with new routing key and extra labels (if configured).
+The `clone` processor creates a clone of each event with a new routing key and extra labels (if configured).
 
 ## Configuration
 ```toml
