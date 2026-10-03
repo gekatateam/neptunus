@@ -1,4 +1,4 @@
-# Sql Input Plugin
+# SQL Input Plugin
 
 The `sql` input plugin performs an SQL query to read events. This plugin is based on the [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See the list of drivers [here](../../common/sql/DRIVERS.md).
 

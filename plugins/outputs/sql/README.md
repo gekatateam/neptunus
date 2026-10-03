@@ -1,11 +1,11 @@
-# Sql Output Pluign
+# SQL Output Plugin
 
-The `sql` output plugin performs SQL query for writing events. This plugin based on [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package.  See drivers list [here](../../common/sql/DRIVERS.md).
+The `sql` output plugin performs an SQL query to write events. This plugin is based on the [jmoiron/sqlx](https://github.com/jmoiron/sqlx) package. See the list of drivers [here](../../common/sql/DRIVERS.md).
 
-Plugin creates one producer per each unique event routing key. An event routing key may be used as a table name using `table_placeholder` parameter.
+The plugin creates one producer for each unique event routing key. An event routing key may be used as a table name via the `table_placeholder` parameter.
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#db-pool)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#db-pool)
 
 ## TLS usage
 Drivers use plugin TLS configuration.

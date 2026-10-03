@@ -1,12 +1,12 @@
 # Kafka Output Plugin
-The `kafka` output plugin produces events to Kafka. This plugin requires serializer.
+The `kafka` output plugin produces events to Kafka. This plugin requires a serializer.
 
-Target topic name takes from an event routing key. Plugin creates one writer per topic.
+The target topic name is taken from the event routing key. The plugin creates one writer per topic.
 
-Each event will be serialized into a individual message, `batch_*` settings controls **messages** batching.
+Each event is serialized into an individual message; the `batch_*` settings control **messages** batching.
 
 > [!TIP]  
-> This plugin may write it's own [metrics](../../../docs/METRICS.md#kafka-producer)
+> This plugin may write its own [metrics](../../../docs/METRICS.md#kafka-producer)
 
 ## Configuration
 ```toml

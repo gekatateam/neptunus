@@ -1,9 +1,9 @@
 # RabbitMQ Output Plugin
-The `rabbitmq` output plugin publish events to RabbitMQ. This plugin requires serializer.
+The `rabbitmq` output plugin publishes events to RabbitMQ. This plugin requires a serializer.
 
-Target exchange takes from an event routing key. Plugin creates one publisher per exchange. **All mesages will be published as non-mandatory and non-immediately!**
+The target exchange is taken from the event routing key. The plugin creates one publisher per exchange. **All messages will be published as non-mandatory and non-immediate!**
 
-Each event will be serialized into a individual message, `batch_*` settings controls **messages** batching.
+Each event is serialized into an individual message; the `batch_*` settings control **messages** batching.
 
 ## Configuration
 ```toml
