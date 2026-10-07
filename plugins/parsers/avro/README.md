@@ -1,20 +1,35 @@
 # Avro Parser Plugin
 
-The `avro` parser plugin saves passed data in configured field. This parser always produce one event.
+The `avro` parser plugin decodes Avro binary data into event data. The Avro schema must be provided in the parser configuration. Only `record`, `map`, and `array` schemas are supported at the top level.
 
-> [!TIP]  
-> You can save raw []byte from input as-is using `as_string=false` and `field="."` settings
+The result depends on the top-level schema:
+ - when a record or map is passed, the plugin produces one event
+ - when an array is passed:
+   - if `split_array` is `true`, each entry is produced as an event
+   - if `split_array` is `false`, the entire array is produced as one event
 
 ## Configuration
 ```toml
 [[inputs]]
   [inputs.http]
   [inputs.http.parser]
-    type = "plain"
+    type = "avro"
 
-    # if true, []byte will be converted to string
-    as_string = true
+    
+    split_array = true
 
-    # field path to saved content
-    field = "event"
+
+    schema = '''
+    {
+      "type": "array",
+      "items": {
+        "type": "record",
+        "name": "User",
+        "fields": [
+          {"name": "name", "type": "string"},
+          {"name": "age", "type": "int"}
+        ]
+      }
+    }
+    '''
 ```
