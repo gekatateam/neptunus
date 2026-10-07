@@ -14,11 +14,10 @@ The result depends on the top-level schema:
   [inputs.http]
   [inputs.http.parser]
     type = "avro"
-
-    
     split_array = true
 
-
+    # avro schema in json format
+    # only `record`, `map`, and `array` schemas are supported at the top level
     schema = '''
     {
       "type": "array",
