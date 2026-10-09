@@ -29,6 +29,7 @@ require (
 	github.com/klauspost/compress v1.18.3
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/opensearch-project/opensearch-go/v3 v3.1.0
+	github.com/prathyushnallamothu/ollamago v1.0.1-0.20251126103611-fde5787d132d
 	github.com/prometheus/prometheus v0.304.0
 	github.com/qri-io/starlib v0.5.0
 	github.com/rabbitmq/amqp091-go v1.13.0

@@ -14,6 +14,7 @@ import (
 	_ "github.com/gekatateam/neptunus/plugins/processors/log"
 	_ "github.com/gekatateam/neptunus/plugins/processors/lookup"
 	_ "github.com/gekatateam/neptunus/plugins/processors/mixer"
+	_ "github.com/gekatateam/neptunus/plugins/processors/ollama"
 	_ "github.com/gekatateam/neptunus/plugins/processors/parser"
 	_ "github.com/gekatateam/neptunus/plugins/processors/redis"
 	_ "github.com/gekatateam/neptunus/plugins/processors/regex"

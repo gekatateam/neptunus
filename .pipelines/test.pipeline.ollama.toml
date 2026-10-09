@@ -1,0 +1,36 @@
+[settings]
+  id = "test.pipeline.ollama"
+  lines = 1
+  run = true
+  buffer = 1_000
+  log_level = "debug"
+
+[[keykeepers]]
+  [keykeepers.env]
+    alias = "envs"
+
+[[inputs]]
+  [inputs.http]
+    address = ":9100"
+    max_connections = 10
+    wait_for_delivery = true
+    tls_enable = false
+  [inputs.http.parser]
+    type = "json"
+    split_array = false
+
+[[processors]]
+  [processors.ollama]
+    host = "https://ollama.com"
+    model = "gpt-oss:20b"
+    token = "@{envs:OLLAMA_TOKEN}"
+    system_prompt = "You are a helpful assistant."
+    prompt_from = "prompt"
+    response_to = "ollama.response"
+
+[[outputs]]
+  [outputs.log]
+    level = "info"
+    [outputs.log.serializer]
+      type = "json"
+      data_only = false
