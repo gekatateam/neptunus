@@ -68,7 +68,7 @@ func (p *Avro) Parse(data []byte, routingKey string) ([]*core.Event, error) {
 			p.Observe(metrics.EventFailed, time.Since(now))
 			return nil, err
 		}
-		println(body)
+
 		events = append(events, core.NewEventWithData(routingKey, body))
 		p.Observe(metrics.EventAccepted, time.Since(now))
 	}
