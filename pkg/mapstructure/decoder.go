@@ -3,6 +3,7 @@ package mapstructure
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"reflect"
 	"regexp"
 	"time"
@@ -23,6 +24,7 @@ func Decode(input any, output any, hooks ...mapstructure.DecodeHookFunc) error {
 		ToRuneHookFunc(),
 		ToRegexpHookFunc(),
 		ToGlobHookFunc(),
+		ToURLHookFunc(),
 		ToSQLIsolationLevelHookFunc(),
 	)
 
@@ -166,6 +168,21 @@ func ToSQLIsolationLevelHookFunc() mapstructure.DecodeHookFunc {
 				return level, nil
 			}
 			return nil, fmt.Errorf("unknown tx isolation level: %s", data.(string))
+		default:
+			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
+		}
+	}
+}
+
+func ToURLHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
+		if t != reflect.TypeFor[*url.URL]() {
+			return data, nil
+		}
+
+		switch f.Kind() {
+		case reflect.String:
+			return url.ParseRequestURI(data.(string))
 		default:
 			return nil, fmt.Errorf(unknownTypeErrorFormat, f, t)
 		}

@@ -19,8 +19,8 @@ import (
 
 type Http struct {
 	*core.BaseLookup `mapstructure:"-"`
-	Host             string            `mapstructure:"host"`
-	Fallbacks        []string          `mapstructure:"fallbacks"`
+	Host             *url.URL          `mapstructure:"host"`
+	Fallbacks        []*url.URL        `mapstructure:"fallbacks"`
 	Method           string            `mapstructure:"method"`
 	Timeout          time.Duration     `mapstructure:"timeout"`
 	IdleConnTimeout  time.Duration     `mapstructure:"idle_conn_timeout"`
@@ -37,15 +37,13 @@ type Http struct {
 	body         []byte
 	headers      http.Header
 	successCodes map[int]struct{}
-	baseUrl      *url.URL
-	fallbacks    []*url.URL
 
 	client *http.Client
 	parser core.Parser
 }
 
 func (l *Http) Init() error {
-	if len(l.Host) == 0 {
+	if l.Host == nil {
 		return errors.New("host required")
 	}
 
@@ -64,22 +62,9 @@ func (l *Http) Init() error {
 		l.headers.Set(k, v)
 	}
 
-	uri, err := url.ParseRequestURI(l.Host)
-	if err != nil {
-		return err
-	}
-	l.baseUrl = uri
-	l.baseUrl.RawQuery = l.RequestQuery
-
-	l.fallbacks = make([]*url.URL, 0, len(l.Fallbacks))
+	l.Host.RawQuery = l.RequestQuery
 	for _, f := range l.Fallbacks {
-		uri, err := url.ParseRequestURI(f)
-		if err != nil {
-			return fmt.Errorf("fallback %v: %w", f, err)
-		}
-
-		uri.RawQuery = l.RequestQuery
-		l.fallbacks = append(l.fallbacks, uri)
+		f.RawQuery = l.RequestQuery
 	}
 
 	successCodes := map[int]struct{}{}
@@ -138,14 +123,14 @@ func (l *Http) Update() (any, error) {
 }
 
 func (l *Http) performWithFallback() ([]byte, error) {
-	rawResponse, err := l.perform(l.baseUrl, l.Method, l.body, l.headers)
+	rawResponse, err := l.perform(l.Host, l.Method, l.body, l.headers)
 
-	if err != nil && len(l.fallbacks) > 0 {
+	if err != nil && len(l.Fallbacks) > 0 {
 		l.Log.Warn("request failed, trying to perform to fallback",
 			"error", err,
 		)
 
-		for _, f := range l.fallbacks {
+		for _, f := range l.Fallbacks {
 			rawResponse, err = l.perform(f, l.Method, l.body, l.headers)
 			if err == nil {
 				l.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f.String()))
