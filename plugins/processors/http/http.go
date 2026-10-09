@@ -24,8 +24,8 @@ var clientStorage = sharedstorage.New[*http.Client, uint64]()
 
 type Http struct {
 	*core.BaseProcessor `mapstructure:"-"`
-	Host                string         `mapstructure:"host"`
-	Fallbacks           []string       `mapstructure:"fallbacks"`
+	Host                *url.URL       `mapstructure:"host"`
+	Fallbacks           []*url.URL     `mapstructure:"fallbacks"`
 	Method              string         `mapstructure:"method"`
 	Timeout             time.Duration  `mapstructure:"timeout"`
 	IdleConnTimeout     time.Duration  `mapstructure:"idle_conn_timeout"`
@@ -49,8 +49,6 @@ type Http struct {
 
 	headers      http.Header
 	successCodes map[int]struct{}
-	baseUrl      *url.URL
-	fallbacks    []*url.URL
 	id           uint64
 
 	client *http.Client
@@ -59,7 +57,7 @@ type Http struct {
 }
 
 func (p *Http) Init() error {
-	if len(p.Host) == 0 {
+	if p.Host == nil {
 		return errors.New("host required")
 	}
 
@@ -74,22 +72,6 @@ func (p *Http) Init() error {
 	p.headers = make(http.Header, len(p.Headers))
 	for k, v := range p.Headers {
 		p.headers.Set(k, v)
-	}
-
-	uri, err := url.ParseRequestURI(p.Host)
-	if err != nil {
-		return err
-	}
-	p.baseUrl = uri
-
-	p.fallbacks = make([]*url.URL, 0, len(p.Fallbacks))
-	for _, f := range p.Fallbacks {
-		uri, err := url.ParseRequestURI(f)
-		if err != nil {
-			return fmt.Errorf("fallback %v: %w", f, err)
-		}
-
-		p.fallbacks = append(p.fallbacks, uri)
 	}
 
 	successCodes := map[int]struct{}{}
@@ -280,14 +262,14 @@ func (p *Http) Run() {
 }
 
 func (p *Http) performWithFallback(path, method string, params url.Values, body []byte, header http.Header) ([]byte, http.Header, int, error) {
-	rawResponse, headers, statusCode, err := p.perform(p.baseUrl.JoinPath(path), method, params, body, header)
+	rawResponse, headers, statusCode, err := p.perform(p.Host.JoinPath(path), method, params, body, header)
 
-	if err != nil && len(p.fallbacks) > 0 {
+	if err != nil && len(p.Fallbacks) > 0 {
 		p.Log.Warn("request failed, trying to perform to fallback",
 			"error", err,
 		)
 
-		for _, f := range p.fallbacks {
+		for _, f := range p.Fallbacks {
 			rawResponse, headers, statusCode, err = p.perform(f.JoinPath(path), method, params, body, header)
 			if err == nil {
 				p.Log.Warn(fmt.Sprintf("request to %v succeeded, but it is still a fallback", f.String()))

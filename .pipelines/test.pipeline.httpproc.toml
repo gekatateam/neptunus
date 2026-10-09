@@ -1,7 +1,7 @@
 [settings]
   id = "test.pipeline.httpproc"
   lines = 1
-  run = false
+  run = true
   buffer = 1_000
   log_level = "debug"
 
@@ -31,7 +31,7 @@
     retry_after = "1s"
     tls_enable = true
     method_label = "method"
-    success_codes = [ 500 ]
+    success_codes = [ 200 ]
 #    success_body = "sunt aut"
     response_body_to = "typicode.body"
     response_code_to = "typicode.code"

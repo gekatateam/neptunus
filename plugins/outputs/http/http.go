@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,9 +17,9 @@ import (
 
 type Http struct {
 	*core.BaseOutput `mapstructure:"-"`
-	Host             string         `mapstructure:"host"`
+	Host             *url.URL       `mapstructure:"host"`
 	Method           string         `mapstructure:"method"`
-	Fallbacks        []string       `mapstructure:"fallbacks"`
+	Fallbacks        []*url.URL     `mapstructure:"fallbacks"`
 	Timeout          time.Duration  `mapstructure:"timeout"`
 	IdleConnTimeout  time.Duration  `mapstructure:"idle_conn_timeout"`
 	MaxIdleConns     int            `mapstructure:"max_idle_conns"`
@@ -40,15 +39,13 @@ type Http struct {
 	requestersPool *pool.Pool[*core.Event, string]
 	headers        http.Header
 	successCodes   map[int]struct{}
-	providedUri    *url.URL
-	fallbacks      []*url.URL
 
 	client *http.Client
 	ser    core.Serializer
 }
 
 func (o *Http) Init() error {
-	if len(o.Host) == 0 {
+	if o.Host == nil {
 		return errors.New("host required")
 	}
 
@@ -63,23 +60,6 @@ func (o *Http) Init() error {
 	o.headers = make(http.Header, len(o.Headers))
 	for k, v := range o.Headers {
 		o.headers.Set(k, v)
-	}
-
-	uri, err := url.ParseRequestURI(o.Host)
-	if err != nil {
-		return err
-	}
-
-	o.providedUri = uri
-
-	o.fallbacks = make([]*url.URL, 0, len(o.Fallbacks))
-	for _, f := range o.Fallbacks {
-		uri, err := url.ParseRequestURI(f)
-		if err != nil {
-			return fmt.Errorf("fallback %v: %w", f, err)
-		}
-
-		o.fallbacks = append(o.fallbacks, uri)
 	}
 
 	if o.Batcher.Buffer <= 0 {
@@ -173,12 +153,12 @@ func (o *Http) newRequester(path string) pool.Runner[*core.Event] {
 }
 
 func (o *Http) uriFromRoutingKey(rk string) *url.URL {
-	return o.providedUri.JoinPath(rk)
+	return o.Host.JoinPath(rk)
 }
 
 func (o *Http) fallbacksFromRoutingKey(rk string) []*url.URL {
-	u := make([]*url.URL, 0, len(o.fallbacks))
-	for _, f := range o.fallbacks {
+	u := make([]*url.URL, 0, len(o.Fallbacks))
+	for _, f := range o.Fallbacks {
 		u = append(u, f.JoinPath(rk))
 	}
 	return u

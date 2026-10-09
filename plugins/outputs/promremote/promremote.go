@@ -35,8 +35,8 @@ var basicHeaders http.Header = http.Header{
 
 type Promremote struct {
 	*core.BaseOutput `mapstructure:"-"`
-	Host             string            `mapstructure:"host"`
-	Fallbacks        []string          `mapstructure:"fallbacks"`
+	Host             *url.URL          `mapstructure:"host"`
+	Fallbacks        []*url.URL        `mapstructure:"fallbacks"`
 	Timeout          time.Duration     `mapstructure:"timeout"`
 	IdleConnTimeout  time.Duration     `mapstructure:"idle_conn_timeout"`
 	IgnoreLabels     []string          `mapstructure:"ignore_labels"`
@@ -53,24 +53,12 @@ type Promremote struct {
 }
 
 func (o *Promremote) Init() error {
-	if len(o.Host) == 0 {
+	if o.Host == nil {
 		return errors.New("host required")
 	}
 
 	if o.StatsPerEvent <= 0 {
 		o.StatsPerEvent = typicalStatsCount
-	}
-
-	_, err := url.ParseRequestURI(o.Host)
-	if err != nil {
-		return err
-	}
-
-	for _, f := range o.Fallbacks {
-		_, err := url.ParseRequestURI(f)
-		if err != nil {
-			return fmt.Errorf("fallback %v: %w", f, err)
-		}
 	}
 
 	tlsConfig, err := o.TLSClientConfig.Config()
@@ -270,9 +258,9 @@ func (o *Promremote) writeWithFallback(body []byte, header http.Header) error {
 	return err
 }
 
-func (o *Promremote) write(host string, body []byte, header http.Header) error {
+func (o *Promremote) write(uri *url.URL, body []byte, header http.Header) error {
 	return o.Retryer.Do("write metrics batch", o.Log, func() error {
-		req, err := http.NewRequest(http.MethodPost, host, bytes.NewReader(body))
+		req, err := http.NewRequest(http.MethodPost, uri.String(), bytes.NewReader(body))
 		if err != nil {
 			return err
 		}
