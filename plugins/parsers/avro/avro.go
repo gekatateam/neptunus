@@ -28,10 +28,10 @@ func (p *Avro) Init() error {
 	p.schema = s
 
 	switch s.Type() {
-		case avro.Record, avro.Map, avro.Array:
-			p.topType = s.Type()
-		default:
-			return fmt.Errorf("top-level type must be record, map or array, got %v", s.Type())
+	case avro.Record, avro.Map, avro.Array:
+		p.topType = s.Type()
+	default:
+		return fmt.Errorf("top-level type must be record, map or array, got %v", s.Type())
 	}
 
 	return nil
