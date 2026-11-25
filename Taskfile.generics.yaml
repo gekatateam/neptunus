@@ -8,6 +8,7 @@ tasks:
     cmds:
     - cmd: |
         export GOEXPERIMENT="{{ .NEPTUNUS_BUILD_GOEXPERIMENT }}"
+        export CGO_ENABLED=0
         go test ./... -v
 
   build:
@@ -26,6 +27,7 @@ tasks:
         export GOEXPERIMENT="{{ .NEPTUNUS_BUILD_GOEXPERIMENT }}"
         export GOOS="{{ .NEPTUNUS_BUILD_GOOS }}"
         export GOARCH="{{ .NEPTUNUS_BUILD_GOARCH }}"
+        export CGO_ENABLED=0
         go build \
           -ldflags="-X main.Version={{ .NEPTUNUS_BUILD_VERSION }}" \
           -o {{ .NEPTUNUS_BUILD_DIR }}/{{ .NEPTUNUS_BUILD_GOOS }}-{{ .NEPTUNUS_BUILD_GOARCH }}-{{ .NEPTUNUS_BUILD_VERSION }} \

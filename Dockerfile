@@ -10,7 +10,7 @@ WORKDIR /build
 
 COPY . . 
 
-RUN GOEXPERIMENT=$NEPTUNUS_GOEXPERIMENT go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
+RUN GOEXPERIMENT=$NEPTUNUS_GOEXPERIMENT CGO_ENABLED=0 go build -ldflags="-X 'main.Version=$NEPTUNUS_VERSION'" -o /neptunus ./cmd/neptunus
 
 ### create final image
 FROM alpine:3
