@@ -36,6 +36,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/segmentio/kafka-go v0.4.47
+	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/sijms/go-ora/v3 v3.0.1
 	github.com/thanhpk/randstr v1.0.6
 	github.com/urfave/cli/v2 v2.27.6

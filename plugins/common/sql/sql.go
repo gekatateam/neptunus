@@ -16,6 +16,7 @@ import (
 	pgxstd "github.com/jackc/pgx/v5/stdlib"
 	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
+	oralegacy "github.com/sijms/go-ora/v2"
 	ora "github.com/sijms/go-ora/v3"
 )
 
@@ -96,6 +97,20 @@ func OpenDB(driverName, dsn, user, pass string, tlsConfig *tls.Config) (*sqlx.DB
 
 		driverName = "ora" // https://github.com/Vinovest/sqlx/blob/main/bind.go#L28
 		oraConnector := ora.NewConnector(u.String()).(*ora.OracleConnector)
+		oraConnector.WithTLSConfig(tlsConfig)
+		db = sql.OpenDB(oraConnector)
+	case "oraclelegacy", "oralegacy", "goraclelegacy":
+		u, err := url.Parse(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("%v: %w", driverName, err)
+		}
+
+		if len(user) > 0 && len(pass) > 0 {
+			u.User = url.UserPassword(user, pass)
+		}
+
+		driverName = "ora" // https://github.com/Vinovest/sqlx/blob/main/bind.go#L28
+		oraConnector := oralegacy.NewConnector(u.String()).(*oralegacy.OracleConnector)
 		oraConnector.WithTLSConfig(tlsConfig)
 		db = sql.OpenDB(oraConnector)
 	default:
